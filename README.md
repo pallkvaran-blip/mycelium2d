@@ -9,7 +9,14 @@ This repository is **Phase 1**: the basic-action backbone, fully playable, with
 come in later phases). It is built with the production architecture so later
 phases extend it rather than replace it.
 
-## Running it
+## Play it (hosted)
+
+Every push to the development branch auto-deploys the single-file build to
+GitHub Pages via `.github/workflows/pages.yml` (no manual setup):
+
+**https://pallkvaran-blip.github.io/mycelium2d/**
+
+## Running it locally
 
 The game is vanilla JS using **ES modules**, so it must be served over HTTP
 (browsers block `import` over `file://`). From the repo root:

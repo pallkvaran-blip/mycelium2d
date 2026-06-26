@@ -1,0 +1,52 @@
+name: Deploy game to GitHub Pages
+
+# Builds the single-file bundle and publishes it to GitHub Pages on every push
+# to the development branch. The first run auto-enables Pages (enablement: true),
+# so there is nothing to toggle in repo settings.
+
+on:
+  push:
+    branches:
+      - claude/mycelium-phase-1-build-urvq5e
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build single-file bundle (dist/)
+        run: node build.mjs
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site (dist/)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
