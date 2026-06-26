@@ -1,0 +1,2428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🍄</text></svg>" />
+<title>Mycelium — Phase 1</title>
+<meta name="description" content="A 2D roguelike engine-builder themed on the life of a fungal colony — steer, defend, and fruit a living mycelial network." />
+<style>
+:root {
+      --bg: #05070d;
+      --panel: rgba(16, 22, 34, 0.86);
+      --panel-border: rgba(120, 160, 140, 0.18);
+      --ink: #d7e6dc;
+      --ink-dim: #8aa193;
+      --accent: #7fe6a3;
+      --accent-dim: #3a6f50;
+      --warn: #e0a85a;
+      --danger: #e06a6a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink);
+      user-select: none; -webkit-user-select: none; }
+    #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
+    #ui { position: fixed; inset: 0; pointer-events: none; }
+    #ui > * { pointer-events: auto; }
+
+    .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
+      border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+    .title { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; color: var(--ink);
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .title .sub { color: var(--accent); font-weight: 400; font-size: 11px; }
+    .title.clickable { cursor: pointer; }
+    .title .chev { margin-left: auto; color: var(--ink-dim); font-size: 11px; }
+    .title .warn { color: var(--warn); font-size: 10px; font-weight: 400; }
+
+    /* HUD */
+    .hud { top: 14px; left: 14px; min-width: 210px; }
+    .hud .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+    .stat { display: flex; justify-content: space-between; align-items: baseline; }
+    .stat .k { color: var(--ink-dim); font-size: 11px; }
+    .stat .v { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; }
+    .vitality { margin-top: 10px; }
+    .vitality .k { color: var(--ink-dim); font-size: 11px; }
+    .vitality .bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-top: 3px; }
+    .vitality .fill { height: 100%; width: 100%; transition: width 0.4s ease, background 0.4s; }
+    .traits { display: flex; gap: 6px; margin-top: 10px; }
+    .traits .tr { font-size: 11px; color: var(--ink-dim); background: rgba(255,255,255,0.05);
+      padding: 2px 7px; border-radius: 6px; }
+    .traits .tr.on { color: var(--accent); background: rgba(127,230,163,0.12); }
+    .traits .tr b { color: var(--ink); margin-left: 2px; }
+
+    /* Action bar */
+    .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;
+      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+    .btn { font-family: inherit; color: var(--ink); background: rgba(40,54,48,0.8);
+      border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+      font-size: 13px; transition: background 0.15s, border 0.15s, transform 0.05s; white-space: nowrap; }
+    .btn:hover:not(:disabled) { background: rgba(60,84,72,0.95); }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .btn.selected { border-color: var(--accent); background: rgba(127,230,163,0.18);
+      box-shadow: 0 0 0 1px var(--accent) inset; }
+    .btn .cost { color: var(--accent); font-size: 11px; margin-left: 4px; }
+    .btn .lvl { color: var(--ink-dim); font-size: 11px; }
+    .btn.end { background: rgba(70,90,120,0.85); }
+    .btn.restart { background: rgba(70,60,90,0.7); }
+    .expr-group { display: flex; gap: 4px; align-items: center; background: rgba(255,255,255,0.04);
+      border-radius: 8px; padding: 4px 6px; }
+    .expr-group .group-label { color: var(--ink-dim); font-size: 11px; margin-right: 2px; }
+    .expr-group .btn.trait { padding: 6px 8px; font-size: 12px; }
+    .ctrl { display: flex; gap: 8px; }
+
+    .hint { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; color: var(--ink-dim); background: rgba(10,14,22,0.7); padding: 5px 12px;
+      border-radius: 14px; max-width: 80vw; text-align: center; }
+
+    /* Legend */
+    .legend { top: 168px; left: 14px; width: 210px; }
+    .legend.collapsed .legend-body { display: none; }
+    .legend-body { display: flex; flex-direction: column; gap: 4px; }
+    .legend .li { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-dim); }
+    .legend .sw { width: 14px; height: 12px; border-radius: 3px; display: inline-block; flex: none;
+      border: 1px solid rgba(255,255,255,0.15); }
+    .legend .li.note { margin-top: 4px; color: #5e7468; font-style: italic; }
+
+    /* Log */
+    .logpanel { top: 14px; right: 14px; width: 280px; max-height: 38vh; display: flex; flex-direction: column; }
+    .loglist { overflow-y: auto; font-size: 11.5px; line-height: 1.5; }
+    .le { padding: 1px 0; color: var(--ink-dim); }
+    .le .t { color: #51695c; margin-right: 5px; font-variant-numeric: tabular-nums; }
+    .le.action { color: var(--ink); }
+    .le.good { color: var(--accent); }
+    .le.turn { color: #7fb0e6; }
+    .le.warn { color: var(--warn); }
+    .le.dev { color: #c07fe6; }
+
+    /* Testing panel */
+    .testing { bottom: 14px; left: 14px; width: 320px; }
+    .testing.collapsed .testing-list { display: none; }
+    .testing-list { font-size: 11px; line-height: 1.5; color: var(--ink-dim); max-height: 30vh; overflow-y: auto; }
+    .testing-list .q { margin-bottom: 5px; }
+    .testing-list b { color: var(--accent); }
+
+    /* Dev panel */
+    .dev { bottom: 14px; right: 14px; width: 280px; }
+    .dev.collapsed .dev-body { display: none; }
+    .cheats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .dev-btn { font-size: 11px; padding: 5px 8px; background: rgba(90,60,90,0.7); }
+    .sliders { display: flex; flex-direction: column; gap: 7px; max-height: 34vh; overflow-y: auto; }
+    .slider label { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-dim); }
+    .slider .sv { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .slider input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    /* Overlay */
+    .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(3,5,10,0.78); backdrop-filter: blur(3px); }
+    .overlay.hidden { display: none; }
+    .overlay .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+      padding: 32px 40px; text-align: center; max-width: 440px; }
+    .overlay h1 { font-size: 22px; margin: 0 0 12px; color: var(--accent); font-weight: 600; }
+    .overlay p { color: var(--ink); font-size: 14px; line-height: 1.5; margin: 8px 0; }
+    .overlay p.dim { color: var(--ink-dim); }
+    .overlay p.small { font-size: 12px; }
+    .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(127,230,163,0.16);
+      border-color: var(--accent); }
+
+    /* mobile-ish */
+    @media (max-width: 720px) {
+      .logpanel { width: 180px; max-height: 26vh; }
+      .testing { width: 220px; }
+      .dev { width: 220px; }
+    }
+</style>
+<canvas id="game"></canvas>
+<div id="ui"></div>
+<script>
+(function () {
+'use strict';
+// ===================== src/config.js =====================
+// =============================================================================
+// CONFIG — every gameplay number lives here.
+//
+// This is the single source of truth for tuning. The dev panel (render/ui.js)
+// reads and live-edits values in this object by dotted path (see SLIDERS).
+// Engine code must read numbers from here, never hard-code them, so that the
+// game stays fully data-driven and tunable (per design A9).
+// =============================================================================
+
+const CONFIG = {
+  // ---- World / cross-section geometry (A4) --------------------------------
+  // Coordinates: world units. y increases DOWNWARD (canvas-natural).
+  //   y <  surfaceY  -> open air (above the soil line)
+  //   y >= surfaceY  -> underground (the main play surface)
+  world: {
+    width: 2600,        // world width in units
+    height: 1500,       // world height in units (top = sky, bottom = deep ground)
+    surfaceY: 380,      // y of the soil line; air above, underground below
+    cellSize: 36,       // substrate grid cell size (square)
+  },
+
+  // ---- Substrate field + surface terrain generation (A4, B1) -------------
+  substrate: {
+    foodClusterCount: 16,        // number of food clusters scattered underground
+    foodClusterRadiusMin: 2,     // cluster radius in cells
+    foodClusterRadiusMax: 6,
+    foodRichnessMin: 45,         // peak nutrient at a cluster centre
+    foodRichnessMax: 130,
+    hazardCount: 6,              // ant colonies / waterlogged-toxic pools
+    hazardRadiusMin: 1,
+    hazardRadiusMax: 3,
+    // Surface line: alternating segments of soil (fruitable) / non-soil.
+    surfaceSegmentMinCols: 3,    // min width of a surface segment, in grid columns
+    surfaceSegmentMaxCols: 11,
+    soilFraction: 0.6,           // ~fraction of surface segments that are soil
+    shadeFraction: 0.45,         // ~fraction of soil columns that are shaded
+    // Deliberate tension: bias some rich food to sit near hazards / under
+    // non-soil so steering toward food is a real risk/reward choice (B1).
+    richNearHazardChance: 0.45,
+    richUnderNonSoilChance: 0.4,
+  },
+
+  // ---- Resources (A3, B3) -------------------------------------------------
+  energy: {
+    start: 110,                  // starting Energy (SLIDER)
+    baselineTrickle: 4,          // free Energy per turn, prevents soft-lock
+    passiveIncomeRate: 6,        // max nutrient pulled from each occupied cell/turn (SLIDER)
+    incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed (lossy)
+  },
+
+  // ---- Turn loop (A2, B4) -------------------------------------------------
+  turn: {
+    movesPerTurn: 3,             // moves available each turn (SLIDER)
+  },
+
+  // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
+  growth: {
+    sensingRadius: 135,          // tips sense substrate attractors within this radius
+    killDistance: 22,            // attractor is consumed when a node gets this close
+    segmentLength: 17,           // length of one growth segment
+    stepsPerGrow: 7,             // space-colonization iterations per Grow action
+    maxNodes: 1500,              // safety cap on network size
+    attractorThreshold: 6,       // min cell nutrient to emit a growth attractor
+    branchJitter: 0.22,          // random angular wobble for organic look (radians)
+    startDepth: 130,             // initial seed depth below the surface line
+    minTipSpacing: 11,           // don't spawn a node this close to an existing one
+  },
+
+  // ---- Vitality / health (A5, A8) ----------------------------------------
+  vitality: {
+    hazardDamagePerTurn: 0.07,   // health lost by a node sitting in a hazard cell
+    recoveryPerTurn: 0.015,      // node health regained per turn when safe & fed
+    starvationDamage: 0.05,      // health lost network-wide per turn when starving
+    deadNodeHealth: 0.0,         // health at/below which a node is pruned
+    dipDecayPerTurn: 0.03,       // how fast a transient vitality dip (Digest) recovers
+    maxVitalityDip: 0.9,         // cap on stacked transient vitality dips
+  },
+
+  // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
+  trichoderma: {
+    initialPatches: 3,           // mold patches seeded at map generation
+    patchRadiusMin: 1,
+    patchRadiusMax: 2,
+    spreadRate: 0.55,            // base spread aggressiveness per turn (SLIDER)
+    spreadBase: 0.25,            // base fraction applied to each neighbour spread step
+    spreadThreshold: 0.25,       // a cell must reach this intensity before it spreads
+    spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
+    spreadJitterMax: 1.0,
+    foodAttraction: 1.6,         // spreads faster toward food-rich cells
+    intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
+    contactDamage: 0.09,         // health damage/turn to network nodes in infected cells
+    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist infection
+    seedFoodBias: 0.75,          // chance an initial patch is biased toward food
+    spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
+  },
+
+  // ---- The six basic actions (A2, B5) ------------------------------------
+  // Each: moveCost (moves spent) + energyCost (Energy spent) + effect params.
+  actions: {
+    grow: {
+      moveCost: 1,
+      energyCost: 10,            // (SLIDER)
+    },
+    addSubstrate: {
+      moveCost: 1,
+      energyCost: 12,            // (SLIDER)
+      amount: 70,                // nutrient deposited at the centre cell
+      radius: 2,                 // deposit radius in cells (falls off to edge)
+      lureStrength: 1.8,         // attractor weight multiplier for placed food
+    },
+    amputate: {
+      moveCost: 1,
+      energyCost: 4,
+      pickRadius: 28,            // click tolerance (world units) for picking a strand
+    },
+    express: {
+      moveCost: 1,
+      energyCostBase: 16,        // cost of taking a trait from level n -> n+1
+      energyCostPerLevel: 9,     // added per current level (escalating)
+      maxLevel: 5,
+    },
+    digest: {
+      moveCost: 1,
+      energyCost: 8,
+      burstSize: 70,             // total nutrient burst-converted to Energy (SLIDER)
+      extraDepletion: 1.6,      // depletion multiplier — exhausts the patch faster
+      vitalityDip: 0.09,         // temporary network-wide vitality hit
+    },
+    fruit: {
+      moveCost: 1,
+      energyCost: 22,
+      payoutPerBody: 11,         // Spores per fruiting body (SLIDER)
+      shadeMultiplier: 1.8,      // shaded soil yields more (SLIDER)
+      vitalityFloor: 0.3,        // minimum payout multiplier a sickly network still gets
+      clusterWidth: 3,           // soil columns per fruiting body
+      reachDepth: 170,           // node must be within this depth of surface to fruit
+      reachSpread: 30,           // horizontal tolerance from a soil column
+    },
+  },
+
+  // ---- Genetic defence traits (A2, B5) -----------------------------------
+  traits: {
+    melanize:     { damageReductionPerLevel: 0.16 },   // passive armour (all damage)
+    antifungal:   { slowPerLevel: 0.22, damagePerLevel: 0.13 }, // vs Trichoderma
+    antipredator: { noteOnly: true },                  // no fungivore threat in Phase 1
+  },
+
+  // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
+  render: {
+    skyTop: '#0a0f1c',
+    skyBottom: '#10182b',
+    groundTop: '#241a12',
+    groundBottom: '#0e0a07',
+    soilLine: '#5a4630',
+    nonSoil: '#3a3d45',
+    shadeOverlay: 'rgba(10,16,30,0.45)',
+    foodColor: '#3f7d3a',
+    hazardColor: '#7a2230',
+    trichodermaColor: '#86a23c',
+    filament: '#cfe8d6',
+    tipGlow: '#bfffd0',
+    sensingRing: 'rgba(160,255,190,0.18)',
+    pulseColor: '#eafff0',
+    pulseSpeed: 70,              // pulse travel speed (units/sec)
+    minBrightness: 0.28,        // dimmest a fully-unhealthy network renders
+  },
+
+  dev: {
+    enabled: true,              // show dev cheats + sliders (remove for release)
+    cheatEnergy: 100,
+    cheatSpores: 100,
+  },
+};
+
+// -----------------------------------------------------------------------------
+// SLIDERS — the ~8 key constants exposed as live on-screen sliders (B7).
+// Each references CONFIG by dotted path so edits take effect immediately.
+// -----------------------------------------------------------------------------
+const SLIDERS = [
+  { path: 'energy.start',                label: 'Starting Energy',     min: 0,   max: 400, step: 5 },
+  { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
+  { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 30,  step: 1 },
+  { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
+  { path: 'trichoderma.spreadRate',      label: 'Trichoderma Spread',  min: 0,   max: 2,   step: 0.05 },
+  { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
+  { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
+  { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
+  { path: 'actions.fruit.shadeMultiplier', label: 'Shade Multiplier',  min: 1,   max: 3,   step: 0.1 },
+];
+
+// Read/write CONFIG by dotted path (used by the dev sliders).
+function getByPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+function setByPath(obj, path, value) {
+  const keys = path.split('.');
+  const last = keys.pop();
+  const target = keys.reduce((o, k) => o[k], obj);
+  target[last] = value;
+}
+
+
+// ===================== src/engine/rng.js =====================
+// Tiny seedable PRNG (mulberry32). Kept in the engine so simulation is fully
+// deterministic given a seed — important for reproducible runs and headless
+// tests. The browser seeds it from the clock; tests seed it with a constant.
+function makeRng(seed = 1) {
+  let a = seed >>> 0;
+  const rng = function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  rng.int = (min, max) => Math.floor(rng() * (max - min + 1)) + min;
+  rng.range = (min, max) => min + rng() * (max - min);
+  rng.chance = (p) => rng() < p;
+  rng.pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  return rng;
+}
+
+
+// ===================== src/engine/substrate.js =====================
+// =============================================================================
+// Substrate — the side-on cross-section field + surface line (A4, B1).
+//
+// Renderer-agnostic. Holds a grid of underground cells (nutrient / hazard /
+// Trichoderma intensity) and a per-column surface description (soil vs non-soil,
+// shade vs sun). All spatial queries the rest of the engine needs live here.
+//
+// Grid coordinate model:
+//   - Columns span the full world width (col 0 at world x in [0, cellSize)).
+//   - Rows span underground only: row 0 starts at world y = surfaceY.
+// =============================================================================
+
+class Substrate {
+  constructor(config) {
+    const { width, height, surfaceY, cellSize } = config.world;
+    this.cellSize = cellSize;
+    this.surfaceY = surfaceY;
+    this.worldWidth = width;
+    this.worldHeight = height;
+    this.cols = Math.floor(width / cellSize);
+    this.rows = Math.floor((height - surfaceY) / cellSize);
+    // Flat cell array, indexed [row * cols + col].
+    this.cells = new Array(this.cols * this.rows);
+    for (let i = 0; i < this.cells.length; i++) {
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, trich: 0, held: 0 };
+    }
+    // Surface descriptor per column.
+    this.surface = new Array(this.cols);
+    for (let c = 0; c < this.cols; c++) this.surface[c] = { soil: true, shade: false };
+  }
+
+  // --- coordinate helpers --------------------------------------------------
+  index(col, row) { return row * this.cols + col; }
+  inBounds(col, row) { return col >= 0 && col < this.cols && row >= 0 && row < this.rows; }
+
+  colAtX(x) { return Math.floor(x / this.cellSize); }
+  rowAtY(y) { return Math.floor((y - this.surfaceY) / this.cellSize); }
+
+  cellCenter(col, row) {
+    return {
+      x: col * this.cellSize + this.cellSize / 2,
+      y: this.surfaceY + row * this.cellSize + this.cellSize / 2,
+    };
+  }
+
+  cellAt(col, row) {
+    return this.inBounds(col, row) ? this.cells[this.index(col, row)] : null;
+  }
+  cellAtWorld(x, y) {
+    return this.cellAt(this.colAtX(x), this.rowAtY(y));
+  }
+
+  surfaceColumnAtX(x) {
+    const c = this.colAtX(x);
+    return c >= 0 && c < this.cols ? this.surface[c] : null;
+  }
+
+  // Iterate every cell with its grid coordinates.
+  forEachCell(cb) {
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        cb(this.cells[this.index(col, row)], col, row);
+      }
+    }
+  }
+
+  // Iterate cells whose centres fall within `radius` of a world point.
+  cellsInRadius(x, y, radius, cb) {
+    const r = Math.ceil(radius / this.cellSize) + 1;
+    const c0 = this.colAtX(x), r0 = this.rowAtY(y);
+    const rad2 = radius * radius;
+    for (let row = r0 - r; row <= r0 + r; row++) {
+      for (let col = c0 - r; col <= c0 + r; col++) {
+        if (!this.inBounds(col, row)) continue;
+        const center = this.cellCenter(col, row);
+        const dx = center.x - x, dy = center.y - y;
+        if (dx * dx + dy * dy <= rad2) {
+          cb(this.cells[this.index(col, row)], col, row, center);
+        }
+      }
+    }
+  }
+
+  // Deposit nutrient in a radius (Add Substrate action). Falls off to the edge.
+  deposit(x, y, amount, radiusCells) {
+    const c0 = this.colAtX(x), r0 = this.rowAtY(y);
+    for (let row = r0 - radiusCells; row <= r0 + radiusCells; row++) {
+      for (let col = c0 - radiusCells; col <= c0 + radiusCells; col++) {
+        if (!this.inBounds(col, row)) continue;
+        const dist = Math.hypot(col - c0, row - r0);
+        if (dist > radiusCells) continue;
+        const falloff = 1 - dist / (radiusCells + 1);
+        const cell = this.cells[this.index(col, row)];
+        const add = amount * falloff;
+        cell.nutrient += add;
+        cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
+        cell.hazard = false; // fresh food displaces a little hazard ground
+      }
+    }
+  }
+
+  totalNutrient() {
+    let t = 0;
+    for (const cell of this.cells) t += cell.nutrient;
+    return t;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Procedural generation (B1). Places food clusters, hazards, and the surface
+// line, deliberately seeding some rich food near hazards / under non-soil so
+// steering toward food is a genuine risk/reward choice.
+// -----------------------------------------------------------------------------
+function generateSubstrate(config, rng) {
+  const sub = new Substrate(config);
+  const s = config.substrate;
+
+  // 1) Surface line: walk left-to-right laying down soil / non-soil segments,
+  //    then mark shade on some soil columns.
+  let col = 0;
+  while (col < sub.cols) {
+    const width = rng.int(s.surfaceSegmentMinCols, s.surfaceSegmentMaxCols);
+    const soil = rng.chance(s.soilFraction);
+    for (let i = 0; i < width && col < sub.cols; i++, col++) {
+      sub.surface[col].soil = soil;
+      sub.surface[col].shade = soil && rng.chance(s.shadeFraction);
+    }
+  }
+  // Group shade into runs for readability (a shaded patch, not noise).
+  for (let c = 1; c < sub.cols; c++) {
+    if (sub.surface[c].soil && sub.surface[c - 1].soil && rng.chance(0.55)) {
+      sub.surface[c].shade = sub.surface[c - 1].shade;
+    }
+  }
+
+  // 2) Hazards (ant colonies / toxic pools) as elliptical blobs underground.
+  const hazards = [];
+  for (let i = 0; i < s.hazardCount; i++) {
+    const hc = rng.int(2, sub.cols - 3);
+    const hr = rng.int(1, Math.max(1, sub.rows - 2));
+    const radius = rng.int(s.hazardRadiusMin, s.hazardRadiusMax);
+    hazards.push({ col: hc, row: hr, radius });
+    stamp(sub, hc, hr, radius, (cell) => { cell.hazard = true; cell.nutrient = 0; cell.maxNutrient = 0; });
+  }
+
+  // 3) Food clusters (gaussian-ish bumps of nutrient).
+  for (let i = 0; i < s.foodClusterCount; i++) {
+    const radius = rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax);
+    let cc, cr;
+    const rich = rng.range(s.foodRichnessMin, s.foodRichnessMax);
+
+    if (rng.chance(s.richNearHazardChance) && hazards.length) {
+      // Place a rich cluster adjacent to a hazard (tempting but dangerous).
+      const h = rng.pick(hazards);
+      const ang = rng.range(0, Math.PI * 2);
+      const off = h.radius + radius - 1;
+      cc = Math.round(h.col + Math.cos(ang) * off);
+      cr = Math.round(h.row + Math.sin(ang) * off);
+    } else if (rng.chance(s.richUnderNonSoilChance)) {
+      // Place a rich cluster directly under a non-soil stretch (can feed but
+      // can't fruit there) — forces a feed-vs-fruit decision.
+      const nonSoilCols = [];
+      for (let c = 0; c < sub.cols; c++) if (!sub.surface[c].soil) nonSoilCols.push(c);
+      cc = nonSoilCols.length ? rng.pick(nonSoilCols) : rng.int(2, sub.cols - 3);
+      cr = rng.int(1, Math.min(4, sub.rows - 1));
+    } else {
+      cc = rng.int(2, sub.cols - 3);
+      cr = rng.int(1, Math.max(1, sub.rows - 2));
+    }
+
+    stamp(sub, cc, cr, radius, (cell, dist) => {
+      if (cell.hazard) return;
+      const v = rich * Math.max(0, 1 - dist / (radius + 0.5));
+      cell.nutrient += v;
+      cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
+    });
+  }
+
+  return sub;
+}
+
+// Stamp a circular footprint, invoking cb(cell, distInCells) for each cell.
+function stamp(sub, cc, cr, radius, cb) {
+  for (let row = cr - radius; row <= cr + radius; row++) {
+    for (let col = cc - radius; col <= cc + radius; col++) {
+      if (!sub.inBounds(col, row)) continue;
+      const dist = Math.hypot(col - cc, row - cr);
+      if (dist > radius) continue;
+      cb(sub.cells[sub.index(col, row)], dist);
+    }
+  }
+}
+
+
+// ===================== src/engine/network.js =====================
+// =============================================================================
+// Network — a single mycelial colony (A5, A8, A9).
+//
+// This is a STANDALONE, renderer-agnostic object. The game holds a LIST of
+// these (state.js); in Phase 1 only one is active, but modelling it as a
+// self-contained object now means the generational/decay system (A5) drops in
+// later without a rewrite. Nothing in here touches the DOM or a canvas.
+//
+// Structure: nodes connected parent -> child form the filaments. Growth uses
+// 2D space colonization toward substrate nutrient (the "sensing" of food).
+// =============================================================================
+
+let NETWORK_SEQ = 0;
+
+class Network {
+  constructor(config) {
+    this.id = NETWORK_SEQ++;
+    this.config = config;
+    this.nodes = [];           // array of node objects
+    this.byId = new Map();     // id -> node
+    this.nextNodeId = 0;
+
+    this.traits = { melanize: 0, antifungal: 0, antipredator: 0 };
+    this.energy = config.energy.start;
+    this.spores = 0;           // spores this network has produced (Fruit)
+
+    this.alive = true;         // false once dead (killed) ...
+    this.fruited = false;      // ... or once it has fruited (life cycle ended)
+    this.active = true;        // is this the player-tended network?
+
+    this.vitality = 1;         // 0..1, cached; drives render brightness
+    this._vitalityDip = 0;     // transient hit (Digest), decays each turn
+
+    this.occupiedIdx = new Set(); // substrate cell indices currently occupied
+    this.fruitPoints = [];     // last computed fruiting points (for render)
+  }
+
+  // --- node helpers --------------------------------------------------------
+  addNode(x, y, parent) {
+    const node = {
+      id: this.nextNodeId++,
+      x, y,
+      parentId: parent ? parent.id : null,
+      children: [],
+      health: 1,
+      age: 0,
+    };
+    this.nodes.push(node);
+    this.byId.set(node.id, node);
+    if (parent) parent.children.push(node.id);
+    return node;
+  }
+
+  isTip(node) { return node.children.length === 0; }
+  get root() { return this.nodes[0]; }
+
+  // --- seeding (A8): a short vertical filament rooted just under a soil col --
+  seed(substrate, rng) {
+    const g = this.config.growth;
+    // Pick a soil column near the centre to root under (so it can fruit later).
+    let bestCol = Math.floor(substrate.cols / 2);
+    for (let tries = 0; tries < 40; tries++) {
+      const c = rng.int(Math.floor(substrate.cols * 0.25), Math.floor(substrate.cols * 0.75));
+      if (substrate.surface[c] && substrate.surface[c].soil) { bestCol = c; break; }
+    }
+    const x = bestCol * substrate.cellSize + substrate.cellSize / 2;
+    const topY = substrate.surfaceY + 6;
+    const segs = Math.max(2, Math.round(g.startDepth / g.segmentLength));
+    let parent = this.addNode(x, topY, null);
+    for (let i = 1; i <= segs; i++) {
+      const y = topY + (g.startDepth * i) / segs;
+      parent = this.addNode(x + rng.range(-3, 3), y, parent);
+    }
+    this.recomputeVitality();
+    return this;
+  }
+
+  // --- growth: one Grow action = stepsPerGrow space-colonization iterations -
+  // Returns the number of new nodes created (for feedback / logging).
+  grow(substrate, rng) {
+    const g = this.config.growth;
+    let created = 0;
+    for (let step = 0; step < g.stepsPerGrow; step++) {
+      created += this._growStep(substrate, rng);
+      if (this.nodes.length >= g.maxNodes) break;
+    }
+    if (created > 0) this.recomputeVitality();
+    return created;
+  }
+
+  _growStep(substrate, rng) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 0;
+
+    // 1) Collect attractors: food cells above threshold (the colony "senses").
+    const attractors = [];
+    substrate.forEachCell((cell, col, row) => {
+      if (cell.nutrient > g.attractorThreshold && !cell.hazard) {
+        const ctr = substrate.cellCenter(col, row);
+        attractors.push({ x: ctr.x, y: ctr.y, w: cell.nutrient });
+      }
+    });
+    if (attractors.length === 0) return 0;
+
+    // 2) Spatial hash of nodes (bucketed by substrate cell) for nearest lookup.
+    const buckets = new Map();
+    const key = (col, row) => col + ',' + row;
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i];
+      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
+      const k = key(col, row);
+      let b = buckets.get(k);
+      if (!b) buckets.set(k, (b = []));
+      b.push(n);
+    }
+    const reach = Math.ceil(g.sensingRadius / substrate.cellSize) + 1;
+    const sense2 = g.sensingRadius * g.sensingRadius;
+    const kill2 = g.killDistance * g.killDistance;
+
+    // 3) For each attractor, find its nearest node within the sensing radius.
+    //    Unsatisfied attractors (no node within killDistance) pull that node.
+    const influence = new Map(); // node.id -> {dx, dy, w}
+    for (const a of attractors) {
+      const col = substrate.colAtX(a.x), row = substrate.rowAtY(a.y);
+      let nearest = null, nd2 = sense2;
+      for (let r = row - reach; r <= row + reach; r++) {
+        for (let c = col - reach; c <= col + reach; c++) {
+          const b = buckets.get(key(c, r));
+          if (!b) continue;
+          for (const n of b) {
+            const dx = a.x - n.x, dy = a.y - n.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < nd2) { nd2 = d2; nearest = n; }
+          }
+        }
+      }
+      if (!nearest) continue;
+      if (nd2 <= kill2) continue; // attractor satisfied — already reached
+      const d = Math.sqrt(nd2) || 1;
+      let inf = influence.get(nearest.id);
+      if (!inf) influence.set(nearest.id, (inf = { dx: 0, dy: 0, w: 0 }));
+      const w = a.w;
+      inf.dx += ((a.x - nearest.x) / d) * w;
+      inf.dy += ((a.y - nearest.y) / d) * w;
+      inf.w += w;
+    }
+
+    // 4) Grow one new node from each influenced node toward its attractors.
+    let created = 0;
+    const newNodes = [];
+    for (const [nodeId, inf] of influence) {
+      const node = this.byId.get(nodeId);
+      if (!node) continue;
+      const len = Math.hypot(inf.dx, inf.dy);
+      if (len < 1e-4) continue;
+      let ang = Math.atan2(inf.dy, inf.dx) + rng.range(-g.branchJitter, g.branchJitter);
+      let nx = node.x + Math.cos(ang) * g.segmentLength;
+      let ny = node.y + Math.sin(ang) * g.segmentLength;
+      // Keep growth underground and inside the world.
+      ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
+      nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
+      // Don't pile nodes on top of each other.
+      if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
+      const child = this.addNode(nx, ny, node);
+      newNodes.push(child);
+      created++;
+      if (this.nodes.length >= g.maxNodes) break;
+    }
+    return created;
+  }
+
+  _tooClose(x, y, minDist, substrate, buckets, key, reach) {
+    const col = substrate.colAtX(x), row = substrate.rowAtY(y);
+    const min2 = minDist * minDist;
+    for (let r = row - 1; r <= row + 1; r++) {
+      for (let c = col - 1; c <= col + 1; c++) {
+        const b = buckets.get(key(c, r));
+        if (!b) continue;
+        for (const n of b) {
+          const dx = n.x - x, dy = n.y - y;
+          if (dx * dx + dy * dy < min2) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // --- Amputate (A2): remove the node nearest a click + its whole subtree ---
+  nodeNear(x, y, maxDist) {
+    let best = null, bd2 = maxDist * maxDist;
+    for (const n of this.nodes) {
+      const dx = n.x - x, dy = n.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bd2) { bd2 = d2; best = n; }
+    }
+    return best;
+  }
+
+  amputateAt(x, y, maxDist) {
+    const target = this.nodeNear(x, y, maxDist);
+    if (!target) return 0;
+    return this.amputateNode(target.id);
+  }
+
+  amputateNode(nodeId) {
+    const start = this.byId.get(nodeId);
+    if (!start) return 0;
+    // Collect the subtree (the node and everything downstream of it).
+    const toRemove = new Set();
+    const stack = [start];
+    while (stack.length) {
+      const n = stack.pop();
+      if (toRemove.has(n.id)) continue;
+      toRemove.add(n.id);
+      for (const cid of n.children) {
+        const c = this.byId.get(cid);
+        if (c) stack.push(c);
+      }
+    }
+    // Detach from parent.
+    if (start.parentId != null) {
+      const parent = this.byId.get(start.parentId);
+      if (parent) parent.children = parent.children.filter((id) => id !== start.id);
+    }
+    for (const id of toRemove) this.byId.delete(id);
+    this.nodes = this.nodes.filter((n) => !toRemove.has(n.id));
+    if (this.nodes.length === 0) this.alive = false;
+    this.recomputeVitality();
+    return toRemove.size;
+  }
+
+  // --- Express (A2): raise a defence trait one level, organism-wide --------
+  expressTrait(name) {
+    if (!(name in this.traits)) return false;
+    const max = this.config.actions.express.maxLevel;
+    if (this.traits[name] >= max) return false;
+    this.traits[name]++;
+    return true;
+  }
+  expressCost(name) {
+    const e = this.config.actions.express;
+    return e.energyCostBase + e.energyCostPerLevel * this.traits[name];
+  }
+
+  // --- Occupancy: which cells the network sits in (income + held ground) ---
+  // Updates cell.held (firmly-held ground resists Trichoderma) and returns the
+  // list of occupied cells that still carry nutrient (income sources).
+  collectOccupiedCells(substrate) {
+    // Clear previously-held cells.
+    for (const idx of this.occupiedIdx) {
+      if (substrate.cells[idx]) substrate.cells[idx].held = 0;
+    }
+    this.occupiedIdx.clear();
+    const income = [];
+    for (const n of this.nodes) {
+      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
+      if (!substrate.inBounds(col, row)) continue;
+      const idx = substrate.index(col, row);
+      const cell = substrate.cells[idx];
+      cell.held = Math.max(cell.held, n.health);
+      if (!this.occupiedIdx.has(idx)) {
+        this.occupiedIdx.add(idx);
+        if (cell.nutrient > 0 && !cell.hazard) income.push(cell);
+      }
+    }
+    return income;
+  }
+
+  // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
+  // Strands recover only when genuinely safe AND fed: not in a hazard cell,
+  // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise
+  // recovery would silently cancel the mold's contact damage applied just
+  // before this step, and would heal even while starving.
+  applyHazardDamage(substrate) {
+    const v = this.config.vitality;
+    const melaninRed = this.traits.melanize * this.config.traits.melanize.damageReductionPerLevel;
+    const dmgMul = Math.max(0, 1 - melaninRed);
+    const fed = this.energy > 0;
+    for (const n of this.nodes) {
+      const cell = substrate.cellAtWorld(n.x, n.y);
+      if (cell && cell.hazard) {
+        n.health -= v.hazardDamagePerTurn * dmgMul;
+      } else if (n.health < 1 && fed && (!cell || cell.trich <= 0)) {
+        n.health = Math.min(1, n.health + v.recoveryPerTurn);
+      }
+    }
+  }
+
+  applyStarvation() {
+    const v = this.config.vitality;
+    for (const n of this.nodes) n.health -= v.starvationDamage;
+  }
+
+  // Remove dead nodes (and the now-disconnected subtree beneath them).
+  pruneDead() {
+    const dead = this.config.vitality.deadNodeHealth;
+    let removed = 0;
+    let again = true;
+    while (again) {
+      again = false;
+      for (const n of this.nodes) {
+        if (n.health <= dead) {
+          removed += this.amputateNode(n.id);
+          again = true;
+          break;
+        }
+      }
+    }
+    if (this.nodes.length === 0) this.alive = false;
+    return removed;
+  }
+
+  // --- Vitality (drives render brightness) ---------------------------------
+  recomputeVitality() {
+    if (this.nodes.length === 0) { this.vitality = 0; return; }
+    let sum = 0;
+    for (const n of this.nodes) sum += n.health;
+    const avg = sum / this.nodes.length;
+    this.vitality = Math.max(0, Math.min(1, avg - this._vitalityDip));
+  }
+  decayVitalityDip() {
+    this._vitalityDip = Math.max(0, this._vitalityDip - this.config.vitality.dipDecayPerTurn);
+  }
+  addVitalityDip(amount) {
+    this._vitalityDip = Math.min(this.config.vitality.maxVitalityDip, this._vitalityDip + amount);
+    this.recomputeVitality();
+  }
+
+  // --- Fruiting (A4, B5): find reachable fruitable soil points -------------
+  // A soil column is fruitable if a node sits within reachDepth of the surface
+  // and within reachSpread horizontally. Adjacent fruitable columns group into
+  // one fruiting body (clusterWidth). Shaded bodies yield more.
+  computeFruitPoints(substrate) {
+    const f = this.config.actions.fruit;
+    const colFruitable = new Array(substrate.cols).fill(false);
+    const colShade = new Array(substrate.cols).fill(false);
+    for (let c = 0; c < substrate.cols; c++) {
+      const surf = substrate.surface[c];
+      if (!surf.soil) continue;
+      const cx = c * substrate.cellSize + substrate.cellSize / 2;
+      // Is there a node near the surface beneath this column?
+      let reachable = false;
+      for (const n of this.nodes) {
+        const depth = n.y - substrate.surfaceY;
+        if (depth >= 0 && depth <= f.reachDepth && Math.abs(n.x - cx) <= f.reachSpread + substrate.cellSize / 2) {
+          reachable = true; break;
+        }
+      }
+      colFruitable[c] = reachable;
+      colShade[c] = surf.shade;
+    }
+    // Group consecutive fruitable columns into bodies of clusterWidth.
+    const points = [];
+    let c = 0;
+    while (c < substrate.cols) {
+      if (!colFruitable[c]) { c++; continue; }
+      let end = c;
+      while (end < substrate.cols && colFruitable[end]) end++;
+      // [c, end) is a fruitable run.
+      for (let start = c; start < end; start += f.clusterWidth) {
+        const mid = Math.min(end - 1, start + Math.floor(f.clusterWidth / 2));
+        const x = mid * substrate.cellSize + substrate.cellSize / 2;
+        points.push({ x, y: substrate.surfaceY, shade: colShade[mid] });
+      }
+      c = end;
+    }
+    this.fruitPoints = points;
+    return points;
+  }
+
+  // --- bounding box (camera framing) ---------------------------------------
+  bounds() {
+    if (this.nodes.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of this.nodes) {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x;
+      if (n.y > maxY) maxY = n.y;
+    }
+    return { minX, minY, maxX, maxY };
+  }
+}
+
+
+// ===================== src/engine/threats.js =====================
+// =============================================================================
+// Threats — Trichoderma, the one Phase 1 threat (A2/A5, B6).
+//
+// Trichoderma is a competing mold. It lives as an intensity field on substrate
+// cells (cell.trich, 0..1). It spreads toward food, damages network parts it
+// touches, and avoids firmly-held ground. It is countered by:
+//   - Amputate  (cut off infected strands)            -> network.amputate*
+//   - Express -> Antifungal (slows & damages the mold) -> traits.antifungal
+//   - Express -> Melanize  (reduces the damage it deals)-> traits.melanize
+//
+// Renderer-agnostic: operates only on substrate cells + the Network object.
+// =============================================================================
+
+// Seed initial mold patches at map generation, biased toward food clusters so
+// that the richest substrate is also the most contested (B6 tension).
+function seedTrichoderma(substrate, config, rng) {
+  const t = config.trichoderma;
+  // Candidate centres: prefer food-rich, non-hazard cells.
+  const candidates = [];
+  substrate.forEachCell((cell, col, row) => {
+    if (!cell.hazard && cell.nutrient > 0) candidates.push({ col, row, w: cell.nutrient });
+  });
+  for (let i = 0; i < t.initialPatches; i++) {
+    let col, row;
+    if (candidates.length && rng.chance(t.seedFoodBias)) {
+      const c = rng.pick(candidates);
+      // nudge a little off the food so it has somewhere to grow into
+      col = c.col + rng.int(-2, 2);
+      row = c.row + rng.int(-2, 2);
+    } else {
+      col = rng.int(1, substrate.cols - 2);
+      row = rng.int(1, substrate.rows - 2);
+    }
+    const radius = rng.int(t.patchRadiusMin, t.patchRadiusMax);
+    stampTrich(substrate, col, row, radius);
+  }
+}
+
+// Dev cheat / Add-substrate-near hook: spawn a mold patch at a world point.
+function spawnTrichodermaAt(substrate, x, y, config, rng) {
+  const t = config.trichoderma;
+  const col = substrate.colAtX(x), row = substrate.rowAtY(y);
+  const radius = rng.int(t.patchRadiusMin, t.patchRadiusMax + 1);
+  stampTrich(substrate, col, row, radius);
+}
+
+function stampTrich(substrate, cc, cr, radius) {
+  for (let row = cr - radius; row <= cr + radius; row++) {
+    for (let col = cc - radius; col <= cc + radius; col++) {
+      if (!substrate.inBounds(col, row)) continue;
+      const dist = Math.hypot(col - cc, row - cr);
+      if (dist > radius) continue;
+      const cell = substrate.cells[substrate.index(col, row)];
+      if (cell.hazard) continue;
+      cell.trich = Math.min(1, Math.max(cell.trich, 1 - dist / (radius + 0.5)));
+    }
+  }
+}
+
+// --- Per-turn spread (B6) ---------------------------------------------------
+// Snapshot current intensities, accumulate deltas, then apply — so a cell
+// infected this turn doesn't cascade-spread within the same turn.
+function spreadTrichoderma(substrate, network, config, rng) {
+  const t = config.trichoderma;
+  const antifungal = network ? network.traits.antifungal : 0;
+  const slow = Math.max(0, 1 - antifungal * config.traits.antifungal.slowPerLevel);
+  const afDamage = antifungal * config.traits.antifungal.damagePerLevel;
+
+  const cols = substrate.cols, rows = substrate.rows;
+  const snapshot = new Float32Array(substrate.cells.length);
+  for (let i = 0; i < substrate.cells.length; i++) snapshot[i] = substrate.cells[i].trich;
+  const delta = new Float32Array(substrate.cells.length);
+
+  const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const idx = substrate.index(col, row);
+      const intensity = snapshot[idx];
+      if (intensity <= 0) continue;
+      const cell = substrate.cells[idx];
+
+      // Intensity self-gain over food (it eats substrate), capped.
+      if (cell.nutrient > 0) {
+        delta[idx] += t.intensityGainOnFood * intensity;
+      }
+
+      if (intensity < t.spreadThreshold) continue;
+
+      for (const [dc, dr] of neighbors) {
+        const nc = col + dc, nr = row + dr;
+        if (!substrate.inBounds(nc, nr)) continue;
+        const nidx = substrate.index(nc, nr);
+        const ncell = substrate.cells[nidx];
+        if (ncell.hazard) continue;
+        // Firmly-held ground resists infection.
+        if (ncell.held > t.avoidHeldThreshold) continue;
+        let amount = t.spreadRate * slow * intensity * t.spreadBase;
+        if (ncell.nutrient > 0) amount *= t.foodAttraction;
+        // A little randomness so the front is organic, not a perfect square.
+        amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
+        // Held-but-not-firm ground partially resists, scaled by how held it is.
+        if (ncell.held > 0) amount *= Math.max(0.1, 1 - ncell.held);
+        delta[nidx] += amount;
+      }
+    }
+  }
+
+  // Apply spread, then antifungal pushback where the network is present.
+  for (let i = 0; i < substrate.cells.length; i++) {
+    const cell = substrate.cells[i];
+    if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
+    // Antifungal damages mold on/near held ground.
+    if (afDamage > 0 && cell.held > 0 && cell.trich > 0) {
+      cell.trich = Math.max(0, cell.trich - afDamage);
+    }
+    if (cell.trich < 0.01) cell.trich = 0;
+  }
+
+  // Ambient new outbreaks (off by default).
+  if (t.spawnChancePerTurn > 0 && rng.chance(t.spawnChancePerTurn)) {
+    spawnTrichodermaAt(
+      substrate,
+      rng.range(0, substrate.worldWidth),
+      substrate.surfaceY + rng.range(0, substrate.rows * substrate.cellSize),
+      config, rng,
+    );
+  }
+}
+
+// --- Per-turn damage to the network (B6) ------------------------------------
+function applyTrichodermaDamage(network, substrate, config) {
+  const t = config.trichoderma;
+  const melaninRed = network.traits.melanize * config.traits.melanize.damageReductionPerLevel;
+  const dmgMul = Math.max(0, 1 - melaninRed);
+  for (const n of network.nodes) {
+    const cell = substrate.cellAtWorld(n.x, n.y);
+    if (cell && cell.trich > 0) {
+      n.health -= t.contactDamage * cell.trich * dmgMul;
+    }
+  }
+}
+
+function totalTrichoderma(substrate) {
+  let total = 0;
+  for (const cell of substrate.cells) total += cell.trich;
+  return total;
+}
+
+
+// ===================== src/engine/state.js =====================
+// =============================================================================
+// State — holds the whole simulation (A9).
+//
+// Crucially, state holds a LIST of networks even in Phase 1 (only one is
+// active). The shared cross-section substrate, the run-wide Spore total, the
+// turn counter and the event log all live here. Renderer-agnostic.
+// =============================================================================
+
+
+function createState(config, seed) {
+  const rng = makeRng(seed >>> 0 || 1);
+  const substrate = generateSubstrate(config, rng);
+  seedTrichoderma(substrate, config, rng);
+
+  const network = new Network(config);
+  network.seed(substrate, rng);
+
+  const state = {
+    config,
+    rng,
+    seed,
+    substrate,
+    networks: [network],   // list-of-networks (A5-ready); one active in Phase 1
+    active: network,
+    spores: 0,             // run-wide Spore total (summed across networks later)
+    turn: 1,
+    movesLeft: config.turn.movesPerTurn,
+    runOver: false,
+    runResult: null,
+    logEntries: [],
+    _logSeq: 0,
+    log(message, kind = 'info') {
+      this.logEntries.push({ id: this._logSeq++, turn: this.turn, message, kind });
+      if (this.logEntries.length > 200) this.logEntries.shift();
+    },
+  };
+
+  state.log(`Generation 1 begins. The colony stirs beneath the soil.`, 'good');
+  return state;
+}
+
+// Start a fresh run with the (possibly slider-edited) config.
+function newRun(config, seed) {
+  return createState(config, seed);
+}
+
+
+// ===================== src/engine/actions.js =====================
+// =============================================================================
+// Actions — the six basic actions, the backbone of the game (A2, B5).
+//
+// Per the Terraforming Mars model these standard actions are always available;
+// later cards will merely discount or twist them. Each action is defined as
+// tunable DATA (moveCost / energyCost in CONFIG) plus an effect. The generic
+// performAction() handles the move + Energy economy so every action is uniform.
+//
+// Targeting:
+//   - 'point' : effect needs a world {x, y} (Add Substrate)
+//   - 'node'  : effect needs a world {x, y} to pick a strand (Amputate)
+//   - 'trait' : effect needs ctx.trait (Express)
+//   - null    : no target (Grow, Digest, Fruit)
+// =============================================================================
+
+
+const ACTIONS = {
+  grow: {
+    label: 'Grow',
+    target: null,
+    desc: 'Release the network — tips extend toward sensed food.',
+    apply(state) {
+      const net = state.active;
+      const created = net.grow(state.substrate, state.rng);
+      if (created === 0) {
+        return { ok: false, message: 'No food within sensing range — Add Substrate to lure growth.' };
+      }
+      return { ok: true, message: `Grew ${created} filament${created > 1 ? 's' : ''} toward food.` };
+    },
+  },
+
+  addSubstrate: {
+    label: 'Add Substrate',
+    target: 'point',
+    desc: 'Place a patch of food to lure growth where you want it.',
+    apply(state, ctx) {
+      const a = state.config.actions.addSubstrate;
+      const sub = state.substrate;
+      if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
+      sub.deposit(ctx.x, ctx.y, a.amount * a.lureStrength, a.radius);
+      return { ok: true, message: 'Placed substrate to lure growth.' };
+    },
+  },
+
+  amputate: {
+    label: 'Amputate',
+    target: 'node',
+    desc: 'Cut a strand and everything downstream of it.',
+    apply(state, ctx) {
+      const a = state.config.actions.amputate;
+      const removed = state.active.amputateAt(ctx.x, ctx.y, a.pickRadius);
+      if (removed === 0) return { ok: false, message: 'No strand close enough to cut there.' };
+      return { ok: true, message: `Amputated ${removed} segment${removed > 1 ? 's' : ''}.` };
+    },
+  },
+
+  express: {
+    label: 'Express',
+    target: 'trait',
+    desc: 'Induce a genetic defence trait across the whole organism.',
+    energyCost(state, ctx) {
+      return state.active.expressCost(ctx.trait);
+    },
+    apply(state, ctx) {
+      const net = state.active;
+      const max = state.config.actions.express.maxLevel;
+      if (net.traits[ctx.trait] >= max) {
+        return { ok: false, message: `${cap(ctx.trait)} is already at max level.` };
+      }
+      net.expressTrait(ctx.trait);
+      return { ok: true, message: `Expressed ${cap(ctx.trait)} → level ${net.traits[ctx.trait]}.` };
+    },
+  },
+
+  digest: {
+    label: 'Digest',
+    target: null,
+    desc: 'Over-digest occupied substrate for a burst of Energy now.',
+    apply(state) {
+      const d = state.config.actions.digest;
+      const net = state.active;
+      const sub = state.substrate;
+      const cells = net.collectOccupiedCells(sub)
+        .filter((c) => c.nutrient > 0)
+        .sort((a, b) => b.nutrient - a.nutrient);
+      if (cells.length === 0) return { ok: false, message: 'No occupied substrate to digest.' };
+      let remaining = d.burstSize;
+      let gained = 0;
+      for (const cell of cells) {
+        if (remaining <= 0) break;
+        const take = Math.min(cell.nutrient, remaining);
+        gained += take;
+        // Over-digesting exhausts the patch faster than the Energy it yields.
+        cell.nutrient = Math.max(0, cell.nutrient - take * d.extraDepletion);
+        remaining -= take;
+      }
+      const energy = Math.round(gained * state.config.energy.incomeEfficiency);
+      net.energy += energy;
+      net.addVitalityDip(d.vitalityDip);
+      return { ok: true, message: `Digest burst: +${energy} Energy (vitality dips briefly).` };
+    },
+  },
+
+  fruit: {
+    label: 'Fruit',
+    target: null,
+    desc: 'Push fruiting bodies up through reachable soil to release Spores.',
+    apply(state) {
+      const f = state.config.actions.fruit;
+      const net = state.active;
+      const points = net.computeFruitPoints(state.substrate);
+      if (points.length === 0) {
+        return { ok: false, message: 'No fruitable soil reached — steer growth under soil near the surface.' };
+      }
+      const vitalityFactor = Math.max(f.vitalityFloor, net.vitality);
+      let spores = 0;
+      for (const p of points) {
+        spores += f.payoutPerBody * (p.shade ? f.shadeMultiplier : 1) * vitalityFactor;
+      }
+      spores = Math.round(spores);
+      net.spores += spores;
+      state.spores += spores;
+      net.fruited = true;
+      net.alive = false;
+      state.runOver = true;
+      state.runResult = { spores, bodies: points.length };
+      return { ok: true, message: `Fruited ${points.length} bodies → +${spores} Spores. The network's life cycle ends.` };
+    },
+  },
+};
+
+// Capitalise a trait name for messages.
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// What it costs to perform an action right now (energy may be dynamic).
+function actionCost(state, name, ctx = {}) {
+  const cfg = state.config.actions[name];
+  const action = ACTIONS[name];
+  const energy = action.energyCost ? action.energyCost(state, ctx) : cfg.energyCost;
+  return { moves: cfg.moveCost, energy };
+}
+
+// Why an action can't be performed right now (or null if it can be afforded).
+function actionBlockedReason(state, name, ctx = {}) {
+  if (state.runOver) return 'The run is over — restart to play again.';
+  const net = state.active;
+  if (!net || !net.alive) return 'The network is no longer alive.';
+  const { moves, energy } = actionCost(state, name, ctx);
+  if (state.movesLeft < moves) return 'No moves left this turn.';
+  if (net.energy < energy) return `Not enough Energy (need ${Math.ceil(energy)}).`;
+  return null;
+}
+
+// Perform an action: validate economy, run the effect, then charge on success.
+function performAction(state, name, ctx = {}) {
+  const action = ACTIONS[name];
+  if (!action) return { ok: false, message: `Unknown action: ${name}` };
+
+  const blocked = actionBlockedReason(state, name, ctx);
+  if (blocked) {
+    state.log(blocked, 'warn');
+    return { ok: false, message: blocked };
+  }
+
+  const { moves, energy } = actionCost(state, name, ctx);
+  const result = action.apply(state, ctx);
+  if (!result.ok) {
+    state.log(result.message, 'warn');
+    return result;
+  }
+
+  state.movesLeft -= moves;
+  state.active.energy -= energy;
+  state.active.recomputeVitality();
+  state.log(result.message, 'action');
+  return { ok: true, message: result.message, moves, energy };
+}
+
+// --- Dev cheat: spawn a Trichoderma patch at a point (B7) -------------------
+function devSpawnTrichoderma(state, x, y) {
+  spawnTrichodermaAt(state.substrate, x, y, state.config, state.rng);
+  state.log('DEV: spawned Trichoderma.', 'dev');
+}
+
+
+// ===================== src/engine/turn.js =====================
+// =============================================================================
+// Turn loop (A2, B4).
+//
+// Each turn the player has movesPerTurn moves. Actions spend moves + Energy
+// during the turn (actions.js). End-turn resolves the world: passive income,
+// Trichoderma spread + damage, hazard damage, starvation, node pruning and
+// vitality.
+//
+// Phase 1 plays a single active network, but end-turn iterates the whole
+// network list so the generational/autonomous-tick system (A5) drops in later.
+// =============================================================================
+
+
+function endTurn(state) {
+  if (state.runOver) return;
+
+  const { config, substrate, rng } = state;
+  let totalIncome = 0;
+
+  for (const net of state.networks) {
+    if (!net.alive) continue;
+
+    // 1) Passive income from occupied substrate (depletes those patches).
+    const income = resolveIncome(net, substrate, config);
+    if (net.active) totalIncome = income;
+
+    // 2) Threat: Trichoderma spreads, then damages contacted strands.
+    spreadTrichoderma(substrate, net, config, rng);
+    applyTrichodermaDamage(net, substrate, config);
+
+    // 3) Hazard damage (and slow recovery for safe, healthy strands).
+    net.applyHazardDamage(substrate);
+
+    // 4) Starvation if the colony is out of Energy.
+    if (net.energy <= 0) {
+      net.energy = 0;
+      net.applyStarvation();
+    }
+
+    // 5) Remove dead strands; recompute vitality.
+    net.pruneDead();
+    net.decayVitalityDip();
+    net.recomputeVitality();
+
+    if (!net.alive || net.nodes.length === 0) {
+      net.alive = false;
+      if (net.active && !state.runOver) {
+        state.runOver = true;
+        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        state.log('The network has died. Run over.', 'warn');
+      }
+    }
+  }
+
+  // 6) Advance the clock and refill moves.
+  state.turn += 1;
+  state.movesLeft = config.turn.movesPerTurn;
+
+  if (!state.runOver) {
+    const trickle = config.energy.baselineTrickle;
+    state.log(
+      `Turn ${state.turn}. Passive income +${Math.round(totalIncome)} Energy (incl. +${trickle} trickle).`,
+      'turn',
+    );
+  }
+}
+
+// Draw nutrient from every occupied cell, plus the baseline trickle.
+function resolveIncome(net, substrate, config) {
+  const e = config.energy;
+  const cells = net.collectOccupiedCells(substrate);
+  let nutrientDrawn = 0;
+  for (const cell of cells) {
+    const take = Math.min(cell.nutrient, e.passiveIncomeRate);
+    cell.nutrient -= take;
+    nutrientDrawn += take;
+  }
+  const income = nutrientDrawn * e.incomeEfficiency + e.baselineTrickle;
+  net.energy += income;
+  return income;
+}
+
+
+// ===================== src/render/camera.js =====================
+// =============================================================================
+// Camera — world <-> screen transform, pan, zoom (B2).
+// Pure view concern; never touches simulation state.
+// =============================================================================
+
+class Camera {
+  constructor() {
+    this.x = 0;       // world point at screen centre
+    this.y = 0;
+    this.zoom = 1;
+    this.minZoom = 0.2;
+    this.maxZoom = 4;
+    this.viewW = 1;
+    this.viewH = 1;
+  }
+
+  setViewport(w, h) { this.viewW = w; this.viewH = h; }
+
+  worldToScreen(wx, wy) {
+    return {
+      x: (wx - this.x) * this.zoom + this.viewW / 2,
+      y: (wy - this.y) * this.zoom + this.viewH / 2,
+    };
+  }
+  screenToWorld(sx, sy) {
+    return {
+      x: (sx - this.viewW / 2) / this.zoom + this.x,
+      y: (sy - this.viewH / 2) / this.zoom + this.y,
+    };
+  }
+
+  panByScreen(dxScreen, dyScreen) {
+    this.x -= dxScreen / this.zoom;
+    this.y -= dyScreen / this.zoom;
+  }
+
+  // Zoom toward a screen anchor (keeps the world point under the cursor fixed).
+  zoomAt(sx, sy, factor) {
+    const before = this.screenToWorld(sx, sy);
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
+    const after = this.screenToWorld(sx, sy);
+    this.x += before.x - after.x;
+    this.y += before.y - after.y;
+  }
+
+  // Frame a world bounding box with padding.
+  fitBounds(b, pad = 80) {
+    if (!b) return;
+    const w = Math.max(1, b.maxX - b.minX);
+    const h = Math.max(1, b.maxY - b.minY);
+    this.x = (b.minX + b.maxX) / 2;
+    this.y = (b.minY + b.maxY) / 2;
+    const zx = this.viewW / (w + pad * 2);
+    const zy = this.viewH / (h + pad * 2);
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(zx, zy)));
+  }
+}
+
+
+// ===================== src/render/substrate.js =====================
+// =============================================================================
+// SubstrateRenderer — the cross-section terrain (A4, A8, B1/B2).
+//
+// Bakes the (mostly static) terrain to a world-size offscreen canvas and only
+// re-bakes when the field changes (deposit, depletion, Trichoderma spread).
+// The main loop blits it with the camera transform each frame.
+// =============================================================================
+
+class SubstrateRenderer {
+  constructor(substrate, config) {
+    this.substrate = substrate;
+    this.config = config;
+    this.dirty = true;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = Math.ceil(substrate.worldWidth);
+    this.canvas.height = Math.ceil(substrate.worldHeight);
+    this.octx = this.canvas.getContext('2d');
+    this.nutrientRef = config.substrate.foodRichnessMax * 1.4;
+  }
+
+  markDirty() { this.dirty = true; }
+
+  bake() {
+    const { octx, substrate } = this;
+    const r = this.config.render;
+    const W = this.canvas.width, H = this.canvas.height;
+    const surfaceY = substrate.surfaceY;
+    octx.clearRect(0, 0, W, H);
+
+    // Sky (above the soil line).
+    let sky = octx.createLinearGradient(0, 0, 0, surfaceY);
+    sky.addColorStop(0, r.skyTop);
+    sky.addColorStop(1, r.skyBottom);
+    octx.fillStyle = sky;
+    octx.fillRect(0, 0, W, surfaceY);
+
+    // Ground (below the soil line).
+    let ground = octx.createLinearGradient(0, surfaceY, 0, H);
+    ground.addColorStop(0, r.groundTop);
+    ground.addColorStop(1, r.groundBottom);
+    octx.fillStyle = ground;
+    octx.fillRect(0, surfaceY, W, H - surfaceY);
+
+    const cs = substrate.cellSize;
+
+    // Food + hazards + Trichoderma per cell.
+    substrate.forEachCell((cell, col, row) => {
+      const x = col * cs, y = surfaceY + row * cs;
+      if (cell.hazard) {
+        octx.fillStyle = r.hazardColor;
+        octx.fillRect(x, y, cs, cs);
+        // toxic shimmer
+        octx.fillStyle = 'rgba(180,60,80,0.25)';
+        octx.fillRect(x + cs * 0.2, y + cs * 0.2, cs * 0.6, cs * 0.6);
+      } else if (cell.nutrient > 0) {
+        const a = Math.min(0.85, cell.nutrient / this.nutrientRef);
+        octx.fillStyle = withAlpha(r.foodColor, a);
+        octx.fillRect(x, y, cs, cs);
+      }
+      if (cell.trich > 0) {
+        octx.fillStyle = withAlpha(r.trichodermaColor, Math.min(0.8, cell.trich));
+        // speckled mold look
+        octx.fillRect(x, y, cs, cs);
+        octx.fillStyle = withAlpha('#c8e060', Math.min(0.5, cell.trich * 0.6));
+        octx.fillRect(x + cs * 0.25, y + cs * 0.15, cs * 0.3, cs * 0.3);
+        octx.fillRect(x + cs * 0.55, y + cs * 0.55, cs * 0.25, cs * 0.25);
+      }
+    });
+
+    // Surface line: soil (fruitable) vs non-soil, plus shade markers (B1).
+    const band = 16;
+    for (let c = 0; c < substrate.cols; c++) {
+      const surf = substrate.surface[c];
+      const x = c * cs;
+      if (surf.soil) {
+        // Fruitable soil: warm topsoil band with a lighter crust on top.
+        const sg = octx.createLinearGradient(0, surfaceY - band, 0, surfaceY + 4);
+        sg.addColorStop(0, '#7a5d3c');
+        sg.addColorStop(1, r.soilLine);
+        octx.fillStyle = sg;
+        octx.fillRect(x, surfaceY - band, cs + 1, band + 4);
+      } else {
+        // Non-soil (concrete / rock): hard grey band, hatched — no fruiting.
+        octx.fillStyle = r.nonSoil;
+        octx.fillRect(x, surfaceY - band, cs + 1, band + 4);
+        octx.strokeStyle = 'rgba(0,0,0,0.35)';
+        octx.lineWidth = 1;
+        for (let hx = 0; hx < cs; hx += 7) {
+          octx.beginPath();
+          octx.moveTo(x + hx, surfaceY - band);
+          octx.lineTo(x + hx + band, surfaceY + 4);
+          octx.stroke();
+        }
+      }
+      // Shaded soil yields more — cool canopy overlay above it.
+      if (surf.soil && surf.shade) {
+        const sh = octx.createLinearGradient(0, surfaceY - 90, 0, surfaceY);
+        sh.addColorStop(0, 'rgba(20,40,70,0)');
+        sh.addColorStop(1, 'rgba(40,90,140,0.32)');
+        octx.fillStyle = sh;
+        octx.fillRect(x, surfaceY - 90, cs + 1, 90);
+      }
+    }
+    // Bright hairline exactly at the soil line so it always reads as "surface".
+    octx.strokeStyle = 'rgba(220,210,180,0.55)';
+    octx.lineWidth = 1.5;
+    octx.beginPath();
+    octx.moveTo(0, surfaceY);
+    octx.lineTo(W, surfaceY);
+    octx.stroke();
+
+    this.dirty = false;
+  }
+
+  draw(ctx, camera) {
+    if (this.dirty) this.bake();
+    const tl = camera.worldToScreen(0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(
+      this.canvas,
+      0, 0, this.canvas.width, this.canvas.height,
+      tl.x, tl.y, this.canvas.width * camera.zoom, this.canvas.height * camera.zoom,
+    );
+  }
+}
+
+function withAlpha(hex, a) {
+  // hex '#rrggbb' -> rgba
+  const v = hex.replace('#', '');
+  const r = parseInt(v.substring(0, 2), 16);
+  const g = parseInt(v.substring(2, 4), 16);
+  const b = parseInt(v.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+
+// ===================== src/render/network.js =====================
+// =============================================================================
+// NetworkRenderer — the living mycelial network (A8, B2).
+//
+// REUSABLE per network: one instance per Network object. In Phase 1 a single
+// network is drawn; later the same renderer draws elder networks at lower
+// vitality/brightness (A5) without change.
+//
+// Bakes the static structure (filaments + nodes) to an offscreen canvas and
+// re-bakes only when the structure changes (grow / amputate / prune). The
+// dynamic layer — nutrient pulses, tip glow, sensing rings — animates each
+// frame in screen space. Vitality drives overall brightness.
+// =============================================================================
+
+class NetworkRenderer {
+  constructor(network, config) {
+    this.network = network;
+    this.config = config;
+    this.structureDirty = true;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = Math.ceil(config.world.width);
+    this.canvas.height = Math.ceil(config.world.height);
+    this.octx = this.canvas.getContext('2d');
+    this.edges = [];   // cached for pulse animation
+    this.tips = [];    // cached for sensing rings / tip glow
+  }
+
+  markStructureDirty() { this.structureDirty = true; }
+
+  _rebuildCaches() {
+    const net = this.network;
+    // Subtree sizes for organic tapering (thick trunk -> thin tips).
+    const size = new Map();
+    const order = [...net.nodes];
+    for (const n of order) size.set(n.id, 1);
+    // process leaves->root by repeatedly summing (n small so cheap)
+    for (let i = order.length - 1; i >= 0; i--) {
+      const n = order[i];
+      if (n.parentId != null) {
+        const ps = size.get(n.parentId) || 1;
+        size.set(n.parentId, ps + (size.get(n.id) || 1));
+      }
+    }
+    this.subtreeSize = size;
+
+    this.edges = [];
+    this.tips = [];
+    for (const n of net.nodes) {
+      if (n.children.length === 0) this.tips.push(n);
+      if (n.parentId != null) {
+        const p = net.byId.get(n.parentId);
+        if (p) {
+          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w: size.get(n.id) || 1, h: n.health });
+        }
+      }
+    }
+  }
+
+  bakeStructure() {
+    this._rebuildCaches();
+    const { octx, network } = this;
+    const r = this.config.render;
+    octx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    octx.lineCap = 'round';
+
+    // Filaments, thicker near the trunk.
+    for (const n of network.nodes) {
+      if (n.parentId == null) continue;
+      const p = network.byId.get(n.parentId);
+      if (!p) continue;
+      const s = this.subtreeSize.get(n.id) || 1;
+      const width = Math.min(5, 0.8 + Math.log(1 + s) * 0.7);
+      // health tints the strand (sick strands go dim/brown)
+      const tint = lerpColor([130, 90, 60], hexToRgb(r.filament), n.health);
+      octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
+      octx.lineWidth = width;
+      octx.beginPath();
+      octx.moveTo(p.x, p.y);
+      octx.lineTo(n.x, n.y);
+      octx.stroke();
+    }
+
+    // Soft node dots; tips brighter.
+    for (const n of network.nodes) {
+      const isTip = n.children.length === 0;
+      octx.beginPath();
+      octx.fillStyle = isTip ? r.tipGlow : withAlpha(r.filament, 0.5);
+      octx.arc(n.x, n.y, isTip ? 2.4 : 1.4, 0, Math.PI * 2);
+      octx.fill();
+    }
+
+    this.structureDirty = false;
+  }
+
+  // brightnessScale: extra multiplier for elders later (default 1).
+  draw(ctx, camera, time, brightnessScale = 1) {
+    if (this.structureDirty) this.bakeStructure();
+    const r = this.config.render;
+    const net = this.network;
+    const brightness = (r.minBrightness + (1 - r.minBrightness) * net.vitality) * brightnessScale;
+
+    // Static structure (baked), dimmed by vitality.
+    const tl = camera.worldToScreen(0, 0);
+    ctx.save();
+    ctx.globalAlpha = brightness;
+    ctx.drawImage(
+      this.canvas, 0, 0, this.canvas.width, this.canvas.height,
+      tl.x, tl.y, this.canvas.width * camera.zoom, this.canvas.height * camera.zoom,
+    );
+    ctx.restore();
+
+    // --- Dynamic layer (screen space) ---
+    // Sensing rings at tips (sample to avoid clutter).
+    const sr = this.config.growth.sensingRadius * camera.zoom;
+    ctx.save();
+    ctx.strokeStyle = r.sensingRing;
+    ctx.lineWidth = 1;
+    const tips = this.tips;
+    const stride = Math.max(1, Math.ceil(tips.length / 50));
+    for (let i = 0; i < tips.length; i += stride) {
+      const t = tips[i];
+      const s = camera.worldToScreen(t.x, t.y);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, sr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Tip glow (pulsing). Sampled like the sensing rings so a large network
+    // doesn't allocate a radial gradient per tip every frame.
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
+    ctx.save();
+    ctx.globalAlpha = brightness;
+    const gstride = Math.max(1, Math.ceil(tips.length / 60));
+    for (let i = 0; i < tips.length; i += gstride) {
+      const t = tips[i];
+      const s = camera.worldToScreen(t.x, t.y);
+      const rad = (2 + pulse * 2.5);
+      const grd = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad * 3);
+      grd.addColorStop(0, withAlpha(r.tipGlow, 0.9));
+      grd.addColorStop(1, withAlpha(r.tipGlow, 0));
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, rad * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Nutrient pulses travelling outward along a sampled set of filaments.
+    ctx.save();
+    ctx.globalAlpha = brightness;
+    ctx.fillStyle = r.pulseColor;
+    const speed = r.pulseSpeed;
+    const estride = Math.max(1, Math.ceil(this.edges.length / 120));
+    for (let i = 0; i < this.edges.length; i += estride) {
+      const e = this.edges[i];
+      const len = Math.hypot(e.bx - e.ax, e.by - e.ay) || 1;
+      const phase = ((time * 0.001 * speed) + i * 13.7) % (len + 40);
+      if (phase > len) continue; // gap between pulses
+      const f = phase / len;
+      const wx = e.ax + (e.bx - e.ax) * f;
+      const wy = e.ay + (e.by - e.ay) * f;
+      const s = camera.worldToScreen(wx, wy);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// --- Fruiting bodies rising through the soil line (A8) ----------------------
+function drawFruitBodies(ctx, camera, points, time, preview = false) {
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const base = camera.worldToScreen(p.x, p.y);
+    const grow = preview ? 0.5 : Math.min(1, (Math.sin(time * 0.003 + i) * 0.1 + 0.9));
+    const h = 26 * camera.zoom * grow;
+    const capR = 10 * camera.zoom * grow;
+    const stalkW = 3.5 * camera.zoom;
+    const topY = base.y - h;
+    ctx.save();
+    ctx.globalAlpha = preview ? 0.45 : 1;
+    // stalk
+    ctx.strokeStyle = '#e8e0d0';
+    ctx.lineWidth = stalkW;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(base.x, base.y);
+    ctx.lineTo(base.x, topY);
+    ctx.stroke();
+    // cap (shaded = bluer/richer, sunny = paler)
+    ctx.fillStyle = p.shade ? '#9a6cff' : '#caa15a';
+    ctx.beginPath();
+    ctx.ellipse(base.x, topY, capR, capR * 0.7, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// --- colour helpers --------------------------------------------------------
+function withAlpha(hex, a) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function hexToRgb(hex) {
+  const v = hex.replace('#', '');
+  return [parseInt(v.substring(0, 2), 16), parseInt(v.substring(2, 4), 16), parseInt(v.substring(4, 6), 16)];
+}
+function lerpColor(a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+}
+
+
+// ===================== src/render/ui.js =====================
+// =============================================================================
+// UI — HUD, action buttons, event log, dev tools, "what we're testing" panel.
+//
+// DOM-based overlay (buttons/sliders/log) on top of the canvas world view.
+// Reads engine state; never mutates it directly — all changes go through the
+// handlers wired up by main.js. Dev cheats + sliders are clearly marked for
+// later removal (B7).
+// =============================================================================
+
+
+const TRAITS = [
+  { key: 'melanize',     label: 'Melanize',     hint: 'passive armour vs all damage' },
+  { key: 'antifungal',   label: 'Antifungal',   hint: 'slows & damages Trichoderma' },
+  { key: 'antipredator', label: 'Antipredator', hint: 'vs fungivores (no threat yet)' },
+];
+
+const TESTING_QUESTIONS = [
+  'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
+  'Does 3-moves + Energy make each turn a real prioritisation?',
+  'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
+  'Does Express (defend, organism-wide) vs. Grow (expand) feel like a meaningful recurring tradeoff?',
+  'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
+  'Is Digest-burst a useful lever or redundant?',
+];
+
+class UI {
+  constructor(state, handlers) {
+    this.state = state;
+    this.handlers = handlers;
+    this.selectedAction = null;
+    this.el = {};
+    this._build();
+  }
+
+  setState(state) { this.state = state; }
+
+  _build() {
+    const root = document.getElementById('ui');
+    root.innerHTML = '';
+    // On a phone-sized screen, start the secondary panels collapsed so the
+    // living network stays the focus; they're one tap away.
+    const narrow = window.innerWidth < 760;
+    const maybeCollapsed = narrow ? ' collapsed' : '';
+
+    // ---- Top-left HUD ----
+    const hud = div('panel hud');
+    hud.innerHTML = `
+      <div class="title">MYCELIUM <span class="sub">· Phase 1</span></div>
+      <div class="stats">
+        <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
+        <div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>
+        <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
+        <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
+      </div>
+      <div class="vitality"><span class="k">Vitality</span>
+        <div class="bar"><div class="fill" id="hud-vitality"></div></div>
+      </div>
+      <div class="traits" id="hud-traits"></div>
+    `;
+    root.appendChild(hud);
+
+    // ---- Map legend (keeps the cross-section legible) ----
+    const legend = div('panel legend' + maybeCollapsed);
+    const items = [
+      ['#3f7d3a', 'Food (richer = brighter)'],
+      ['#7a2230', 'Hazard — damages growth'],
+      ['#86a23c', 'Trichoderma (mold threat)'],
+      ['#7a5d3c', 'Soil — fruitable'],
+      ['#3a3d45', 'Non-soil — no fruiting'],
+      ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],
+    ];
+    legend.innerHTML = `<div class="title clickable">Map legend <span class="chev">▾</span></div>` +
+      `<div class="legend-body">` +
+      items.map(([c, t]) => `<div class="li"><span class="sw" style="background:${c}"></span>${t}</div>`).join('') +
+      `<div class="li note">Drag to pan · scroll to zoom · F to refit</div>` +
+      `</div>`;
+    legend.querySelector('.title').onclick = () => legend.classList.toggle('collapsed');
+    root.appendChild(legend);
+
+    // ---- Bottom action bar ----
+    const bar = div('panel actionbar');
+    this.el.buttons = {};
+
+    const order = ['grow', 'addSubstrate', 'amputate'];
+    for (const name of order) bar.appendChild(this._actionButton(name));
+
+    // Express group (three traits)
+    const exprGroup = div('expr-group');
+    exprGroup.appendChild(span('Express', 'group-label'));
+    for (const t of TRAITS) {
+      const b = button(`btn trait`, '');
+      b.dataset.trait = t.key;
+      b.title = t.hint;
+      b.onclick = () => this.handlers.onAction('express', { trait: t.key });
+      exprGroup.appendChild(b);
+      this.el.buttons['express:' + t.key] = b;
+    }
+    bar.appendChild(exprGroup);
+
+    for (const name of ['digest', 'fruit']) bar.appendChild(this._actionButton(name));
+
+    // End turn + restart
+    const ctrl = div('ctrl');
+    const endBtn = button('btn end', 'End Turn ⏭');
+    endBtn.onclick = () => this.handlers.onEndTurn();
+    this.el.endBtn = endBtn;
+    const restartBtn = button('btn restart', 'New Map ↻');
+    restartBtn.onclick = () => this.handlers.onRestart();
+    ctrl.appendChild(endBtn);
+    ctrl.appendChild(restartBtn);
+    bar.appendChild(ctrl);
+
+    root.appendChild(bar);
+
+    // ---- Hint line ----
+    this.el.hint = div('hint');
+    this.el.hint.textContent = 'Hover an action for details. Grow extends the network toward sensed food.';
+    root.appendChild(this.el.hint);
+
+    // ---- Right column: event log ----
+    const logPanel = div('panel logpanel');
+    logPanel.innerHTML = `<div class="title">Event Log</div><div class="loglist" id="loglist"></div>`;
+    root.appendChild(logPanel);
+    this.el.loglist = logPanel.querySelector('#loglist');
+
+    // ---- "What we're testing" (pinned, collapsible) ----
+    const testing = div('panel testing' + maybeCollapsed);
+    testing.innerHTML = `<div class="title clickable">What we're testing <span class="chev">▾</span></div>`;
+    const list = div('testing-list');
+    list.innerHTML = TESTING_QUESTIONS.map((q, i) => `<div class="q"><b>${i + 1}.</b> ${q}</div>`).join('');
+    testing.appendChild(list);
+    testing.querySelector('.title').onclick = () => testing.classList.toggle('collapsed');
+    root.appendChild(testing);
+
+    // ---- Dev panel (cheats + sliders), clearly marked ----
+    if (this.state.config.dev.enabled) {
+      const dev = div('panel dev' + maybeCollapsed);
+      dev.innerHTML = `<div class="title clickable">DEV TOOLS <span class="warn">(remove for release)</span> <span class="chev">▾</span></div>`;
+      const body = div('dev-body');
+
+      const cheats = div('cheats');
+      const c1 = button('btn dev-btn', `+${this.state.config.dev.cheatEnergy} Energy`);
+      c1.onclick = () => this.handlers.onCheat('energy');
+      const c2 = button('btn dev-btn', `+${this.state.config.dev.cheatSpores} Spores`);
+      c2.onclick = () => this.handlers.onCheat('spores');
+      const c3 = button('btn dev-btn', 'Spawn Trichoderma');
+      c3.onclick = () => this.handlers.onCheat('trichoderma');
+      cheats.append(c1, c2, c3);
+      body.appendChild(cheats);
+
+      const sliders = div('sliders');
+      for (const s of SLIDERS) {
+        const wrap = div('slider');
+        const val = getByPath(this.state.config, s.path);
+        wrap.innerHTML = `<label>${s.label} <span class="sv">${val}</span></label>`;
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = s.min; input.max = s.max; input.step = s.step; input.value = val;
+        const sv = wrap.querySelector('.sv');
+        input.oninput = () => {
+          const v = parseFloat(input.value);
+          setByPath(this.state.config, s.path, v);
+          sv.textContent = v;
+          this.handlers.onSliderChange(s.path, v);
+        };
+        wrap.appendChild(input);
+        sliders.appendChild(wrap);
+      }
+      body.appendChild(sliders);
+      dev.appendChild(body);
+      dev.querySelector('.title').onclick = () => dev.classList.toggle('collapsed');
+      root.appendChild(dev);
+    }
+
+    // ---- Run-over overlay ----
+    this.el.overlay = div('overlay hidden');
+    root.appendChild(this.el.overlay);
+  }
+
+  _actionButton(name) {
+    const a = ACTIONS[name];
+    const b = button('btn act', '');
+    b.dataset.action = name;
+    b.title = a.desc;
+    b.onclick = () => this.handlers.onAction(name);
+    if (name === 'fruit') {
+      b.onmouseenter = () => this.handlers.onFruitPreview(true);
+      b.onmouseleave = () => this.handlers.onFruitPreview(false);
+    }
+    this.el.buttons[name] = b;
+    return b;
+  }
+
+  setSelectedAction(name) {
+    this.selectedAction = name;
+    for (const [key, btn] of Object.entries(this.el.buttons)) {
+      btn.classList.toggle('selected', key === name);
+    }
+    const hints = {
+      addSubstrate: 'Click underground to place a food patch and lure growth there.',
+      amputate: 'Click a strand to cut it (and everything downstream).',
+    };
+    if (name && hints[name]) this.setHint(hints[name]);
+  }
+
+  setHint(text) { this.el.hint.textContent = text; }
+
+  showOverlay(result) {
+    const o = this.el.overlay;
+    o.classList.remove('hidden');
+    const died = result && result.died;
+    o.innerHTML = `
+      <div class="card">
+        <h1>${died ? 'The colony has died' : 'The network has fruited'}</h1>
+        <p>${died
+          ? 'Trichoderma and hazards overwhelmed the network before it could fruit.'
+          : `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`}</p>
+        <p class="dim">Total Spores this run: <b>${this.state.spores}</b></p>
+        <p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>
+        <button class="btn big" id="overlay-restart">Begin a new colony ↻</button>
+      </div>`;
+    o.querySelector('#overlay-restart').onclick = () => this.handlers.onRestart();
+  }
+  hideOverlay() { this.el.overlay.classList.add('hidden'); }
+
+  update() {
+    const s = this.state;
+    const net = s.active;
+    text('hud-energy', Math.floor(net.energy));
+    text('hud-spores', Math.floor(s.spores));
+    text('hud-turn', s.turn);
+    text('hud-moves', `${s.movesLeft}/${s.config.turn.movesPerTurn}`);
+    const vfill = document.getElementById('hud-vitality');
+    if (vfill) {
+      vfill.style.width = `${Math.round(net.vitality * 100)}%`;
+      vfill.style.background = vitalityColor(net.vitality);
+    }
+
+    // Express trait readout
+    const traitsEl = document.getElementById('hud-traits');
+    if (traitsEl) {
+      traitsEl.innerHTML = TRAITS.map((t) => {
+        const lvl = net.traits[t.key];
+        return `<span class="tr ${lvl > 0 ? 'on' : ''}">${t.label[0]}${t.label[1]}<b>${lvl}</b></span>`;
+      }).join('');
+    }
+
+    // Button states / costs
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'digest', 'fruit']) {
+      const btn = this.el.buttons[name];
+      if (!btn) continue;
+      const { moves, energy } = actionCost(s, name);
+      btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive;
+    }
+    // Express trait buttons (dynamic cost)
+    for (const t of TRAITS) {
+      const btn = this.el.buttons['express:' + t.key];
+      if (!btn) continue;
+      const lvl = net.traits[t.key];
+      const cost = net.expressCost(t.key);
+      const maxed = lvl >= s.config.actions.express.maxLevel;
+      btn.innerHTML = `${t.label} <span class="lvl">L${lvl}</span> <span class="cost">${maxed ? 'MAX' : cost + '⚡'}</span>`;
+      btn.disabled = s.runOver || maxed || s.movesLeft < s.config.actions.express.moveCost
+        || net.energy < cost || !net.alive;
+    }
+    this.el.endBtn.disabled = s.runOver;
+
+    this._renderLog();
+  }
+
+  _renderLog() {
+    const list = this.el.loglist;
+    if (!list) return;
+    const entries = this.state.logEntries.slice(-40);
+    list.innerHTML = entries
+      .map((e) => `<div class="le ${e.kind}"><span class="t">T${e.turn}</span> ${escapeHtml(e.message)}</div>`)
+      .join('');
+    list.scrollTop = list.scrollHeight;
+  }
+}
+
+// --- DOM helpers ------------------------------------------------------------
+function div(cls) { const d = document.createElement('div'); d.className = cls; return d; }
+function span(t, cls) { const s = document.createElement('span'); s.className = cls; s.textContent = t; return s; }
+function button(cls, html) { const b = document.createElement('button'); b.className = cls; b.innerHTML = html; return b; }
+function text(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function vitalityColor(v) {
+  const r = Math.round(200 - v * 140), g = Math.round(70 + v * 150), b = Math.round(60 + v * 40);
+  return `rgb(${r},${g},${b})`;
+}
+
+
+// ===================== src/main.js =====================
+// =============================================================================
+// main.js — wiring (A9).
+//
+// Connects input -> actions (mutating engine state) -> renderers (reading
+// state). Keeps simulation and rendering strictly separated: this file is the
+// only place they meet. The render loop draws the world (canvas) every frame;
+// the DOM UI updates only when state changes.
+// =============================================================================
+
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const camera = new Camera();
+
+let state, ui, substrateRenderer;
+const networkRenderers = new Map();
+
+let uiDirty = true;
+let previewFruit = false;
+let previewFruitPoints = [];
+const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
+const pointers = new Map();          // active pointers (touch/mouse) by id
+let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
+let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
+
+// --- setup / restart --------------------------------------------------------
+function start(seed) {
+  state = createState(CONFIG, seed);
+  buildRenderers();
+  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
+  if (ui) ui.setState(state); else ui = new UI(state, handlers);
+  ui.hideOverlay();
+  ui.setSelectedAction(null);
+  previewFruit = false;
+  previewFruitPoints = [];
+  resize();
+  camera.fitBounds(expandedBounds(), 120);
+  uiDirty = true;
+}
+
+function buildRenderers() {
+  substrateRenderer = new SubstrateRenderer(state.substrate, CONFIG);
+  networkRenderers.clear();
+  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, CONFIG));
+}
+
+function rendererFor(net) {
+  let r = networkRenderers.get(net.id);
+  if (!r) { r = new NetworkRenderer(net, CONFIG); networkRenderers.set(net.id, r); }
+  return r;
+}
+
+// A bounding box around the network, clamped to show some surrounding map.
+function expandedBounds() {
+  const b = state.active.bounds() || { minX: 0, minY: state.substrate.surfaceY, maxX: 600, maxY: 600 };
+  return {
+    minX: b.minX - 200, minY: state.substrate.surfaceY - 80,
+    maxX: b.maxX + 200, maxY: b.maxY + 200,
+  };
+}
+
+// --- input handlers (passed to UI) -----------------------------------------
+const handlers = {
+  onAction(name, ctx) {
+    const a = ACTIONS[name];
+    // Targeted actions: first click selects targeting mode; the canvas click
+    // supplies coordinates.
+    if ((a.target === 'point' || a.target === 'node') && (!ctx || ctx.x === undefined)) {
+      ui.setSelectedAction(ui.selectedAction === name ? null : name);
+      uiDirty = true;
+      return;
+    }
+    const res = performAction(state, name, ctx || {});
+    afterAction(name, res);
+  },
+  onEndTurn() {
+    endTurn(state);
+    substrateRenderer.markDirty();
+    for (const net of state.networks) rendererFor(net).markStructureDirty();
+    if (state.runOver) ui.showOverlay(state.runResult);
+    uiDirty = true;
+  },
+  onRestart() {
+    start((Date.now() & 0x7fffffff) || 1);
+  },
+  onCheat(type) {
+    const net = state.active;
+    if (type === 'energy') { net.energy += CONFIG.dev.cheatEnergy; state.log(`DEV: +${CONFIG.dev.cheatEnergy} Energy.`, 'dev'); }
+    else if (type === 'spores') { state.spores += CONFIG.dev.cheatSpores; state.log(`DEV: +${CONFIG.dev.cheatSpores} Spores.`, 'dev'); }
+    else if (type === 'trichoderma') {
+      const n = net.nodes.length ? net.nodes[Math.floor(state.rng() * net.nodes.length)] : null;
+      const x = n ? n.x + state.rng.range(-40, 40) : camera.x;
+      const y = n ? n.y + state.rng.range(20, 80) : camera.y;
+      devSpawnTrichoderma(state, x, y);
+      substrateRenderer.markDirty();
+    }
+    uiDirty = true;
+  },
+  onSliderChange() { uiDirty = true; },
+  onFruitPreview(on) {
+    previewFruit = on;
+    // Compute the candidate fruit points once, on hover-start (a UI event, not
+    // the render loop), so the per-frame draw just reuses this cache.
+    if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
+  },
+};
+
+function afterAction(name, res) {
+  if (!res || !res.ok) { uiDirty = true; return; }
+  if (name === 'grow' || name === 'amputate') rendererFor(state.active).markStructureDirty();
+  if (name === 'addSubstrate' || name === 'digest') substrateRenderer.markDirty();
+  if (name === 'fruit') { state.active.computeFruitPoints(state.substrate); if (state.runOver) ui.showOverlay(state.runResult); }
+  uiDirty = true;
+}
+
+// --- canvas interaction -----------------------------------------------------
+function onCanvasClick(worldX, worldY) {
+  const sel = ui.selectedAction;
+  if (!sel) return;
+  const a = ACTIONS[sel];
+  if (a.target === 'point' || a.target === 'node') {
+    const res = performAction(state, sel, { x: worldX, y: worldY });
+    afterAction(sel, res);
+    if (state.movesLeft <= 0 || state.active.energy < 0) ui.setSelectedAction(null);
+  }
+}
+
+function pointerSpread() {
+  const p = [...pointers.values()];
+  if (p.length < 2) return 0;
+  return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+}
+function pointerMid() {
+  const p = [...pointers.values()];
+  return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+}
+
+function setupInput() {
+  canvas.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.setPointerCapture(e.pointerId);
+    if (pointers.size === 1) {
+      mouse.down = true; mouse.moved = false;
+      mouse.startX = e.clientX; mouse.startY = e.clientY;
+      mouse.x = e.clientX; mouse.y = e.clientY;
+    } else if (pointers.size === 2) {
+      pinchDist = pointerSpread();
+      mouse.moved = true; // a second finger cancels tap/pan
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size >= 2) {
+      // Pinch to zoom about the midpoint of the two fingers.
+      const d = pointerSpread();
+      if (pinchDist > 0 && d > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const mid = pointerMid();
+        camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+      }
+      pinchDist = d;
+      return;
+    }
+    const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y;
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    if (mouse.down) {
+      if (Math.abs(e.clientX - mouse.startX) + Math.abs(e.clientY - mouse.startY) > 4) mouse.moved = true;
+      if (mouse.moved) camera.panByScreen(dx, dy);
+    }
+  });
+  const endPointer = (e) => {
+    const had = pointers.has(e.pointerId);
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (!had || pointers.size !== 0 || !mouse.down) return;
+    mouse.down = false;
+    if (mouse.moved) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!ui.selectedAction) {
+      // In navigation mode a double-tap reframes the network (mobile 'F').
+      const now = Date.now();
+      if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
+        camera.fitBounds(expandedBounds(), 120);
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
+      return;
+    }
+    const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    onCanvasClick(w.x, w.y);
+  };
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    camera.zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); handlers.onEndTurn(); }
+    else if (e.code === 'Escape') { ui.setSelectedAction(null); uiDirty = true; }
+    else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
+  });
+
+  window.addEventListener('resize', resize);
+}
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  camera.setViewport(window.innerWidth, window.innerHeight);
+}
+
+// --- render loop ------------------------------------------------------------
+function frame(time) {
+  // background (outside the world bounds)
+  ctx.fillStyle = '#05070d';
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+  substrateRenderer.draw(ctx, camera);
+
+  for (const net of state.networks) {
+    rendererFor(net).draw(ctx, camera, time);
+    if (net.fruited && net.fruitPoints.length) drawFruitBodies(ctx, camera, net.fruitPoints, time, false);
+  }
+
+  // Fruit preview (where would it fruit?) — uses the cache from hover-start.
+  if (previewFruit && !state.runOver) {
+    drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
+  }
+
+  drawTargetingCursor(time);
+
+  if (uiDirty) { ui.update(); uiDirty = false; }
+  requestAnimationFrame(frame);
+}
+
+function drawTargetingCursor(time) {
+  const sel = ui && ui.selectedAction;
+  if (!sel) return;
+  const rect = canvas.getBoundingClientRect();
+  const w = camera.screenToWorld(mouse.x - rect.left, mouse.y - rect.top);
+  if (sel === 'addSubstrate') {
+    const rad = CONFIG.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
+    const s = camera.worldToScreen(w.x, w.y);
+    ctx.save();
+    ctx.strokeStyle = w.y > state.substrate.surfaceY ? 'rgba(120,220,140,0.8)' : 'rgba(220,120,120,0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  } else if (sel === 'amputate') {
+    const target = state.active.nodeNear(w.x, w.y, CONFIG.actions.amputate.pickRadius * 2);
+    if (target) {
+      // Highlight the subtree that would be cut.
+      const toCut = collectSubtree(state.active, target.id);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+      ctx.lineWidth = 2;
+      for (const id of toCut) {
+        const n = state.active.byId.get(id);
+        if (!n || n.parentId == null) continue;
+        const p = state.active.byId.get(n.parentId);
+        if (!p) continue;
+        const a = camera.worldToScreen(p.x, p.y), b = camera.worldToScreen(n.x, n.y);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+      const ts = camera.worldToScreen(target.x, target.y);
+      ctx.fillStyle = 'rgba(255,90,90,0.95)';
+      ctx.beginPath(); ctx.arc(ts.x, ts.y, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function collectSubtree(net, nodeId) {
+  const set = new Set(); const stack = [nodeId];
+  while (stack.length) {
+    const id = stack.pop();
+    if (set.has(id)) continue;
+    set.add(id);
+    const n = net.byId.get(id);
+    if (n) for (const c of n.children) stack.push(c);
+  }
+  return set;
+}
+
+// --- boot -------------------------------------------------------------------
+setupInput();
+start((Date.now() & 0x7fffffff) || 1);
+requestAnimationFrame(frame);
+
+})();
+</script>
+</head>
+<body>
+</body>
+</html>

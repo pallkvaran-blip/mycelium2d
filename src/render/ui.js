@@ -39,6 +39,10 @@ export class UI {
   _build() {
     const root = document.getElementById('ui');
     root.innerHTML = '';
+    // On a phone-sized screen, start the secondary panels collapsed so the
+    // living network stays the focus; they're one tap away.
+    const narrow = window.innerWidth < 760;
+    const maybeCollapsed = narrow ? ' collapsed' : '';
 
     // ---- Top-left HUD ----
     const hud = div('panel hud');
@@ -58,7 +62,7 @@ export class UI {
     root.appendChild(hud);
 
     // ---- Map legend (keeps the cross-section legible) ----
-    const legend = div('panel legend');
+    const legend = div('panel legend' + maybeCollapsed);
     const items = [
       ['#3f7d3a', 'Food (richer = brighter)'],
       ['#7a2230', 'Hazard — damages growth'],
@@ -122,7 +126,7 @@ export class UI {
     this.el.loglist = logPanel.querySelector('#loglist');
 
     // ---- "What we're testing" (pinned, collapsible) ----
-    const testing = div('panel testing');
+    const testing = div('panel testing' + maybeCollapsed);
     testing.innerHTML = `<div class="title clickable">What we're testing <span class="chev">▾</span></div>`;
     const list = div('testing-list');
     list.innerHTML = TESTING_QUESTIONS.map((q, i) => `<div class="q"><b>${i + 1}.</b> ${q}</div>`).join('');
@@ -132,7 +136,7 @@ export class UI {
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
     if (this.state.config.dev.enabled) {
-      const dev = div('panel dev');
+      const dev = div('panel dev' + maybeCollapsed);
       dev.innerHTML = `<div class="title clickable">DEV TOOLS <span class="warn">(remove for release)</span> <span class="chev">▾</span></div>`;
       const body = div('dev-body');
 

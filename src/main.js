@@ -27,6 +27,9 @@ let uiDirty = true;
 let previewFruit = false;
 let previewFruitPoints = [];
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
+const pointers = new Map();          // active pointers (touch/mouse) by id
+let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
+let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
 
 // --- setup / restart --------------------------------------------------------
 function start(seed) {
@@ -130,14 +133,43 @@ function onCanvasClick(worldX, worldY) {
   }
 }
 
+function pointerSpread() {
+  const p = [...pointers.values()];
+  if (p.length < 2) return 0;
+  return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+}
+function pointerMid() {
+  const p = [...pointers.values()];
+  return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
+}
+
 function setupInput() {
   canvas.addEventListener('pointerdown', (e) => {
-    mouse.down = true; mouse.moved = false;
-    mouse.startX = e.clientX; mouse.startY = e.clientY;
-    mouse.x = e.clientX; mouse.y = e.clientY;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     canvas.setPointerCapture(e.pointerId);
+    if (pointers.size === 1) {
+      mouse.down = true; mouse.moved = false;
+      mouse.startX = e.clientX; mouse.startY = e.clientY;
+      mouse.x = e.clientX; mouse.y = e.clientY;
+    } else if (pointers.size === 2) {
+      pinchDist = pointerSpread();
+      mouse.moved = true; // a second finger cancels tap/pan
+    }
   });
   canvas.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size >= 2) {
+      // Pinch to zoom about the midpoint of the two fingers.
+      const d = pointerSpread();
+      if (pinchDist > 0 && d > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const mid = pointerMid();
+        camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+      }
+      pinchDist = d;
+      return;
+    }
     const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y;
     mouse.x = e.clientX; mouse.y = e.clientY;
     if (mouse.down) {
@@ -145,14 +177,30 @@ function setupInput() {
       if (mouse.moved) camera.panByScreen(dx, dy);
     }
   });
-  canvas.addEventListener('pointerup', (e) => {
+  const endPointer = (e) => {
+    const had = pointers.has(e.pointerId);
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (!had || pointers.size !== 0 || !mouse.down) return;
     mouse.down = false;
-    if (!mouse.moved) {
-      const rect = canvas.getBoundingClientRect();
-      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-      onCanvasClick(w.x, w.y);
+    if (mouse.moved) return;
+    const rect = canvas.getBoundingClientRect();
+    if (!ui.selectedAction) {
+      // In navigation mode a double-tap reframes the network (mobile 'F').
+      const now = Date.now();
+      if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
+        camera.fitBounds(expandedBounds(), 120);
+        lastTapTime = 0;
+        return;
+      }
+      lastTapTime = now; lastTapX = e.clientX; lastTapY = e.clientY;
+      return;
     }
-  });
+    const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+    onCanvasClick(w.x, w.y);
+  };
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();

@@ -21,6 +21,17 @@ python3 -m http.server 8000
 
 (or `npm start`, which runs the same server.)
 
+### Single-file build
+
+`npm run build` bundles every module + the CSS into one self-contained file at
+`dist/index.html` (no server needed — open it directly, or host it anywhere).
+It also writes `dist/artifact.html`, a body-only version for hosts that supply
+their own `<head>`. The build is mechanical (strips `import`/`export`, wraps the
+modules in one IIFE); the source of truth is always `src/` + `index.html`.
+
+The bundle is touch-ready: drag to pan, **pinch** to zoom, **double-tap** to
+refit. On phone-sized screens the secondary panels start collapsed.
+
 ## Playing
 
 You tend one network. Each turn you have **3 moves**; every action costs a move
