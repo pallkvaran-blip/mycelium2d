@@ -1,0 +1,14 @@
+{
+  "name": "mycelium2d",
+  "version": "0.1.0",
+  "description": "Mycelium — a 2D roguelike engine-builder themed on the life of a fungal colony (Phase 1).",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node test/smoke.test.js"
+  },
+  "private": true,
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}
