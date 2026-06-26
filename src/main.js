@@ -107,7 +107,6 @@ function afterAction(name, res) {
   if (name === 'grow' || name === 'amputate') rendererFor(state.active).markStructureDirty();
   if (name === 'addSubstrate' || name === 'digest') substrateRenderer.markDirty();
   if (name === 'fruit') { state.active.computeFruitPoints(state.substrate); if (state.runOver) ui.showOverlay(state.runResult); }
-  // Auto-end the turn when out of moves so play keeps flowing.
   uiDirty = true;
 }
 

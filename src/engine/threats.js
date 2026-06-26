@@ -109,8 +109,7 @@ export function spreadTrichoderma(substrate, network, config, rng) {
   // Apply spread, then antifungal pushback where the network is present.
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
-    if (delta[i] > 0) cell.trich = Math.min(t.intensityMax !== undefined ? 1 : 1, cell.trich + delta[i]);
-    cell.trich = Math.min(1, cell.trich);
+    if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
     // Antifungal damages mold on/near held ground.
     if (afDamage > 0 && cell.held > 0 && cell.trich > 0) {
       cell.trich = Math.max(0, cell.trich - afDamage);
