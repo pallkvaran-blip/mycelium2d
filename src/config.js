@@ -72,6 +72,8 @@ export const CONFIG = {
     recoveryPerTurn: 0.015,      // node health regained per turn when safe & fed
     starvationDamage: 0.05,      // health lost network-wide per turn when starving
     deadNodeHealth: 0.0,         // health at/below which a node is pruned
+    dipDecayPerTurn: 0.03,       // how fast a transient vitality dip (Digest) recovers
+    maxVitalityDip: 0.9,         // cap on stacked transient vitality dips
   },
 
   // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
@@ -80,11 +82,15 @@ export const CONFIG = {
     patchRadiusMin: 1,
     patchRadiusMax: 2,
     spreadRate: 0.55,            // base spread aggressiveness per turn (SLIDER)
+    spreadBase: 0.25,            // base fraction applied to each neighbour spread step
     spreadThreshold: 0.25,       // a cell must reach this intensity before it spreads
+    spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
+    spreadJitterMax: 1.0,
     foodAttraction: 1.6,         // spreads faster toward food-rich cells
     intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
     contactDamage: 0.09,         // health damage/turn to network nodes in infected cells
     avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist infection
+    seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
   },
 
@@ -125,6 +131,7 @@ export const CONFIG = {
       energyCost: 22,
       payoutPerBody: 11,         // Spores per fruiting body (SLIDER)
       shadeMultiplier: 1.8,      // shaded soil yields more (SLIDER)
+      vitalityFloor: 0.3,        // minimum payout multiplier a sickly network still gets
       clusterWidth: 3,           // soil columns per fruiting body
       reachDepth: 170,           // node must be within this depth of surface to fruit
       reachSpread: 30,           // horizontal tolerance from a soil column

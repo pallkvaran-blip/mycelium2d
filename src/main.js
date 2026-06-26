@@ -25,6 +25,7 @@ const networkRenderers = new Map();
 
 let uiDirty = true;
 let previewFruit = false;
+let previewFruitPoints = [];
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 
 // --- setup / restart --------------------------------------------------------
@@ -35,6 +36,8 @@ function start(seed) {
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
+  previewFruit = false;
+  previewFruitPoints = [];
   resize();
   camera.fitBounds(expandedBounds(), 120);
   uiDirty = true;
@@ -99,7 +102,12 @@ const handlers = {
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
-  onFruitPreview(on) { previewFruit = on; },
+  onFruitPreview(on) {
+    previewFruit = on;
+    // Compute the candidate fruit points once, on hover-start (a UI event, not
+    // the render loop), so the per-frame draw just reuses this cache.
+    if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
+  },
 };
 
 function afterAction(name, res) {
@@ -183,10 +191,9 @@ function frame(time) {
     if (net.fruited && net.fruitPoints.length) drawFruitBodies(ctx, camera, net.fruitPoints, time, false);
   }
 
-  // Fruit preview (where would it fruit?).
+  // Fruit preview (where would it fruit?) — uses the cache from hover-start.
   if (previewFruit && !state.runOver) {
-    const pts = state.active.computeFruitPoints(state.substrate);
-    drawFruitBodies(ctx, camera, pts, time, true);
+    drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
   drawTargetingCursor(time);

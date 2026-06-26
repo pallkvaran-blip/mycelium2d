@@ -125,11 +125,13 @@ export class NetworkRenderer {
     }
     ctx.restore();
 
-    // Tip glow (pulsing).
+    // Tip glow (pulsing). Sampled like the sensing rings so a large network
+    // doesn't allocate a radial gradient per tip every frame.
     const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
     ctx.save();
     ctx.globalAlpha = brightness;
-    for (let i = 0; i < tips.length; i++) {
+    const gstride = Math.max(1, Math.ceil(tips.length / 60));
+    for (let i = 0; i < tips.length; i += gstride) {
       const t = tips[i];
       const s = camera.worldToScreen(t.x, t.y);
       const rad = (2 + pulse * 2.5);

@@ -22,7 +22,7 @@ export function seedTrichoderma(substrate, config, rng) {
   });
   for (let i = 0; i < t.initialPatches; i++) {
     let col, row;
-    if (candidates.length && rng.chance(0.75)) {
+    if (candidates.length && rng.chance(t.seedFoodBias)) {
       const c = rng.pick(candidates);
       // nudge a little off the food so it has somewhere to grow into
       col = c.col + rng.int(-2, 2);
@@ -95,10 +95,10 @@ export function spreadTrichoderma(substrate, network, config, rng) {
         if (ncell.hazard) continue;
         // Firmly-held ground resists infection.
         if (ncell.held > t.avoidHeldThreshold) continue;
-        let amount = t.spreadRate * slow * intensity * 0.25;
+        let amount = t.spreadRate * slow * intensity * t.spreadBase;
         if (ncell.nutrient > 0) amount *= t.foodAttraction;
         // A little randomness so the front is organic, not a perfect square.
-        amount *= rng.range(0.6, 1.0);
+        amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
         // Held-but-not-firm ground partially resists, scaled by how held it is.
         if (ncell.held > 0) amount *= Math.max(0.1, 1 - ncell.held);
         delta[nidx] += amount;

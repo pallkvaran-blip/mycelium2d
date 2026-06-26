@@ -267,15 +267,20 @@ export class Network {
   }
 
   // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
+  // Strands recover only when genuinely safe AND fed: not in a hazard cell,
+  // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise
+  // recovery would silently cancel the mold's contact damage applied just
+  // before this step, and would heal even while starving.
   applyHazardDamage(substrate) {
     const v = this.config.vitality;
     const melaninRed = this.traits.melanize * this.config.traits.melanize.damageReductionPerLevel;
     const dmgMul = Math.max(0, 1 - melaninRed);
+    const fed = this.energy > 0;
     for (const n of this.nodes) {
       const cell = substrate.cellAtWorld(n.x, n.y);
       if (cell && cell.hazard) {
         n.health -= v.hazardDamagePerTurn * dmgMul;
-      } else if (n.health < 1) {
+      } else if (n.health < 1 && fed && (!cell || cell.trich <= 0)) {
         n.health = Math.min(1, n.health + v.recoveryPerTurn);
       }
     }
@@ -314,10 +319,10 @@ export class Network {
     this.vitality = Math.max(0, Math.min(1, avg - this._vitalityDip));
   }
   decayVitalityDip() {
-    this._vitalityDip = Math.max(0, this._vitalityDip - 0.03);
+    this._vitalityDip = Math.max(0, this._vitalityDip - this.config.vitality.dipDecayPerTurn);
   }
   addVitalityDip(amount) {
-    this._vitalityDip = Math.min(0.9, this._vitalityDip + amount);
+    this._vitalityDip = Math.min(this.config.vitality.maxVitalityDip, this._vitalityDip + amount);
     this.recomputeVitality();
   }
 

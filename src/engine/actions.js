@@ -113,7 +113,7 @@ export const ACTIONS = {
       if (points.length === 0) {
         return { ok: false, message: 'No fruitable soil reached — steer growth under soil near the surface.' };
       }
-      const vitalityFactor = Math.max(0.3, net.vitality);
+      const vitalityFactor = Math.max(f.vitalityFloor, net.vitality);
       let spores = 0;
       for (const p of points) {
         spores += f.payoutPerBody * (p.shade ? f.shadeMultiplier : 1) * vitalityFactor;

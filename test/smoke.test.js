@@ -6,7 +6,7 @@ import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
-import { totalTrichoderma, spawnTrichodermaAt } from '../src/engine/threats.js';
+import { totalTrichoderma, spawnTrichodermaAt, applyTrichodermaDamage } from '../src/engine/threats.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -109,6 +109,45 @@ console.log('# Melanize reduces incoming damage (defensive trait matters)');
   n3.applyHazardDamage(s3.substrate);
   const dmgMel = base.reduce((a, h, i) => a + (h - n3.nodes[i].health), 0);
   ok(dmgMel < dmgNoMel, `Melanize reduced hazard damage (${dmgMel.toFixed(3)} < ${dmgNoMel.toFixed(3)})`);
+}
+
+console.log('# Trichoderma damage sticks (recovery does not cancel it; needs fed+safe)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
+  const net = s.active;
+  net.energy = 100; // fed
+  // Infect every node's cell (non-hazard), then run damage + recovery order.
+  for (const node of net.nodes) {
+    const cell = s.substrate.cellAtWorld(node.x, node.y);
+    if (cell) { cell.hazard = false; cell.trich = 1; }
+  }
+  const before = net.nodes.reduce((a, n) => a + n.health, 0);
+  applyTrichodermaDamage(net, s.substrate, s.config);
+  net.applyHazardDamage(s.substrate); // recovery step must NOT heal infected cells
+  const after = net.nodes.reduce((a, n) => a + n.health, 0);
+  ok(after < before, `Trichoderma net-damaged the network (${after.toFixed(2)} < ${before.toFixed(2)})`);
+
+  // A safe, fed, damaged node DOES recover.
+  const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 8);
+  const n2 = s2.active;
+  n2.energy = 100;
+  n2.nodes.forEach((n) => { n.health = 0.5; });
+  for (const node of n2.nodes) { const c = s2.substrate.cellAtWorld(node.x, node.y); if (c) { c.hazard = false; c.trich = 0; } }
+  const b2 = n2.nodes.reduce((a, n) => a + n.health, 0);
+  n2.applyHazardDamage(s2.substrate);
+  const a2 = n2.nodes.reduce((a, n) => a + n.health, 0);
+  ok(a2 > b2, 'Safe, fed strands recover health');
+
+  // A starving node does NOT recover.
+  const s3 = createState(JSON.parse(JSON.stringify(CONFIG)), 9);
+  const n3 = s3.active;
+  n3.energy = 0; // starving
+  n3.nodes.forEach((n) => { n.health = 0.5; });
+  for (const node of n3.nodes) { const c = s3.substrate.cellAtWorld(node.x, node.y); if (c) { c.hazard = false; c.trich = 0; } }
+  const b3 = n3.nodes.reduce((a, n) => a + n.health, 0);
+  n3.applyHazardDamage(s3.substrate);
+  const a3 = n3.nodes.reduce((a, n) => a + n.health, 0);
+  ok(Math.abs(a3 - b3) < 1e-9, 'Starving strands do not recover');
 }
 
 console.log('# Fruit pays Spores and ends the cycle');
