@@ -47,7 +47,7 @@ function start(seed) {
 }
 
 function buildRenderers() {
-  substrateRenderer = new SubstrateRenderer(state.substrate, CONFIG);
+  substrateRenderer = new SubstrateRenderer(state.substrate, CONFIG, state.seed);
   networkRenderers.clear();
   for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, CONFIG));
 }
@@ -232,7 +232,7 @@ function frame(time) {
   ctx.fillStyle = '#05070d';
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-  substrateRenderer.draw(ctx, camera);
+  substrateRenderer.draw(ctx, camera, time);
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);

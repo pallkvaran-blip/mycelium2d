@@ -146,23 +146,55 @@ export const CONFIG = {
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
+  // A subterranean cross-section: a twilight sky over rich, textured earth,
+  // glowing nutrient pockets, toxic pools, and a luminous mint network.
   render: {
-    skyTop: '#0a0f1c',
-    skyBottom: '#10182b',
-    groundTop: '#241a12',
-    groundBottom: '#0e0a07',
-    soilLine: '#5a4630',
-    nonSoil: '#3a3d45',
-    shadeOverlay: 'rgba(10,16,30,0.45)',
-    foodColor: '#3f7d3a',
-    hazardColor: '#7a2230',
-    trichodermaColor: '#86a23c',
+    // sky / air
+    skyTop: '#06080f',
+    skyHorizon: '#1a2236',
+    horizonGlow: 'rgba(74,86,128,0.45)',
+    star: 'rgba(200,214,255,0.7)',
+    sunWash: 'rgba(232,176,86,0.12)',     // warm light over sunny soil
+    shadeWash: 'rgba(36,86,150,0.30)',    // cool light over shaded soil
+    canopy: 'rgba(8,16,12,0.55)',         // foliage silhouette over shade
+    // earth strata (top -> deep)
+    soilTop: '#473221',
+    soilMid: '#241a10',
+    soilDeep: '#0c0805',
+    rock: '#41382d',
+    rockLip: '#5b5040',
+    vein: 'rgba(214,182,120,0.45)',       // mineral veins
+    fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
+    // food / nutrient pockets
+    foodCore: '#cc9038',
+    foodEdge: '#566a2a',
+    foodVein: '#f2d784',
+    // hazards (toxic pools / nests)
+    hazardDeep: '#34112c',
+    hazardMid: '#741f3d',
+    hazardCaustic: 'rgba(78,210,176,0.8)',
+    hazardBubble: 'rgba(150,240,210,0.5)',
+    // surface
+    crust: '#52402b',
+    crustLip: '#6c5536',
+    grassSun: '#86b154',
+    grassShade: '#4f8088',
+    concrete: '#383b43',
+    concreteCrack: 'rgba(0,0,0,0.4)',
+    // Trichoderma
+    trich: '#8aa23e',
+    trichSpore: '#d2e074',
+    // the living network (luminous accent — kept distinct from the earth)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
-    sensingRing: 'rgba(160,255,190,0.18)',
+    sensingRing: 'rgba(160,255,190,0.15)',
     pulseColor: '#eafff0',
     pulseSpeed: 70,              // pulse travel speed (units/sec)
-    minBrightness: 0.28,        // dimmest a fully-unhealthy network renders
+    minBrightness: 0.3,         // dimmest a fully-unhealthy network renders
+    // atmosphere
+    spore: 'rgba(202,255,216,0.75)',
+    mote: 'rgba(226,196,142,0.5)',
+    particleCount: 80,
   },
 
   dev: {

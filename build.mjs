@@ -6,19 +6,20 @@
 //   dist/index.html    — full standalone page (open or deploy anywhere)
 //   dist/artifact.html — body-only (for hosts that supply their own <head>)
 //
-// Strategy: strip import/export keywords and concatenate every module in
-// dependency order inside one IIFE in a plain <script>. The game exposes
-// nothing globally except window.__game (dev handle), so a single shared
-// function scope is safe and avoids any module-resolution at runtime.
+// Each module is wrapped in its own closure and registered in a small registry,
+// so every module KEEPS ITS OWN SCOPE — two modules can define a private helper
+// of the same name without clobbering each other (which a flat concatenation
+// would do). Imports are rewired to read from the registry; exports are
+// collected from each closure's return value. No runtime module loading.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, posix } from 'path';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const R = (p) => join(root, p);
 
-// Dependency order: classes must be defined before the code that runs them.
+// Dependency order: a module's deps must be registered before it runs.
 const MODULES = [
   'src/config.js',
   'src/engine/rng.js',
@@ -29,22 +30,57 @@ const MODULES = [
   'src/engine/actions.js',
   'src/engine/turn.js',
   'src/render/camera.js',
+  'src/render/noise.js',
   'src/render/substrate.js',
   'src/render/network.js',
   'src/render/ui.js',
   'src/main.js',
 ];
 
-function strip(src) {
-  return src
-    .split('\n')
-    .filter((line) => !/^\s*import\s.+from\s+['"].+['"];?\s*$/.test(line))
-    .join('\n')
-    .replace(/^export\s+/gm, '');
+const idOf = (p) => p.replace(/^src\//, '').replace(/\.js$/, '');
+const safe = (id) => '__m_' + id.replace(/[^a-z0-9]/gi, '_');
+
+// Resolve an import specifier relative to the importing file (src-relative id).
+function resolveSpec(fromFile, spec) {
+  const fromId = idOf(fromFile);            // e.g. render/substrate
+  const dir = posix.dirname('src/' + fromId + '.js'); // src/render
+  const abs = posix.normalize(posix.join(dir, spec));  // src/render/../engine/rng.js
+  return idOf(abs.replace(/^src\//, 'src/'));
+}
+
+const IMPORT_RE = /^\s*import\s*\{([^}]*)\}\s*from\s*['"](.+?)['"];?\s*$/;
+const EXPORT_DECL_RE = /^\s*export\s+(?:const|let|var|function|class)\s+([A-Za-z0-9_$]+)/;
+
+function transform(file) {
+  const src = readFileSync(R(file), 'utf8');
+  const id = idOf(file);
+  const lines = src.split('\n');
+  const injects = [];   // `const { a, b } = __m_dep;`
+  const exports = [];   // exported names
+  const body = [];
+
+  for (const line of lines) {
+    const imp = line.match(IMPORT_RE);
+    if (imp) {
+      const names = imp[1].split(',').map((s) => s.trim()).filter(Boolean);
+      const dep = resolveSpec(file, imp[2]);
+      injects.push(`  const { ${names.join(', ')} } = ${safe(dep)};`);
+      continue;
+    }
+    const exp = line.match(EXPORT_DECL_RE);
+    if (exp) exports.push(exp[1]);
+    body.push(line.replace(/^(\s*)export\s+/, '$1'));
+  }
+
+  return `const ${safe(id)} = (function () {\n` +
+    injects.join('\n') + (injects.length ? '\n' : '') +
+    body.join('\n') + '\n' +
+    `  return { ${exports.join(', ')} };\n` +
+    `})();`;
 }
 
 const js = MODULES
-  .map((f) => `// ===================== ${f} =====================\n${strip(readFileSync(R(f), 'utf8'))}`)
+  .map((f) => `// ===================== ${f} =====================\n${transform(f)}`)
   .join('\n\n');
 
 // Pull the CSS straight out of index.html so there is one source of truth.
@@ -59,10 +95,8 @@ ${css}
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
-(function () {
 'use strict';
 ${js}
-})();
 </script>`;
 
 const standalone = `<!DOCTYPE html>
