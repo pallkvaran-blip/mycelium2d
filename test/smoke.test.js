@@ -251,6 +251,25 @@ console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cu
   ok(brMel < brNoMel, `Melanize resists initial contact (${brMel} < ${brNoMel})`);
 }
 
+console.log('# Infection also advances on End Turn (no dodging the rot)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 314);
+  const net = s.active;
+  s.clouds = [];                              // isolate the internal spread
+  s.config.trichoderma.initialPatches = 0;    // no respawn
+  net.energy += 1000;                         // no starvation interference
+  const seedNode = net.nodes[net.nodes.length - 1];
+  s.substrate.deposit(seedNode.x, seedNode.y + 30, 100, 3);
+  for (let i = 0; i < 12; i++) net.grow(s.substrate, s.rng);
+  const hub = net.nodes.find((n) => n.parentId != null && n.children.length > 0) || net.nodes[1];
+  hub.infected = true;
+  const before = net.nodes.filter((n) => n.infected).length;
+  s.movesLeft = 0;
+  endTurn(s);
+  const after = net.nodes.filter((n) => n.infected).length;
+  ok(after > before, `the rot advances on End Turn too (${before} -> ${after} infected)`);
+}
+
 console.log('# Fruit pays Spores and ends the cycle');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 2024);

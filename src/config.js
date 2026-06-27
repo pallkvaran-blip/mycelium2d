@@ -93,7 +93,7 @@ export const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    sightRadius: 650,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a ring
+    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
@@ -102,7 +102,7 @@ export const CONFIG = {
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium
-    spreadDepthPerTurn: 3,       // once inside, the rot races this many rings along your filaments each turn
+    spreadDepthPerTurn: 6,       // once inside, the rot races this many rings along your filaments each step (runs on every action AND on end-turn)
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
   },
 

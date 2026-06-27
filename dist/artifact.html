@@ -251,7 +251,7 @@ const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    sightRadius: 650,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a ring
+    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
@@ -260,7 +260,7 @@ const CONFIG = {
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium
-    spreadDepthPerTurn: 3,       // once inside, the rot races this many rings along your filaments each turn
+    spreadDepthPerTurn: 6,       // once inside, the rot races this many rings along your filaments each step (runs on every action AND on end-turn)
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
   },
 
@@ -1675,6 +1675,7 @@ function devSpawnTrichoderma(state, x, y) {
 
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
+  const { infectNetwork } = __m_engine_threats;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -1687,15 +1688,16 @@ const __m_engine_turn = (function () {
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
+
 function endTurn(state) {
   if (state.runOver) return;
 
   const { config, substrate } = state;
   let totalIncome = 0;
 
-  // NOTE: the mould (cloud movement + infection) no longer steps here — it
-  // reacts to the player's every action instead (see tickThreat, called from
-  // performAction). End-turn only resolves the turn-based economy below.
+  // NOTE: cloud MOVEMENT only happens on actions (see tickThreat, called from
+  // performAction) — not here. But the INFECTION keeps spreading on end-turn too
+  // so you can't dodge the rot by ending your turn.
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -1707,6 +1709,9 @@ function endTurn(state) {
     // 1b) Age the strands so the colony visibly thickens over time.
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
+
+    // 1c) The rot races further along the filaments (also runs per action).
+    infectNetwork(net, state);
 
     // 2) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
@@ -2961,7 +2966,7 @@ class UI {
     const items = [
       ['#7c5326', 'Substrate (organic matter)'],
       ['#8aa23e', 'Trichoderma — infects your net'],
-      ['repeating-conic-gradient(#aacd5a 0 12deg,transparent 12deg 24deg)', 'Mould sight range (dashed ring)'],
+      ['radial-gradient(circle,rgba(150,190,70,0) 55%,rgba(150,190,70,0.5))', 'Mould sight range (soft ring)'],
       ['#5d574e', 'Rock — impassable'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
@@ -3459,7 +3464,7 @@ function frame(time) {
 }
 
 // Show each roaming mould cloud's sight range — the area within which it will
-// sense and head for food / your colony. A faint dashed ring + soft fill.
+// sense and head for food / your colony. A soft greenish rim near the edge.
 function drawCloudSight() {
   const clouds = state.clouds;
   if (!clouds || !clouds.length) return;
@@ -3467,17 +3472,13 @@ function drawCloudSight() {
   ctx.save();
   for (const c of clouds) {
     const s = camera.worldToScreen(c.cx, c.cy);
-    const a = c.dying ? 0.04 : 0.08;
-    // a thin soft rim just inside the edge (keeps the screen from washing green)
-    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.82, s.x, s.y, sight);
+    const a = c.dying ? 0.05 : 0.10;
+    // a soft rim just inside the edge marks the range (no hard line needed)
+    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
     g.addColorStop(0, 'rgba(150,190,70,0)');
     g.addColorStop(1, `rgba(150,190,70,${a})`);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = `rgba(180,210,100,${c.dying ? 0.16 : 0.28})`;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([7, 7]);
-    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.restore();
 }

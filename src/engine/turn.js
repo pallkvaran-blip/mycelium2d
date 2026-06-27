@@ -10,15 +10,17 @@
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
+import { infectNetwork } from './threats.js';
+
 export function endTurn(state) {
   if (state.runOver) return;
 
   const { config, substrate } = state;
   let totalIncome = 0;
 
-  // NOTE: the mould (cloud movement + infection) no longer steps here — it
-  // reacts to the player's every action instead (see tickThreat, called from
-  // performAction). End-turn only resolves the turn-based economy below.
+  // NOTE: cloud MOVEMENT only happens on actions (see tickThreat, called from
+  // performAction) — not here. But the INFECTION keeps spreading on end-turn too
+  // so you can't dodge the rot by ending your turn.
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -30,6 +32,9 @@ export function endTurn(state) {
     // 1b) Age the strands so the colony visibly thickens over time.
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
+
+    // 1c) The rot races further along the filaments (also runs per action).
+    infectNetwork(net, state);
 
     // 2) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
