@@ -255,10 +255,35 @@ function frame(time) {
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
+  drawCloudSight();
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
+}
+
+// Show each roaming mould cloud's sight range — the area within which it will
+// sense and head for food / your colony. A faint dashed ring + soft fill.
+function drawCloudSight() {
+  const clouds = state.clouds;
+  if (!clouds || !clouds.length) return;
+  const sight = CONFIG.trichoderma.sightRadius * camera.zoom;
+  ctx.save();
+  for (const c of clouds) {
+    const s = camera.worldToScreen(c.cx, c.cy);
+    const a = c.dying ? 0.04 : 0.08;
+    // a thin soft rim just inside the edge (keeps the screen from washing green)
+    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.82, s.x, s.y, sight);
+    g.addColorStop(0, 'rgba(150,190,70,0)');
+    g.addColorStop(1, `rgba(150,190,70,${a})`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(180,210,100,${c.dying ? 0.16 : 0.28})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([7, 7]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawTargetingCursor(time) {

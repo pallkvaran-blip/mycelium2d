@@ -257,8 +257,9 @@ const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
+    sightRadius: 650,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
-    consumeFraction: 0.2,        // per ACTION, drains this fraction of each cell in a TOUCHED pile — a whole pile is gone in ~2 turns
+    consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
@@ -404,6 +405,7 @@ const SLIDERS = [
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
   { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },
+  { path: 'trichoderma.sightRadius',     label: 'Mold Sight Range',    min: 100, max: 1500, step: 50 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
@@ -1156,7 +1158,7 @@ const __m_engine_threats = (function () {
 // =============================================================================
 
 function makeCloud(cx, cy, r) {
-  return { cx, cy, r, strength: 1, dying: false };
+  return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
 
 // Seed the initial roaming clouds at map generation. They start in OPEN ground
@@ -1236,8 +1238,10 @@ function spreadTrichoderma(state) {
       if (cloud.strength <= 0.01) continue;
     }
 
-    // Drift toward the nearest target among ALL food cells AND all your strands.
-    let tx = null, ty = null, best = Infinity;
+    // Head for the nearest food/strand WITHIN sight; if nothing is in range,
+    // wander until something is sensed. (sightRadius is shown on screen.)
+    const step = t.moveSpeed * cs;
+    let tx = null, ty = null, best = t.sightRadius * t.sightRadius;
     for (const f of food) {
       const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
       if (d < best) { best = d; tx = f.x; ty = f.y; }
@@ -1249,15 +1253,27 @@ function spreadTrichoderma(state) {
     if (tx != null) {
       const dx = tx - cloud.cx, dy = ty - cloud.cy;
       const dist = Math.hypot(dx, dy) || 1;
-      const step = Math.min(dist, t.moveSpeed * cs);
-      cloud.cx += (dx / dist) * step;
-      cloud.cy += (dy / dist) * step;
+      const s = Math.min(dist, step);
+      cloud.cx += (dx / dist) * s;
+      cloud.cy += (dy / dist) * s;
+      cloud.heading = Math.atan2(dy, dx);
+    } else {
+      // Nothing sensed — roam, bouncing off the world bounds.
+      if (cloud.heading == null) cloud.heading = rng.range(0, Math.PI * 2);
+      cloud.heading += rng.range(-0.4, 0.4);
+      let nx = cloud.cx + Math.cos(cloud.heading) * step;
+      let ny = cloud.cy + Math.sin(cloud.heading) * step;
+      const minX = cs, maxX = sub.worldWidth - cs;
+      const minY = sub.surfaceY + cs, maxY = sub.worldHeight - cs;
+      if (nx < minX || nx > maxX) { cloud.heading = Math.PI - cloud.heading; nx = Math.max(minX, Math.min(maxX, nx)); }
+      if (ny < minY || ny > maxY) { cloud.heading = -cloud.heading; ny = Math.max(minY, Math.min(maxY, ny)); }
+      cloud.cx = nx; cloud.cy = ny;
     }
 
-    // Devour the substrate under the cloud — fast (a covered cell is gone in
-    // ~2 turns). Eating barely grows the cloud, hard-capped so it never gets
-    // giant no matter how much food it consumes.
-    const ate = eatUnder(sub, cloud, t.consumeFraction);
+    // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
+    // pile visibly shrinks cell-by-cell as the cloud crawls across it. Eating
+    // barely grows the cloud, hard-capped so it never gets giant.
+    const ate = eatUnder(sub, cloud, t.consumeReachMult);
     if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
 
     survivors.push(cloud);
@@ -1274,50 +1290,26 @@ function spreadTrichoderma(state) {
   stampCloudField(sub, state.clouds);
 }
 
-// Digest the whole substrate PILE a cloud is touching (not just the cells under
-// its small footprint): find food under the cloud, flood-fill the connected
-// pile, and drain every cell in it. So a small cloud that merely reaches a big
-// pile still finishes the whole thing in ~2 turns. Returns total nutrient eaten.
-function eatUnder(sub, cloud, frac) {
+// Eat the substrate the cloud covers WHOLE: every food cell within reach is
+// fully consumed (removed from the pile) this action — so the pile visibly
+// shrinks cell-by-cell as the cloud crawls across it, rather than dimming
+// uniformly. Returns total nutrient eaten.
+function eatUnder(sub, cloud, reachMult) {
   const cs = sub.cellSize;
+  const reach = cloud.r * cs * reachMult;
   const c0 = sub.colAtX(cloud.cx), r0 = sub.rowAtY(cloud.cy);
-  const radCells = Math.ceil(cloud.r) + 1;
-  const reach = cloud.r * cs;
-
-  // Seeds: food cells the cloud's footprint overlaps.
-  const stack = [];
+  const radCells = Math.ceil(reach / cs) + 1;
+  let ate = 0;
   for (let row = r0 - radCells; row <= r0 + radCells; row++) {
     for (let col = c0 - radCells; col <= c0 + radCells; col++) {
       if (!sub.inBounds(col, row)) continue;
       const cell = sub.cells[sub.index(col, row)];
       if (cell.nutrient <= 0) continue;
       const ctr = sub.cellCenter(col, row);
-      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) <= reach) stack.push(col * 100000 + row);
-    }
-  }
-  if (!stack.length) return 0;
-
-  // Flood-fill through the connected food cluster (cells that ARE/WERE food, i.e.
-  // maxNutrient > 0) and drain each one.
-  const nbrs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
-  const seen = new Set();
-  let ate = 0;
-  while (stack.length) {
-    const packed = stack.pop();
-    if (seen.has(packed)) continue;
-    seen.add(packed);
-    const col = Math.floor(packed / 100000), row = packed % 100000;
-    if (!sub.inBounds(col, row)) continue;
-    const cell = sub.cells[sub.index(col, row)];
-    if (cell.maxNutrient <= 0 || cell.rock) continue;   // only spread through the pile
-    if (cell.nutrient > 0) {
-      const take = Math.min(cell.nutrient, cell.maxNutrient * frac);
-      cell.nutrient -= take;
-      ate += take;
-    }
-    for (const [dc, dr] of nbrs) {
-      const nc = col + dc, nr = row + dr;
-      if (nc >= 0 && nr >= 0) stack.push(nc * 100000 + nr);
+      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) > reach) continue;
+      ate += cell.nutrient;
+      cell.nutrient = 0;
+      cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
     }
   }
   return ate;
@@ -2975,6 +2967,7 @@ class UI {
     const items = [
       ['#7c5326', 'Substrate (organic matter)'],
       ['#8aa23e', 'Trichoderma — infects your net'],
+      ['repeating-conic-gradient(#aacd5a 0 12deg,transparent 12deg 24deg)', 'Mould sight range (dashed ring)'],
       ['#5d574e', 'Rock — impassable'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
@@ -3464,10 +3457,35 @@ function frame(time) {
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
+  drawCloudSight();
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
+}
+
+// Show each roaming mould cloud's sight range — the area within which it will
+// sense and head for food / your colony. A faint dashed ring + soft fill.
+function drawCloudSight() {
+  const clouds = state.clouds;
+  if (!clouds || !clouds.length) return;
+  const sight = CONFIG.trichoderma.sightRadius * camera.zoom;
+  ctx.save();
+  for (const c of clouds) {
+    const s = camera.worldToScreen(c.cx, c.cy);
+    const a = c.dying ? 0.04 : 0.08;
+    // a thin soft rim just inside the edge (keeps the screen from washing green)
+    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.82, s.x, s.y, sight);
+    g.addColorStop(0, 'rgba(150,190,70,0)');
+    g.addColorStop(1, `rgba(150,190,70,${a})`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(180,210,100,${c.dying ? 0.16 : 0.28})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([7, 7]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawTargetingCursor(time) {

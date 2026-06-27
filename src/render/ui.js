@@ -64,6 +64,7 @@ export class UI {
     const items = [
       ['#7c5326', 'Substrate (organic matter)'],
       ['#8aa23e', 'Trichoderma — infects your net'],
+      ['repeating-conic-gradient(#aacd5a 0 12deg,transparent 12deg 24deg)', 'Mould sight range (dashed ring)'],
       ['#5d574e', 'Rock — impassable'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],

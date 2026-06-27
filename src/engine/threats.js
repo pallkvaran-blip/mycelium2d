@@ -25,7 +25,7 @@
 // =============================================================================
 
 function makeCloud(cx, cy, r) {
-  return { cx, cy, r, strength: 1, dying: false };
+  return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
 
 // Seed the initial roaming clouds at map generation. They start in OPEN ground
@@ -105,8 +105,10 @@ export function spreadTrichoderma(state) {
       if (cloud.strength <= 0.01) continue;
     }
 
-    // Drift toward the nearest target among ALL food cells AND all your strands.
-    let tx = null, ty = null, best = Infinity;
+    // Head for the nearest food/strand WITHIN sight; if nothing is in range,
+    // wander until something is sensed. (sightRadius is shown on screen.)
+    const step = t.moveSpeed * cs;
+    let tx = null, ty = null, best = t.sightRadius * t.sightRadius;
     for (const f of food) {
       const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
       if (d < best) { best = d; tx = f.x; ty = f.y; }
@@ -118,15 +120,27 @@ export function spreadTrichoderma(state) {
     if (tx != null) {
       const dx = tx - cloud.cx, dy = ty - cloud.cy;
       const dist = Math.hypot(dx, dy) || 1;
-      const step = Math.min(dist, t.moveSpeed * cs);
-      cloud.cx += (dx / dist) * step;
-      cloud.cy += (dy / dist) * step;
+      const s = Math.min(dist, step);
+      cloud.cx += (dx / dist) * s;
+      cloud.cy += (dy / dist) * s;
+      cloud.heading = Math.atan2(dy, dx);
+    } else {
+      // Nothing sensed — roam, bouncing off the world bounds.
+      if (cloud.heading == null) cloud.heading = rng.range(0, Math.PI * 2);
+      cloud.heading += rng.range(-0.4, 0.4);
+      let nx = cloud.cx + Math.cos(cloud.heading) * step;
+      let ny = cloud.cy + Math.sin(cloud.heading) * step;
+      const minX = cs, maxX = sub.worldWidth - cs;
+      const minY = sub.surfaceY + cs, maxY = sub.worldHeight - cs;
+      if (nx < minX || nx > maxX) { cloud.heading = Math.PI - cloud.heading; nx = Math.max(minX, Math.min(maxX, nx)); }
+      if (ny < minY || ny > maxY) { cloud.heading = -cloud.heading; ny = Math.max(minY, Math.min(maxY, ny)); }
+      cloud.cx = nx; cloud.cy = ny;
     }
 
-    // Devour the substrate under the cloud — fast (a covered cell is gone in
-    // ~2 turns). Eating barely grows the cloud, hard-capped so it never gets
-    // giant no matter how much food it consumes.
-    const ate = eatUnder(sub, cloud, t.consumeFraction);
+    // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
+    // pile visibly shrinks cell-by-cell as the cloud crawls across it. Eating
+    // barely grows the cloud, hard-capped so it never gets giant.
+    const ate = eatUnder(sub, cloud, t.consumeReachMult);
     if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
 
     survivors.push(cloud);
@@ -143,50 +157,26 @@ export function spreadTrichoderma(state) {
   stampCloudField(sub, state.clouds);
 }
 
-// Digest the whole substrate PILE a cloud is touching (not just the cells under
-// its small footprint): find food under the cloud, flood-fill the connected
-// pile, and drain every cell in it. So a small cloud that merely reaches a big
-// pile still finishes the whole thing in ~2 turns. Returns total nutrient eaten.
-function eatUnder(sub, cloud, frac) {
+// Eat the substrate the cloud covers WHOLE: every food cell within reach is
+// fully consumed (removed from the pile) this action — so the pile visibly
+// shrinks cell-by-cell as the cloud crawls across it, rather than dimming
+// uniformly. Returns total nutrient eaten.
+function eatUnder(sub, cloud, reachMult) {
   const cs = sub.cellSize;
+  const reach = cloud.r * cs * reachMult;
   const c0 = sub.colAtX(cloud.cx), r0 = sub.rowAtY(cloud.cy);
-  const radCells = Math.ceil(cloud.r) + 1;
-  const reach = cloud.r * cs;
-
-  // Seeds: food cells the cloud's footprint overlaps.
-  const stack = [];
+  const radCells = Math.ceil(reach / cs) + 1;
+  let ate = 0;
   for (let row = r0 - radCells; row <= r0 + radCells; row++) {
     for (let col = c0 - radCells; col <= c0 + radCells; col++) {
       if (!sub.inBounds(col, row)) continue;
       const cell = sub.cells[sub.index(col, row)];
       if (cell.nutrient <= 0) continue;
       const ctr = sub.cellCenter(col, row);
-      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) <= reach) stack.push(col * 100000 + row);
-    }
-  }
-  if (!stack.length) return 0;
-
-  // Flood-fill through the connected food cluster (cells that ARE/WERE food, i.e.
-  // maxNutrient > 0) and drain each one.
-  const nbrs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
-  const seen = new Set();
-  let ate = 0;
-  while (stack.length) {
-    const packed = stack.pop();
-    if (seen.has(packed)) continue;
-    seen.add(packed);
-    const col = Math.floor(packed / 100000), row = packed % 100000;
-    if (!sub.inBounds(col, row)) continue;
-    const cell = sub.cells[sub.index(col, row)];
-    if (cell.maxNutrient <= 0 || cell.rock) continue;   // only spread through the pile
-    if (cell.nutrient > 0) {
-      const take = Math.min(cell.nutrient, cell.maxNutrient * frac);
-      cell.nutrient -= take;
-      ate += take;
-    }
-    for (const [dc, dr] of nbrs) {
-      const nc = col + dc, nr = row + dr;
-      if (nc >= 0 && nr >= 0) stack.push(nc * 100000 + nr);
+      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) > reach) continue;
+      ate += cell.nutrient;
+      cell.nutrient = 0;
+      cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
     }
   }
   return ate;
