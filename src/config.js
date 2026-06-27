@@ -116,9 +116,8 @@ export const CONFIG = {
     addSubstrate: {
       moveCost: 1,
       energyCost: 12,            // (SLIDER)
-      amount: 70,                // nutrient deposited at the centre cell
-      radius: 2,                 // deposit radius in cells (falls off to edge)
-      lureStrength: 1.8,         // attractor weight multiplier for placed food
+      amount: 20,                // SMALL nutrient — enough to attract growth, not to feed it
+      radius: 1,                 // tiny footprint (a dot to lure toward, not a pile)
     },
     amputate: {
       moveCost: 1,

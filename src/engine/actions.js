@@ -33,13 +33,13 @@ export const ACTIONS = {
   addSubstrate: {
     label: 'Add Substrate',
     target: 'point',
-    desc: 'Place a patch of food to lure growth where you want it.',
+    desc: 'Drop a small lure to steer growth where you want it (barely any food).',
     apply(state, ctx) {
       const a = state.config.actions.addSubstrate;
       const sub = state.substrate;
       if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
-      sub.deposit(ctx.x, ctx.y, state.config.substrate.foodCellNutrient, a.radius);
-      return { ok: true, message: 'Placed substrate to lure growth.' };
+      sub.deposit(ctx.x, ctx.y, a.amount, a.radius);   // small amount — it lures, it doesn't feed
+      return { ok: true, message: 'Dropped a lure to steer growth.' };
     },
   },
 
