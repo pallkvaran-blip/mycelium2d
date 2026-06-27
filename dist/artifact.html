@@ -123,9 +123,31 @@
 
     /* mobile-ish */
     @media (max-width: 720px) {
-      .logpanel { width: 180px; max-height: 26vh; }
-      .testing { width: 220px; }
-      .dev { width: 220px; }
+      .logpanel { width: 150px; max-height: 22vh; }
+      .testing { width: 200px; }
+      .dev { width: 200px; }
+
+      /* Let the action bar use the FULL width and shrink its buttons, so it
+         collapses into a short 1–2 row strip instead of a tall block that
+         covers the map. */
+      .actionbar { left: 6px; right: 6px; transform: none;
+        max-width: none; gap: 5px; padding: 7px 8px; justify-content: center; }
+      .actionbar .btn { padding: 6px 9px; font-size: 12px; }
+      .actionbar .btn .cost, .actionbar .btn .lvl { font-size: 10px; margin-left: 3px; }
+      .actionbar .expr-group { padding: 3px 5px; gap: 3px; }
+      .actionbar .expr-group .group-label { font-size: 10px; }
+      .actionbar .expr-group .btn.trait { padding: 5px 7px; font-size: 11px; }
+      .actionbar .ctrl { gap: 5px; }
+      /* the hover hint isn't useful on touch and would overlap the wider bar */
+      .hint { display: none; }
+    }
+
+    /* narrow phones: tighten the buttons further so everything still fits in a
+       compact 1–2 row strip (all actions stay tappable — no scrolling). */
+    @media (max-width: 480px) {
+      .actionbar { gap: 4px; padding: 6px; }
+      .actionbar .btn { padding: 6px 8px; font-size: 11.5px; }
+      .actionbar .expr-group .group-label { display: none; }
     }
 </style>
 <canvas id="game"></canvas>
