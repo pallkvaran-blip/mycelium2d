@@ -2170,9 +2170,17 @@ class SubstrateRenderer {
 
       // --- mycelial mat threading through + thickening as it colonises ---
       if (colo > 0.02) {
-        octx.fillStyle = `rgba(${r.mat},${0.04 + 0.16 * colo * colo})`;
+        // Soft radial falloff (not a hard disc) so adjacent colonised cells
+        // blend into one continuous mat instead of a grid of white circles.
+        const matA = 0.04 + 0.16 * colo * colo;
+        const matR = cs * 0.85;
+        const mg = octx.createRadialGradient(cx, cy, 0, cx, cy, matR);
+        mg.addColorStop(0, `rgba(${r.mat},${matA})`);
+        mg.addColorStop(0.6, `rgba(${r.mat},${matA * 0.6})`);
+        mg.addColorStop(1, `rgba(${r.mat},0)`);
+        octx.fillStyle = mg;
         octx.beginPath();
-        octx.arc(cx, cy, cs * 0.58, 0, Math.PI * 2);
+        octx.arc(cx, cy, matR, 0, Math.PI * 2);
         octx.fill();
         const threads = Math.floor(1 + colo * colo * 11);  // sparse early, dense when full
         octx.strokeStyle = `rgba(${r.mat},${0.18 * colo + 0.06})`;
