@@ -33,6 +33,7 @@ let previewFruitPoints = [];
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 let showNematodeVision = true;        // dev overlay: nematode sight range + line of sight
+let placingWorm = false;              // dev: click the map to drop a nematode
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -98,6 +99,7 @@ function expandedBounds() {
 // --- input handlers (passed to UI) -----------------------------------------
 const handlers = {
   onAction(name, ctx) {
+    placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];
     // Targeted actions: first click selects targeting mode; the canvas click
     // supplies coordinates.
@@ -127,6 +129,12 @@ const handlers = {
   onToggleWormVision() {
     showNematodeVision = !showNematodeVision;
     return showNematodeVision;
+  },
+  onPlaceWorm() {
+    placingWorm = !placingWorm;
+    if (placingWorm) { ui.setSelectedAction(null); ui.setHint('Click the map to drop a nematode. Esc to stop.'); }
+    uiDirty = true;
+    return placingWorm;
   },
   onPuzzle() {
     startPuzzle();
@@ -242,6 +250,14 @@ function setupInput() {
     mouse.down = false;
     if (mouse.moved) return;
     const rect = canvas.getBoundingClientRect();
+    if (placingWorm) {
+      // Dev placement: each tap drops a worm where you click (mode stays on).
+      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      spawnNematodeAt(state, w.x, w.y);
+      state.log('DEV: placed a nematode.', 'dev');
+      uiDirty = true;
+      return;
+    }
     if (!ui.selectedAction) {
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
@@ -266,7 +282,7 @@ function setupInput() {
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') { e.preventDefault(); handlers.onEndTurn(); }
-    else if (e.code === 'Escape') { ui.setSelectedAction(null); uiDirty = true; }
+    else if (e.code === 'Escape') { ui.setSelectedAction(null); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -684,6 +700,22 @@ function drawNematodes(time) {
 }
 
 function drawTargetingCursor(time) {
+  // Dev worm-placement reticle (independent of the action targeting below).
+  if (placingWorm) {
+    const rect = canvas.getBoundingClientRect();
+    const sp = { x: mouse.x - rect.left, y: mouse.y - rect.top };
+    const pulse = 0.5 + 0.5 * Math.sin(time * 0.008);
+    ctx.save();
+    ctx.strokeStyle = `rgba(228,216,190,${0.6 + 0.3 * pulse})`;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(228,216,190,0.95)';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   const sel = ui && ui.selectedAction;
   if (!sel) return;
   const rect = canvas.getBoundingClientRect();

@@ -136,7 +136,9 @@ export class UI {
       c5.onclick = () => this.handlers.onCheat('nematode');
       const c6 = button('btn dev-btn', 'Worm Vision: ON');
       c6.onclick = () => { const on = this.handlers.onToggleWormVision(); c6.textContent = 'Worm Vision: ' + (on ? 'ON' : 'OFF'); };
-      cheats.append(c1, c2, c3, c4, c5, c6);
+      const c7 = button('btn dev-btn', 'Place Worm: OFF');
+      c7.onclick = () => { const on = this.handlers.onPlaceWorm(); c7.textContent = 'Place Worm: ' + (on ? 'ON' : 'OFF'); };
+      cheats.append(c1, c2, c3, c4, c5, c6, c7);
       body.appendChild(cheats);
 
       const sliders = div('sliders');
