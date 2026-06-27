@@ -15,6 +15,7 @@
 
 import { spawnTrichodermaAt, tickThreat } from './threats.js';
 import { attackNest } from './ants.js';
+import { excrete } from './nematodes.js';
 
 export const ACTIONS = {
   grow: {
@@ -67,6 +68,22 @@ export const ACTIONS = {
       return hit.dead
         ? { ok: true, message: 'Bombed the nest — it collapsed! The ants scatter.' }
         : { ok: true, message: `Bombed the nest — HP down to ${Math.round(hit.hp)}/${hit.maxHp}.` };
+    },
+  },
+
+  excrete: {
+    label: 'Excrete',
+    target: null,
+    desc: 'Secrete sticky mucus — hits & sticks every nematode near your strands (3 hits kills).',
+    apply(state) {
+      const r = excrete(state);
+      if (r.hit === 0) return { ok: false, message: 'No nematodes within reach of your mycelium.' };
+      return {
+        ok: true,
+        message: r.killed
+          ? `Excreted — stuck ${r.hit} nematode${r.hit > 1 ? 's' : ''}, killed ${r.killed}.`
+          : `Excreted — stuck ${r.hit} nematode${r.hit > 1 ? 's' : ''}.`,
+      };
     },
   },
 

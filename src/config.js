@@ -130,6 +130,12 @@ export const CONFIG = {
       damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
       pickRadius: 140,           // click tolerance (world units) — covers the underground colony
     },
+    excrete: {
+      moveCost: 1,
+      energyCost: 10,            // affordable to repeat under a swarm (SLIDER)
+      range: 80,                 // world units around ANY strand the sticky mucus reaches (SLIDER)
+      stickTurns: 1,             // ticks a hit worm is stuck (no move / feed / breed)
+    },
     digest: {
       moveCost: 1,
       energyCost: 8,
@@ -156,6 +162,24 @@ export const CONFIG = {
     nestCount: 2,                // nests seeded per (sandbox) map
     maxHp: 100,
     harvestRate: 60,             // nutrient an active nest carries off its target food per turn (SLIDER)
+  },
+
+  // ---- Nematodes (A2, B6) — fungivorous worms that graze your frontier ----
+  // A few worms wander until a strand enters their sight (rock blocks line of
+  // sight). Then they crawl in fast, eat strands whole, and MULTIPLY as they
+  // feed — so an ignored swarm snowballs. Countered by the Excrete action.
+  nematodes: {
+    initialCount: 3,             // wandering worms seeded per sandbox map
+    seedMinColonyDistFrac: 0.25, // seed at least this fraction of the map from the colony
+    sightRadius: 360,            // detection range; rock blocks line of sight (SLIDER)
+    crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
+    wanderSpeed: 1.0,            // cells/tick while searching
+    reach: 0.7,                  // cells: how close to a strand before it feeds
+    eatEveryTicks: 2,            // a feeding worm eats one strand every N ticks
+    breedChance: 0.35,           // chance a feeding worm splits each tick (SLIDER)
+    killHits: 3,                 // Excrete hits to kill one
+    maxPopulation: 48,           // hard cap (balance + performance)
+    respawnChance: 0.06,         // slow trickle of new wanderers up to initialCount
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -249,6 +273,11 @@ export const SLIDERS = [
   { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
   { path: 'ants.harvestRate',            label: 'Ant Harvest Rate',    min: 0,   max: 200, step: 5 },
   { path: 'actions.attackAnts.energyCost', label: 'Attack Ants Cost',  min: 0,   max: 80,  step: 5 },
+  { path: 'nematodes.sightRadius',       label: 'Nematode Sight',      min: 100, max: 700, step: 20 },
+  { path: 'nematodes.crawlSpeed',        label: 'Nematode Speed',      min: 0.5, max: 6,   step: 0.5 },
+  { path: 'nematodes.breedChance',       label: 'Nematode Breed Rate', min: 0,   max: 1,   step: 0.05 },
+  { path: 'actions.excrete.energyCost',  label: 'Excrete Cost',        min: 0,   max: 40,  step: 2 },
+  { path: 'actions.excrete.range',       label: 'Excrete Range',       min: 20,  max: 200, step: 10 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },

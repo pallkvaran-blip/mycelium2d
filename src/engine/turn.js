@@ -12,6 +12,7 @@
 
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
 import { stepAnts } from './ants.js';
+import { stepNematodes } from './nematodes.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -26,6 +27,9 @@ export function endTurn(state) {
   // Ants harvest their target food once per turn, retargeting when it runs out,
   // and re-stamp their impassable trails (chewing any strand now under them).
   stepAnts(state);
+
+  // Nematodes also crawl / feed / multiply on end-turn (they act per action too).
+  stepNematodes(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;

@@ -15,6 +15,7 @@ const TESTING_QUESTIONS = [
   'Does 3-moves + Energy make each turn a real prioritisation?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
   'Ants: is "go around / race them to the food / bomb the nest" a meaningful three-way choice?',
+  'Nematodes: does the spot-you → swarm-in → Excrete loop create real pressure on your frontier?',
   'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
   'Is Digest-burst a useful lever or redundant?',
 ];
@@ -77,7 +78,7 @@ export class UI {
     const bar = div('panel actionbar');
     this.el.buttons = {};
 
-    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit'];
+    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
     for (const name of order) bar.appendChild(this._actionButton(name));
 
     // End turn + restart
@@ -131,7 +132,9 @@ export class UI {
       c3.onclick = () => this.handlers.onCheat('trichoderma');
       const c4 = button('btn dev-btn', 'No-Trich Map ↻');
       c4.onclick = () => this.handlers.onNoTrichMap();
-      cheats.append(c1, c2, c3, c4);
+      const c5 = button('btn dev-btn', 'Spawn Nematode');
+      c5.onclick = () => this.handlers.onCheat('nematode');
+      cheats.append(c1, c2, c3, c4, c5);
       body.appendChild(cheats);
 
       const sliders = div('sliders');
@@ -244,15 +247,18 @@ export class UI {
     }
 
     // Button states / costs
-    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
       const { moves, energy } = actionCost(s, name);
       btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
-      // Hide the ant-bomb entirely when there are no nests to bomb (e.g. puzzle).
+      // Hide threat-specific actions when that threat isn't present (e.g. puzzle):
+      // the ant-bomb when there are no nests, Excrete when there are no worms.
       const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
-      btn.style.display = noAnts ? 'none' : '';
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || noAnts;
+      const noWorms = name === 'excrete' && !(s.nematodes && s.nematodes.length);
+      const hidden = noAnts || noWorms;
+      btn.style.display = hidden ? 'none' : '';
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || hidden;
     }
     this.el.endBtn.disabled = s.runOver;
 

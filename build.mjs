@@ -25,6 +25,7 @@ const MODULES = [
   'src/engine/rng.js',
   'src/engine/substrate.js',
   'src/engine/network.js',
+  'src/engine/nematodes.js',
   'src/engine/threats.js',
   'src/engine/ants.js',
   'src/engine/puzzle.js',

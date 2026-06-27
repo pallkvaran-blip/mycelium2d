@@ -8,6 +8,7 @@ import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
 import { totalTrichoderma, spawnTrichodermaAt, infectNetwork, spreadTrichoderma } from '../src/engine/threats.js';
 import { stepAnts, attackNest } from '../src/engine/ants.js';
+import { stepNematodes, excrete, spawnNematodeAt } from '../src/engine/nematodes.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -26,7 +27,8 @@ const state = createState(cfg, 12345);
 // own section).
 state.clouds = [];
 state.config.trichoderma.initialPatches = 0;
-state.ants = [];   // ants act on end-turn; isolate them from the generic action tests
+state.ants = [];        // ants act on end-turn; isolate them from the generic action tests
+state.nematodes = [];   // nematodes act on every action/end-turn; isolate them too
 ok(state.networks.length === 1, 'holds a list with one network');
 ok(state.active === state.networks[0], 'active network is the first');
 ok(state.substrate.cols > 0 && state.substrate.rows > 0, 'substrate grid generated');
@@ -212,6 +214,7 @@ console.log('# Infection also advances on End Turn (no dodging the rot)');
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 314);
   const net = s.active;
   s.clouds = [];                              // isolate the internal spread
+  s.nematodes = [];                           // and the worms
   s.config.trichoderma.initialPatches = 0;    // no respawn
   net.energy += 1000;                         // no starvation interference
   const seedNode = net.nodes[net.nodes.length - 1];
@@ -372,6 +375,98 @@ console.log('# Ants: bombing a nest removes 40% max HP; a kill clears its trail'
   ok(trailAfter === 0, `killing the nest clears its trail (${trailBefore} -> ${trailAfter})`);
 }
 
+console.log('# Nematodes: seed as wandering worms in open soil');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  ok(s.nematodes.length === CONFIG.nematodes.initialCount, `seeded ${s.nematodes.length} worms`);
+  ok(s.nematodes.every((w) => { const c = s.substrate.cellAtWorld(w.x, w.y); return c && !c.rock; }),
+    'worms seed in open soil (not in rock)');
+}
+
+console.log('# Nematodes: crawl in on sight; rock blocks line of sight');
+{
+  const cs = CONFIG.world.cellSize;
+  // One worm a fixed distance from the colony; measure how much it closes in a
+  // single step with vs without a rock wall blocking its view of the colony.
+  function losStep(seed, wall) {
+    const s = createState(JSON.parse(JSON.stringify(CONFIG)), seed);
+    const sub = s.substrate;
+    for (const c of sub.cells) { c.rock = false; c.nutrient = 0; c.maxNutrient = 0; }
+    s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
+    const net = s.active;
+    const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
+    const wc = sub.cellCenter(rootCol + 7, rootRow + 4);   // a few rows down (clear of the surface clamp)
+    s.nematodes = [];
+    const w = spawnNematodeAt(s, wc.x, wc.y);
+    if (wall) for (let r = 0; r < sub.rows; r++) { const cell = sub.cellAt(rootCol + 3, r); if (cell) cell.rock = true; }
+    const dist = () => Math.min(...net.nodes.map((n) => Math.hypot(n.x - w.x, n.y - w.y)));
+    const d0 = dist();
+    stepNematodes(s);
+    return d0 - dist();
+  }
+  const closedIn = losStep(11, false);
+  const blockedIn = losStep(11, true);
+  ok(closedIn > cs * 1.5, `with clear line of sight a worm crawls in (${closedIn | 0}px in one step)`);
+  ok(blockedIn < cs * 1.5, `rock blocks line of sight — the worm doesn't crawl in (${blockedIn | 0}px)`);
+}
+
+console.log('# Nematodes: feed on contact (eat strands whole) and multiply');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
+  const net = s.active;
+  const seed = net.nodes[net.nodes.length - 1];
+  s.substrate.deposit(seed.x, seed.y + 30, 100, 3);
+  for (let i = 0; i < 8; i++) net.grow(s.substrate, s.rng);
+  const nodesBefore = net.nodes.length;
+  s.nematodes = [];
+  const onNode = net.nodes[0];
+  for (let i = 0; i < 4; i++) spawnNematodeAt(s, onNode.x, onNode.y);
+  const wormsBefore = s.nematodes.length;
+  for (let i = 0; i < 4; i++) stepNematodes(s);
+  ok(net.nodes.length < nodesBefore, `worms eat strands whole (${nodesBefore} -> ${net.nodes.length} nodes)`);
+  ok(s.nematodes.length > wormsBefore, `feeding worms multiply (${wormsBefore} -> ${s.nematodes.length})`);
+}
+
+console.log('# Nematodes: Excrete sticks & kills worms in range only (3 hits)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  const net = s.active;
+  const onNode = net.nodes[0];
+  s.nematodes = [];
+  const near = spawnNematodeAt(s, onNode.x + 5, onNode.y + 5);     // within Excrete range
+  const far = spawnNematodeAt(s, onNode.x + 99999, onNode.y);      // far out of range
+  const r1 = excrete(s);
+  ok(r1.hit === 1 && near.hits === 1 && near.stuck >= 1, 'Excrete hits & sticks worms in range only');
+  ok(s.nematodes.includes(far) && far.hits === 0, 'a worm out of range is untouched');
+  excrete(s);
+  const r3 = excrete(s);
+  ok(!s.nematodes.includes(near) && r3.killed >= 1, `${s.config.nematodes.killHits} hits kills a worm`);
+}
+
+console.log('# Nematodes: feed on every action AND on End Turn (wiring)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  s.clouds = []; s.config.trichoderma.initialPatches = 0;
+  const net = s.active;
+  const onNode = net.nodes[0];
+  net.energy = 999; s.movesLeft = 3;
+  s.nematodes = [];
+  for (let i = 0; i < 4; i++) spawnNematodeAt(s, onNode.x, onNode.y);
+  const beforeAction = net.nodes.length;
+  performAction(s, 'addSubstrate', { x: onNode.x, y: onNode.y + 40 });
+  ok(net.nodes.length < beforeAction, 'worms feed on every action (per-action threat tick)');
+
+  const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  s2.clouds = []; s2.config.trichoderma.initialPatches = 0;
+  const net2 = s2.active, on2 = net2.nodes[0];
+  s2.nematodes = [];
+  for (let i = 0; i < 4; i++) spawnNematodeAt(s2, on2.x, on2.y);
+  const beforeTurn = net2.nodes.length;
+  s2.movesLeft = 0; endTurn(s2);
+  ok(net2.nodes.length < beforeTurn || s2.runOver, 'worms feed on End Turn too');
+}
+
 console.log('# Puzzle mode: builds a fixed level and is navigable to the chest');
 {
   const s = createPuzzleState(JSON.parse(JSON.stringify(CONFIG)));
@@ -418,7 +513,7 @@ console.log('# Fruit pays Spores and ends the cycle');
 }
 
 console.log('# Config is data-driven (every action has costs)');
-for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
+for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit']) {
   ok(typeof cfg.actions[name].moveCost === 'number', `${name} has moveCost in CONFIG`);
 }
 

@@ -24,6 +24,8 @@
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
+import { stepNematodes } from './nematodes.js';
+
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -300,6 +302,7 @@ function infectAround(network, seed, depth, chance, rng) {
 export function tickThreat(state) {
   if (state.runOver) return;
   spreadTrichoderma(state);
+  stepNematodes(state);                 // worms crawl, eat, and multiply on every action too
   for (const net of state.networks) {
     if (!net.alive) continue;
     infectNetwork(net, state);
@@ -309,7 +312,7 @@ export function tickThreat(state) {
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+        state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
   }

@@ -10,6 +10,7 @@
 import { CONFIG } from './config.js';
 import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
+import { spawnNematodeAt } from './engine/nematodes.js';
 import { endTurn } from './engine/turn.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
@@ -29,6 +30,8 @@ const networkRenderers = new Map();
 let uiDirty = true;
 let previewFruit = false;
 let previewFruitPoints = [];
+let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
+let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -134,6 +137,16 @@ const handlers = {
       devSpawnTrichoderma(state, x, y);
       substrateRenderer.markDirty();
     }
+    else if (type === 'nematode') {
+      // Drop a few worms a short way off a random strand so they crawl in.
+      const n = net.nodes.length ? net.nodes[Math.floor(state.rng() * net.nodes.length)] : null;
+      for (let i = 0; i < 3; i++) {
+        const x = (n ? n.x : camera.x) + state.rng.range(-160, 160);
+        const y = (n ? n.y : camera.y) + state.rng.range(60, 200);
+        spawnNematodeAt(state, x, y);
+      }
+      state.log('DEV: spawned nematodes.', 'dev');
+    }
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
@@ -151,6 +164,7 @@ function afterAction(name, res) {
   // moved / ate (substrate) and the rot advanced along filaments (structure).
   substrateRenderer.markDirty();
   rendererFor(state.active).markStructureDirty();
+  if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
@@ -266,6 +280,7 @@ function resize() {
 
 // --- render loop ------------------------------------------------------------
 function frame(time) {
+  lastTime = time;
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -291,6 +306,7 @@ function frame(time) {
   drawChest(time);
   drawCloudSight();
   drawAnts(time);
+  drawNematodes(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -572,6 +588,61 @@ function drawAnts(time) {
     ctx.fillRect(ent.x - bw / 2, by, bw, bh);
     ctx.fillStyle = hpFrac > 0.5 ? '#5fbf52' : hpFrac > 0.25 ? '#d8b13a' : '#d85a3a';
     ctx.fillRect(ent.x - bw / 2, by, bw * hpFrac, bh);
+  }
+  ctx.restore();
+}
+
+// Nematodes: small pale wriggling worms. They writhe in place, tint reddish
+// while feeding, and glisten green while stuck by a fresh Excrete. The Excrete
+// action fires a brief sticky pulse over the network.
+function drawNematodes(time) {
+  const worms = state.nematodes;
+  const sub = state.substrate;
+  const z = camera.zoom;
+  const cs = sub.cellSize;
+
+  // Excrete pulse: a sticky green wash over the colony, fading over ~450ms.
+  const flashAge = time - excreteFlashStart;
+  if (flashAge >= 0 && flashAge < 450 && state.active) {
+    const a = 0.35 * (1 - flashAge / 450);
+    const r = state.config.actions.excrete.range * z;
+    ctx.save();
+    ctx.fillStyle = `rgba(150,210,140,${a})`;
+    const nodes = state.active.nodes;
+    for (let i = 0; i < nodes.length; i += 3) {     // subsample — the blobs union up
+      const sp = camera.worldToScreen(nodes[i].x, nodes[i].y);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if (!worms || !worms.length) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  const len = Math.max(7, cs * 0.55 * z);           // worm body length, px
+  for (const w of worms) {
+    const sp = camera.worldToScreen(w.x, w.y);
+    const ang = w.heading || 0;
+    const dx = Math.cos(ang), dy = Math.sin(ang), px = -dy, py = dx;
+    const wig = (w.stuck > 0 ? 0.2 : 1) * len * 0.14;
+    const segs = 5;
+    ctx.beginPath();
+    for (let i = 0; i <= segs; i++) {
+      const f = i / segs;
+      const along = (f - 0.5) * len;
+      const off = Math.sin(time * 0.013 + (w.phase || 0) + f * 6) * wig;
+      const x = sp.x + dx * along + px * off, y = sp.y + dy * along + py * off;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = w.stuck > 0 ? 'rgba(150,215,140,0.92)'
+      : w.feeding ? 'rgba(232,180,150,0.94)'
+        : 'rgba(228,216,190,0.82)';
+    ctx.lineWidth = Math.max(1.4, 2.3 * z);
+    ctx.stroke();
+    // tiny darker head at the leading end
+    const hx = sp.x + dx * len * 0.5, hy = sp.y + dy * len * 0.5;
+    ctx.fillStyle = 'rgba(120,90,70,0.92)';
+    ctx.beginPath(); ctx.arc(hx, hy, Math.max(1.1, 1.7 * z), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }

@@ -294,6 +294,12 @@ const CONFIG = {
       damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
       pickRadius: 140,           // click tolerance (world units) — covers the underground colony
     },
+    excrete: {
+      moveCost: 1,
+      energyCost: 10,            // affordable to repeat under a swarm (SLIDER)
+      range: 80,                 // world units around ANY strand the sticky mucus reaches (SLIDER)
+      stickTurns: 1,             // ticks a hit worm is stuck (no move / feed / breed)
+    },
     digest: {
       moveCost: 1,
       energyCost: 8,
@@ -320,6 +326,24 @@ const CONFIG = {
     nestCount: 2,                // nests seeded per (sandbox) map
     maxHp: 100,
     harvestRate: 60,             // nutrient an active nest carries off its target food per turn (SLIDER)
+  },
+
+  // ---- Nematodes (A2, B6) — fungivorous worms that graze your frontier ----
+  // A few worms wander until a strand enters their sight (rock blocks line of
+  // sight). Then they crawl in fast, eat strands whole, and MULTIPLY as they
+  // feed — so an ignored swarm snowballs. Countered by the Excrete action.
+  nematodes: {
+    initialCount: 3,             // wandering worms seeded per sandbox map
+    seedMinColonyDistFrac: 0.25, // seed at least this fraction of the map from the colony
+    sightRadius: 360,            // detection range; rock blocks line of sight (SLIDER)
+    crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
+    wanderSpeed: 1.0,            // cells/tick while searching
+    reach: 0.7,                  // cells: how close to a strand before it feeds
+    eatEveryTicks: 2,            // a feeding worm eats one strand every N ticks
+    breedChance: 0.35,           // chance a feeding worm splits each tick (SLIDER)
+    killHits: 3,                 // Excrete hits to kill one
+    maxPopulation: 48,           // hard cap (balance + performance)
+    respawnChance: 0.06,         // slow trickle of new wanderers up to initialCount
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -413,6 +437,11 @@ const SLIDERS = [
   { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
   { path: 'ants.harvestRate',            label: 'Ant Harvest Rate',    min: 0,   max: 200, step: 5 },
   { path: 'actions.attackAnts.energyCost', label: 'Attack Ants Cost',  min: 0,   max: 80,  step: 5 },
+  { path: 'nematodes.sightRadius',       label: 'Nematode Sight',      min: 100, max: 700, step: 20 },
+  { path: 'nematodes.crawlSpeed',        label: 'Nematode Speed',      min: 0.5, max: 6,   step: 0.5 },
+  { path: 'nematodes.breedChance',       label: 'Nematode Breed Rate', min: 0,   max: 1,   step: 0.05 },
+  { path: 'actions.excrete.energyCost',  label: 'Excrete Cost',        min: 0,   max: 40,  step: 2 },
+  { path: 'actions.excrete.range',       label: 'Excrete Range',       min: 20,  max: 200, step: 10 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
@@ -1084,8 +1113,214 @@ class Network {
   return { Network };
 })();
 
+// ===================== src/engine/nematodes.js =====================
+const __m_engine_nematodes = (function () {
+// =============================================================================
+// Nematodes — fungivorous worms (the third threat).
+//
+// A few worms wander the soil until a strand enters their SIGHT (a radius, with
+// ROCK BLOCKING LINE OF SIGHT). The moment they spot you they crawl in FAST —
+// much quicker than the creeping mould — routing around rock. On contact they
+// eat strands WHOLE and MULTIPLY as they feed, so an ignored swarm grows (and
+// its consumption snowballs) exponentially. They are lethal if left unchecked.
+//
+// Your answer is the Excrete action: a sticky secretion that hits every worm
+// within range of ANY of your strands — 1 hit + it sticks them fast (no move /
+// feed / breed that tick); killHits hits kills one. Amputate does nothing here.
+//
+// Renderer-agnostic and importless (operates on the passed substrate / network /
+// state objects) so there's no circular-import risk in the bundle.
+// =============================================================================
+
+function makeWorm(x, y, heading, phase) {
+  return { x, y, heading, phase, hits: 0, stuck: 0, feeding: false, feedCd: 0 };
+}
+
+// Seed wandering worms in open soil, a good way from the colony so they have to
+// crawl in once they sense you. Returns the worm list (stored on state.nematodes).
+function seedNematodes(substrate, config, rng, network) {
+  const n = config.nematodes;
+  const root = network && network.root ? network.root : null;
+  const worms = [];
+  for (let i = 0; i < (n.initialCount || 0); i++) {
+    const spot = openSpot(substrate, rng, root, n.seedMinColonyDistFrac);
+    worms.push(makeWorm(spot.x, spot.y, rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
+  }
+  return worms;
+}
+
+// Dev cheat / spawn hook: drop a worm at a world point.
+function spawnNematodeAt(state, x, y) {
+  if (!state.nematodes) state.nematodes = [];
+  const rng = state.rng;
+  const w = makeWorm(x, y, rng ? rng.range(0, Math.PI * 2) : 0, rng ? rng.range(0, Math.PI * 2) : 0);
+  state.nematodes.push(w);
+  return w;
+}
+
+// --- Per-tick step (per action AND end-turn) --------------------------------
+// Each worm: if stuck, sit out the tick. Otherwise acquire the nearest strand
+// in sight with clear LOS; crawl to it; on contact feed (eat a strand whole on a
+// cooldown) and multiply. Eaten strands are removed in one batch at the end.
+function stepNematodes(state) {
+  const { config, substrate: sub, rng } = state;
+  const n = config.nematodes;
+  if (!state.nematodes) state.nematodes = [];
+  const net = state.active;
+  const cs = sub.cellSize;
+  const nodes = net && net.alive ? net.nodes : [];
+  const claimed = new Set();    // node ids eaten this tick (one worm per strand)
+  const newborns = [];
+
+  for (const w of state.nematodes) {
+    // Stuck by a fresh excretion — no move / feed / breed this tick.
+    if (w.stuck > 0) { w.stuck -= 1; w.feeding = false; continue; }
+    w.feeding = false;
+
+    const target = nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed);
+    if (target) {
+      const dx = target.x - w.x, dy = target.y - w.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      w.heading = Math.atan2(dy, dx);
+      if (dist <= n.reach * cs) {
+        // Feeding: eat a strand whole on a cooldown, and multiply while eating.
+        w.feeding = true;
+        if (w.feedCd <= 0) { claimed.add(target.id); w.feedCd = n.eatEveryTicks; }
+        else w.feedCd -= 1;
+        if (state.nematodes.length + newborns.length < n.maxPopulation && rng.chance(n.breedChance)) {
+          newborns.push(makeWorm(
+            w.x + rng.range(-cs * 0.3, cs * 0.3), w.y + rng.range(-cs * 0.3, cs * 0.3),
+            rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
+        }
+      } else {
+        moveWorm(w, dx / dist, dy / dist, Math.min(dist, n.crawlSpeed * cs), sub);
+      }
+    } else {
+      // Nothing sensed — wander; turn away when rock / the edge blocks it.
+      w.heading += rng.range(-0.5, 0.5);
+      const moved = moveWorm(w, Math.cos(w.heading), Math.sin(w.heading), n.wanderSpeed * cs, sub);
+      if (!moved) w.heading += rng.range(2, 4);
+    }
+  }
+
+  if (newborns.length) for (const b of newborns) state.nematodes.push(b);
+  if (claimed.size && net) net._removeNodes(claimed);
+
+  // Keep a baseline of wanderers trickling in (up to initialCount), capped.
+  if (state.nematodes.length < n.initialCount && state.nematodes.length < n.maxPopulation && rng.chance(n.respawnChance)) {
+    const spot = openSpot(sub, rng, net && net.root, n.seedMinColonyDistFrac);
+    state.nematodes.push(makeWorm(spot.x, spot.y, rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
+  }
+}
+
+// --- Excrete (the defence) --------------------------------------------------
+// Sticky mucus: every worm within `range` of ANY strand takes 1 hit and is
+// stuck for stickTurns; a worm at killHits dies. Returns {hit, killed}.
+function excrete(state) {
+  const cfg = state.config.actions.excrete;
+  const n = state.config.nematodes;
+  const net = state.active;
+  if (!state.nematodes || !state.nematodes.length) return { hit: 0, killed: 0 };
+  const nodes = net ? net.nodes : [];
+  const r2 = cfg.range * cfg.range;
+  let hit = 0, killed = 0;
+  const survivors = [];
+  for (const w of state.nematodes) {
+    let inRange = false;
+    for (const node of nodes) {
+      const dx = node.x - w.x, dy = node.y - w.y;
+      if (dx * dx + dy * dy <= r2) { inRange = true; break; }
+    }
+    if (inRange) {
+      w.hits += 1;
+      w.stuck = Math.max(w.stuck, cfg.stickTurns);
+      hit++;
+      if (w.hits >= n.killHits) { killed++; continue; }   // dead — drop it
+    }
+    survivors.push(w);
+  }
+  state.nematodes = survivors;
+  return { hit, killed };
+}
+
+// --- internals --------------------------------------------------------------
+
+// Nearest strand within sight that has CLEAR LINE OF SIGHT (rock blocks it),
+// skipping nodes already claimed for eating this tick. LOS is only tested on a
+// distance improvement, to keep the cost down.
+function nearestVisibleNode(sub, nodes, w, sight, claimed) {
+  let best = null, bestD = sight * sight;
+  for (const node of nodes) {
+    if (claimed && claimed.has(node.id)) continue;
+    const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
+    if (d < bestD && losClear(sub, w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
+  }
+  return best;
+}
+
+// True if no rock cell lies on the segment (sampled). Rock blocks line of sight.
+function losClear(sub, x0, y0, x1, y1) {
+  const cs = sub.cellSize;
+  const dx = x1 - x0, dy = y1 - y0;
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+  for (let i = 1; i <= steps; i++) {
+    const x = x0 + dx * (i / steps), y = y0 + dy * (i / steps);
+    const c = sub.cellAtWorld(x, y);
+    if (c && c.rock) return false;
+  }
+  return true;
+}
+
+// Move a worm by (ux,uy)*s, never THROUGH rock or out of bounds; the whole path
+// is checked, and a blocked straight move slides along x then y (rounds rock).
+function moveWorm(w, ux, uy, s, sub) {
+  const cs = sub.cellSize;
+  const minX = cs, maxX = sub.worldWidth - cs;
+  const minY = sub.surfaceY + cs, maxY = sub.worldHeight - cs;
+  const clear = (x1, y1) => {
+    const dx = x1 - w.x, dy = y1 - w.y;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+    for (let i = 1; i <= steps; i++) {
+      const x = w.x + dx * (i / steps), y = w.y + dy * (i / steps);
+      if (x < minX || x > maxX || y < minY || y > maxY) return false;
+      const c = sub.cellAtWorld(x, y);
+      if (c && c.rock) return false;
+    }
+    return true;
+  };
+  const fx = w.x + ux * s, fy = w.y + uy * s;
+  if (clear(fx, fy)) { w.x = fx; w.y = fy; return true; }
+  if (ux !== 0 && clear(fx, w.y)) { w.x = fx; return true; }
+  if (uy !== 0 && clear(w.x, fy)) { w.y = fy; return true; }
+  return false;
+}
+
+// Pick an open underground spot — not in rock and (ideally) a good way from the
+// colony — so a worm has a clear journey in.
+function openSpot(sub, rng, root, minFrac) {
+  const minDist = sub.worldWidth * (minFrac || 0);
+  let fallback = null;
+  for (let t = 0; t < 40; t++) {
+    const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
+    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize);
+    const cell = sub.cellAtWorld(x, y);
+    if (!cell || cell.rock) continue;
+    fallback = { x, y };
+    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
+  }
+  return fallback || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
+}
+
+function totalNematodes(state) {
+  return (state.nematodes || []).length;
+}
+
+  return { seedNematodes, spawnNematodeAt, stepNematodes, excrete, totalNematodes };
+})();
+
 // ===================== src/engine/threats.js =====================
 const __m_engine_threats = (function () {
+  const { stepNematodes } = __m_engine_nematodes;
 // =============================================================================
 // Threats — Trichoderma, the one Phase 1 threat (A2/A5, B6).
 //
@@ -1111,6 +1346,7 @@ const __m_engine_threats = (function () {
 // Renderer-agnostic: operates only on substrate cells + the Network objects,
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
+
 
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
@@ -1388,6 +1624,7 @@ function infectAround(network, seed, depth, chance, rng) {
 function tickThreat(state) {
   if (state.runOver) return;
   spreadTrichoderma(state);
+  stepNematodes(state);                 // worms crawl, eat, and multiply on every action too
   for (const net of state.networks) {
     if (!net.alive) continue;
     infectNetwork(net, state);
@@ -1397,7 +1634,7 @@ function tickThreat(state) {
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+        state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
   }
@@ -1697,6 +1934,7 @@ const __m_engine_state = (function () {
   const { Network } = __m_engine_network;
   const { seedTrichoderma, placeClouds } = __m_engine_threats;
   const { seedAnts } = __m_engine_ants;
+  const { seedNematodes } = __m_engine_nematodes;
   const { buildPuzzle } = __m_engine_puzzle;
   const { setByPath } = __m_config;
 // =============================================================================
@@ -1723,7 +1961,10 @@ function createState(config, seed) {
   // Ant nests near the surface, each running a trail to its nearest food.
   const ants = seedAnts(substrate, config, rng, network);
 
-  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants });
+  // Nematode worms wandering the soil until they sense the colony.
+  const nematodes = seedNematodes(substrate, config, rng, network);
+
+  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants, nematodes });
 }
 
 // Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
@@ -1744,7 +1985,8 @@ function createPuzzleState(baseConfig) {
     mode: 'puzzle',
     chest: built.chest,
     won: false,
-    ants: [],   // ants are a sandbox threat for now; the puzzle has none
+    ants: [],        // ants are a sandbox threat for now; the puzzle has none
+    nematodes: [],   // nematodes are a sandbox threat for now too
   });
 }
 
@@ -1791,6 +2033,7 @@ function newRun(config, seed) {
 const __m_engine_actions = (function () {
   const { spawnTrichodermaAt, tickThreat } = __m_engine_threats;
   const { attackNest } = __m_engine_ants;
+  const { excrete } = __m_engine_nematodes;
 // =============================================================================
 // Actions — the six basic actions, the backbone of the game (A2, B5).
 //
@@ -1858,6 +2101,22 @@ const ACTIONS = {
       return hit.dead
         ? { ok: true, message: 'Bombed the nest — it collapsed! The ants scatter.' }
         : { ok: true, message: `Bombed the nest — HP down to ${Math.round(hit.hp)}/${hit.maxHp}.` };
+    },
+  },
+
+  excrete: {
+    label: 'Excrete',
+    target: null,
+    desc: 'Secrete sticky mucus — hits & sticks every nematode near your strands (3 hits kills).',
+    apply(state) {
+      const r = excrete(state);
+      if (r.hit === 0) return { ok: false, message: 'No nematodes within reach of your mycelium.' };
+      return {
+        ok: true,
+        message: r.killed
+          ? `Excreted — stuck ${r.hit} nematode${r.hit > 1 ? 's' : ''}, killed ${r.killed}.`
+          : `Excreted — stuck ${r.hit} nematode${r.hit > 1 ? 's' : ''}.`,
+      };
     },
   },
 
@@ -1976,6 +2235,7 @@ function devSpawnTrichoderma(state, x, y) {
 const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
   const { stepAnts } = __m_engine_ants;
+  const { stepNematodes } = __m_engine_nematodes;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -2002,6 +2262,9 @@ function endTurn(state) {
   // Ants harvest their target food once per turn, retargeting when it runs out,
   // and re-stamp their impassable trails (chewing any strand now under them).
   stepAnts(state);
+
+  // Nematodes also crawl / feed / multiply on end-turn (they act per action too).
+  stepNematodes(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -3223,6 +3486,7 @@ const TESTING_QUESTIONS = [
   'Does 3-moves + Energy make each turn a real prioritisation?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
   'Ants: is "go around / race them to the food / bomb the nest" a meaningful three-way choice?',
+  'Nematodes: does the spot-you → swarm-in → Excrete loop create real pressure on your frontier?',
   'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
   'Is Digest-burst a useful lever or redundant?',
 ];
@@ -3285,7 +3549,7 @@ class UI {
     const bar = div('panel actionbar');
     this.el.buttons = {};
 
-    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit'];
+    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
     for (const name of order) bar.appendChild(this._actionButton(name));
 
     // End turn + restart
@@ -3339,7 +3603,9 @@ class UI {
       c3.onclick = () => this.handlers.onCheat('trichoderma');
       const c4 = button('btn dev-btn', 'No-Trich Map ↻');
       c4.onclick = () => this.handlers.onNoTrichMap();
-      cheats.append(c1, c2, c3, c4);
+      const c5 = button('btn dev-btn', 'Spawn Nematode');
+      c5.onclick = () => this.handlers.onCheat('nematode');
+      cheats.append(c1, c2, c3, c4, c5);
       body.appendChild(cheats);
 
       const sliders = div('sliders');
@@ -3452,15 +3718,18 @@ class UI {
     }
 
     // Button states / costs
-    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
       const { moves, energy } = actionCost(s, name);
       btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
-      // Hide the ant-bomb entirely when there are no nests to bomb (e.g. puzzle).
+      // Hide threat-specific actions when that threat isn't present (e.g. puzzle):
+      // the ant-bomb when there are no nests, Excrete when there are no worms.
       const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
-      btn.style.display = noAnts ? 'none' : '';
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || noAnts;
+      const noWorms = name === 'excrete' && !(s.nematodes && s.nematodes.length);
+      const hidden = noAnts || noWorms;
+      btn.style.display = hidden ? 'none' : '';
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || hidden;
     }
     this.el.endBtn.disabled = s.runOver;
 
@@ -3497,6 +3766,7 @@ const __m_main = (function () {
   const { CONFIG } = __m_config;
   const { createState, createPuzzleState } = __m_engine_state;
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
+  const { spawnNematodeAt } = __m_engine_nematodes;
   const { endTurn } = __m_engine_turn;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
@@ -3525,6 +3795,8 @@ const networkRenderers = new Map();
 let uiDirty = true;
 let previewFruit = false;
 let previewFruitPoints = [];
+let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
+let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -3630,6 +3902,16 @@ const handlers = {
       devSpawnTrichoderma(state, x, y);
       substrateRenderer.markDirty();
     }
+    else if (type === 'nematode') {
+      // Drop a few worms a short way off a random strand so they crawl in.
+      const n = net.nodes.length ? net.nodes[Math.floor(state.rng() * net.nodes.length)] : null;
+      for (let i = 0; i < 3; i++) {
+        const x = (n ? n.x : camera.x) + state.rng.range(-160, 160);
+        const y = (n ? n.y : camera.y) + state.rng.range(60, 200);
+        spawnNematodeAt(state, x, y);
+      }
+      state.log('DEV: spawned nematodes.', 'dev');
+    }
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
@@ -3647,6 +3929,7 @@ function afterAction(name, res) {
   // moved / ate (substrate) and the rot advanced along filaments (structure).
   substrateRenderer.markDirty();
   rendererFor(state.active).markStructureDirty();
+  if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
@@ -3762,6 +4045,7 @@ function resize() {
 
 // --- render loop ------------------------------------------------------------
 function frame(time) {
+  lastTime = time;
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -3787,6 +4071,7 @@ function frame(time) {
   drawChest(time);
   drawCloudSight();
   drawAnts(time);
+  drawNematodes(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -4068,6 +4353,61 @@ function drawAnts(time) {
     ctx.fillRect(ent.x - bw / 2, by, bw, bh);
     ctx.fillStyle = hpFrac > 0.5 ? '#5fbf52' : hpFrac > 0.25 ? '#d8b13a' : '#d85a3a';
     ctx.fillRect(ent.x - bw / 2, by, bw * hpFrac, bh);
+  }
+  ctx.restore();
+}
+
+// Nematodes: small pale wriggling worms. They writhe in place, tint reddish
+// while feeding, and glisten green while stuck by a fresh Excrete. The Excrete
+// action fires a brief sticky pulse over the network.
+function drawNematodes(time) {
+  const worms = state.nematodes;
+  const sub = state.substrate;
+  const z = camera.zoom;
+  const cs = sub.cellSize;
+
+  // Excrete pulse: a sticky green wash over the colony, fading over ~450ms.
+  const flashAge = time - excreteFlashStart;
+  if (flashAge >= 0 && flashAge < 450 && state.active) {
+    const a = 0.35 * (1 - flashAge / 450);
+    const r = state.config.actions.excrete.range * z;
+    ctx.save();
+    ctx.fillStyle = `rgba(150,210,140,${a})`;
+    const nodes = state.active.nodes;
+    for (let i = 0; i < nodes.length; i += 3) {     // subsample — the blobs union up
+      const sp = camera.worldToScreen(nodes[i].x, nodes[i].y);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if (!worms || !worms.length) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  const len = Math.max(7, cs * 0.55 * z);           // worm body length, px
+  for (const w of worms) {
+    const sp = camera.worldToScreen(w.x, w.y);
+    const ang = w.heading || 0;
+    const dx = Math.cos(ang), dy = Math.sin(ang), px = -dy, py = dx;
+    const wig = (w.stuck > 0 ? 0.2 : 1) * len * 0.14;
+    const segs = 5;
+    ctx.beginPath();
+    for (let i = 0; i <= segs; i++) {
+      const f = i / segs;
+      const along = (f - 0.5) * len;
+      const off = Math.sin(time * 0.013 + (w.phase || 0) + f * 6) * wig;
+      const x = sp.x + dx * along + px * off, y = sp.y + dy * along + py * off;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = w.stuck > 0 ? 'rgba(150,215,140,0.92)'
+      : w.feeding ? 'rgba(232,180,150,0.94)'
+        : 'rgba(228,216,190,0.82)';
+    ctx.lineWidth = Math.max(1.4, 2.3 * z);
+    ctx.stroke();
+    // tiny darker head at the leading end
+    const hx = sp.x + dx * len * 0.5, hy = sp.y + dy * len * 0.5;
+    ctx.fillStyle = 'rgba(120,90,70,0.92)';
+    ctx.beginPath(); ctx.arc(hx, hy, Math.max(1.1, 1.7 * z), 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
