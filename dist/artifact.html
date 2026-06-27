@@ -286,7 +286,7 @@ const CONFIG = {
       moveCost: 1,
       energyCost: 30,            // expensive: ~3 bombs (each -40% HP) to destroy a nest
       damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
-      pickRadius: 90,            // click tolerance (world units) for hitting a nest
+      pickRadius: 140,           // click tolerance (world units) — covers the underground colony
     },
     digest: {
       moveCost: 1,
@@ -3847,75 +3847,203 @@ function drawCloudSight() {
   ctx.restore();
 }
 
-// Ants: each nest is a surface mound running an impassable trail to its target
-// food, with little ants marching along it. A dormant nest (no reachable food)
-// is dimmed. Nests carry an HP bar so the player can see how many bombs remain.
+// --- Ant rendering helpers --------------------------------------------------
+
+// Tiny deterministic PRNG so a nest's dug-out colony + ant placement stay
+// STABLE every frame (no flicker) yet differ between nests.
+function antRand(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// The underground colony layout (a formicarium cross-section): chambers strung
+// down from the surface entrance by tunnels. World coords, deterministic from
+// the nest's column so it's the same shape each frame.
+function nestLayout(nest, sub) {
+  const cs = sub.cellSize;
+  const rnd = antRand(nest.col * 2654435761 + 17);
+  const nx = nest.x, ny = nest.y;
+  const chambers = [];
+  const tunnels = [];
+  let prevX = nx, prevY = ny;
+  let y = ny + cs * 0.8;
+  const count = 3 + Math.floor(rnd() * 2);          // 3–4 chambers deep
+  for (let i = 0; i < count; i++) {
+    const x = nx + (rnd() * 2 - 1) * cs * (0.9 - i * 0.05);   // weave side to side
+    const r = cs * (0.42 + rnd() * 0.4);
+    chambers.push({ x, y, r, eggs: Math.floor(rnd() * 4), ants: 1 + Math.floor(rnd() * 3), seed: nest.col * 131 + i * 977 });
+    tunnels.push({ x1: prevX, y1: prevY, x2: x, y2: y });
+    prevX = x; prevY = y;
+    y += cs * (0.85 + rnd() * 0.65);
+  }
+  return { chambers, tunnels };
+}
+
+// Draw one ant as a 3-segment body (gaster · thorax · head) oriented along
+// `ang`, with legs + antennae when it's large enough to read. Screen coords.
+function drawAnt(g, x, y, ang, scale, dim) {
+  const dx = Math.cos(ang), dy = Math.sin(ang);   // forward
+  const px = -dy, py = dx;                         // perpendicular
+  const seg = scale * 1.05;
+  const body = `rgba(${(38 * dim) | 0},${(22 * dim) | 0},${(12 * dim) | 0},0.97)`;
+  const head = `rgba(${(64 * dim) | 0},${(38 * dim) | 0},${(20 * dim) | 0},0.98)`;
+  const hx = x + dx * seg, hy = y + dy * seg;      // head (front)
+  const gx = x - dx * seg, gy = y - dy * seg;      // gaster (rear)
+
+  if (scale >= 1.7) {
+    g.strokeStyle = body;
+    g.lineWidth = Math.max(0.5, scale * 0.16);
+    for (let i = -1; i <= 1; i++) {                // three leg pairs off the thorax
+      const lx = x + dx * seg * i * 0.55, ly = y + dy * seg * i * 0.55;
+      g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx + px * seg * 1.25 + dx * seg * 0.25, ly + py * seg * 1.25 + dy * seg * 0.25); g.stroke();
+      g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx - px * seg * 1.25 + dx * seg * 0.25, ly - py * seg * 1.25 + dy * seg * 0.25); g.stroke();
+    }
+    g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx + dx * seg * 0.7 + px * seg * 0.45, hy + dy * seg * 0.7 + py * seg * 0.45); g.stroke();
+    g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx + dx * seg * 0.7 - px * seg * 0.45, hy + dy * seg * 0.7 - py * seg * 0.45); g.stroke();
+  }
+
+  g.fillStyle = body;
+  g.beginPath(); g.ellipse(gx, gy, scale * 0.95, scale * 0.78, ang, 0, Math.PI * 2); g.fill();   // gaster
+  g.beginPath(); g.ellipse(x, y, scale * 0.58, scale * 0.48, ang, 0, Math.PI * 2); g.fill();      // thorax
+  g.fillStyle = head;
+  g.beginPath(); g.ellipse(hx, hy, scale * 0.58, scale * 0.52, ang, 0, Math.PI * 2); g.fill();    // head
+}
+
+// Build a gently-weaving centreline (world coords) from the trail's path cells,
+// tapering the wiggle to 0 at both ends. Returns sampled points + total length.
+function weaveTrail(path, sub, amp, wavelen, phase) {
+  const base = path.map((p) => sub.cellCenter(p.col, p.row));
+  const cum = [0];
+  for (let i = 1; i < base.length; i++) cum[i] = cum[i - 1] + Math.hypot(base[i].x - base[i - 1].x, base[i].y - base[i - 1].y);
+  const total = cum[base.length - 1] || 1;
+  const cs = sub.cellSize;
+  const pts = [];
+  for (let i = 0; i < base.length - 1; i++) {
+    const a = base[i], b = base[i + 1];
+    const segLen = (cum[i + 1] - cum[i]) || 1;
+    const px = -(b.y - a.y) / segLen, py = (b.x - a.x) / segLen;
+    const steps = Math.max(2, Math.ceil(segLen / (cs * 0.33)));
+    for (let k = 0; k < steps; k++) {
+      const f = k / steps;
+      const ss = cum[i] + segLen * f;
+      const taper = Math.max(0, Math.min(1, ss / (cs * 1.3), (total - ss) / (cs * 1.3)));
+      const off = Math.sin(ss / wavelen + phase) * amp * taper;
+      pts.push({ x: a.x + (b.x - a.x) * f + px * off, y: a.y + (b.y - a.y) * f + py * off, s: ss });
+    }
+  }
+  pts.push({ x: base[base.length - 1].x, y: base[base.length - 1].y, s: total });
+  return { pts, len: total };
+}
+
+// Point + heading at arc-length L along a weaved centreline.
+function sampleTrail(pts, L) {
+  L = Math.max(0, Math.min(pts[pts.length - 1].s, L));
+  let i = 0;
+  while (i < pts.length - 2 && pts[i + 1].s < L) i++;
+  const a = pts[i], b = pts[i + 1];
+  const span = (b.s - a.s) || 1, f = (L - a.s) / span;
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, ang: Math.atan2(b.y - a.y, b.x - a.x) };
+}
+
+// Ants: each nest is a dug-out underground colony (chambers + tunnels from the
+// surface) running an impassable trail of marching ants to its target food.
+// The trail weaves like a real ant line, with two opposing lanes of traffic.
+// A dormant nest (no reachable food) is dimmed; an HP bar shows bombs remaining.
 function drawAnts(time) {
   const ants = state.ants;
   if (!ants || !ants.length) return;
   const sub = state.substrate;
   const z = camera.zoom;
+  const cs = sub.cellSize;
   ctx.save();
+  ctx.lineCap = 'round';
   for (const nest of ants) {
+    const dim = nest.dormant ? 0.6 : 1;
     const path = nest.path || [];
-    const total = path.length - 1;
 
-    // --- trail line through the path cells ---
-    if (total >= 1) {
-      ctx.lineWidth = Math.max(2, 3.5 * z);
-      ctx.strokeStyle = nest.dormant ? 'rgba(110,85,55,0.30)' : 'rgba(55,38,22,0.55)';
+    // === the marching trail (drawn first, beneath the colony) ===
+    if (path.length >= 2) {
+      const weave = weaveTrail(path, sub, cs * 0.32, cs * 2.1, nest.col * 0.7);
+      // faint pheromone trace so the impassable route still reads as a barrier
+      ctx.strokeStyle = nest.dormant ? 'rgba(110,85,55,0.12)' : 'rgba(74,50,28,0.22)';
+      ctx.lineWidth = Math.max(1.5, 3 * z);
       ctx.beginPath();
-      for (let i = 0; i < path.length; i++) {
-        const c = sub.cellCenter(path[i].col, path[i].row);
-        const p = camera.worldToScreen(c.x, c.y);
-        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      for (let i = 0; i < weave.pts.length; i++) {
+        const sp = camera.worldToScreen(weave.pts[i].x, weave.pts[i].y);
+        if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
       }
       ctx.stroke();
 
-      // --- marching ants: dots flowing toward the food end ---
       if (!nest.dormant) {
-        const dots = Math.min(14, Math.max(3, total));
-        const flow = (time * 0.00045) % 1;
-        ctx.fillStyle = 'rgba(20,14,8,0.92)';
-        for (let d = 0; d < dots; d++) {
-          const t = (flow + d / dots) % 1;
-          const fp = t * total;
-          const i0 = Math.min(total - 1, Math.floor(fp)), frac = fp - i0;
-          const a = sub.cellCenter(path[i0].col, path[i0].row);
-          const b = sub.cellCenter(path[i0 + 1].col, path[i0 + 1].row);
-          const sp = camera.worldToScreen(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac);
-          ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(1.3, 2.2 * z), 0, Math.PI * 2); ctx.fill();
+        const count = Math.min(28, Math.max(4, Math.round(weave.len / (cs * 0.95))));
+        const laneGap = cs * 0.15;
+        const flow = (time * 0.001) * (cs * 1.7) / weave.len;   // fraction/sec along trail
+        for (let i = 0; i < count; i++) {
+          const lane = (i % 2) ? -1 : 1;                         // +1 to food, -1 returning
+          const j = (i * 0.6180339887) % 1;                      // even golden-ratio spread
+          const u = lane > 0 ? (j + flow) % 1 : ((j - flow) % 1 + 1) % 1;
+          const sa = sampleTrail(weave.pts, u * weave.len);
+          const off = laneGap * lane;
+          const sp = camera.worldToScreen(sa.x - Math.sin(sa.ang) * off, sa.y + Math.cos(sa.ang) * off);
+          drawAnt(ctx, sp.x, sp.y, lane > 0 ? sa.ang : sa.ang + Math.PI, Math.max(1.6, 2.3 * z), 1);
         }
       }
     }
 
-    // --- nest mound at the surface ---
-    const s = camera.worldToScreen(nest.x, nest.y);
-    const rad = Math.max(13, 16 * z);
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    const dim = nest.dormant ? 0.6 : 1;
-    const g = ctx.createRadialGradient(0, -rad * 0.3, rad * 0.2, 0, 0, rad);
-    g.addColorStop(0, `rgba(${Math.round(125 * dim)},${Math.round(90 * dim)},${Math.round(55 * dim)},1)`);
-    g.addColorStop(1, `rgba(${Math.round(58 * dim)},${Math.round(38 * dim)},${Math.round(20 * dim)},1)`);
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(-rad, 0);
-    ctx.quadraticCurveTo(0, -rad * 1.25, rad, 0);
-    ctx.closePath();
-    ctx.fill();
-    // entrance hole
-    ctx.fillStyle = 'rgba(10,6,3,0.9)';
-    ctx.beginPath(); ctx.ellipse(0, -rad * 0.12, rad * 0.28, rad * 0.20, 0, 0, Math.PI * 2); ctx.fill();
+    // === the underground colony ===
+    const lay = nestLayout(nest, sub);
+    // 1) loose excavated-soil halo behind tunnels + chambers
+    ctx.strokeStyle = `rgba(${(120 * dim) | 0},${(88 * dim) | 0},${(52 * dim) | 0},0.5)`;
+    for (const t of lay.tunnels) {
+      const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
+      ctx.lineWidth = Math.max(5, 9 * z);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (const ch of lay.chambers) {
+      const c = camera.worldToScreen(ch.x, ch.y);
+      const R = ch.r * z * 1.5;
+      const halo = ctx.createRadialGradient(c.x, c.y, R * 0.25, c.x, c.y, R);
+      halo.addColorStop(0, `rgba(${(122 * dim) | 0},${(90 * dim) | 0},${(54 * dim) | 0},0.55)`);
+      halo.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, Math.PI * 2); ctx.fill();
+    }
+    // 2) hollow interiors (the open dug-out tunnels + chambers)
+    ctx.strokeStyle = `rgba(${(22 * dim) | 0},${(14 * dim) | 0},${(8 * dim) | 0},0.92)`;
+    for (const t of lay.tunnels) {
+      const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
+      ctx.lineWidth = Math.max(2, 4 * z);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (const ch of lay.chambers) {
+      const c = camera.worldToScreen(ch.x, ch.y);
+      const R = ch.r * z;
+      ctx.fillStyle = `rgba(${(24 * dim) | 0},${(15 * dim) | 0},${(8 * dim) | 0},0.95)`;
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, R, R * 0.82, 0, 0, Math.PI * 2); ctx.fill();
+      // 3) chamber contents — pale eggs + a few resident ants
+      const rnd = antRand(ch.seed);
+      ctx.fillStyle = `rgba(${(238 * dim) | 0},${(228 * dim) | 0},${(200 * dim) | 0},0.9)`;
+      for (let e = 0; e < ch.eggs; e++) {
+        const ex = c.x + (rnd() * 2 - 1) * R * 0.55, ey = c.y + (rnd() * 2 - 1) * R * 0.4;
+        ctx.beginPath(); ctx.ellipse(ex, ey, Math.max(1, 1.5 * z), Math.max(1.5, 2.5 * z), 0.5, 0, Math.PI * 2); ctx.fill();
+      }
+      for (let aI = 0; aI < ch.ants; aI++) {
+        const ax = c.x + (rnd() * 2 - 1) * R * 0.6, ay = c.y + (rnd() * 2 - 1) * R * 0.5;
+        drawAnt(ctx, ax, ay, rnd() * Math.PI * 2, Math.max(1.5, 2.1 * z), dim);
+      }
+    }
+    // 4) surface entrance hole
+    const ent = camera.worldToScreen(nest.x, nest.y);
+    ctx.fillStyle = `rgba(${(14 * dim) | 0},${(8 * dim) | 0},${(4 * dim) | 0},0.92)`;
+    ctx.beginPath(); ctx.ellipse(ent.x, ent.y, Math.max(4, 6 * z), Math.max(2, 3.2 * z), 0, 0, Math.PI * 2); ctx.fill();
 
-    // HP bar above the mound
-    const bw = rad * 1.8, bh = Math.max(3, 4 * z), by = -rad * 1.55;
-    const frac = Math.max(0, nest.hp / nest.maxHp);
+    // 5) HP bar above the entrance
+    const bw = Math.max(26, 34 * z), bh = Math.max(3, 4 * z), by = ent.y - Math.max(12, 16 * z);
+    const hpFrac = Math.max(0, nest.hp / nest.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(-bw / 2, by, bw, bh);
-    ctx.fillStyle = frac > 0.5 ? '#5fbf52' : frac > 0.25 ? '#d8b13a' : '#d85a3a';
-    ctx.fillRect(-bw / 2, by, bw * frac, bh);
-    ctx.restore();
+    ctx.fillRect(ent.x - bw / 2, by, bw, bh);
+    ctx.fillStyle = hpFrac > 0.5 ? '#5fbf52' : hpFrac > 0.25 ? '#d8b13a' : '#d85a3a';
+    ctx.fillRect(ent.x - bw / 2, by, bw * hpFrac, bh);
   }
   ctx.restore();
 }
@@ -3966,17 +4094,26 @@ function drawTargetingCursor(time) {
     }
     ctx.save();
     if (best) {
-      const sp = camera.worldToScreen(best.x, best.y);
+      // Encircle the whole underground colony (entrance + every chamber).
+      const lay = nestLayout(best, state.substrate);
+      let minX = best.x, maxX = best.x, minY = best.y, maxY = best.y;
+      for (const ch of lay.chambers) {
+        minX = Math.min(minX, ch.x - ch.r); maxX = Math.max(maxX, ch.x + ch.r);
+        minY = Math.min(minY, ch.y - ch.r); maxY = Math.max(maxY, ch.y + ch.r);
+      }
+      const tl = camera.worldToScreen(minX, minY), br = camera.worldToScreen(maxX, maxY);
+      const cx = (tl.x + br.x) / 2, cy = (tl.y + br.y) / 2;
+      const rx = Math.abs(br.x - tl.x) / 2 + 14, ry = Math.abs(br.y - tl.y) / 2 + 14;
       const pulse = 0.6 + 0.4 * Math.sin(time * 0.008);
       ctx.strokeStyle = `rgba(255,90,60,${pulse})`;
       ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(20, 22 * camera.zoom), 0, Math.PI * 2); ctx.stroke();
-      // crosshair
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+      // crosshair at the colony centre
       ctx.beginPath();
-      ctx.moveTo(sp.x - 30, sp.y); ctx.lineTo(sp.x - 14, sp.y);
-      ctx.moveTo(sp.x + 14, sp.y); ctx.lineTo(sp.x + 30, sp.y);
-      ctx.moveTo(sp.x, sp.y - 30); ctx.lineTo(sp.x, sp.y - 14);
-      ctx.moveTo(sp.x, sp.y + 14); ctx.lineTo(sp.x, sp.y + 30);
+      ctx.moveTo(cx - rx - 12, cy); ctx.lineTo(cx - rx + 4, cy);
+      ctx.moveTo(cx + rx - 4, cy); ctx.lineTo(cx + rx + 12, cy);
+      ctx.moveTo(cx, cy - ry - 12); ctx.lineTo(cx, cy - ry + 4);
+      ctx.moveTo(cx, cy + ry - 4); ctx.lineTo(cx, cy + ry + 12);
       ctx.stroke();
     } else {
       // no nest in range — a faint reticle at the cursor

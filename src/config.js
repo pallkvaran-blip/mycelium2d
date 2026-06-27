@@ -128,7 +128,7 @@ export const CONFIG = {
       moveCost: 1,
       energyCost: 30,            // expensive: ~3 bombs (each -40% HP) to destroy a nest
       damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
-      pickRadius: 90,            // click tolerance (world units) for hitting a nest
+      pickRadius: 140,           // click tolerance (world units) — covers the underground colony
     },
     digest: {
       moveCost: 1,
