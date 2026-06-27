@@ -290,6 +290,12 @@ export class Network {
     }
   }
 
+  // Age every strand a step each turn — older mycelium fills in denser (used by
+  // the renderer to thicken the colony progressively, petri-dish style).
+  agePass() {
+    for (const n of this.nodes) n.age++;
+  }
+
   // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
   // Strands recover only when genuinely safe AND fed: not in a hazard cell,
   // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise

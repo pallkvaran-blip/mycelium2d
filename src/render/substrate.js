@@ -507,13 +507,13 @@ export class SubstrateRenderer {
 
       // --- mycelial mat threading through + thickening as it colonises ---
       if (colo > 0.02) {
-        octx.fillStyle = `rgba(${r.mat},${0.06 * colo})`;
+        octx.fillStyle = `rgba(${r.mat},${0.04 + 0.16 * colo * colo})`;
         octx.beginPath();
-        octx.arc(cx, cy, cs * 0.55, 0, Math.PI * 2);
+        octx.arc(cx, cy, cs * 0.58, 0, Math.PI * 2);
         octx.fill();
-        const threads = Math.floor(1 + colo * 6);
-        octx.strokeStyle = `rgba(${r.mat},${0.26 * colo + 0.08})`;
-        octx.lineWidth = 0.7 + colo * 0.8;
+        const threads = Math.floor(1 + colo * colo * 11);  // sparse early, dense when full
+        octx.strokeStyle = `rgba(${r.mat},${0.18 * colo + 0.06})`;
+        octx.lineWidth = 0.7 + colo * 0.9;
         for (let k = 0; k < threads; k++) {
           const a = h2(col + k * 13, row + k * 5) * 6.283;
           const lx = cx + (h2(col * 5 + k, row + k) * 2 - 1) * cs * 0.5;
@@ -523,7 +523,7 @@ export class SubstrateRenderer {
           octx.quadraticCurveTo(lx, ly, lx + Math.cos(a) * cs * 0.42, ly + Math.sin(a) * cs * 0.42);
           octx.stroke();
         }
-        if (colo > 0.55) {
+        if (colo > 0.4) {
           octx.fillStyle = `rgba(${r.mat},${0.5 * colo})`;
           for (let k = 0; k < 3; k++) {
             octx.beginPath();

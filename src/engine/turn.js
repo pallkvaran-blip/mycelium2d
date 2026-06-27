@@ -25,8 +25,10 @@ export function endTurn(state) {
     const income = resolveIncome(net, substrate, config);
     if (net.active) totalIncome = income;
 
-    // 1b) Progressively colonise the substrate the network occupies.
+    // 1b) Progressively colonise the substrate the network occupies, and age
+    //     the strands so the colony visibly thickens over growth cycles.
     net.colonize(substrate);
+    net.agePass();
 
     // 2) Threat: Trichoderma spreads, then damages contacted strands.
     spreadTrichoderma(substrate, net, config, rng);

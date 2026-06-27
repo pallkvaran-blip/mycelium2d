@@ -42,6 +42,8 @@ export class NetworkRenderer {
     }
     this.subtreeSize = size;
 
+    const root = net.nodes[0];
+    this.maxDist = 1;
     this.edges = [];
     this.tips = [];
     for (const n of net.nodes) {
@@ -49,7 +51,9 @@ export class NetworkRenderer {
       if (n.parentId != null) {
         const p = net.byId.get(n.parentId);
         if (p) {
-          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w: size.get(n.id) || 1, h: n.health });
+          const d = root ? Math.hypot(n.x - root.x, n.y - root.y) : 0;
+          if (d > this.maxDist) this.maxDist = d;
+          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w: size.get(n.id) || 1, h: n.health, d });
         }
       }
     }
@@ -82,11 +86,12 @@ export class NetworkRenderer {
     octx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     octx.lineCap = 'round';
     const fil = hexToRgb(r.filament);
+    const AGE_FULL = 7;
 
-    // Each filament is rendered as a BUNDLE of fine, meandering hyphae (a cord),
-    // with feathery side-hairs and a fan of exploratory hyphae at the growing
-    // tips — so it reads as mycelium, not tree roots. Hairs are decorative (the
-    // sim skeleton stays light); detail is hashed per-node so it's stable.
+    // Petri-dish mycelium: fine meandering hyphae plus an age-driven cottony
+    // "fuzz" of short hyphae that thickens as the colony matures — dense at the
+    // old centre, feathery at the young growing margin. Fuzz is decorative
+    // (the sim skeleton stays light) and hashed per-node so it's stable.
     for (const n of network.nodes) {
       if (n.parentId == null) continue;
       const p = network.byId.get(n.parentId);
@@ -96,39 +101,38 @@ export class NetworkRenderer {
       const ux = dx / len, uy = dy / len, perpx = -uy, perpy = ux;
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
+      const ageF = Math.min(1, n.age / AGE_FULL);
       const tint = lerpColor([116, 84, 54], fil, n.health);
       octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
 
-      // bundle of strands — more strands toward the trunk (a thicker cord),
-      // a single fine hypha at the tips. Always fine, never a fat root.
-      const strands = 1 + Math.min(3, Math.floor(Math.log2(s + 1) / 1.6));
-      const baseW = 0.4 + Math.min(1.2, Math.log(1 + s) * 0.2);
+      // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
+      const strands = s > 8 ? 2 : 1;
+      const baseW = 0.4 + Math.min(0.9, Math.log(1 + s) * 0.18);
       const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
       for (let k = 0; k < strands; k++) {
-        const o = (k - (strands - 1) / 2) * 1.3;
+        const o = (k - (strands - 1) / 2) * 1.2;
         const mx = (p.x + n.x) / 2 + perpx * (o + meander);
         const my = (p.y + n.y) / 2 + perpy * (o + meander);
-        octx.lineWidth = baseW * (0.7 + 0.5 * nh(n.id, k + 2));
-        octx.globalAlpha = 0.85;
+        octx.lineWidth = baseW * (0.75 + 0.4 * nh(n.id, k + 2));
+        octx.globalAlpha = 0.8;
         octx.beginPath();
         octx.moveTo(p.x + perpx * o, p.y + perpy * o);
         octx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
         octx.stroke();
       }
 
-      // feathery side-hairs along the strand
-      const hairs = isTip ? 0 : (nh(n.id, 7) < 0.5 ? 1 : 2);
-      octx.globalAlpha = 0.45;
+      // cottony fuzz — short fine hyphae radiating out, denser as the strand ages
+      const fuzz = isTip ? Math.round(ageF * 2) : Math.round(ageF * 5);
       octx.lineWidth = 0.5;
-      for (let h = 0; h < hairs; h++) {
-        const t = 0.3 + 0.5 * nh(n.id, h + 10);
-        const bx = p.x + dx * t, by = p.y + dy * t;
-        const side = nh(n.id, h + 20) < 0.5 ? 1 : -1;
-        const a = baseAng + side * (0.5 + 0.5 * nh(n.id, h + 30));
-        const hl = 4 + 5 * nh(n.id, h + 40);
+      for (let f = 0; f < fuzz; f++) {
+        const a = nh(n.id, f + 11) * 6.283;
+        const hl = 4 + 7 * nh(n.id, f + 23);
+        const mx = n.x + Math.cos(a) * hl * 0.5 + perpx * (nh(n.id, f + 31) * 2 - 1) * 1.4;
+        const my = n.y + Math.sin(a) * hl * 0.5 + perpy * (nh(n.id, f + 31) * 2 - 1) * 1.4;
+        octx.globalAlpha = 0.16 + 0.16 * nh(n.id, f + 5);
         octx.beginPath();
-        octx.moveTo(bx, by);
-        octx.lineTo(bx + Math.cos(a) * hl, by + Math.sin(a) * hl);
+        octx.moveTo(n.x, n.y);
+        octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
         octx.stroke();
       }
 
@@ -159,7 +163,10 @@ export class NetworkRenderer {
     if (this.structureDirty) this.bakeStructure();
     const r = this.config.render;
     const net = this.network;
-    const brightness = (r.minBrightness + (1 - r.minBrightness) * net.vitality) * brightnessScale;
+    // Slow "breath" — the colony gently brightens and dims (~4.2s period)
+    // instead of streaming busy pulses.
+    const breath = 0.86 + 0.14 * Math.sin(time * (Math.PI * 2 / 4200));
+    const brightness = (r.minBrightness + (1 - r.minBrightness) * net.vitality) * brightnessScale * breath;
 
     // Static structure (baked), dimmed by vitality.
     const tl = camera.worldToScreen(0, 0);
@@ -186,26 +193,29 @@ export class NetworkRenderer {
     }
     ctx.restore();
 
-    // Nutrient pulses travelling outward along a sampled set of filaments.
+    // A single, slow nutrient pulse sweeping outward from the core as one soft
+    // ring (~every 3.8s) — a heartbeat, not a stream of marching dots.
+    const period = 3800;
+    const bandW = 55;
+    const front = ((time % period) / period) * (this.maxDist + bandW * 2);
     ctx.save();
-    ctx.globalAlpha = brightness;
-    ctx.fillStyle = r.pulseColor;
-    const speed = r.pulseSpeed;
-    const estride = Math.max(1, Math.ceil(this.edges.length / 120));
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = r.pulseColor;
+    const estride = Math.max(1, Math.ceil(this.edges.length / 220));
     for (let i = 0; i < this.edges.length; i += estride) {
       const e = this.edges[i];
-      const len = Math.hypot(e.bx - e.ax, e.by - e.ay) || 1;
-      const phase = ((time * 0.001 * speed) + i * 13.7) % (len + 40);
-      if (phase > len) continue; // gap between pulses
-      const f = phase / len;
-      const wx = e.ax + (e.bx - e.ax) * f;
-      const wy = e.ay + (e.by - e.ay) * f;
-      const s = camera.worldToScreen(wx, wy);
+      const dd = Math.abs(e.d - front);
+      if (dd > bandW) continue;
+      ctx.globalAlpha = (1 - dd / bandW) * 0.45 * brightness;
+      ctx.lineWidth = 1.6;
+      const a = camera.worldToScreen(e.ax, e.ay), b = camera.worldToScreen(e.bx, e.by);
       ctx.beginPath();
-      ctx.arc(s.x, s.y, 1.8, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
     }
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
 }
 

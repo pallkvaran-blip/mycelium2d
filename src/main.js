@@ -247,7 +247,7 @@ function frame(time) {
   }
 
   // Dynamic lighting: dim the earth, then add the colony's glow back in.
-  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer);
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
 
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
