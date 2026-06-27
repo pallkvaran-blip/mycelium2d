@@ -270,6 +270,35 @@ console.log('# Infection also advances on End Turn (no dodging the rot)');
   ok(after > before, `the rot advances on End Turn too (${before} -> ${after} infected)`);
 }
 
+console.log('# Cannot grow from infected or severed strands');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 5);
+  const net = s.active;
+  const root = net.root;
+  const a = net.addNode(root.x, root.y + 20, root);
+  const b = net.addNode(a.x, a.y + 20, a);
+  const c = net.addNode(b.x, b.y + 20, b);
+  ok(net.healthyFront().has(c.id), 'a healthy tip is part of the living front');
+  a.infected = true;                                  // infect mid-chain
+  const front = net.healthyFront();
+  ok(!front.has(b.id) && !front.has(c.id), 'strands behind an infected node are severed from the front');
+  ok(front.has(root.id), 'the root side of the break stays alive');
+}
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 77);
+  const net = s.active;
+  s.clouds = [];
+  s.config.trichoderma.initialPatches = 0;
+  const seedNode = net.nodes[net.nodes.length - 1];
+  s.substrate.deposit(seedNode.x, seedNode.y + 30, 100, 3);
+  for (let i = 0; i < 8; i++) net.grow(s.substrate, s.rng);
+  ok(net.nodes.length > 2, 'network grew while healthy');
+  for (const n of net.nodes) n.infected = true;       // whole colony dead
+  const before = net.nodes.length;
+  net.grow(s.substrate, s.rng);
+  ok(net.nodes.length === before, 'a fully infected colony cannot grow at all');
+}
+
 console.log('# Fruit pays Spores and ends the cycle');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 2024);

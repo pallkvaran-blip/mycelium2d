@@ -115,11 +115,14 @@ export class Network {
     if (attractors.length === 0) return 0;
 
     // 2) Spatial hash of nodes (bucketed by substrate cell) for nearest lookup.
+    //    Only the LIVING front grows — not infected strands, nor healthy strands
+    //    stranded behind an infected section (cut off from the root).
+    const healthy = this.healthyFront();
     const buckets = new Map();
     const key = (col, row) => col + ',' + row;
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
-      if (n.infected) continue;                 // infected strands can't grow
+      if (!healthy.has(n.id)) continue;         // can't grow from dead/severed strands
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -293,10 +296,13 @@ export class Network {
     const step = this.config.substrate.colonizeRate;
     if (this.nodes.length >= g.maxNodes) return 0;
 
-    // Group the network's nodes by the (uncolonised) substrate cell they're in.
+    // Group the LIVING network's nodes by the (uncolonised) substrate cell they
+    // sit in. Infected strands — and healthy ones severed behind them — can't
+    // colonise.
+    const healthy = this.healthyFront();
     const byCell = new Map();
     for (const n of this.nodes) {
-      if (n.infected) continue;                 // infected strands can't colonise
+      if (!healthy.has(n.id)) continue;         // dead or cut-off strands can't colonise
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -386,6 +392,24 @@ export class Network {
     let c = 0;
     for (const n of this.nodes) if (!n.infected) c++;
     return c;
+  }
+
+  // The LIVING network: nodes reachable from the root through uninfected strands
+  // only. A strand stranded behind an infected (dead) section is NOT in here, so
+  // you can't grow from it — the infection truly severs that branch.
+  healthyFront() {
+    const ok = new Set();
+    const root = this.root;
+    if (!root || root.infected) return ok;
+    const stack = [root];
+    while (stack.length) {
+      const n = stack.pop();
+      if (!n || n.infected || ok.has(n.id)) continue;
+      ok.add(n.id);
+      if (n.parentId != null) stack.push(this.byId.get(n.parentId));
+      for (const cid of n.children) stack.push(this.byId.get(cid));
+    }
+    return ok;
   }
 
   // --- Vitality = fraction of the colony still healthy (uninfected) --------

@@ -10,7 +10,7 @@
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
-import { infectNetwork } from './threats.js';
+import { infectNetwork, spreadTrichoderma } from './threats.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -18,9 +18,9 @@ export function endTurn(state) {
   const { config, substrate } = state;
   let totalIncome = 0;
 
-  // NOTE: cloud MOVEMENT only happens on actions (see tickThreat, called from
-  // performAction) — not here. But the INFECTION keeps spreading on end-turn too
-  // so you can't dodge the rot by ending your turn.
+  // The mould also acts on end-turn: the clouds creep/eat once more, and the
+  // infection keeps spreading — so ending your turn never freezes the threat.
+  spreadTrichoderma(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;
