@@ -47,26 +47,8 @@
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
     /* Action bar */
-    .actionbar { bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;
-      align-items: flex-end; flex-wrap: wrap; justify-content: center; max-width: 96vw; }
-
-    /* Hand of cards */
-    .hand { display: flex; gap: 7px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
-    .card { width: 84px; min-height: 74px; background: rgba(26,34,30,0.92); border: 1px solid var(--panel-border);
-      border-top-width: 3px; border-radius: 8px; padding: 6px 7px 7px; cursor: pointer; position: relative;
-      display: flex; flex-direction: column; gap: 3px; transition: transform 0.06s, background 0.15s, box-shadow 0.15s; }
-    .card:hover:not(.disabled) { background: rgba(40,54,48,0.95); transform: translateY(-3px); }
-    .card.disabled { opacity: 0.4; cursor: not-allowed; }
-    .card.selected { box-shadow: 0 0 0 2px var(--accent) inset, 0 0 12px rgba(127,230,163,0.4); transform: translateY(-4px); }
-    .card .card-cost { position: absolute; top: 5px; right: 7px; color: var(--accent); font-size: 11px; font-weight: 600; }
-    .card .card-name { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.15; margin-top: 2px; padding-right: 22px; }
-    .card .card-type { margin-top: auto; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-dim); }
-    /* type accents (top border) */
-    .card.t-growth { border-top-color: #7fe6a3; }
-    .card.t-substrate { border-top-color: #d8a24a; }
-    .card.t-defense { border-top-color: #e06a6a; }
-    .card.t-engine { border-top-color: #7fb0e6; }
-    .hand-empty { color: var(--ink-dim); font-size: 12px; font-style: italic; padding: 16px 8px; }
+    .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;
+      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
     .btn { font-family: inherit; color: var(--ink); background: rgba(40,54,48,0.8);
       border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
       font-size: 13px; transition: background 0.15s, border 0.15s, transform 0.05s; white-space: nowrap; }
@@ -151,25 +133,21 @@
       .actionbar { left: 6px; right: 6px; transform: none;
         max-width: none; gap: 5px; padding: 7px 8px; justify-content: center; }
       .actionbar .btn { padding: 6px 9px; font-size: 12px; }
-      .actionbar .btn .cost { font-size: 10px; margin-left: 3px; }
+      .actionbar .btn .cost, .actionbar .btn .lvl { font-size: 10px; margin-left: 3px; }
+      .actionbar .expr-group { padding: 3px 5px; gap: 3px; }
+      .actionbar .expr-group .group-label { font-size: 10px; }
+      .actionbar .expr-group .btn.trait { padding: 5px 7px; font-size: 11px; }
       .actionbar .ctrl { gap: 5px; }
-      /* smaller cards so a full hand fits across a phone */
-      .hand { gap: 5px; }
-      .card { width: 66px; min-height: 60px; padding: 5px 5px 6px; }
-      .card .card-name { font-size: 10.5px; padding-right: 18px; }
-      .card .card-cost { font-size: 10px; top: 4px; right: 5px; }
-      .card .card-type { font-size: 8px; }
       /* the hover hint isn't useful on touch and would overlap the wider bar */
       .hint { display: none; }
     }
 
-    /* narrow phones: tighten further so a full hand still fits. */
+    /* narrow phones: tighten the buttons further so everything still fits in a
+       compact 1–2 row strip (all actions stay tappable — no scrolling). */
     @media (max-width: 480px) {
       .actionbar { gap: 4px; padding: 6px; }
       .actionbar .btn { padding: 6px 8px; font-size: 11.5px; }
-      .hand { gap: 4px; }
-      .card { width: 58px; min-height: 54px; }
-      .card .card-name { font-size: 10px; }
+      .actionbar .expr-group .group-label { display: none; }
     }
 </style>
 <canvas id="game"></canvas>
@@ -713,7 +691,6 @@ class Network {
 
     this.vitality = 1;         // 0..1, cached; drives render brightness
     this._vitalityDip = 0;     // transient hit (Digest), decays each turn
-    this.incomeBonus = 0;      // per-run passive-income boost from engine cards
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
@@ -1478,6 +1455,200 @@ function totalTrichoderma(substrate) {
   return { seedTrichoderma, placeClouds, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, tickThreat, checkPuzzleGoal, totalTrichoderma };
 })();
 
+// ===================== src/engine/puzzle.js =====================
+const __m_engine_puzzle = (function () {
+// =============================================================================
+// Puzzle — a fixed, hand-authored map (a "level"). Goal: steer the colony to the
+// treasure chest. Rocks force detours, a tight energy economy makes reaching the
+// next food a real decision, and a couple of Trichoderma clouds must be lured
+// away or fought (let them infect, then amputate — they die off after infecting).
+//
+// Fully deterministic (no rng). Built imperatively in grid coordinates; the
+// world geometry + economy are applied to a CLONE of CONFIG so the sandbox is
+// never affected.
+// =============================================================================
+
+const CELL = 36;
+const AIR = 4;     // rows of air above the surface line
+const COLS = 78;   // -> width 2808
+const ROWS = 22;   // underground rows -> height 936
+
+const START_COL = 6;
+const CHEST_CELL = [73, 9];
+
+// Food islands (col, row, radius) — small stepping-stones; the chain weaves
+// through the rock-wall gaps from the start to the chest.
+const ISLANDS = [
+  [9, 5, 2],    // A — starter fuel by the seed
+  [20, 5, 1],   // B
+  [31, 13, 1],  // C  (you must dip DOWN to reach it)
+  [43, 7, 1],   // D  (then climb UP)
+  [55, 14, 1],  // E  (down again)
+  [67, 9, 1],   // F  — right by the chest, at the end of the corridor
+];
+
+// Rock walls (c0,r0,c1,r1 inclusive). Each leaves a gap on the path; together
+// they force a down-up-down weave and frame the final corridor.
+const ROCKS = [
+  [15, 0, 15, 3], [15, 7, 15, 21],   // W1 — gap at rows 4-6 (A->B threads it)
+  [26, 0, 26, 7],                    // W2 — blocks the top, forces DOWN to C
+  [38, 12, 38, 21],                  // W3 — blocks the bottom, forces UP to D
+  [49, 0, 49, 6],                    // W4 — blocks the top, forces DOWN to E
+  [60, 6, 70, 8], [60, 10, 70, 11],  // W5 — a 1-cell corridor at row 9 to the chest
+];
+
+// Trichoderma clouds (col, row).
+const CLOUD_CELLS = [
+  [47, 9],   // T1 — guards the D->E stretch (lure it aside, or push through)
+  [64, 9],   // T2 — sits in the corridor by the chest (infect-and-sever)
+];
+
+// Exposed for tests: the intended path waypoints (island centres + chest).
+const PUZZLE_WAYPOINTS = ISLANDS.map(([c, r]) => [c, r]).concat([CHEST_CELL]);
+
+function buildPuzzle(config, Substrate, setCfg) {
+  // --- world geometry ---
+  setCfg('world.cellSize', CELL);
+  setCfg('world.surfaceY', AIR * CELL);
+  setCfg('world.width', COLS * CELL);
+  setCfg('world.height', AIR * CELL + ROWS * CELL);
+
+  // --- tight economy: you must reach the next food before you starve ---
+  setCfg('energy.start', 50);
+  setCfg('energy.baselineTrickle', 0);     // no free energy — only food fuels you
+  setCfg('energy.passiveIncomeRate', 28);
+  setCfg('substrate.foodCellNutrient', 35); // small piles
+  setCfg('actions.grow.energyCost', 10);
+  setCfg('actions.addSubstrate.energyCost', 14); // lures are precious
+
+  // --- a fixed set of mould; none seeded randomly, none respawning ---
+  setCfg('trichoderma.initialPatches', 0);
+  setCfg('trichoderma.respawnChance', 0);
+
+  const sub = new Substrate(config);
+  // all surface is soil so the colony can root at the start column
+  for (let c = 0; c < sub.cols; c++) { sub.surface[c].soil = true; sub.surface[c].shade = false; }
+
+  // rocks
+  for (const [c0, r0, c1, r1] of ROCKS) {
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const cell = sub.cellAt(c, r);
+      if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
+    }
+  }
+
+  // food islands (skip rock)
+  const N = config.substrate.foodCellNutrient;
+  for (const [cc, cr, rad] of ISLANDS) {
+    for (let r = cr - rad; r <= cr + rad; r++) for (let c = cc - rad; c <= cc + rad; c++) {
+      const cell = sub.cellAt(c, r);
+      if (!cell || cell.rock) continue;
+      if (Math.hypot(c - cc, r - cr) > rad + 0.001) continue;
+      cell.nutrient = N; cell.maxNutrient = N;
+    }
+  }
+
+  const chest = { ...sub.cellCenter(CHEST_CELL[0], CHEST_CELL[1]), r: CELL * 1.4 };
+  const clouds = CLOUD_CELLS.map(([c, r]) => sub.cellCenter(c, r));
+
+  return { substrate: sub, startCol: START_COL, clouds, chest };
+}
+
+  return { PUZZLE_WAYPOINTS, buildPuzzle };
+})();
+
+// ===================== src/engine/state.js =====================
+const __m_engine_state = (function () {
+  const { makeRng } = __m_engine_rng;
+  const { generateSubstrate, Substrate } = __m_engine_substrate;
+  const { Network } = __m_engine_network;
+  const { seedTrichoderma, placeClouds } = __m_engine_threats;
+  const { buildPuzzle } = __m_engine_puzzle;
+  const { setByPath } = __m_config;
+// =============================================================================
+// State — holds the whole simulation (A9).
+//
+// Crucially, state holds a LIST of networks even in Phase 1 (only one is
+// active). The shared cross-section substrate, the run-wide Spore total, the
+// turn counter and the event log all live here. Renderer-agnostic.
+// =============================================================================
+
+
+// Standard (procedural, random) run.
+function createState(config, seed) {
+  const rng = makeRng(seed >>> 0 || 1);
+  const substrate = generateSubstrate(config, rng);
+
+  const network = new Network(config);
+  network.seed(substrate, rng);
+
+  // Seed the mould AFTER the colony so clouds can start in open ground, away
+  // from both food and you, and visibly creep in toward their nearest target.
+  const clouds = seedTrichoderma(substrate, config, rng, network);
+
+  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox' });
+}
+
+// Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
+// geometry + economy from the puzzle definition (a clone of CONFIG, so the
+// sandbox config is never mutated).
+function createPuzzleState(baseConfig) {
+  const config = JSON.parse(JSON.stringify(baseConfig));
+  const built = buildPuzzle(config, Substrate, (path, v) => setByPath(config, path, v));
+  // built = { substrate, startCol, clouds: [{x,y}], chest: {x,y,r} }
+  const rng = makeRng(20240611);   // fixed seed → deterministic puzzle
+
+  const network = new Network(config);
+  network.seed(built.substrate, rng, built.startCol);
+
+  const clouds = placeClouds(built.substrate, built.clouds, config);
+
+  return assembleState(config, rng, 20240611, built.substrate, [network], clouds, {
+    mode: 'puzzle',
+    chest: built.chest,
+    won: false,
+  });
+}
+
+function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
+  const state = {
+    config,
+    rng,
+    seed,
+    substrate,
+    clouds,                // roaming Trichoderma clouds (shared cross-section threat)
+    networks,              // list-of-networks (A5-ready); one active in Phase 1
+    active: networks[0],
+    spores: 0,             // run-wide Spore total (summed across networks later)
+    turn: 1,
+    movesLeft: config.turn.movesPerTurn,
+    runOver: false,
+    runResult: null,
+    logEntries: [],
+    _logSeq: 0,
+    log(message, kind = 'info') {
+      this.logEntries.push({ id: this._logSeq++, turn: this.turn, message, kind });
+      if (this.logEntries.length > 200) this.logEntries.shift();
+    },
+    ...extra,
+  };
+
+  if (state.mode === 'puzzle') {
+    state.log('A fixed puzzle: steer the colony to the treasure chest.', 'good');
+  } else {
+    state.log('Generation 1 begins. The colony stirs beneath the soil.', 'good');
+  }
+  return state;
+}
+
+// Start a fresh run with the (possibly slider-edited) config.
+function newRun(config, seed) {
+  return createState(config, seed);
+}
+
+  return { createState, createPuzzleState, newRun };
+})();
+
 // ===================== src/engine/actions.js =====================
 const __m_engine_actions = (function () {
   const { spawnTrichodermaAt, tickThreat } = __m_engine_threats;
@@ -1520,11 +1691,8 @@ const ACTIONS = {
       const a = state.config.actions.addSubstrate;
       const sub = state.substrate;
       if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
-      // amount/radius may be overridden per card (various sizes of substrate).
-      const amount = ctx.amount != null ? ctx.amount : a.amount;
-      const radius = ctx.radius != null ? ctx.radius : a.radius;
-      sub.deposit(ctx.x, ctx.y, amount, radius);
-      return { ok: true, message: 'Placed substrate to steer growth.' };
+      sub.deposit(ctx.x, ctx.y, a.amount, a.radius);   // small amount — it lures, it doesn't feed
+      return { ok: true, message: 'Dropped a lure to steer growth.' };
     },
   },
 
@@ -1534,8 +1702,7 @@ const ACTIONS = {
     desc: 'Cut out every strand within a radius — excise an infected patch.',
     apply(state, ctx) {
       const a = state.config.actions.amputate;
-      const radius = ctx.radius != null ? ctx.radius : a.radius;  // per-card override
-      const removed = state.active.amputateAt(ctx.x, ctx.y, radius);
+      const removed = state.active.amputateAt(ctx.x, ctx.y, a.radius);
       if (removed === 0) return { ok: false, message: 'No strands within the cut radius there.' };
       return { ok: true, message: `Cut out ${removed} strand${removed > 1 ? 's' : ''}.` };
     },
@@ -1673,363 +1840,9 @@ function devSpawnTrichoderma(state, x, y) {
   return { ACTIONS, actionCost, actionBlockedReason, performAction, devSpawnTrichoderma };
 })();
 
-// ===================== src/engine/cards.js =====================
-const __m_engine_cards = (function () {
-  const { ACTIONS } = __m_engine_actions;
-  const { tickThreat } = __m_engine_threats;
-// =============================================================================
-// Cards — the deck/hand layer over the standard actions (the engine-builder
-// core, per the GDD). The player no longer has free actions; they draw a hand
-// each turn and play cards (which cost Energy and trigger the underlying action
-// effects). Card scarcity + the deck you build is where the depth comes from.
-//
-// A card template references an existing action (with optional param overrides)
-// or an `engine` effect. Deck/hand/discard live on `state`.
-// =============================================================================
-
-
-// --- Card templates ---------------------------------------------------------
-// type drives the colour in the UI. target: null (instant), 'point' (click the
-// map), 'node' (click a strand). maxDist (optional) limits how far from the
-// colony a placement card can reach.
-const CARDS = {
-  grow:      { name: 'Grow',            type: 'growth',    cost: 8,  target: null,    action: 'grow',
-               desc: 'Extend the network toward sensed food.' },
-  digest:    { name: 'Digest',          type: 'growth',    cost: 6,  target: null,    action: 'digest',
-               desc: 'Devour occupied substrate for a burst of Energy.' },
-  amputate:  { name: 'Amputate',        type: 'defense',   cost: 4,  target: 'node',  action: 'amputate', params: {},
-               desc: 'Cut out every strand within the radius (excise infection).' },
-
-  // Substrate lures/feeders — various SIZES and reach (DISTANCE from the colony).
-  baitSmall: { name: 'Spore Bait',      type: 'substrate', cost: 4,  target: 'point', action: 'addSubstrate',
-               params: { amount: 18, radius: 0 }, maxDist: 150,
-               desc: 'A tiny lure (1 cell), placed close to the colony. Steers growth.' },
-  patch:     { name: 'Compost Patch',   type: 'substrate', cost: 9,  target: 'point', action: 'addSubstrate',
-               params: { amount: 40, radius: 1 }, maxDist: 180,
-               desc: 'A small feeding patch near the colony — lures and feeds a little.' },
-  mound:     { name: 'Rich Mound',      type: 'substrate', cost: 15, target: 'point', action: 'addSubstrate',
-               params: { amount: 70, radius: 2 }, maxDist: 230,
-               desc: 'A big, rich pile of food (short reach).' },
-  farCast:   { name: 'Far Cast',        type: 'substrate', cost: 8,  target: 'point', action: 'addSubstrate',
-               params: { amount: 16, radius: 0 },
-               desc: 'Fling a tiny lure anywhere on the map (long reach).' },
-
-  // Defence.
-  melanize:  { name: 'Melanize',        type: 'defense',   cost: 12, target: null,    action: 'express',
-               params: { trait: 'melanize' },
-               desc: 'Toughen the organism — resists the mould\'s initial contact.' },
-
-  // Engine builders.
-  surge:     { name: 'Metabolic Surge', type: 'engine',    cost: 0,  target: null,    engine: { energy: 25 },
-               desc: 'A burst of metabolism: +25 Energy now.' },
-  deepen:    { name: 'Deepen Roots',    type: 'engine',    cost: 10, target: null,    engine: { income: 8 },
-               desc: 'Thicken your feeding roots: +8 passive income for the rest of the run.' },
-  flush:     { name: 'Spore Flush',     type: 'engine',    cost: 3,  target: null,    engine: { draw: 2 },
-               desc: 'Draw 2 cards.' },
-};
-
-// Safe starting deck — you can always grow + feed, with one engine card.
-const STARTING_DECK = [
-  'grow', 'grow', 'grow', 'grow',
-  'baitSmall', 'baitSmall',
-  'digest', 'digest',
-  'amputate',
-  'surge',
-  'flush',
-];
-
-const HAND_SIZE = 5;
-
-let _uid = 0;
-
-// --- Deck lifecycle ---------------------------------------------------------
-function initDeck(state) {
-  state.deck = STARTING_DECK.map((key) => ({ uid: 'c' + (_uid++), key }));
-  state.discard = [];
-  state.hand = [];
-  shuffle(state.deck, state.rng);
-  drawCards(state, HAND_SIZE);
-}
-
-function shuffle(arr, rng) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
-  }
-}
-
-function drawCards(state, n) {
-  for (let i = 0; i < n; i++) {
-    if (state.deck.length === 0) {
-      if (state.discard.length === 0) break;        // genuinely out of cards
-      state.deck = state.discard; state.discard = [];
-      shuffle(state.deck, state.rng);
-    }
-    state.hand.push(state.deck.pop());
-  }
-}
-
-// End of turn: discard whatever is left in hand, then draw a fresh hand.
-function refillHand(state) {
-  while (state.hand.length) state.discard.push(state.hand.pop());
-  drawCards(state, HAND_SIZE);
-}
-
-// Why a card can't be played right now (or null if it can).
-function cardBlockedReason(state, inst) {
-  if (state.runOver) return 'The run is over.';
-  const card = CARDS[inst.key];
-  if (!card) return 'Unknown card.';
-  const net = state.active;
-  if (!net || !net.alive) return 'The network is no longer alive.';
-  if (net.energy < card.cost) return `Not enough Energy (need ${card.cost}).`;
-  return null;
-}
-
-// Play a card from hand. ctx carries {x,y} for targeted cards.
-function playCard(state, inst, ctx = {}) {
-  const blocked = cardBlockedReason(state, inst);
-  if (blocked) { state.log(blocked, 'warn'); return { ok: false, message: blocked }; }
-
-  const card = CARDS[inst.key];
-  const net = state.active;
-  const idx = state.hand.indexOf(inst);
-  if (idx < 0) return { ok: false, message: 'That card is not in hand.' };
-
-  // placement cards: respect the card's reach from the colony
-  if (card.maxDist != null && ctx.x != null) {
-    let best = Infinity;
-    for (const n of net.nodes) best = Math.min(best, Math.hypot(n.x - ctx.x, n.y - ctx.y));
-    if (best > card.maxDist) { state.log('Too far from the colony for that card.', 'warn'); return { ok: false, message: 'Too far from the colony.' }; }
-  }
-
-  const res = card.engine
-    ? applyEngine(state, card.engine)
-    : ACTIONS[card.action].apply(state, { ...(card.params || {}), ...ctx });
-  if (!res || !res.ok) { if (res) state.log(res.message, 'warn'); return res || { ok: false, message: 'No effect.' }; }
-
-  net.energy -= card.cost;
-  state.hand.splice(idx, 1);
-  state.discard.push(inst);
-  state.log(`${card.name}: ${res.message}`, 'action');
-  net.recomputeVitality();
-
-  tickThreat(state);   // the mould reacts to every card you play
-  return { ok: true, message: res.message };
-}
-
-function applyEngine(state, eng) {
-  const net = state.active;
-  if (eng.energy) { net.energy += eng.energy; return { ok: true, message: `+${eng.energy} Energy.` }; }
-  if (eng.income) { net.incomeBonus = (net.incomeBonus || 0) + eng.income; return { ok: true, message: `passive income +${eng.income}.` }; }
-  if (eng.draw) { drawCards(state, eng.draw); return { ok: true, message: `drew ${eng.draw} cards.` }; }
-  return { ok: false, message: 'No effect.' };
-}
-
-  return { CARDS, STARTING_DECK, HAND_SIZE, initDeck, drawCards, refillHand, cardBlockedReason, playCard };
-})();
-
-// ===================== src/engine/puzzle.js =====================
-const __m_engine_puzzle = (function () {
-// =============================================================================
-// Puzzle — a fixed, hand-authored map (a "level"). Goal: steer the colony to the
-// treasure chest. Rocks force detours, a tight energy economy makes reaching the
-// next food a real decision, and a couple of Trichoderma clouds must be lured
-// away or fought (let them infect, then amputate — they die off after infecting).
-//
-// Fully deterministic (no rng). Built imperatively in grid coordinates; the
-// world geometry + economy are applied to a CLONE of CONFIG so the sandbox is
-// never affected.
-// =============================================================================
-
-const CELL = 36;
-const AIR = 4;     // rows of air above the surface line
-const COLS = 78;   // -> width 2808
-const ROWS = 22;   // underground rows -> height 936
-
-const START_COL = 6;
-const CHEST_CELL = [73, 9];
-
-// Food islands (col, row, radius) — small stepping-stones; the chain weaves
-// through the rock-wall gaps from the start to the chest.
-const ISLANDS = [
-  [9, 5, 2],    // A — starter fuel by the seed
-  [20, 5, 1],   // B
-  [31, 13, 1],  // C  (you must dip DOWN to reach it)
-  [43, 7, 1],   // D  (then climb UP)
-  [55, 14, 1],  // E  (down again)
-  [67, 9, 1],   // F  — right by the chest, at the end of the corridor
-];
-
-// Rock walls (c0,r0,c1,r1 inclusive). Each leaves a gap on the path; together
-// they force a down-up-down weave and frame the final corridor.
-const ROCKS = [
-  [15, 0, 15, 3], [15, 7, 15, 21],   // W1 — gap at rows 4-6 (A->B threads it)
-  [26, 0, 26, 7],                    // W2 — blocks the top, forces DOWN to C
-  [38, 12, 38, 21],                  // W3 — blocks the bottom, forces UP to D
-  [49, 0, 49, 6],                    // W4 — blocks the top, forces DOWN to E
-  [60, 6, 70, 8], [60, 10, 70, 11],  // W5 — a 1-cell corridor at row 9 to the chest
-];
-
-// Trichoderma clouds (col, row).
-const CLOUD_CELLS = [
-  [47, 9],   // T1 — guards the D->E stretch (lure it aside, or push through)
-  [64, 9],   // T2 — sits in the corridor by the chest (infect-and-sever)
-];
-
-// Exposed for tests: the intended path waypoints (island centres + chest).
-const PUZZLE_WAYPOINTS = ISLANDS.map(([c, r]) => [c, r]).concat([CHEST_CELL]);
-
-function buildPuzzle(config, Substrate, setCfg) {
-  // --- world geometry ---
-  setCfg('world.cellSize', CELL);
-  setCfg('world.surfaceY', AIR * CELL);
-  setCfg('world.width', COLS * CELL);
-  setCfg('world.height', AIR * CELL + ROWS * CELL);
-
-  // --- tight economy: you must reach the next food before you starve ---
-  setCfg('energy.start', 50);
-  setCfg('energy.baselineTrickle', 0);     // no free energy — only food fuels you
-  setCfg('energy.passiveIncomeRate', 28);
-  setCfg('substrate.foodCellNutrient', 35); // small piles
-  setCfg('actions.grow.energyCost', 10);
-  setCfg('actions.addSubstrate.energyCost', 14); // lures are precious
-
-  // --- a fixed set of mould; none seeded randomly, none respawning ---
-  setCfg('trichoderma.initialPatches', 0);
-  setCfg('trichoderma.respawnChance', 0);
-
-  const sub = new Substrate(config);
-  // all surface is soil so the colony can root at the start column
-  for (let c = 0; c < sub.cols; c++) { sub.surface[c].soil = true; sub.surface[c].shade = false; }
-
-  // rocks
-  for (const [c0, r0, c1, r1] of ROCKS) {
-    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
-      const cell = sub.cellAt(c, r);
-      if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
-    }
-  }
-
-  // food islands (skip rock)
-  const N = config.substrate.foodCellNutrient;
-  for (const [cc, cr, rad] of ISLANDS) {
-    for (let r = cr - rad; r <= cr + rad; r++) for (let c = cc - rad; c <= cc + rad; c++) {
-      const cell = sub.cellAt(c, r);
-      if (!cell || cell.rock) continue;
-      if (Math.hypot(c - cc, r - cr) > rad + 0.001) continue;
-      cell.nutrient = N; cell.maxNutrient = N;
-    }
-  }
-
-  const chest = { ...sub.cellCenter(CHEST_CELL[0], CHEST_CELL[1]), r: CELL * 1.4 };
-  const clouds = CLOUD_CELLS.map(([c, r]) => sub.cellCenter(c, r));
-
-  return { substrate: sub, startCol: START_COL, clouds, chest };
-}
-
-  return { PUZZLE_WAYPOINTS, buildPuzzle };
-})();
-
-// ===================== src/engine/state.js =====================
-const __m_engine_state = (function () {
-  const { makeRng } = __m_engine_rng;
-  const { generateSubstrate, Substrate } = __m_engine_substrate;
-  const { Network } = __m_engine_network;
-  const { seedTrichoderma, placeClouds } = __m_engine_threats;
-  const { buildPuzzle } = __m_engine_puzzle;
-  const { initDeck } = __m_engine_cards;
-  const { setByPath } = __m_config;
-// =============================================================================
-// State — holds the whole simulation (A9).
-//
-// Crucially, state holds a LIST of networks even in Phase 1 (only one is
-// active). The shared cross-section substrate, the run-wide Spore total, the
-// turn counter and the event log all live here. Renderer-agnostic.
-// =============================================================================
-
-
-// Standard (procedural, random) run.
-function createState(config, seed) {
-  const rng = makeRng(seed >>> 0 || 1);
-  const substrate = generateSubstrate(config, rng);
-
-  const network = new Network(config);
-  network.seed(substrate, rng);
-
-  // Seed the mould AFTER the colony so clouds can start in open ground, away
-  // from both food and you, and visibly creep in toward their nearest target.
-  const clouds = seedTrichoderma(substrate, config, rng, network);
-
-  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox' });
-}
-
-// Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
-// geometry + economy from the puzzle definition (a clone of CONFIG, so the
-// sandbox config is never mutated).
-function createPuzzleState(baseConfig) {
-  const config = JSON.parse(JSON.stringify(baseConfig));
-  const built = buildPuzzle(config, Substrate, (path, v) => setByPath(config, path, v));
-  // built = { substrate, startCol, clouds: [{x,y}], chest: {x,y,r} }
-  const rng = makeRng(20240611);   // fixed seed → deterministic puzzle
-
-  const network = new Network(config);
-  network.seed(built.substrate, rng, built.startCol);
-
-  const clouds = placeClouds(built.substrate, built.clouds, config);
-
-  return assembleState(config, rng, 20240611, built.substrate, [network], clouds, {
-    mode: 'puzzle',
-    chest: built.chest,
-    won: false,
-  });
-}
-
-function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
-  const state = {
-    config,
-    rng,
-    seed,
-    substrate,
-    clouds,                // roaming Trichoderma clouds (shared cross-section threat)
-    networks,              // list-of-networks (A5-ready); one active in Phase 1
-    active: networks[0],
-    spores: 0,             // run-wide Spore total (summed across networks later)
-    turn: 1,
-    movesLeft: config.turn.movesPerTurn,
-    runOver: false,
-    runResult: null,
-    logEntries: [],
-    _logSeq: 0,
-    log(message, kind = 'info') {
-      this.logEntries.push({ id: this._logSeq++, turn: this.turn, message, kind });
-      if (this.logEntries.length > 200) this.logEntries.shift();
-    },
-    ...extra,
-  };
-
-  initDeck(state);   // shuffle the starting deck and deal the opening hand
-
-  if (state.mode === 'puzzle') {
-    state.log('A fixed puzzle: steer the colony to the treasure chest.', 'good');
-  } else {
-    state.log('Generation 1 begins. The colony stirs beneath the soil.', 'good');
-  }
-  return state;
-}
-
-// Start a fresh run with the (possibly slider-edited) config.
-function newRun(config, seed) {
-  return createState(config, seed);
-}
-
-  return { createState, createPuzzleState, newRun };
-})();
-
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
-  const { refillHand } = __m_engine_cards;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -2089,10 +1902,9 @@ function endTurn(state) {
 
   checkPuzzleGoal(state);
 
-  // Advance the clock, refill moves, and deal a fresh hand of cards.
+  // Advance the clock and refill moves.
   state.turn += 1;
   state.movesLeft = config.turn.movesPerTurn;
-  if (!state.runOver && state.hand) refillHand(state);
 
   if (!state.runOver) {
     const trickle = config.energy.baselineTrickle;
@@ -2107,11 +1919,10 @@ function endTurn(state) {
 function resolveIncome(net, substrate, config) {
   const e = config.energy;
   const cells = net.collectOccupiedCells(substrate);
-  const rate = e.passiveIncomeRate + (net.incomeBonus || 0);   // engine cards raise this
   let nutrientDrawn = 0;
   for (const cell of cells) {
     // You only digest substrate you've colonised — income ramps with the mat.
-    const take = Math.min(cell.nutrient, rate) * cell.colonized;
+    const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
     nutrientDrawn += take;
   }
@@ -3258,7 +3069,7 @@ function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
 
 // ===================== src/render/ui.js =====================
 const __m_render_ui = (function () {
-  const { CARDS } = __m_engine_cards;
+  const { ACTIONS, actionCost } = __m_engine_actions;
   const { SLIDERS, getByPath, setByPath } = __m_config;
 // =============================================================================
 // UI — HUD, action buttons, event log, dev tools, "what we're testing" panel.
@@ -3275,18 +3086,19 @@ const TRAITS = [
 ];
 
 const TESTING_QUESTIONS = [
-  'Does drawing a hand of cards (instead of free actions) make each turn a real decision?',
-  'Is the deck — Grow / Digest / Amputate / substrate lures / engine cards — the right starting set?',
+  'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
+  'Does 3-moves + Energy make each turn a real prioritisation?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
-  'Do the engine-building cards feel worth drafting over more growth?',
-  'Does card scarcity make navigating to food/the chest more interesting?',
+  'Does Express (defend, organism-wide) vs. Grow (expand) feel like a meaningful recurring tradeoff?',
+  'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
+  'Is Digest-burst a useful lever or redundant?',
 ];
 
 class UI {
   constructor(state, handlers) {
     this.state = state;
     this.handlers = handlers;
-    this.selectedCard = null;   // a targeted card awaiting a board click
+    this.selectedAction = null;
     this.el = {};
     this._build();
   }
@@ -3309,7 +3121,7 @@ class UI {
         <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
         <div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>
         <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
-        <div class="stat"><span class="k">Deck</span><span class="v" id="hud-deck">0</span></div>
+        <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
       </div>
       <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
@@ -3337,24 +3149,40 @@ class UI {
     legend.querySelector('.title').onclick = () => legend.classList.toggle('collapsed');
     root.appendChild(legend);
 
-    // ---- Bottom bar: your HAND of cards + controls ----
+    // ---- Bottom action bar ----
     const bar = div('panel actionbar');
-    this.el.hand = div('hand');           // populated each update() from state.hand
-    bar.appendChild(this.el.hand);
+    this.el.buttons = {};
 
+    const order = ['grow', 'addSubstrate', 'amputate'];
+    for (const name of order) bar.appendChild(this._actionButton(name));
+
+    // Express group (three traits)
+    const exprGroup = div('expr-group');
+    exprGroup.appendChild(span('Express', 'group-label'));
+    for (const t of TRAITS) {
+      const b = button(`btn trait`, '');
+      b.dataset.trait = t.key;
+      b.title = t.hint;
+      b.onclick = () => this.handlers.onAction('express', { trait: t.key });
+      exprGroup.appendChild(b);
+      this.el.buttons['express:' + t.key] = b;
+    }
+    bar.appendChild(exprGroup);
+
+    for (const name of ['digest', 'fruit']) bar.appendChild(this._actionButton(name));
+
+    // End turn + restart
     const ctrl = div('ctrl');
     const endBtn = button('btn end', 'End Turn ⏭');
     endBtn.onclick = () => this.handlers.onEndTurn();
     this.el.endBtn = endBtn;
-    const fruitBtn = button('btn', 'Fruit 🍄');
-    fruitBtn.title = 'Push up fruiting bodies for Spores — ends the colony.';
-    fruitBtn.onclick = () => this.handlers.onFruit();
-    this.el.fruitBtn = fruitBtn;
     const restartBtn = button('btn restart', 'New Map ↻');
     restartBtn.onclick = () => this.handlers.onRestart();
     const puzzleBtn = button('btn restart', 'Puzzle 🧩');
     puzzleBtn.onclick = () => this.handlers.onPuzzle();
-    ctrl.append(endBtn, fruitBtn, restartBtn, puzzleBtn);
+    ctrl.appendChild(endBtn);
+    ctrl.appendChild(restartBtn);
+    ctrl.appendChild(puzzleBtn);
     bar.appendChild(ctrl);
 
     root.appendChild(bar);
@@ -3424,45 +3252,30 @@ class UI {
     root.appendChild(this.el.overlay);
   }
 
-  // Select a targeted card (it waits for a board click); pass null to clear.
-  setSelectedCard(inst) {
-    this.selectedCard = inst;
-    const card = inst && CARDS[inst.key];
-    if (card) {
-      const what = card.target === 'node'
-        ? 'Click the map to cut out strands inside the red circle.'
-        : 'Click the map to place it (within the green circle of the colony).';
-      this.setHint(`${card.name}: ${what}`);
-    } else {
-      this.setHint('Play a card from your hand.');
+  _actionButton(name) {
+    const a = ACTIONS[name];
+    const b = button('btn act', '');
+    b.dataset.action = name;
+    b.title = a.desc;
+    b.onclick = () => this.handlers.onAction(name);
+    if (name === 'fruit') {
+      b.onmouseenter = () => this.handlers.onFruitPreview(true);
+      b.onmouseleave = () => this.handlers.onFruitPreview(false);
     }
-    this._renderHand();
+    this.el.buttons[name] = b;
+    return b;
   }
 
-  // Build the hand of cards from state.hand.
-  _renderHand() {
-    const wrap = this.el.hand;
-    if (!wrap) return;
-    const s = this.state;
-    const net = s.active;
-    wrap.innerHTML = '';
-    for (const inst of (s.hand || [])) {
-      const card = CARDS[inst.key];
-      if (!card) continue;
-      const el = div('card t-' + card.type);
-      const affordable = net && net.energy >= card.cost && !s.runOver && net.alive;
-      if (!affordable) el.classList.add('disabled');
-      if (inst === this.selectedCard) el.classList.add('selected');
-      el.title = card.desc;
-      el.innerHTML = `<div class="card-cost">${card.cost}⚡</div>`
-        + `<div class="card-name">${card.name}</div>`
-        + `<div class="card-type">${card.type}</div>`;
-      el.onclick = () => this.handlers.onCard(inst);
-      wrap.appendChild(el);
+  setSelectedAction(name) {
+    this.selectedAction = name;
+    for (const [key, btn] of Object.entries(this.el.buttons)) {
+      btn.classList.toggle('selected', key === name);
     }
-    if (!(s.hand && s.hand.length)) {
-      wrap.innerHTML = '<div class="hand-empty">No cards in hand — End Turn to draw.</div>';
-    }
+    const hints = {
+      addSubstrate: 'Click underground to place a food patch and lure growth there.',
+      amputate: 'Click to cut out every strand inside the red circle.',
+    };
+    if (name && hints[name]) this.setHint(hints[name]);
   }
 
   setHint(text) { this.el.hint.textContent = text; }
@@ -3511,14 +3324,14 @@ class UI {
     text('hud-energy', Math.floor(net.energy));
     text('hud-spores', Math.floor(s.spores));
     text('hud-turn', s.turn);
-    text('hud-deck', `${(s.deck || []).length}+${(s.discard || []).length}`);
+    text('hud-moves', `${s.movesLeft}/${s.config.turn.movesPerTurn}`);
     const vfill = document.getElementById('hud-vitality');
     if (vfill) {
       vfill.style.width = `${Math.round(net.vitality * 100)}%`;
       vfill.style.background = vitalityColor(net.vitality);
     }
 
-    // Express trait readout (Melanize level, from the card)
+    // Express trait readout
     const traitsEl = document.getElementById('hud-traits');
     if (traitsEl) {
       traitsEl.innerHTML = TRAITS.map((t) => {
@@ -3527,9 +3340,26 @@ class UI {
       }).join('');
     }
 
-    this._renderHand();
-    if (this.el.endBtn) this.el.endBtn.disabled = s.runOver;
-    if (this.el.fruitBtn) this.el.fruitBtn.disabled = s.runOver || !net.alive;
+    // Button states / costs
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'digest', 'fruit']) {
+      const btn = this.el.buttons[name];
+      if (!btn) continue;
+      const { moves, energy } = actionCost(s, name);
+      btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive;
+    }
+    // Express trait buttons (dynamic cost)
+    for (const t of TRAITS) {
+      const btn = this.el.buttons['express:' + t.key];
+      if (!btn) continue;
+      const lvl = net.traits[t.key];
+      const cost = net.expressCost(t.key);
+      const maxed = lvl >= s.config.actions.express.maxLevel;
+      btn.innerHTML = `${t.label} <span class="lvl">L${lvl}</span> <span class="cost">${maxed ? 'MAX' : cost + '⚡'}</span>`;
+      btn.disabled = s.runOver || maxed || s.movesLeft < s.config.actions.express.moveCost
+        || net.energy < cost || !net.alive;
+    }
+    this.el.endBtn.disabled = s.runOver;
 
     this._renderLog();
   }
@@ -3563,8 +3393,7 @@ function vitalityColor(v) {
 const __m_main = (function () {
   const { CONFIG } = __m_config;
   const { createState, createPuzzleState } = __m_engine_state;
-  const { devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
-  const { playCard, CARDS } = __m_engine_cards;
+  const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { endTurn } = __m_engine_turn;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
@@ -3590,6 +3419,8 @@ let state, ui, substrateRenderer;
 const networkRenderers = new Map();
 
 let uiDirty = true;
+let previewFruit = false;
+let previewFruitPoints = [];
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -3602,10 +3433,12 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 function begin(newState) {
   state = newState;
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, playCard, endTurn };
+  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
-  ui.setSelectedCard(null);
+  ui.setSelectedAction(null);
+  previewFruit = false;
+  previewFruitPoints = [];
   resize();
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
@@ -3642,35 +3475,22 @@ function expandedBounds() {
 
 // --- input handlers (passed to UI) -----------------------------------------
 const handlers = {
-  // Click a card in hand. Instant cards play now; targeted cards (substrate /
-  // amputate) arm a board click.
-  onCard(inst) {
-    const card = CARDS[inst.key];
-    if (!card) return;
-    if (card.target === 'point' || card.target === 'node') {
-      ui.setSelectedCard(ui.selectedCard === inst ? null : inst);
+  onAction(name, ctx) {
+    const a = ACTIONS[name];
+    // Targeted actions: first click selects targeting mode; the canvas click
+    // supplies coordinates.
+    if ((a.target === 'point' || a.target === 'node') && (!ctx || ctx.x === undefined)) {
+      ui.setSelectedAction(ui.selectedAction === name ? null : name);
       uiDirty = true;
       return;
     }
-    afterCardPlay(playCard(state, inst));
-  },
-  onFruit() {
-    const f = state.config.actions.fruit;
-    if (!state.active.alive || state.runOver) return;
-    if (state.active.energy < f.energyCost) { state.log('Not enough Energy to fruit.', 'warn'); uiDirty = true; return; }
-    const res = ACTIONS.fruit.apply(state, {});
-    if (res.ok) { state.active.energy -= f.energyCost; state.log(res.message, 'action'); }
-    else state.log(res.message, 'warn');
-    substrateRenderer.markDirty();
-    rendererFor(state.active).markStructureDirty();
-    if (state.runOver) ui.showOverlay(state.runResult);
-    uiDirty = true;
+    const res = performAction(state, name, ctx || {});
+    afterAction(name, res);
   },
   onEndTurn() {
     endTurn(state);
     substrateRenderer.markDirty();
     for (const net of state.networks) rendererFor(net).markStructureDirty();
-    ui.setSelectedCard(null);
     if (state.runOver) ui.showOverlay(state.runResult);
     uiDirty = true;
   },
@@ -3694,26 +3514,34 @@ const handlers = {
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
+  onFruitPreview(on) {
+    previewFruit = on;
+    // Compute the candidate fruit points once, on hover-start (a UI event, not
+    // the render loop), so the per-frame draw just reuses this cache.
+    if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
+  },
 };
 
-function afterCardPlay(res) {
+function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
-  // The mould steps on EVERY card played, so both layers may have changed:
-  // clouds moved / ate (substrate) and the rot advanced (network structure).
+  // The mould steps on EVERY action, so both layers may have changed: clouds
+  // moved / ate (substrate) and the rot advanced along filaments (structure).
   substrateRenderer.markDirty();
   rendererFor(state.active).markStructureDirty();
-  ui.setSelectedCard(null);
+  if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
 }
 
 // --- canvas interaction -----------------------------------------------------
 function onCanvasClick(worldX, worldY) {
-  const inst = ui.selectedCard;
-  if (!inst) return;
-  const card = CARDS[inst.key];
-  if (card && (card.target === 'point' || card.target === 'node')) {
-    afterCardPlay(playCard(state, inst, { x: worldX, y: worldY }));
+  const sel = ui.selectedAction;
+  if (!sel) return;
+  const a = ACTIONS[sel];
+  if (a.target === 'point' || a.target === 'node') {
+    const res = performAction(state, sel, { x: worldX, y: worldY });
+    afterAction(sel, res);
+    if (state.movesLeft <= 0 || state.active.energy < 0) ui.setSelectedAction(null);
   }
 }
 
@@ -3772,7 +3600,7 @@ function setupInput() {
     mouse.down = false;
     if (mouse.moved) return;
     const rect = canvas.getBoundingClientRect();
-    if (!ui.selectedCard) {
+    if (!ui.selectedAction) {
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
       if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
@@ -3824,6 +3652,11 @@ function frame(time) {
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
     if (net.fruited && net.fruitPoints.length) drawFruitBodies(ctx, camera, net.fruitPoints, time, false);
+  }
+
+  // Fruit preview (where would it fruit?) — uses the cache from hover-start.
+  if (previewFruit && !state.runOver) {
+    drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
   // Dynamic lighting: dim the earth, then add the colony's glow back in.
@@ -3919,32 +3752,23 @@ function drawCloudSight() {
 }
 
 function drawTargetingCursor(time) {
-  const inst = ui && ui.selectedCard;
-  if (!inst) return;
-  const card = CARDS[inst.key];
-  if (!card) return;
+  const sel = ui && ui.selectedAction;
+  if (!sel) return;
   const rect = canvas.getBoundingClientRect();
   const w = camera.screenToWorld(mouse.x - rect.left, mouse.y - rect.top);
-  const s = camera.worldToScreen(w.x, w.y);
-  if (card.action === 'addSubstrate') {
-    const cellR = Math.max((card.params && card.params.radius) || 0, 0.5);
-    const rad = cellR * state.substrate.cellSize * camera.zoom;
-    // valid if underground AND (no reach limit, or within reach of a strand)
-    let valid = w.y > state.substrate.surfaceY;
-    if (valid && card.maxDist != null) {
-      let best = Infinity;
-      for (const n of state.active.nodes) best = Math.min(best, Math.hypot(n.x - w.x, n.y - w.y));
-      valid = best <= card.maxDist;
-    }
+  if (sel === 'addSubstrate') {
+    const rad = state.config.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
+    const s = camera.worldToScreen(w.x, w.y);
     ctx.save();
-    ctx.strokeStyle = valid ? 'rgba(120,220,140,0.85)' : 'rgba(220,120,120,0.85)';
+    ctx.strokeStyle = w.y > state.substrate.surfaceY ? 'rgba(120,220,140,0.8)' : 'rgba(220,120,120,0.8)';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-  } else if (card.action === 'amputate') {
-    const rad = (card.params && card.params.radius) || state.config.actions.amputate.radius;
+  } else if (sel === 'amputate') {
+    const rad = state.config.actions.amputate.radius;
     const r2 = rad * rad;
+    const s = camera.worldToScreen(w.x, w.y);
     ctx.save();
     // Highlight every strand that would be cut out within the radius.
     ctx.strokeStyle = 'rgba(255,90,90,0.9)';

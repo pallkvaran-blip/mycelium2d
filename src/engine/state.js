@@ -11,7 +11,6 @@ import { generateSubstrate, Substrate } from './substrate.js';
 import { Network } from './network.js';
 import { seedTrichoderma, placeClouds } from './threats.js';
 import { buildPuzzle } from './puzzle.js';
-import { initDeck } from './cards.js';
 import { setByPath } from '../config.js';
 
 // Standard (procedural, random) run.
@@ -72,8 +71,6 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     },
     ...extra,
   };
-
-  initDeck(state);   // shuffle the starting deck and deal the opening hand
 
   if (state.mode === 'puzzle') {
     state.log('A fixed puzzle: steer the colony to the treasure chest.', 'good');

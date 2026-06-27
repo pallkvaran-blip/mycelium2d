@@ -38,11 +38,8 @@ export const ACTIONS = {
       const a = state.config.actions.addSubstrate;
       const sub = state.substrate;
       if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
-      // amount/radius may be overridden per card (various sizes of substrate).
-      const amount = ctx.amount != null ? ctx.amount : a.amount;
-      const radius = ctx.radius != null ? ctx.radius : a.radius;
-      sub.deposit(ctx.x, ctx.y, amount, radius);
-      return { ok: true, message: 'Placed substrate to steer growth.' };
+      sub.deposit(ctx.x, ctx.y, a.amount, a.radius);   // small amount — it lures, it doesn't feed
+      return { ok: true, message: 'Dropped a lure to steer growth.' };
     },
   },
 
@@ -52,8 +49,7 @@ export const ACTIONS = {
     desc: 'Cut out every strand within a radius — excise an infected patch.',
     apply(state, ctx) {
       const a = state.config.actions.amputate;
-      const radius = ctx.radius != null ? ctx.radius : a.radius;  // per-card override
-      const removed = state.active.amputateAt(ctx.x, ctx.y, radius);
+      const removed = state.active.amputateAt(ctx.x, ctx.y, a.radius);
       if (removed === 0) return { ok: false, message: 'No strands within the cut radius there.' };
       return { ok: true, message: `Cut out ${removed} strand${removed > 1 ? 's' : ''}.` };
     },
