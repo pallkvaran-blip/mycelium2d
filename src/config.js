@@ -68,7 +68,7 @@ export const CONFIG = {
     segmentLength: 17,           // length of one growth segment
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 1500,              // safety cap on network size
-    attractorThreshold: 6,       // min cell nutrient to emit a growth attractor
+    attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     startDepth: 130,             // initial seed depth below the surface line
     minTipSpacing: 11,           // don't spawn a node this close to an existing one

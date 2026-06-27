@@ -303,6 +303,21 @@ console.log('# Growth: infected strands cannot grow; cut-loose healthy ones can'
   ok(net.nodes.length > before && grewFromLone, 'a cut-loose healthy strand still grows');
 }
 
+console.log('# Even small food attracts growth (no scraps left behind)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 91);
+  const net = s.active;
+  s.clouds = [];
+  s.config.trichoderma.initialPatches = 0;
+  for (const c of s.substrate.cells) { c.nutrient = 0; c.maxNutrient = 0; }
+  // A tiny 5-nutrient remnant (below the OLD threshold of 6) next to the seed.
+  const seed = net.root;
+  s.substrate.deposit(seed.x, seed.y + 50, 5, 0);
+  const before = net.nodes.length;
+  for (let i = 0; i < 4; i++) net.grow(s.substrate, s.rng);
+  ok(net.nodes.length > before, 'a small (5-nutrient) remnant still lures growth');
+}
+
 console.log('# Trichoderma cannot travel through rock');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
