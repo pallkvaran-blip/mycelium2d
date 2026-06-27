@@ -17,6 +17,7 @@ import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI } from './render/ui.js';
+import { loadAssets, hasAsset, pattern, assetMeta } from './render/assets.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -307,6 +308,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawTerrainAssets();          // optional image-based textures over the earth (gated)
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
@@ -613,6 +615,28 @@ function drawAnts(time) {
   ctx.restore();
 }
 
+// Optional image-based terrain textures (art pipeline). World-anchored and
+// zoom-scaled so they sit on the earth; gated on the asset being present, so
+// with no assets the game keeps its procedural look.
+function drawTerrainAssets() {
+  if (!hasAsset('soil')) return;
+  const sub = state.substrate, z = camera.zoom;
+  const meta = assetMeta('soil') || {};
+  const p = pattern(ctx, 'soil');
+  if (!p) return;
+  const scale = (meta.scale || 1) * z;
+  const origin = camera.worldToScreen(0, 0);
+  if (p.setTransform) p.setTransform(new DOMMatrix([scale, 0, 0, scale, origin.x, origin.y]));
+  const tl = camera.worldToScreen(0, sub.surfaceY);
+  const br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  ctx.save();
+  ctx.globalAlpha = meta.opacity != null ? meta.opacity : 0.5;
+  if (meta.blend) ctx.globalCompositeOperation = meta.blend;
+  ctx.fillStyle = p;
+  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.restore();
+}
+
 // Nematodes: small pale wriggling worms. They writhe in place, tint reddish
 // while feeding, and glisten green while stuck by a fresh Excrete. The Excrete
 // action fires a brief sticky pulse over the network.
@@ -788,6 +812,7 @@ function drawTargetingCursor(time) {
 // (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
 // isolation. The matching buttons switch modes at any time.
 setupInput();
+loadAssets().then(() => { uiDirty = true; });   // preload art assets (if any); render hooks are gated
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

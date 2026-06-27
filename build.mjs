@@ -12,7 +12,7 @@
 // would do). Imports are rewired to read from the registry; exports are
 // collected from each closure's return value. No runtime module loading.
 
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, posix } from 'path';
 
@@ -37,6 +37,7 @@ const MODULES = [
   'src/render/substrate.js',
   'src/render/network.js',
   'src/render/lighting.js',
+  'src/render/assets.js',
   'src/render/ui.js',
   'src/main.js',
 ];
@@ -118,5 +119,14 @@ ${body}
 mkdirSync(R('dist'), { recursive: true });
 writeFileSync(R('dist/index.html'), standalone);
 writeFileSync(R('dist/artifact.html'), body);
+
+// Copy the image-asset folder (textures/sprites + manifest) alongside the build
+// so the deployed page can load them at runtime. Optional — the game runs fine
+// with no assets folder at all.
+if (existsSync(R('assets'))) {
+  cpSync(R('assets'), R('dist/assets'), { recursive: true });
+  console.log('Copied assets/ -> dist/assets/');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);

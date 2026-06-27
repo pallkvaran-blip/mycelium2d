@@ -3473,6 +3473,67 @@ function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
   return { Lighting };
 })();
 
+// ===================== src/render/assets.js =====================
+const __m_render_assets = (function () {
+// =============================================================================
+// Assets — runtime image loader + registry (art pipeline).
+//
+// The game ships an `assets/` folder with a `manifest.json` listing the images
+// that actually exist. At boot we fetch the manifest and preload each image.
+// Renderers ask `hasAsset(key)` before drawing, so the game ALWAYS works with
+// zero assets present (it just falls back to the procedural look) and any image
+// dropped into the manifest appears automatically — no code change needed.
+//
+// Kinds:
+//   - 'texture' : tileable, used as a repeating CanvasPattern (soil, rock face)
+//   - 'sprite'  : a single transparent PNG drawn with drawImage (props, props)
+//
+// Renderer-agnostic except that it constructs Image()/patterns — i.e. browser
+// only. It is never imported by the engine.
+// =============================================================================
+
+const REG = {};              // key -> { img, ready, meta }
+const _patterns = new Map(); // key -> CanvasPattern (cached)
+
+// Fetch the manifest and preload every listed image. Resolves once all images
+// have settled (loaded OR failed) so a missing file never blocks boot.
+function loadAssets(basePath = 'assets/') {
+  return fetch(basePath + 'manifest.json')
+    .then((r) => (r.ok ? r.json() : { assets: [] }))
+    .catch(() => ({ assets: [] }))
+    .then((m) => {
+      const list = (m && m.assets) || [];
+      return Promise.all(list.map((a) => loadOne(basePath, a)));
+    })
+    .catch(() => {});
+}
+
+function loadOne(basePath, a) {
+  return new Promise((resolve) => {
+    if (!a || !a.key || !a.file) return resolve();
+    const img = new Image();
+    img.onload = () => { REG[a.key] = { img, ready: true, meta: a }; resolve(); };
+    img.onerror = () => { REG[a.key] = { img: null, ready: false, meta: a }; resolve(); };
+    img.src = basePath + a.file;
+  });
+}
+
+function hasAsset(key) { return !!(REG[key] && REG[key].ready); }
+function asset(key) { const e = REG[key]; return e && e.ready ? e.img : null; }
+function assetMeta(key) { const e = REG[key]; return e ? e.meta : null; }
+
+// A cached repeating pattern for a tileable texture (null if not loaded).
+function pattern(ctx, key) {
+  if (!hasAsset(key)) return null;
+  if (_patterns.has(key)) return _patterns.get(key);
+  const p = ctx.createPattern(REG[key].img, 'repeat');
+  _patterns.set(key, p);
+  return p;
+}
+
+  return { loadAssets, hasAsset, asset, assetMeta, pattern };
+})();
+
 // ===================== src/render/ui.js =====================
 const __m_render_ui = (function () {
   const { ACTIONS, actionCost } = __m_engine_actions;
@@ -3783,6 +3844,7 @@ const __m_main = (function () {
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
   const { Lighting } = __m_render_lighting;
   const { UI } = __m_render_ui;
+  const { loadAssets, hasAsset, pattern, assetMeta } = __m_render_assets;
 // =============================================================================
 // main.js — wiring (A9).
 //
@@ -4082,6 +4144,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawTerrainAssets();          // optional image-based textures over the earth (gated)
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
@@ -4388,6 +4451,28 @@ function drawAnts(time) {
   ctx.restore();
 }
 
+// Optional image-based terrain textures (art pipeline). World-anchored and
+// zoom-scaled so they sit on the earth; gated on the asset being present, so
+// with no assets the game keeps its procedural look.
+function drawTerrainAssets() {
+  if (!hasAsset('soil')) return;
+  const sub = state.substrate, z = camera.zoom;
+  const meta = assetMeta('soil') || {};
+  const p = pattern(ctx, 'soil');
+  if (!p) return;
+  const scale = (meta.scale || 1) * z;
+  const origin = camera.worldToScreen(0, 0);
+  if (p.setTransform) p.setTransform(new DOMMatrix([scale, 0, 0, scale, origin.x, origin.y]));
+  const tl = camera.worldToScreen(0, sub.surfaceY);
+  const br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  ctx.save();
+  ctx.globalAlpha = meta.opacity != null ? meta.opacity : 0.5;
+  if (meta.blend) ctx.globalCompositeOperation = meta.blend;
+  ctx.fillStyle = p;
+  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.restore();
+}
+
 // Nematodes: small pale wriggling worms. They writhe in place, tint reddish
 // while feeding, and glisten green while stuck by a fresh Excrete. The Excrete
 // action fires a brief sticky pulse over the network.
@@ -4563,6 +4648,7 @@ function drawTargetingCursor(time) {
 // (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
 // isolation. The matching buttons switch modes at any time.
 setupInput();
+loadAssets().then(() => { uiDirty = true; });   // preload art assets (if any); render hooks are gated
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);
