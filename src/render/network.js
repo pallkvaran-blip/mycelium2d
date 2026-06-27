@@ -106,9 +106,11 @@ export class NetworkRenderer {
       // cream (look is independent of vitality/health).
       octx.strokeStyle = n.infected ? r.infected : `rgb(${fil[0]},${fil[1]},${fil[2]})`;
 
-      // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
+      // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere.
+      // Narrower spread between trunk and fine strands: thinner main cords, a
+      // touch thicker secondaries (the trunks read too heavy before).
       const strands = s > 8 ? 2 : 1;
-      const baseW = 0.7 + Math.min(1.2, Math.log(1 + s) * 0.24);
+      const baseW = 1.0 + Math.min(0.55, Math.log(1 + s) * 0.13);
       const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
       for (let k = 0; k < strands; k++) {
         const o = (k - (strands - 1) / 2) * 1.2;

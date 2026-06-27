@@ -44,7 +44,8 @@ export const CONFIG = {
     // Colonisation advances per GROW cycle: each Grow, the mycelium branches
     // within occupied substrate and makes this much progress, so ~1/this grow
     // cycles are needed to fully colonise (and densely branch) a pocket.
-    colonizeRate: 0.2,
+    // (0.166 ≈ 6 grow cycles — one more round of branching than before.)
+    colonizeRate: 0.166,
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
@@ -93,7 +94,7 @@ export const CONFIG = {
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
     moveSpeed: 1.0,              // cells per ACTION a cloud creeps toward the nearest food (SLIDER)
-    consumeFraction: 0.6,        // food drained per turn from cells under the cloud (~2 turns to clear)
+    consumeFraction: 0.2,        // per ACTION, drains this fraction of each cell in a TOUCHED pile — a whole pile is gone in ~2 turns
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
     seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
     spawnChancePerTurn: 0.0,     // ambient new clouds (0 = only seeded + dev spawn)

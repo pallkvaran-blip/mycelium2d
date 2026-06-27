@@ -115,25 +115,25 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
     `cloud stays small after eating a giant pile (r ${r0.toFixed(2)} -> ${cloud.r.toFixed(2)}, cap ${s.config.trichoderma.cloudRadiusMax})`);
 }
 
-// Consumption: the substrate UNDER a cloud is devoured within ~2 turns.
+// Consumption: a cloud that merely TOUCHES a pile finishes the WHOLE pile in
+// ~2 turns (~6 actions) — even cells well beyond its own small footprint.
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 654);
   const sub = s.substrate;
   const N = s.config.substrate.foodCellNutrient;
   for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
-  const c0 = 10, r0 = 5;
-  // A small pile that fits under one (now-small) cloud's footprint.
-  for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+  // A pile much bigger than one small cloud (radius ~3 cells).
+  const c0 = 14, r0 = 8;
+  for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) {
     const cell = sub.cellAt(c0 + dc, r0 + dr);
-    if (cell) { cell.nutrient = N; cell.maxNutrient = N; cell.rock = false; cell.hazard = false; }
+    if (cell && Math.hypot(dc, dr) <= 3) { cell.nutrient = N; cell.maxNutrient = N; cell.rock = false; cell.hazard = false; }
   }
   s.clouds = [];
-  const ctr = sub.cellCenter(c0, r0);
-  spawnTrichodermaAt(s, ctr.x, ctr.y);
+  const edge = sub.cellCenter(c0 + 3, r0);   // cloud touching just the EDGE
+  spawnTrichodermaAt(s, edge.x, edge.y);
   const food0 = sub.totalNutrient();
-  spreadTrichoderma(s);
-  spreadTrichoderma(s);
-  ok(sub.totalNutrient() < food0 * 0.1, `a cloud devoured the pile under it in 2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
+  for (let i = 0; i < 6; i++) spreadTrichoderma(s);   // ~2 turns of 3 actions
+  ok(sub.totalNutrient() < food0 * 0.1, `a cloud finished a whole pile in ~2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
 }
 
 // Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.
