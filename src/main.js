@@ -639,33 +639,21 @@ function drawNematodes(time) {
 
   if (!worms || !worms.length) return;
 
-  // --- dev vision overlay: how far each worm sees + its line of sight ---
+  // --- sight-range overlay: a soft glow rim (same style as the mould's),
+  // shown for SEARCHING worms (a worm that's already locked on is coming
+  // regardless, so its range adds nothing but clutter). ---
   if (showNematodeVision) {
     const sight = state.config.nematodes.sightRadius * z;
     ctx.save();
     for (const w of worms) {
+      if (w.sees) continue;
       const sp = camera.worldToScreen(w.x, w.y);
-      if (w.seeX != null) {
-        // sees a strand (clear LOS) — solid green line to it
-        const t = camera.worldToScreen(w.seeX, w.seeY);
-        ctx.strokeStyle = 'rgba(120,240,140,0.7)'; ctx.lineWidth = 1.8; ctx.setLineDash([]);
-        ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(t.x, t.y); ctx.stroke();
-      } else {
-        // searching — show its sight range (dashed boundary) so you can read
-        // when it'll spot you
-        ctx.strokeStyle = 'rgba(160,220,140,0.28)'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
-        ctx.beginPath(); ctx.arc(sp.x, sp.y, sight, 0, Math.PI * 2); ctx.stroke();
-        if (w.blockX != null) {
-          // a strand is in range but rock blocks the view — red dashed line to the block
-          const b = camera.worldToScreen(w.blockX, w.blockY);
-          ctx.strokeStyle = 'rgba(245,110,90,0.65)'; ctx.lineWidth = 1.8; ctx.setLineDash([4, 4]);
-          ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-          ctx.fillStyle = 'rgba(245,110,90,0.85)';
-          ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill();
-        }
-      }
+      const g = ctx.createRadialGradient(sp.x, sp.y, sight * 0.78, sp.x, sp.y, sight);
+      g.addColorStop(0, 'rgba(165,205,115,0)');
+      g.addColorStop(1, 'rgba(165,205,115,0.10)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, sight, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.setLineDash([]);
     ctx.restore();
   }
 

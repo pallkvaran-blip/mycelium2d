@@ -65,7 +65,7 @@ export function stepNematodes(state) {
     // claims a DISTINCT strand — so the swarm's CONSUMPTION scales with its
     // size, but BREEDING isn't throttled by how many strands are in reach.)
     const seen = nearestVisibleNode(sub, nodes, w, n.sightRadius, null);
-    recordVision(sub, nodes, w, n.sightRadius, seen);   // cache for the debug overlay
+    w.sees = !!seen;                                    // searching vs locked-on (sight overlay)
 
     if (seen) {
       const dx = seen.x - w.x, dy = seen.y - w.y;
@@ -150,33 +150,6 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
     if (d < bestD && losClear(sub, w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
   }
   return best;
-}
-
-// Cache what this worm currently sees (for the debug vision overlay): the strand
-// it has clear LOS to, and — if its nearest strand is hidden behind rock — that
-// strand plus the point on the way where the rock blocks the view.
-function recordVision(sub, nodes, w, sight, seen) {
-  w.seeX = seen ? seen.x : null;
-  w.seeY = seen ? seen.y : null;
-  w.blindX = null; w.blindY = null; w.blockX = null; w.blockY = null;
-  // Nearest strand in range ignoring LOS — if it isn't the one we can see, the
-  // view to it is blocked; find where the ray first hits rock.
-  let nearAny = null, best = sight * sight;
-  for (const node of nodes) {
-    const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
-    if (d < best) { best = d; nearAny = node; }
-  }
-  if (nearAny && (!seen || nearAny.id !== seen.id)) {
-    w.blindX = nearAny.x; w.blindY = nearAny.y;
-    const cs = sub.cellSize;
-    const dx = nearAny.x - w.x, dy = nearAny.y - w.y;
-    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
-    for (let i = 1; i <= steps; i++) {
-      const x = w.x + dx * (i / steps), y = w.y + dy * (i / steps);
-      const c = sub.cellAtWorld(x, y);
-      if (c && c.rock) { w.blockX = x; w.blockY = y; break; }
-    }
-  }
 }
 
 // True if no rock cell lies on the segment (sampled). Rock blocks line of sight.
