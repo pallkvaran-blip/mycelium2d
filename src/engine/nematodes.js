@@ -60,26 +60,37 @@ export function stepNematodes(state) {
     if (w.stuck > 0) { w.stuck -= 1; w.feeding = false; continue; }
     w.feeding = false;
 
-    const target = nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed);
-    if (target) {
-      const dx = target.x - w.x, dy = target.y - w.y;
+    // Movement/feeding target is the nearest strand it can SEE (clear LOS),
+    // regardless of whether another worm is already eating it. (Eating below
+    // claims a DISTINCT strand — so the swarm's CONSUMPTION scales with its
+    // size, but BREEDING isn't throttled by how many strands are in reach.)
+    const seen = nearestVisibleNode(sub, nodes, w, n.sightRadius, null);
+    recordVision(sub, nodes, w, n.sightRadius, seen);   // cache for the debug overlay
+
+    if (seen) {
+      const dx = seen.x - w.x, dy = seen.y - w.y;
       const dist = Math.hypot(dx, dy) || 1;
       w.heading = Math.atan2(dy, dx);
       if (dist <= n.reach * cs) {
-        // Feeding: eat a strand whole on a cooldown, and multiply while eating.
         w.feeding = true;
-        if (w.feedCd <= 0) { claimed.add(target.id); w.feedCd = n.eatEveryTicks; }
-        else w.feedCd -= 1;
+        // Breed EVERY tick while in contact — this is the exponential growth.
         if (state.nematodes.length + newborns.length < n.maxPopulation && rng.chance(n.breedChance)) {
           newborns.push(makeWorm(
             w.x + rng.range(-cs * 0.3, cs * 0.3), w.y + rng.range(-cs * 0.3, cs * 0.3),
             rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
         }
+        // Eat a DISTINCT strand whole on a cooldown (one worm per strand/tick).
+        if (w.feedCd <= 0) {
+          const bite = claimed.has(seen.id) ? nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed) : seen;
+          if (bite && Math.hypot(bite.x - w.x, bite.y - w.y) <= n.reach * cs) {
+            claimed.add(bite.id); w.feedCd = n.eatEveryTicks;
+          }
+        } else w.feedCd -= 1;
       } else {
         moveWorm(w, dx / dist, dy / dist, Math.min(dist, n.crawlSpeed * cs), sub);
       }
     } else {
-      // Nothing sensed — wander; turn away when rock / the edge blocks it.
+      // Nothing seen — wander; turn away when rock / the edge blocks it.
       w.heading += rng.range(-0.5, 0.5);
       const moved = moveWorm(w, Math.cos(w.heading), Math.sin(w.heading), n.wanderSpeed * cs, sub);
       if (!moved) w.heading += rng.range(2, 4);
@@ -139,6 +150,33 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
     if (d < bestD && losClear(sub, w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
   }
   return best;
+}
+
+// Cache what this worm currently sees (for the debug vision overlay): the strand
+// it has clear LOS to, and — if its nearest strand is hidden behind rock — that
+// strand plus the point on the way where the rock blocks the view.
+function recordVision(sub, nodes, w, sight, seen) {
+  w.seeX = seen ? seen.x : null;
+  w.seeY = seen ? seen.y : null;
+  w.blindX = null; w.blindY = null; w.blockX = null; w.blockY = null;
+  // Nearest strand in range ignoring LOS — if it isn't the one we can see, the
+  // view to it is blocked; find where the ray first hits rock.
+  let nearAny = null, best = sight * sight;
+  for (const node of nodes) {
+    const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
+    if (d < best) { best = d; nearAny = node; }
+  }
+  if (nearAny && (!seen || nearAny.id !== seen.id)) {
+    w.blindX = nearAny.x; w.blindY = nearAny.y;
+    const cs = sub.cellSize;
+    const dx = nearAny.x - w.x, dy = nearAny.y - w.y;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+    for (let i = 1; i <= steps; i++) {
+      const x = w.x + dx * (i / steps), y = w.y + dy * (i / steps);
+      const c = sub.cellAtWorld(x, y);
+      if (c && c.rock) { w.blockX = x; w.blockY = y; break; }
+    }
+  }
 }
 
 // True if no rock cell lies on the segment (sampled). Rock blocks line of sight.

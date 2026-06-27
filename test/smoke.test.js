@@ -428,6 +428,27 @@ console.log('# Nematodes: feed on contact (eat strands whole) and multiply');
   ok(s.nematodes.length > wormsBefore, `feeding worms multiply (${wormsBefore} -> ${s.nematodes.length})`);
 }
 
+console.log('# Nematodes: breeding is exponential, not throttled by strand count');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
+  s.config.nematodes.eatEveryTicks = 999;   // don't consume — isolate breeding
+  s.config.nematodes.breedChance = 1;        // deterministic doubling
+  s.config.nematodes.respawnChance = 0;      // no trickle to muddy the count
+  s.config.nematodes.maxPopulation = 1000;
+  const net = s.active;
+  const seed = net.nodes[net.nodes.length - 1];
+  s.substrate.deposit(seed.x, seed.y + 30, 100, 3);
+  for (let i = 0; i < 8; i++) net.grow(s.substrate, s.rng);   // a bigger colony to sit on
+  const onNode = net.nodes[0];
+  s.nematodes = [];
+  for (let i = 0; i < 2; i++) spawnNematodeAt(s, onNode.x, onNode.y);
+  const p0 = s.nematodes.length;
+  stepNematodes(s); const p1 = s.nematodes.length;
+  stepNematodes(s); const p2 = s.nematodes.length;
+  ok(p1 >= p0 * 2 && p2 > p1, `population grows exponentially while feeding (${p0} -> ${p1} -> ${p2})`);
+}
+
 console.log('# Nematodes: Excrete sticks & kills worms in range only (3 hits)');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);

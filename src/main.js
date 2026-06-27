@@ -32,6 +32,7 @@ let previewFruit = false;
 let previewFruitPoints = [];
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
+let showNematodeVision = true;        // dev overlay: nematode sight range + line of sight
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -122,6 +123,10 @@ const handlers = {
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
     start((Date.now() & 0x7fffffff) || 1);
+  },
+  onToggleWormVision() {
+    showNematodeVision = !showNematodeVision;
+    return showNematodeVision;
   },
   onPuzzle() {
     startPuzzle();
@@ -617,6 +622,37 @@ function drawNematodes(time) {
   }
 
   if (!worms || !worms.length) return;
+
+  // --- dev vision overlay: how far each worm sees + its line of sight ---
+  if (showNematodeVision) {
+    const sight = state.config.nematodes.sightRadius * z;
+    ctx.save();
+    for (const w of worms) {
+      const sp = camera.worldToScreen(w.x, w.y);
+      if (w.seeX != null) {
+        // sees a strand (clear LOS) — solid green line to it
+        const t = camera.worldToScreen(w.seeX, w.seeY);
+        ctx.strokeStyle = 'rgba(120,240,140,0.7)'; ctx.lineWidth = 1.8; ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+      } else {
+        // searching — show its sight range (dashed boundary) so you can read
+        // when it'll spot you
+        ctx.strokeStyle = 'rgba(160,220,140,0.28)'; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.arc(sp.x, sp.y, sight, 0, Math.PI * 2); ctx.stroke();
+        if (w.blockX != null) {
+          // a strand is in range but rock blocks the view — red dashed line to the block
+          const b = camera.worldToScreen(w.blockX, w.blockY);
+          ctx.strokeStyle = 'rgba(245,110,90,0.65)'; ctx.lineWidth = 1.8; ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          ctx.fillStyle = 'rgba(245,110,90,0.85)';
+          ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   ctx.save();
   ctx.lineCap = 'round';
   const len = Math.max(7, cs * 0.55 * z);           // worm body length, px

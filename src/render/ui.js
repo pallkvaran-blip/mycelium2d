@@ -134,7 +134,9 @@ export class UI {
       c4.onclick = () => this.handlers.onNoTrichMap();
       const c5 = button('btn dev-btn', 'Spawn Nematode');
       c5.onclick = () => this.handlers.onCheat('nematode');
-      cheats.append(c1, c2, c3, c4, c5);
+      const c6 = button('btn dev-btn', 'Worm Vision: ON');
+      c6.onclick = () => { const on = this.handlers.onToggleWormVision(); c6.textContent = 'Worm Vision: ' + (on ? 'ON' : 'OFF'); };
+      cheats.append(c1, c2, c3, c4, c5, c6);
       body.appendChild(cheats);
 
       const sliders = div('sliders');
