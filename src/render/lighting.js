@@ -33,11 +33,24 @@ export class Lighting {
     }
     const lc = this.lctx;
 
-    // 1) Ambient darkness (cool), as the multiply base.
+    // 1) Darken ONLY the underground; the daytime sky above stays bright (the
+    //    light map is white over the sky, so the multiply leaves it untouched).
     const a = r.ambientLight;
+    const amb = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
     lc.globalCompositeOperation = 'source-over';
-    lc.fillStyle = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
-    lc.fillRect(0, 0, W, H);
+    const surfY = camera.worldToScreen(0, state.substrate.surfaceY).y;
+    const band = 50; // soft transition across the soil line
+    const ay = Math.max(0, Math.min(H, surfY - band));
+    const by = Math.max(0, Math.min(H, surfY + band));
+    lc.fillStyle = '#ffffff';
+    lc.fillRect(0, 0, W, ay);
+    if (by > ay) {
+      const tg = lc.createLinearGradient(0, ay, 0, by);
+      tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, amb);
+      lc.fillStyle = tg; lc.fillRect(0, ay, W, by - ay);
+    }
+    lc.fillStyle = amb;
+    lc.fillRect(0, by, W, H - by);
 
     // 2) Add light from every emitter (additive).
     lc.globalCompositeOperation = 'lighter';
@@ -64,9 +77,7 @@ export class Lighting {
       const stride = Math.max(1, Math.ceil(nodes.length / 160));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
-        const isTip = n.children.length === 0;
-        this._light(lc, camera, this.spriteNetwork,
-          n.x, n.y, baseR * (isTip ? 1.15 : 0.85), bright * (isTip ? 1 : 0.8) * n.health, W, H);
+        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 0.95, bright * 0.85 * n.health, W, H);
       }
     }
 

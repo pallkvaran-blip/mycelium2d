@@ -174,6 +174,9 @@ const CONFIG = {
     // non-soil so steering toward food is a real risk/reward choice (B1).
     richNearHazardChance: 0.45,
     richUnderNonSoilChance: 0.4,
+    // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
+    // threading in and thickening until the patch is fully overgrown.
+    colonizeRate: 0.14,
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
@@ -282,17 +285,17 @@ const CONFIG = {
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
-  // A subterranean cross-section: a twilight sky over rich, textured earth,
-  // glowing nutrient pockets, toxic pools, and a luminous mint network.
+  // A cross-section: a bright daytime sky over rich, textured earth, with the
+  // dark underground lit by the luminous mint network colonising organic matter.
   render: {
-    // sky / air
-    skyTop: '#06080f',
-    skyHorizon: '#1a2236',
-    horizonGlow: 'rgba(74,86,128,0.45)',
-    star: 'rgba(200,214,255,0.7)',
-    sunWash: 'rgba(232,176,86,0.12)',     // warm light over sunny soil
-    shadeWash: 'rgba(36,86,150,0.30)',    // cool light over shaded soil
-    canopy: 'rgba(8,16,12,0.55)',         // foliage silhouette over shade
+    // sky / air (daytime)
+    skyTop: '#3f86c8',                    // daytime blue
+    skyHorizon: '#cbe4ea',                // pale haze near the horizon
+    horizonGlow: 'rgba(255,244,214,0.4)', // warm daylight haze
+    sun: 'rgba(255,250,232,0.95)',        // the sun
+    sunWash: 'rgba(255,238,188,0.20)',    // warm light over sunny soil
+    shadeWash: 'rgba(74,118,150,0.26)',   // cool light over shaded soil
+    canopy: 'rgba(46,74,42,0.5)',         // foliage silhouette over shade
     // earth strata (top -> deep)
     soilTop: '#473221',
     soilMid: '#241a10',
@@ -301,9 +304,12 @@ const CONFIG = {
     rockLip: '#5b5040',
     vein: 'rgba(214,182,120,0.45)',       // mineral veins
     fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
-    // food / nutrient pockets
-    foodCore: '#cc9038',
-    foodEdge: '#566a2a',
+    // substrate = decaying organic matter (rotting wood + leaf litter)
+    detritusBase: '#39260f',              // dark rotting mass
+    detritusWood: '#7c5326',              // woody chips / twigs
+    detritusLeaf: '#5d5a26',              // leaf litter
+    detritusEdge: 'rgba(18,11,5,0.55)',   // outline
+    mat: '230,242,228',                   // mycelial mat (rgb) overgrowing it
     foodVein: '#f2d784',
     // hazards (toxic pools / nests)
     hazardDeep: '#34112c',
@@ -428,7 +434,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, trich: 0, held: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     this.surface = new Array(this.cols);
@@ -868,6 +874,19 @@ class Network {
       }
     }
     return income;
+  }
+
+  // --- Colonisation: occupied substrate is progressively overgrown ---------
+  // Each turn, every substrate cell the network sits in advances toward fully
+  // colonised (the mycelium threading in and thickening, as in real life).
+  colonize(substrate) {
+    const rate = this.config.substrate.colonizeRate;
+    for (const n of this.nodes) {
+      const cell = substrate.cellAtWorld(n.x, n.y);
+      if (cell && cell.maxNutrient > 0 && !cell.hazard && cell.colonized < 1) {
+        cell.colonized = Math.min(1, cell.colonized + rate * n.health);
+      }
+    }
   }
 
   // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
@@ -1417,6 +1436,9 @@ function endTurn(state) {
     const income = resolveIncome(net, substrate, config);
     if (net.active) totalIncome = income;
 
+    // 1b) Progressively colonise the substrate the network occupies.
+    net.colonize(substrate);
+
     // 2) Threat: Trichoderma spreads, then damages contacted strands.
     spreadTrichoderma(substrate, net, config, rng);
     applyTrichodermaDamage(net, substrate, config);
@@ -1676,24 +1698,21 @@ class SubstrateRenderer {
     octx.fillStyle = grad;
     octx.fillRect(0, 0, W, sy);
 
-    // faint stars in the upper sky
-    octx.fillStyle = r.star;
-    for (let i = 0; i < 90; i++) {
-      const x = this.rng() * W, y = this.rng() * sy * 0.7;
-      const a = this.rng() * 0.6 + 0.1;
-      octx.globalAlpha = a;
-      octx.beginPath();
-      octx.arc(x, y, this.rng() * 0.9 + 0.3, 0, Math.PI * 2);
-      octx.fill();
-    }
-    octx.globalAlpha = 1;
+    // the sun — a soft daylight disc high in the sky
+    const sunX = W * 0.72, sunY = sy * 0.32, sunR = sy * 0.42;
+    const sg = octx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+    sg.addColorStop(0, r.sun);
+    sg.addColorStop(0.07, r.sun);
+    sg.addColorStop(1, 'rgba(255,250,232,0)');
+    octx.fillStyle = sg;
+    octx.fillRect(0, 0, W, sy);
 
-    // warm glow hugging the horizon
-    const hg = octx.createLinearGradient(0, sy - 150, 0, sy);
+    // warm daylight haze hugging the horizon
+    const hg = octx.createLinearGradient(0, sy - 160, 0, sy);
     hg.addColorStop(0, 'rgba(0,0,0,0)');
     hg.addColorStop(1, r.horizonGlow);
     octx.fillStyle = hg;
-    octx.fillRect(0, sy - 150, W, 150);
+    octx.fillRect(0, sy - 160, W, 160);
 
     // per-column light: warm over sunny soil, cool + canopy over shaded soil
     const cs = sub.cellSize;
@@ -1981,37 +2000,86 @@ class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
     octx.clearRect(0, 0, this.dyn.width, this.dyn.height);
     this.foodLightPoints = [];
+    octx.lineCap = 'round';
 
-    // Nutrient pockets — soft glowing blobs that blend into organic shapes.
+    // Substrate = decaying organic matter (rotting wood + leaf litter) that the
+    // mycelium colonises and overgrows. Per-cell detail is hashed from the
+    // cell coords so it stays put between re-bakes (no shimmer).
     sub.forEachCell((cell, col, row) => {
-      if (cell.hazard || cell.nutrient <= 0) return;
-      const a = Math.min(1, cell.nutrient / this.nutrientRef);
+      if (cell.hazard || cell.maxNutrient <= 0) return;
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
-      if (a > 0.18) this.foodLightPoints.push({ x: cx, y: cy, i: a });
-      const rad = cs * (0.7 + a * 0.85);
-      const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-      g.addColorStop(0, withAlpha(hexToRgb(r.foodCore), 0.55 * a));
-      g.addColorStop(0.55, withAlpha(hexToRgb(r.foodEdge), 0.32 * a));
-      g.addColorStop(1, withAlpha(hexToRgb(r.foodEdge), 0));
-      octx.fillStyle = g;
-      octx.beginPath();
-      octx.arc(cx, cy, rad, 0, Math.PI * 2);
-      octx.fill();
-    });
+      const rem = Math.min(1, cell.nutrient / this.nutrientRef);  // matter left
+      const colo = cell.colonized;                                 // 0..1
 
-    // Bright nutrient veins/flecks inside the richest pockets.
-    octx.fillStyle = r.foodVein;
-    sub.forEachCell((cell, col, row) => {
-      if (cell.hazard || cell.nutrient < this.nutrientRef * 0.5) return;
-      const x0 = col * cs, y0 = sy + row * cs;
-      octx.globalAlpha = 0.5;
-      for (let k = 0; k < 3; k++) {
+      // --- the decaying matter itself (shrinks as it's digested) ---
+      if (rem > 0.02) {
+        if (rem > 0.2) this.foodLightPoints.push({ x: cx, y: cy, i: rem });
+        const base = cs * (0.32 + rem * 0.46);
+        // dark rotting mass (a few overlapping lumps)
+        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.55 + 0.4 * rem);
+        for (let k = 0; k < 4; k++) {
+          const ox = (h2(col + k * 4, row + k) * 2 - 1) * base * 0.5;
+          const oy = (h2(col + k, row + k * 4) * 2 - 1) * base * 0.5;
+          octx.beginPath();
+          octx.arc(cx + ox, cy + oy, base * (0.45 + 0.35 * h2(col + k, row - k)), 0, Math.PI * 2);
+          octx.fill();
+        }
+        // woody chips / twigs
+        octx.strokeStyle = r.detritusWood;
+        for (let k = 0; k < 3; k++) {
+          const a = h2(col * 2 + k, row + k * 5) * 6.283;
+          const len = cs * 0.26 * (0.6 + rem);
+          const px = cx + (h2(col + k * 7, row + k) * 2 - 1) * base * 0.6;
+          const py = cy + (h2(col + k, row + k * 7) * 2 - 1) * base * 0.6;
+          octx.lineWidth = 1.6 + h2(col + k, row * 2 + k) * 2;
+          octx.beginPath();
+          octx.moveTo(px - Math.cos(a) * len, py - Math.sin(a) * len);
+          octx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len);
+          octx.stroke();
+        }
+        // leaf-litter flecks
+        octx.fillStyle = r.detritusLeaf;
+        for (let k = 0; k < 4; k++) {
+          const px = cx + (h2(col * 3 + k, row + k) * 2 - 1) * base;
+          const py = cy + (h2(col + k, row * 3 + k) * 2 - 1) * base;
+          octx.save();
+          octx.translate(px, py);
+          octx.rotate(h2(col + k, row + k) * 6.283);
+          octx.fillStyle = withAlpha(hexToRgb(r.detritusLeaf), 0.85);
+          octx.fillRect(-2.6, -1.1, 5.2, 2.2);
+          octx.restore();
+        }
+      }
+
+      // --- mycelial mat threading through + thickening as it colonises ---
+      if (colo > 0.02) {
+        octx.fillStyle = `rgba(${r.mat},${0.06 * colo})`;
         octx.beginPath();
-        octx.arc(x0 + this.rng() * cs, y0 + this.rng() * cs, this.rng() * 1.2 + 0.5, 0, Math.PI * 2);
+        octx.arc(cx, cy, cs * 0.55, 0, Math.PI * 2);
         octx.fill();
+        const threads = Math.floor(1 + colo * 6);
+        octx.strokeStyle = `rgba(${r.mat},${0.26 * colo + 0.08})`;
+        octx.lineWidth = 0.7 + colo * 0.8;
+        for (let k = 0; k < threads; k++) {
+          const a = h2(col + k * 13, row + k * 5) * 6.283;
+          const lx = cx + (h2(col * 5 + k, row + k) * 2 - 1) * cs * 0.5;
+          const ly = cy + (h2(col + k, row * 5 + k) * 2 - 1) * cs * 0.5;
+          octx.beginPath();
+          octx.moveTo(lx - Math.cos(a) * cs * 0.42, ly - Math.sin(a) * cs * 0.42);
+          octx.quadraticCurveTo(lx, ly, lx + Math.cos(a) * cs * 0.42, ly + Math.sin(a) * cs * 0.42);
+          octx.stroke();
+        }
+        if (colo > 0.55) {
+          octx.fillStyle = `rgba(${r.mat},${0.5 * colo})`;
+          for (let k = 0; k < 3; k++) {
+            octx.beginPath();
+            octx.arc(cx + (h2(col + k, row + k * 2) * 2 - 1) * cs * 0.4,
+                     cy + (h2(col + k * 2, row + k) * 2 - 1) * cs * 0.4, 0.9 + colo, 0, Math.PI * 2);
+            octx.fill();
+          }
+        }
       }
     });
-    octx.globalAlpha = 1;
 
     // Trichoderma — fuzzy speckled growth.
     sub.forEachCell((cell, col, row) => {
@@ -2097,6 +2165,9 @@ function lerpRgb(a, b, t) {
 }
 function withAlpha(rgb, a) { return `rgba(${rgb[0] | 0},${rgb[1] | 0},${rgb[2] | 0},${a})`; }
 function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+// Stable per-cell pseudo-random in [0,1) — keeps detritus/mat detail fixed
+// across re-bakes so the matter doesn't shimmer each turn.
+function h2(a, b) { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); }
 
   return { SubstrateRenderer };
 })();
@@ -2158,6 +2229,26 @@ class NetworkRenderer {
         }
       }
     }
+
+    // Frontier tips: only the OUTER edge of the network senses into the unknown
+    // (interior sensing is obvious). In each angular sector around the centroid,
+    // keep the tip furthest from the centre — that traces the perimeter.
+    this.frontierTips = [];
+    if (net.nodes.length > 1 && this.tips.length) {
+      let cx = 0, cy = 0;
+      for (const n of net.nodes) { cx += n.x; cy += n.y; }
+      cx /= net.nodes.length; cy /= net.nodes.length;
+      const SECTORS = 64;
+      const best = new Array(SECTORS).fill(null);
+      const bestD = new Array(SECTORS).fill(-1);
+      for (const t of this.tips) {
+        const dx = t.x - cx, dy = t.y - cy, d = dx * dx + dy * dy;
+        let s = Math.floor((Math.atan2(dy, dx) + Math.PI) / (2 * Math.PI) * SECTORS);
+        if (s < 0) s = 0; else if (s >= SECTORS) s = SECTORS - 1;
+        if (d > bestD[s]) { bestD[s] = d; best[s] = t; }
+      }
+      this.frontierTips = best.filter(Boolean);
+    }
   }
 
   bakeStructure() {
@@ -2184,12 +2275,11 @@ class NetworkRenderer {
       octx.stroke();
     }
 
-    // Soft node dots; tips brighter.
+    // Soft, uniform node dots (no special glowing tips).
+    octx.fillStyle = withAlpha(r.filament, 0.5);
     for (const n of network.nodes) {
-      const isTip = n.children.length === 0;
       octx.beginPath();
-      octx.fillStyle = isTip ? r.tipGlow : withAlpha(r.filament, 0.5);
-      octx.arc(n.x, n.y, isTip ? 2.4 : 1.4, 0, Math.PI * 2);
+      octx.arc(n.x, n.y, 1.4, 0, Math.PI * 2);
       octx.fill();
     }
 
@@ -2214,39 +2304,17 @@ class NetworkRenderer {
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
-    // Sensing rings at tips (sample to avoid clutter).
+    // Sensing rings ONLY on the outer frontier tips (interior sensing is
+    // obvious and the inner rings just add clutter).
     const sr = this.config.growth.sensingRadius * camera.zoom;
     ctx.save();
     ctx.strokeStyle = r.sensingRing;
     ctx.lineWidth = 1;
-    const tips = this.tips;
-    const stride = Math.max(1, Math.ceil(tips.length / 50));
-    for (let i = 0; i < tips.length; i += stride) {
-      const t = tips[i];
+    for (const t of this.frontierTips) {
       const s = camera.worldToScreen(t.x, t.y);
       ctx.beginPath();
       ctx.arc(s.x, s.y, sr, 0, Math.PI * 2);
       ctx.stroke();
-    }
-    ctx.restore();
-
-    // Tip glow (pulsing). Sampled like the sensing rings so a large network
-    // doesn't allocate a radial gradient per tip every frame.
-    const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
-    ctx.save();
-    ctx.globalAlpha = brightness;
-    const gstride = Math.max(1, Math.ceil(tips.length / 60));
-    for (let i = 0; i < tips.length; i += gstride) {
-      const t = tips[i];
-      const s = camera.worldToScreen(t.x, t.y);
-      const rad = (2 + pulse * 2.5);
-      const grd = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad * 3);
-      grd.addColorStop(0, withAlpha(r.tipGlow, 0.9));
-      grd.addColorStop(1, withAlpha(r.tipGlow, 0));
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, rad * 3, 0, Math.PI * 2);
-      ctx.fill();
     }
     ctx.restore();
 
@@ -2356,11 +2424,24 @@ class Lighting {
     }
     const lc = this.lctx;
 
-    // 1) Ambient darkness (cool), as the multiply base.
+    // 1) Darken ONLY the underground; the daytime sky above stays bright (the
+    //    light map is white over the sky, so the multiply leaves it untouched).
     const a = r.ambientLight;
+    const amb = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
     lc.globalCompositeOperation = 'source-over';
-    lc.fillStyle = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
-    lc.fillRect(0, 0, W, H);
+    const surfY = camera.worldToScreen(0, state.substrate.surfaceY).y;
+    const band = 50; // soft transition across the soil line
+    const ay = Math.max(0, Math.min(H, surfY - band));
+    const by = Math.max(0, Math.min(H, surfY + band));
+    lc.fillStyle = '#ffffff';
+    lc.fillRect(0, 0, W, ay);
+    if (by > ay) {
+      const tg = lc.createLinearGradient(0, ay, 0, by);
+      tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, amb);
+      lc.fillStyle = tg; lc.fillRect(0, ay, W, by - ay);
+    }
+    lc.fillStyle = amb;
+    lc.fillRect(0, by, W, H - by);
 
     // 2) Add light from every emitter (additive).
     lc.globalCompositeOperation = 'lighter';
@@ -2387,9 +2468,7 @@ class Lighting {
       const stride = Math.max(1, Math.ceil(nodes.length / 160));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
-        const isTip = n.children.length === 0;
-        this._light(lc, camera, this.spriteNetwork,
-          n.x, n.y, baseR * (isTip ? 1.15 : 0.85), bright * (isTip ? 1 : 0.8) * n.health, W, H);
+        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 0.95, bright * 0.85 * n.health, W, H);
       }
     }
 

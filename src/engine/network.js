@@ -266,6 +266,19 @@ export class Network {
     return income;
   }
 
+  // --- Colonisation: occupied substrate is progressively overgrown ---------
+  // Each turn, every substrate cell the network sits in advances toward fully
+  // colonised (the mycelium threading in and thickening, as in real life).
+  colonize(substrate) {
+    const rate = this.config.substrate.colonizeRate;
+    for (const n of this.nodes) {
+      const cell = substrate.cellAtWorld(n.x, n.y);
+      if (cell && cell.maxNutrient > 0 && !cell.hazard && cell.colonized < 1) {
+        cell.colonized = Math.min(1, cell.colonized + rate * n.health);
+      }
+    }
+  }
+
   // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
   // Strands recover only when genuinely safe AND fed: not in a hazard cell,
   // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise

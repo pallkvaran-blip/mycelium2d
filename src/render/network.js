@@ -53,6 +53,26 @@ export class NetworkRenderer {
         }
       }
     }
+
+    // Frontier tips: only the OUTER edge of the network senses into the unknown
+    // (interior sensing is obvious). In each angular sector around the centroid,
+    // keep the tip furthest from the centre — that traces the perimeter.
+    this.frontierTips = [];
+    if (net.nodes.length > 1 && this.tips.length) {
+      let cx = 0, cy = 0;
+      for (const n of net.nodes) { cx += n.x; cy += n.y; }
+      cx /= net.nodes.length; cy /= net.nodes.length;
+      const SECTORS = 64;
+      const best = new Array(SECTORS).fill(null);
+      const bestD = new Array(SECTORS).fill(-1);
+      for (const t of this.tips) {
+        const dx = t.x - cx, dy = t.y - cy, d = dx * dx + dy * dy;
+        let s = Math.floor((Math.atan2(dy, dx) + Math.PI) / (2 * Math.PI) * SECTORS);
+        if (s < 0) s = 0; else if (s >= SECTORS) s = SECTORS - 1;
+        if (d > bestD[s]) { bestD[s] = d; best[s] = t; }
+      }
+      this.frontierTips = best.filter(Boolean);
+    }
   }
 
   bakeStructure() {
@@ -79,12 +99,11 @@ export class NetworkRenderer {
       octx.stroke();
     }
 
-    // Soft node dots; tips brighter.
+    // Soft, uniform node dots (no special glowing tips).
+    octx.fillStyle = withAlpha(r.filament, 0.5);
     for (const n of network.nodes) {
-      const isTip = n.children.length === 0;
       octx.beginPath();
-      octx.fillStyle = isTip ? r.tipGlow : withAlpha(r.filament, 0.5);
-      octx.arc(n.x, n.y, isTip ? 2.4 : 1.4, 0, Math.PI * 2);
+      octx.arc(n.x, n.y, 1.4, 0, Math.PI * 2);
       octx.fill();
     }
 
@@ -109,39 +128,17 @@ export class NetworkRenderer {
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
-    // Sensing rings at tips (sample to avoid clutter).
+    // Sensing rings ONLY on the outer frontier tips (interior sensing is
+    // obvious and the inner rings just add clutter).
     const sr = this.config.growth.sensingRadius * camera.zoom;
     ctx.save();
     ctx.strokeStyle = r.sensingRing;
     ctx.lineWidth = 1;
-    const tips = this.tips;
-    const stride = Math.max(1, Math.ceil(tips.length / 50));
-    for (let i = 0; i < tips.length; i += stride) {
-      const t = tips[i];
+    for (const t of this.frontierTips) {
       const s = camera.worldToScreen(t.x, t.y);
       ctx.beginPath();
       ctx.arc(s.x, s.y, sr, 0, Math.PI * 2);
       ctx.stroke();
-    }
-    ctx.restore();
-
-    // Tip glow (pulsing). Sampled like the sensing rings so a large network
-    // doesn't allocate a radial gradient per tip every frame.
-    const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
-    ctx.save();
-    ctx.globalAlpha = brightness;
-    const gstride = Math.max(1, Math.ceil(tips.length / 60));
-    for (let i = 0; i < tips.length; i += gstride) {
-      const t = tips[i];
-      const s = camera.worldToScreen(t.x, t.y);
-      const rad = (2 + pulse * 2.5);
-      const grd = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad * 3);
-      grd.addColorStop(0, withAlpha(r.tipGlow, 0.9));
-      grd.addColorStop(1, withAlpha(r.tipGlow, 0));
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, rad * 3, 0, Math.PI * 2);
-      ctx.fill();
     }
     ctx.restore();
 

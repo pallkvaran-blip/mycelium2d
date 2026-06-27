@@ -38,6 +38,9 @@ export const CONFIG = {
     // non-soil so steering toward food is a real risk/reward choice (B1).
     richNearHazardChance: 0.45,
     richUnderNonSoilChance: 0.4,
+    // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
+    // threading in and thickening until the patch is fully overgrown.
+    colonizeRate: 0.14,
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
@@ -146,17 +149,17 @@ export const CONFIG = {
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
-  // A subterranean cross-section: a twilight sky over rich, textured earth,
-  // glowing nutrient pockets, toxic pools, and a luminous mint network.
+  // A cross-section: a bright daytime sky over rich, textured earth, with the
+  // dark underground lit by the luminous mint network colonising organic matter.
   render: {
-    // sky / air
-    skyTop: '#06080f',
-    skyHorizon: '#1a2236',
-    horizonGlow: 'rgba(74,86,128,0.45)',
-    star: 'rgba(200,214,255,0.7)',
-    sunWash: 'rgba(232,176,86,0.12)',     // warm light over sunny soil
-    shadeWash: 'rgba(36,86,150,0.30)',    // cool light over shaded soil
-    canopy: 'rgba(8,16,12,0.55)',         // foliage silhouette over shade
+    // sky / air (daytime)
+    skyTop: '#3f86c8',                    // daytime blue
+    skyHorizon: '#cbe4ea',                // pale haze near the horizon
+    horizonGlow: 'rgba(255,244,214,0.4)', // warm daylight haze
+    sun: 'rgba(255,250,232,0.95)',        // the sun
+    sunWash: 'rgba(255,238,188,0.20)',    // warm light over sunny soil
+    shadeWash: 'rgba(74,118,150,0.26)',   // cool light over shaded soil
+    canopy: 'rgba(46,74,42,0.5)',         // foliage silhouette over shade
     // earth strata (top -> deep)
     soilTop: '#473221',
     soilMid: '#241a10',
@@ -165,9 +168,12 @@ export const CONFIG = {
     rockLip: '#5b5040',
     vein: 'rgba(214,182,120,0.45)',       // mineral veins
     fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
-    // food / nutrient pockets
-    foodCore: '#cc9038',
-    foodEdge: '#566a2a',
+    // substrate = decaying organic matter (rotting wood + leaf litter)
+    detritusBase: '#39260f',              // dark rotting mass
+    detritusWood: '#7c5326',              // woody chips / twigs
+    detritusLeaf: '#5d5a26',              // leaf litter
+    detritusEdge: 'rgba(18,11,5,0.55)',   // outline
+    mat: '230,242,228',                   // mycelial mat (rgb) overgrowing it
     foodVein: '#f2d784',
     // hazards (toxic pools / nests)
     hazardDeep: '#34112c',

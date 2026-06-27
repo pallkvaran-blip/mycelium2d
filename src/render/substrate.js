@@ -79,24 +79,21 @@ export class SubstrateRenderer {
     octx.fillStyle = grad;
     octx.fillRect(0, 0, W, sy);
 
-    // faint stars in the upper sky
-    octx.fillStyle = r.star;
-    for (let i = 0; i < 90; i++) {
-      const x = this.rng() * W, y = this.rng() * sy * 0.7;
-      const a = this.rng() * 0.6 + 0.1;
-      octx.globalAlpha = a;
-      octx.beginPath();
-      octx.arc(x, y, this.rng() * 0.9 + 0.3, 0, Math.PI * 2);
-      octx.fill();
-    }
-    octx.globalAlpha = 1;
+    // the sun — a soft daylight disc high in the sky
+    const sunX = W * 0.72, sunY = sy * 0.32, sunR = sy * 0.42;
+    const sg = octx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+    sg.addColorStop(0, r.sun);
+    sg.addColorStop(0.07, r.sun);
+    sg.addColorStop(1, 'rgba(255,250,232,0)');
+    octx.fillStyle = sg;
+    octx.fillRect(0, 0, W, sy);
 
-    // warm glow hugging the horizon
-    const hg = octx.createLinearGradient(0, sy - 150, 0, sy);
+    // warm daylight haze hugging the horizon
+    const hg = octx.createLinearGradient(0, sy - 160, 0, sy);
     hg.addColorStop(0, 'rgba(0,0,0,0)');
     hg.addColorStop(1, r.horizonGlow);
     octx.fillStyle = hg;
-    octx.fillRect(0, sy - 150, W, 150);
+    octx.fillRect(0, sy - 160, W, 160);
 
     // per-column light: warm over sunny soil, cool + canopy over shaded soil
     const cs = sub.cellSize;
@@ -384,37 +381,86 @@ export class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
     octx.clearRect(0, 0, this.dyn.width, this.dyn.height);
     this.foodLightPoints = [];
+    octx.lineCap = 'round';
 
-    // Nutrient pockets — soft glowing blobs that blend into organic shapes.
+    // Substrate = decaying organic matter (rotting wood + leaf litter) that the
+    // mycelium colonises and overgrows. Per-cell detail is hashed from the
+    // cell coords so it stays put between re-bakes (no shimmer).
     sub.forEachCell((cell, col, row) => {
-      if (cell.hazard || cell.nutrient <= 0) return;
-      const a = Math.min(1, cell.nutrient / this.nutrientRef);
+      if (cell.hazard || cell.maxNutrient <= 0) return;
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
-      if (a > 0.18) this.foodLightPoints.push({ x: cx, y: cy, i: a });
-      const rad = cs * (0.7 + a * 0.85);
-      const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-      g.addColorStop(0, withAlpha(hexToRgb(r.foodCore), 0.55 * a));
-      g.addColorStop(0.55, withAlpha(hexToRgb(r.foodEdge), 0.32 * a));
-      g.addColorStop(1, withAlpha(hexToRgb(r.foodEdge), 0));
-      octx.fillStyle = g;
-      octx.beginPath();
-      octx.arc(cx, cy, rad, 0, Math.PI * 2);
-      octx.fill();
-    });
+      const rem = Math.min(1, cell.nutrient / this.nutrientRef);  // matter left
+      const colo = cell.colonized;                                 // 0..1
 
-    // Bright nutrient veins/flecks inside the richest pockets.
-    octx.fillStyle = r.foodVein;
-    sub.forEachCell((cell, col, row) => {
-      if (cell.hazard || cell.nutrient < this.nutrientRef * 0.5) return;
-      const x0 = col * cs, y0 = sy + row * cs;
-      octx.globalAlpha = 0.5;
-      for (let k = 0; k < 3; k++) {
+      // --- the decaying matter itself (shrinks as it's digested) ---
+      if (rem > 0.02) {
+        if (rem > 0.2) this.foodLightPoints.push({ x: cx, y: cy, i: rem });
+        const base = cs * (0.32 + rem * 0.46);
+        // dark rotting mass (a few overlapping lumps)
+        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.55 + 0.4 * rem);
+        for (let k = 0; k < 4; k++) {
+          const ox = (h2(col + k * 4, row + k) * 2 - 1) * base * 0.5;
+          const oy = (h2(col + k, row + k * 4) * 2 - 1) * base * 0.5;
+          octx.beginPath();
+          octx.arc(cx + ox, cy + oy, base * (0.45 + 0.35 * h2(col + k, row - k)), 0, Math.PI * 2);
+          octx.fill();
+        }
+        // woody chips / twigs
+        octx.strokeStyle = r.detritusWood;
+        for (let k = 0; k < 3; k++) {
+          const a = h2(col * 2 + k, row + k * 5) * 6.283;
+          const len = cs * 0.26 * (0.6 + rem);
+          const px = cx + (h2(col + k * 7, row + k) * 2 - 1) * base * 0.6;
+          const py = cy + (h2(col + k, row + k * 7) * 2 - 1) * base * 0.6;
+          octx.lineWidth = 1.6 + h2(col + k, row * 2 + k) * 2;
+          octx.beginPath();
+          octx.moveTo(px - Math.cos(a) * len, py - Math.sin(a) * len);
+          octx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len);
+          octx.stroke();
+        }
+        // leaf-litter flecks
+        octx.fillStyle = r.detritusLeaf;
+        for (let k = 0; k < 4; k++) {
+          const px = cx + (h2(col * 3 + k, row + k) * 2 - 1) * base;
+          const py = cy + (h2(col + k, row * 3 + k) * 2 - 1) * base;
+          octx.save();
+          octx.translate(px, py);
+          octx.rotate(h2(col + k, row + k) * 6.283);
+          octx.fillStyle = withAlpha(hexToRgb(r.detritusLeaf), 0.85);
+          octx.fillRect(-2.6, -1.1, 5.2, 2.2);
+          octx.restore();
+        }
+      }
+
+      // --- mycelial mat threading through + thickening as it colonises ---
+      if (colo > 0.02) {
+        octx.fillStyle = `rgba(${r.mat},${0.06 * colo})`;
         octx.beginPath();
-        octx.arc(x0 + this.rng() * cs, y0 + this.rng() * cs, this.rng() * 1.2 + 0.5, 0, Math.PI * 2);
+        octx.arc(cx, cy, cs * 0.55, 0, Math.PI * 2);
         octx.fill();
+        const threads = Math.floor(1 + colo * 6);
+        octx.strokeStyle = `rgba(${r.mat},${0.26 * colo + 0.08})`;
+        octx.lineWidth = 0.7 + colo * 0.8;
+        for (let k = 0; k < threads; k++) {
+          const a = h2(col + k * 13, row + k * 5) * 6.283;
+          const lx = cx + (h2(col * 5 + k, row + k) * 2 - 1) * cs * 0.5;
+          const ly = cy + (h2(col + k, row * 5 + k) * 2 - 1) * cs * 0.5;
+          octx.beginPath();
+          octx.moveTo(lx - Math.cos(a) * cs * 0.42, ly - Math.sin(a) * cs * 0.42);
+          octx.quadraticCurveTo(lx, ly, lx + Math.cos(a) * cs * 0.42, ly + Math.sin(a) * cs * 0.42);
+          octx.stroke();
+        }
+        if (colo > 0.55) {
+          octx.fillStyle = `rgba(${r.mat},${0.5 * colo})`;
+          for (let k = 0; k < 3; k++) {
+            octx.beginPath();
+            octx.arc(cx + (h2(col + k, row + k * 2) * 2 - 1) * cs * 0.4,
+                     cy + (h2(col + k * 2, row + k) * 2 - 1) * cs * 0.4, 0.9 + colo, 0, Math.PI * 2);
+            octx.fill();
+          }
+        }
       }
     });
-    octx.globalAlpha = 1;
 
     // Trichoderma — fuzzy speckled growth.
     sub.forEachCell((cell, col, row) => {
@@ -500,3 +546,6 @@ function lerpRgb(a, b, t) {
 }
 function withAlpha(rgb, a) { return `rgba(${rgb[0] | 0},${rgb[1] | 0},${rgb[2] | 0},${a})`; }
 function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v | 0; }
+// Stable per-cell pseudo-random in [0,1) — keeps detritus/mat detail fixed
+// across re-bakes so the matter doesn't shimmer each turn.
+function h2(a, b) { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); }
