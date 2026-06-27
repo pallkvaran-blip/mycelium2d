@@ -68,6 +68,15 @@ function spawnFarCloud(state) {
   state.clouds.push(makeCloud(spot.x, spot.y, (t.cloudRadiusMin + t.cloudRadiusMax) / 2));
 }
 
+// Place clouds at fixed world positions (puzzle mode) and stamp the field.
+export function placeClouds(substrate, positions, config) {
+  const t = config.trichoderma;
+  const r = (t.cloudRadiusMin + t.cloudRadiusMax) / 2;
+  const clouds = positions.map((p) => makeCloud(p.x, p.y, r));
+  stampCloudField(substrate, clouds);
+  return clouds;
+}
+
 // Dev cheat / spawn hook: drop a fresh cloud at a world point.
 export function spawnTrichodermaAt(state, x, y) {
   const t = state.config.trichoderma;
@@ -304,6 +313,26 @@ export function tickThreat(state) {
         state.runResult = { spores: net.spores, bodies: 0, died: true };
         state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
       }
+    }
+  }
+  checkPuzzleGoal(state);
+}
+
+// Puzzle mode: reaching the treasure chest with a healthy strand wins the run.
+export function checkPuzzleGoal(state) {
+  if (state.mode !== 'puzzle' || state.won || state.runOver) return;
+  const chest = state.chest;
+  if (!chest) return;
+  const r2 = chest.r * chest.r;
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const dx = n.x - chest.x, dy = n.y - chest.y;
+    if (dx * dx + dy * dy <= r2) {
+      state.won = true;
+      state.runOver = true;
+      state.runResult = { won: true, turns: state.turn };
+      state.log('You reached the treasure! Puzzle solved.', 'good');
+      return;
     }
   }
 }

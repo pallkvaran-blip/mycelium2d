@@ -717,7 +717,9 @@ class Network {
   get root() { return this.nodes[0]; }
 
   // --- seeding (A8): a short vertical filament rooted just under a soil col --
-  seed(substrate, rng) {
+  // startCol (optional) forces the root column (puzzle mode); otherwise a random
+  // clear soil column near the centre is chosen.
+  seed(substrate, rng, startCol) {
     const g = this.config.growth;
     // Pick a soil column near the centre to root under (so it can fruit later).
     let bestCol = Math.floor(substrate.cols / 2);
@@ -729,7 +731,9 @@ class Network {
       }
       return true;
     };
-    for (let tries = 0; tries < 60; tries++) {
+    if (startCol != null) {
+      bestCol = startCol;
+    } else for (let tries = 0; tries < 60; tries++) {
       const c = rng.int(Math.floor(substrate.cols * 0.25), Math.floor(substrate.cols * 0.75));
       if (substrate.surface[c] && substrate.surface[c].soil && columnClear(c)) { bestCol = c; break; }
     }
@@ -1173,6 +1177,15 @@ function spawnFarCloud(state) {
   state.clouds.push(makeCloud(spot.x, spot.y, (t.cloudRadiusMin + t.cloudRadiusMax) / 2));
 }
 
+// Place clouds at fixed world positions (puzzle mode) and stamp the field.
+function placeClouds(substrate, positions, config) {
+  const t = config.trichoderma;
+  const r = (t.cloudRadiusMin + t.cloudRadiusMax) / 2;
+  const clouds = positions.map((p) => makeCloud(p.x, p.y, r));
+  stampCloudField(substrate, clouds);
+  return clouds;
+}
+
 // Dev cheat / spawn hook: drop a fresh cloud at a world point.
 function spawnTrichodermaAt(state, x, y) {
   const t = state.config.trichoderma;
@@ -1411,6 +1424,26 @@ function tickThreat(state) {
       }
     }
   }
+  checkPuzzleGoal(state);
+}
+
+// Puzzle mode: reaching the treasure chest with a healthy strand wins the run.
+function checkPuzzleGoal(state) {
+  if (state.mode !== 'puzzle' || state.won || state.runOver) return;
+  const chest = state.chest;
+  if (!chest) return;
+  const r2 = chest.r * chest.r;
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const dx = n.x - chest.x, dy = n.y - chest.y;
+    if (dx * dx + dy * dy <= r2) {
+      state.won = true;
+      state.runOver = true;
+      state.runResult = { won: true, turns: state.turn };
+      state.log('You reached the treasure! Puzzle solved.', 'good');
+      return;
+    }
+  }
 }
 
 function totalTrichoderma(substrate) {
@@ -1419,15 +1452,119 @@ function totalTrichoderma(substrate) {
   return total;
 }
 
-  return { seedTrichoderma, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, tickThreat, totalTrichoderma };
+  return { seedTrichoderma, placeClouds, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, tickThreat, checkPuzzleGoal, totalTrichoderma };
+})();
+
+// ===================== src/engine/puzzle.js =====================
+const __m_engine_puzzle = (function () {
+// =============================================================================
+// Puzzle — a fixed, hand-authored map (a "level"). Goal: steer the colony to the
+// treasure chest. Rocks force detours, a tight energy economy makes reaching the
+// next food a real decision, and a couple of Trichoderma clouds must be lured
+// away or fought (let them infect, then amputate — they die off after infecting).
+//
+// Fully deterministic (no rng). Built imperatively in grid coordinates; the
+// world geometry + economy are applied to a CLONE of CONFIG so the sandbox is
+// never affected.
+// =============================================================================
+
+const CELL = 36;
+const AIR = 4;     // rows of air above the surface line
+const COLS = 78;   // -> width 2808
+const ROWS = 22;   // underground rows -> height 936
+
+const START_COL = 6;
+const CHEST_CELL = [73, 9];
+
+// Food islands (col, row, radius) — small stepping-stones; the chain weaves
+// through the rock-wall gaps from the start to the chest.
+const ISLANDS = [
+  [9, 5, 2],    // A — starter fuel by the seed
+  [20, 5, 1],   // B
+  [31, 13, 1],  // C  (you must dip DOWN to reach it)
+  [43, 7, 1],   // D  (then climb UP)
+  [55, 14, 1],  // E  (down again)
+  [67, 9, 1],   // F  — right by the chest, at the end of the corridor
+];
+
+// Rock walls (c0,r0,c1,r1 inclusive). Each leaves a gap on the path; together
+// they force a down-up-down weave and frame the final corridor.
+const ROCKS = [
+  [15, 0, 15, 3], [15, 7, 15, 21],   // W1 — gap at rows 4-6 (A->B threads it)
+  [26, 0, 26, 7],                    // W2 — blocks the top, forces DOWN to C
+  [38, 12, 38, 21],                  // W3 — blocks the bottom, forces UP to D
+  [49, 0, 49, 6],                    // W4 — blocks the top, forces DOWN to E
+  [60, 6, 70, 8], [60, 10, 70, 11],  // W5 — a 1-cell corridor at row 9 to the chest
+];
+
+// Trichoderma clouds (col, row).
+const CLOUD_CELLS = [
+  [47, 9],   // T1 — guards the D->E stretch (lure it aside, or push through)
+  [64, 9],   // T2 — sits in the corridor by the chest (infect-and-sever)
+];
+
+// Exposed for tests: the intended path waypoints (island centres + chest).
+const PUZZLE_WAYPOINTS = ISLANDS.map(([c, r]) => [c, r]).concat([CHEST_CELL]);
+
+function buildPuzzle(config, Substrate, setCfg) {
+  // --- world geometry ---
+  setCfg('world.cellSize', CELL);
+  setCfg('world.surfaceY', AIR * CELL);
+  setCfg('world.width', COLS * CELL);
+  setCfg('world.height', AIR * CELL + ROWS * CELL);
+
+  // --- tight economy: you must reach the next food before you starve ---
+  setCfg('energy.start', 50);
+  setCfg('energy.baselineTrickle', 0);     // no free energy — only food fuels you
+  setCfg('energy.passiveIncomeRate', 28);
+  setCfg('substrate.foodCellNutrient', 35); // small piles
+  setCfg('actions.grow.energyCost', 10);
+  setCfg('actions.addSubstrate.energyCost', 14); // lures are precious
+
+  // --- a fixed set of mould; none seeded randomly, none respawning ---
+  setCfg('trichoderma.initialPatches', 0);
+  setCfg('trichoderma.respawnChance', 0);
+
+  const sub = new Substrate(config);
+  // all surface is soil so the colony can root at the start column
+  for (let c = 0; c < sub.cols; c++) { sub.surface[c].soil = true; sub.surface[c].shade = false; }
+
+  // rocks
+  for (const [c0, r0, c1, r1] of ROCKS) {
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const cell = sub.cellAt(c, r);
+      if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
+    }
+  }
+
+  // food islands (skip rock)
+  const N = config.substrate.foodCellNutrient;
+  for (const [cc, cr, rad] of ISLANDS) {
+    for (let r = cr - rad; r <= cr + rad; r++) for (let c = cc - rad; c <= cc + rad; c++) {
+      const cell = sub.cellAt(c, r);
+      if (!cell || cell.rock) continue;
+      if (Math.hypot(c - cc, r - cr) > rad + 0.001) continue;
+      cell.nutrient = N; cell.maxNutrient = N;
+    }
+  }
+
+  const chest = { ...sub.cellCenter(CHEST_CELL[0], CHEST_CELL[1]), r: CELL * 1.4 };
+  const clouds = CLOUD_CELLS.map(([c, r]) => sub.cellCenter(c, r));
+
+  return { substrate: sub, startCol: START_COL, clouds, chest };
+}
+
+  return { PUZZLE_WAYPOINTS, buildPuzzle };
 })();
 
 // ===================== src/engine/state.js =====================
 const __m_engine_state = (function () {
   const { makeRng } = __m_engine_rng;
-  const { generateSubstrate } = __m_engine_substrate;
+  const { generateSubstrate, Substrate } = __m_engine_substrate;
   const { Network } = __m_engine_network;
-  const { seedTrichoderma } = __m_engine_threats;
+  const { seedTrichoderma, placeClouds } = __m_engine_threats;
+  const { buildPuzzle } = __m_engine_puzzle;
+  const { setByPath } = __m_config;
 // =============================================================================
 // State — holds the whole simulation (A9).
 //
@@ -1437,6 +1574,7 @@ const __m_engine_state = (function () {
 // =============================================================================
 
 
+// Standard (procedural, random) run.
 function createState(config, seed) {
   const rng = makeRng(seed >>> 0 || 1);
   const substrate = generateSubstrate(config, rng);
@@ -1448,14 +1586,39 @@ function createState(config, seed) {
   // from both food and you, and visibly creep in toward their nearest target.
   const clouds = seedTrichoderma(substrate, config, rng, network);
 
+  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox' });
+}
+
+// Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
+// geometry + economy from the puzzle definition (a clone of CONFIG, so the
+// sandbox config is never mutated).
+function createPuzzleState(baseConfig) {
+  const config = JSON.parse(JSON.stringify(baseConfig));
+  const built = buildPuzzle(config, Substrate, (path, v) => setByPath(config, path, v));
+  // built = { substrate, startCol, clouds: [{x,y}], chest: {x,y,r} }
+  const rng = makeRng(20240611);   // fixed seed → deterministic puzzle
+
+  const network = new Network(config);
+  network.seed(built.substrate, rng, built.startCol);
+
+  const clouds = placeClouds(built.substrate, built.clouds, config);
+
+  return assembleState(config, rng, 20240611, built.substrate, [network], clouds, {
+    mode: 'puzzle',
+    chest: built.chest,
+    won: false,
+  });
+}
+
+function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
   const state = {
     config,
     rng,
     seed,
     substrate,
     clouds,                // roaming Trichoderma clouds (shared cross-section threat)
-    networks: [network],   // list-of-networks (A5-ready); one active in Phase 1
-    active: network,
+    networks,              // list-of-networks (A5-ready); one active in Phase 1
+    active: networks[0],
     spores: 0,             // run-wide Spore total (summed across networks later)
     turn: 1,
     movesLeft: config.turn.movesPerTurn,
@@ -1467,9 +1630,14 @@ function createState(config, seed) {
       this.logEntries.push({ id: this._logSeq++, turn: this.turn, message, kind });
       if (this.logEntries.length > 200) this.logEntries.shift();
     },
+    ...extra,
   };
 
-  state.log(`Generation 1 begins. The colony stirs beneath the soil.`, 'good');
+  if (state.mode === 'puzzle') {
+    state.log('A fixed puzzle: steer the colony to the treasure chest.', 'good');
+  } else {
+    state.log('Generation 1 begins. The colony stirs beneath the soil.', 'good');
+  }
   return state;
 }
 
@@ -1478,7 +1646,7 @@ function newRun(config, seed) {
   return createState(config, seed);
 }
 
-  return { createState, newRun };
+  return { createState, createPuzzleState, newRun };
 })();
 
 // ===================== src/engine/actions.js =====================
@@ -1674,7 +1842,7 @@ function devSpawnTrichoderma(state, x, y) {
 
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
-  const { infectNetwork, spreadTrichoderma } = __m_engine_threats;
+  const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -1731,6 +1899,8 @@ function endTurn(state) {
       }
     }
   }
+
+  checkPuzzleGoal(state);
 
   // Advance the clock and refill moves.
   state.turn += 1;
@@ -3008,8 +3178,11 @@ class UI {
     this.el.endBtn = endBtn;
     const restartBtn = button('btn restart', 'New Map ↻');
     restartBtn.onclick = () => this.handlers.onRestart();
+    const puzzleBtn = button('btn restart', 'Puzzle 🧩');
+    puzzleBtn.onclick = () => this.handlers.onPuzzle();
     ctrl.appendChild(endBtn);
     ctrl.appendChild(restartBtn);
+    ctrl.appendChild(puzzleBtn);
     bar.appendChild(ctrl);
 
     root.appendChild(bar);
@@ -3110,18 +3283,38 @@ class UI {
   showOverlay(result) {
     const o = this.el.overlay;
     o.classList.remove('hidden');
+    const won = result && result.won;
     const died = result && result.died;
+    const puzzle = this.state.mode === 'puzzle';
+
+    let title, body;
+    if (won) {
+      title = 'Treasure reached! 🧩';
+      body = `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+    } else if (died) {
+      title = 'The colony has died';
+      body = puzzle
+        ? 'It starved or was overrun before reaching the treasure. Try a different route.'
+        : 'Trichoderma and hazards overwhelmed the network before it could fruit.';
+    } else {
+      title = 'The network has fruited';
+      body = `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`;
+    }
+
+    // Mode-aware buttons (primary first).
+    const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
+    const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
     o.innerHTML = `
       <div class="card">
-        <h1>${died ? 'The colony has died' : 'The network has fruited'}</h1>
-        <p>${died
-          ? 'Trichoderma and hazards overwhelmed the network before it could fruit.'
-          : `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`}</p>
-        <p class="dim">Total Spores this run: <b>${this.state.spores}</b></p>
-        <p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>
-        <button class="btn big" id="overlay-restart">Begin a new colony ↻</button>
+        <h1>${title}</h1>
+        <p>${body}</p>
+        ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
+          : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
-    o.querySelector('#overlay-restart').onclick = () => this.handlers.onRestart();
+    const rb = o.querySelector('#overlay-restart');
+    if (rb) rb.onclick = () => this.handlers.onRestart();
+    const pb = o.querySelector('#overlay-puzzle');
+    if (pb) pb.onclick = () => this.handlers.onPuzzle();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 
@@ -3199,7 +3392,7 @@ function vitalityColor(v) {
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
-  const { createState, newRun } = __m_engine_state;
+  const { createState, createPuzzleState } = __m_engine_state;
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { endTurn } = __m_engine_turn;
   const { Camera } = __m_render_camera;
@@ -3234,8 +3427,11 @@ let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
 let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
 
 // --- setup / restart --------------------------------------------------------
-function start(seed) {
-  state = createState(CONFIG, seed);
+function start(seed) { begin(createState(CONFIG, seed)); }
+function startPuzzle() { begin(createPuzzleState(CONFIG)); }
+
+function begin(newState) {
+  state = newState;
   buildRenderers();
   if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -3244,19 +3440,25 @@ function start(seed) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
-  camera.fitBounds(expandedBounds(), 120);
+  if (state.mode === 'puzzle') {
+    // show the whole level so the layout (rocks, food, chest, mould) reads
+    camera.fitBounds({ minX: 0, minY: state.substrate.surfaceY - 30,
+      maxX: state.substrate.worldWidth, maxY: state.substrate.worldHeight }, 40);
+  } else {
+    camera.fitBounds(expandedBounds(), 120);
+  }
   uiDirty = true;
 }
 
 function buildRenderers() {
-  substrateRenderer = new SubstrateRenderer(state.substrate, CONFIG, state.seed);
+  substrateRenderer = new SubstrateRenderer(state.substrate, state.config, state.seed);
   networkRenderers.clear();
-  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, CONFIG));
+  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config));
 }
 
 function rendererFor(net) {
   let r = networkRenderers.get(net.id);
-  if (!r) { r = new NetworkRenderer(net, CONFIG); networkRenderers.set(net.id, r); }
+  if (!r) { r = new NetworkRenderer(net, state.config); networkRenderers.set(net.id, r); }
   return r;
 }
 
@@ -3292,6 +3494,9 @@ const handlers = {
   },
   onRestart() {
     start((Date.now() & 0x7fffffff) || 1);
+  },
+  onPuzzle() {
+    startPuzzle();
   },
   onCheat(type) {
     const net = state.active;
@@ -3458,6 +3663,7 @@ function frame(time) {
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
+  drawChest();
   drawCloudSight();
   drawTargetingCursor(time);
 
@@ -3465,12 +3671,40 @@ function frame(time) {
   requestAnimationFrame(frame);
 }
 
+// Puzzle mode: the treasure chest goal — a glowing buried chest.
+function drawChest() {
+  if (!state.chest) return;
+  const s = camera.worldToScreen(state.chest.x, state.chest.y);
+  const z = camera.zoom;
+  ctx.save();
+  // warm glow so it's easy to spot in the dark earth
+  const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, state.chest.r * z);
+  gr.addColorStop(0, 'rgba(255,210,90,0.55)');
+  gr.addColorStop(1, 'rgba(255,210,90,0)');
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.arc(s.x, s.y, state.chest.r * z, 0, Math.PI * 2); ctx.fill();
+  // chest
+  const w = 30 * z, h = 22 * z;
+  ctx.translate(s.x, s.y);
+  ctx.lineWidth = Math.max(1, 2 * z);
+  ctx.fillStyle = '#7a4e22'; ctx.strokeStyle = '#2c1a0c';
+  ctx.fillRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
+  ctx.strokeRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
+  ctx.fillStyle = '#9a6a30';                       // lid
+  ctx.fillRect(-w / 2, -h / 2, w, h * 0.4);
+  ctx.strokeRect(-w / 2, -h / 2, w, h * 0.4);
+  ctx.fillStyle = '#ffd45a';                       // gold band + lock
+  ctx.fillRect(-2.5 * z, -h / 2, 5 * z, h);
+  ctx.beginPath(); ctx.arc(0, -h * 0.05, 3 * z, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Show each roaming mould cloud's sight range — the area within which it will
 // sense and head for food / your colony. A soft greenish rim near the edge.
 function drawCloudSight() {
   const clouds = state.clouds;
   if (!clouds || !clouds.length) return;
-  const sight = CONFIG.trichoderma.sightRadius * camera.zoom;
+  const sight = state.config.trichoderma.sightRadius * camera.zoom;
   ctx.save();
   for (const c of clouds) {
     const s = camera.worldToScreen(c.cx, c.cy);
@@ -3491,7 +3725,7 @@ function drawTargetingCursor(time) {
   const rect = canvas.getBoundingClientRect();
   const w = camera.screenToWorld(mouse.x - rect.left, mouse.y - rect.top);
   if (sel === 'addSubstrate') {
-    const rad = CONFIG.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
+    const rad = state.config.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
     const s = camera.worldToScreen(w.x, w.y);
     ctx.save();
     ctx.strokeStyle = w.y > state.substrate.surfaceY ? 'rgba(120,220,140,0.8)' : 'rgba(220,120,120,0.8)';
@@ -3500,7 +3734,7 @@ function drawTargetingCursor(time) {
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   } else if (sel === 'amputate') {
-    const rad = CONFIG.actions.amputate.radius;
+    const rad = state.config.actions.amputate.radius;
     const r2 = rad * rad;
     const s = camera.worldToScreen(w.x, w.y);
     ctx.save();

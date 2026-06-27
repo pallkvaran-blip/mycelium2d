@@ -26,6 +26,7 @@ const MODULES = [
   'src/engine/substrate.js',
   'src/engine/network.js',
   'src/engine/threats.js',
+  'src/engine/puzzle.js',
   'src/engine/state.js',
   'src/engine/actions.js',
   'src/engine/turn.js',

@@ -10,7 +10,7 @@
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
-import { infectNetwork, spreadTrichoderma } from './threats.js';
+import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -55,6 +55,8 @@ export function endTurn(state) {
       }
     }
   }
+
+  checkPuzzleGoal(state);
 
   // Advance the clock and refill moves.
   state.turn += 1;

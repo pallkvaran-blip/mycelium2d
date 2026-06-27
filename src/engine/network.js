@@ -56,7 +56,9 @@ export class Network {
   get root() { return this.nodes[0]; }
 
   // --- seeding (A8): a short vertical filament rooted just under a soil col --
-  seed(substrate, rng) {
+  // startCol (optional) forces the root column (puzzle mode); otherwise a random
+  // clear soil column near the centre is chosen.
+  seed(substrate, rng, startCol) {
     const g = this.config.growth;
     // Pick a soil column near the centre to root under (so it can fruit later).
     let bestCol = Math.floor(substrate.cols / 2);
@@ -68,7 +70,9 @@ export class Network {
       }
       return true;
     };
-    for (let tries = 0; tries < 60; tries++) {
+    if (startCol != null) {
+      bestCol = startCol;
+    } else for (let tries = 0; tries < 60; tries++) {
       const c = rng.int(Math.floor(substrate.cols * 0.25), Math.floor(substrate.cols * 0.75));
       if (substrate.surface[c] && substrate.surface[c].soil && columnClear(c)) { bestCol = c; break; }
     }

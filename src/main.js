@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { CONFIG } from './config.js';
-import { createState, newRun } from './engine/state.js';
+import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { endTurn } from './engine/turn.js';
 import { Camera } from './render/camera.js';
@@ -34,8 +34,11 @@ let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
 let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
 
 // --- setup / restart --------------------------------------------------------
-function start(seed) {
-  state = createState(CONFIG, seed);
+function start(seed) { begin(createState(CONFIG, seed)); }
+function startPuzzle() { begin(createPuzzleState(CONFIG)); }
+
+function begin(newState) {
+  state = newState;
   buildRenderers();
   if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -44,19 +47,25 @@ function start(seed) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
-  camera.fitBounds(expandedBounds(), 120);
+  if (state.mode === 'puzzle') {
+    // show the whole level so the layout (rocks, food, chest, mould) reads
+    camera.fitBounds({ minX: 0, minY: state.substrate.surfaceY - 30,
+      maxX: state.substrate.worldWidth, maxY: state.substrate.worldHeight }, 40);
+  } else {
+    camera.fitBounds(expandedBounds(), 120);
+  }
   uiDirty = true;
 }
 
 function buildRenderers() {
-  substrateRenderer = new SubstrateRenderer(state.substrate, CONFIG, state.seed);
+  substrateRenderer = new SubstrateRenderer(state.substrate, state.config, state.seed);
   networkRenderers.clear();
-  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, CONFIG));
+  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config));
 }
 
 function rendererFor(net) {
   let r = networkRenderers.get(net.id);
-  if (!r) { r = new NetworkRenderer(net, CONFIG); networkRenderers.set(net.id, r); }
+  if (!r) { r = new NetworkRenderer(net, state.config); networkRenderers.set(net.id, r); }
   return r;
 }
 
@@ -92,6 +101,9 @@ const handlers = {
   },
   onRestart() {
     start((Date.now() & 0x7fffffff) || 1);
+  },
+  onPuzzle() {
+    startPuzzle();
   },
   onCheat(type) {
     const net = state.active;
@@ -258,6 +270,7 @@ function frame(time) {
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
+  drawChest();
   drawCloudSight();
   drawTargetingCursor(time);
 
@@ -265,12 +278,40 @@ function frame(time) {
   requestAnimationFrame(frame);
 }
 
+// Puzzle mode: the treasure chest goal — a glowing buried chest.
+function drawChest() {
+  if (!state.chest) return;
+  const s = camera.worldToScreen(state.chest.x, state.chest.y);
+  const z = camera.zoom;
+  ctx.save();
+  // warm glow so it's easy to spot in the dark earth
+  const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, state.chest.r * z);
+  gr.addColorStop(0, 'rgba(255,210,90,0.55)');
+  gr.addColorStop(1, 'rgba(255,210,90,0)');
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.arc(s.x, s.y, state.chest.r * z, 0, Math.PI * 2); ctx.fill();
+  // chest
+  const w = 30 * z, h = 22 * z;
+  ctx.translate(s.x, s.y);
+  ctx.lineWidth = Math.max(1, 2 * z);
+  ctx.fillStyle = '#7a4e22'; ctx.strokeStyle = '#2c1a0c';
+  ctx.fillRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
+  ctx.strokeRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
+  ctx.fillStyle = '#9a6a30';                       // lid
+  ctx.fillRect(-w / 2, -h / 2, w, h * 0.4);
+  ctx.strokeRect(-w / 2, -h / 2, w, h * 0.4);
+  ctx.fillStyle = '#ffd45a';                       // gold band + lock
+  ctx.fillRect(-2.5 * z, -h / 2, 5 * z, h);
+  ctx.beginPath(); ctx.arc(0, -h * 0.05, 3 * z, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Show each roaming mould cloud's sight range — the area within which it will
 // sense and head for food / your colony. A soft greenish rim near the edge.
 function drawCloudSight() {
   const clouds = state.clouds;
   if (!clouds || !clouds.length) return;
-  const sight = CONFIG.trichoderma.sightRadius * camera.zoom;
+  const sight = state.config.trichoderma.sightRadius * camera.zoom;
   ctx.save();
   for (const c of clouds) {
     const s = camera.worldToScreen(c.cx, c.cy);
@@ -291,7 +332,7 @@ function drawTargetingCursor(time) {
   const rect = canvas.getBoundingClientRect();
   const w = camera.screenToWorld(mouse.x - rect.left, mouse.y - rect.top);
   if (sel === 'addSubstrate') {
-    const rad = CONFIG.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
+    const rad = state.config.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
     const s = camera.worldToScreen(w.x, w.y);
     ctx.save();
     ctx.strokeStyle = w.y > state.substrate.surfaceY ? 'rgba(120,220,140,0.8)' : 'rgba(220,120,120,0.8)';
@@ -300,7 +341,7 @@ function drawTargetingCursor(time) {
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   } else if (sel === 'amputate') {
-    const rad = CONFIG.actions.amputate.radius;
+    const rad = state.config.actions.amputate.radius;
     const r2 = rad * rad;
     const s = camera.worldToScreen(w.x, w.y);
     ctx.save();

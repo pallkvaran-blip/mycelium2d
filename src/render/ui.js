@@ -107,8 +107,11 @@ export class UI {
     this.el.endBtn = endBtn;
     const restartBtn = button('btn restart', 'New Map ↻');
     restartBtn.onclick = () => this.handlers.onRestart();
+    const puzzleBtn = button('btn restart', 'Puzzle 🧩');
+    puzzleBtn.onclick = () => this.handlers.onPuzzle();
     ctrl.appendChild(endBtn);
     ctrl.appendChild(restartBtn);
+    ctrl.appendChild(puzzleBtn);
     bar.appendChild(ctrl);
 
     root.appendChild(bar);
@@ -209,18 +212,38 @@ export class UI {
   showOverlay(result) {
     const o = this.el.overlay;
     o.classList.remove('hidden');
+    const won = result && result.won;
     const died = result && result.died;
+    const puzzle = this.state.mode === 'puzzle';
+
+    let title, body;
+    if (won) {
+      title = 'Treasure reached! 🧩';
+      body = `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+    } else if (died) {
+      title = 'The colony has died';
+      body = puzzle
+        ? 'It starved or was overrun before reaching the treasure. Try a different route.'
+        : 'Trichoderma and hazards overwhelmed the network before it could fruit.';
+    } else {
+      title = 'The network has fruited';
+      body = `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`;
+    }
+
+    // Mode-aware buttons (primary first).
+    const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
+    const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
     o.innerHTML = `
       <div class="card">
-        <h1>${died ? 'The colony has died' : 'The network has fruited'}</h1>
-        <p>${died
-          ? 'Trichoderma and hazards overwhelmed the network before it could fruit.'
-          : `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`}</p>
-        <p class="dim">Total Spores this run: <b>${this.state.spores}</b></p>
-        <p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>
-        <button class="btn big" id="overlay-restart">Begin a new colony ↻</button>
+        <h1>${title}</h1>
+        <p>${body}</p>
+        ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
+          : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
-    o.querySelector('#overlay-restart').onclick = () => this.handlers.onRestart();
+    const rb = o.querySelector('#overlay-restart');
+    if (rb) rb.onclick = () => this.handlers.onRestart();
+    const pb = o.querySelector('#overlay-puzzle');
+    if (pb) pb.onclick = () => this.handlers.onPuzzle();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 

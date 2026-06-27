@@ -3,7 +3,7 @@
 // Proves the engine drives a full turn cycle without a browser.
 
 import { CONFIG } from '../src/config.js';
-import { createState } from '../src/engine/state.js';
+import { createState, createPuzzleState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
 import { totalTrichoderma, spawnTrichodermaAt, infectNetwork, spreadTrichoderma } from '../src/engine/threats.js';
@@ -339,6 +339,35 @@ console.log('# Trichoderma cannot travel through rock');
   }
   ok(!everInRock, 'a cloud never ends up inside a rock cell');
   ok(!crossed, 'a cloud cannot tunnel through a solid rock wall');
+}
+
+console.log('# Puzzle mode: builds a fixed level and is navigable to the chest');
+{
+  const s = createPuzzleState(JSON.parse(JSON.stringify(CONFIG)));
+  ok(s.mode === 'puzzle', 'puzzle mode set');
+  ok(s.chest && s.chest.x > 0 && s.chest.r > 0, 'treasure chest placed');
+  ok(s.clouds.length === 2, 'two mould clouds placed');
+  ok(s.active.nodes.length > 0, 'colony seeded at the start');
+  ok(s.substrate.cells.some((c) => c.rock), 'rock formations present');
+  ok(s.substrate.totalNutrient() > 0, 'food islands present');
+  ok(s.config.energy.start === 50 && s.config.energy.baselineTrickle === 0, 'tight economy applied');
+
+  // Navigate to the chest by laying lures along the route. Cheat energy and
+  // drop the clouds so this purely checks the ROUTE is growable (rocks don't
+  // wall it off and the chest is reachable).
+  s.clouds = [];
+  const path = [[8, 4], [12, 5], [16, 5], [20, 5], [24, 9], [28, 12], [31, 13], [35, 11],
+    [39, 9], [43, 7], [46, 8], [50, 10], [53, 12], [55, 14], [58, 11], [59, 9], [63, 9],
+    [67, 9], [70, 9], [73, 9]];
+  for (const [c, r] of path) {
+    const ctr = s.substrate.cellCenter(c, r);
+    s.active.energy = 9999; s.movesLeft = 9;
+    performAction(s, 'addSubstrate', { x: ctr.x, y: ctr.y });
+    for (let g = 0; g < 6 && !s.won; g++) { s.active.energy = 9999; s.movesLeft = 9; performAction(s, 'grow'); }
+    if (s.won) break;
+  }
+  const reach = Math.max(...s.active.nodes.map((n) => s.substrate.colAtX(n.x)));
+  ok(s.won, `the colony can be routed to the chest (reached col ${reach}, chest col 73)`);
 }
 
 console.log('# Fruit pays Spores and ends the cycle');
