@@ -17,7 +17,7 @@ import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI } from './render/ui.js';
-import { loadAssets, hasAsset, pattern, assetMeta } from './render/assets.js';
+import { loadAssets, hasAsset, asset, pattern, assetMeta } from './render/assets.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -309,6 +309,7 @@ function frame(time) {
 
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
+  drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
@@ -558,45 +559,56 @@ function drawAnts(time) {
     }
 
     // === the underground colony ===
-    const lay = nestLayout(nest, sub);
-    // 1) loose excavated-soil halo behind tunnels + chambers
-    ctx.strokeStyle = `rgba(${(120 * dim) | 0},${(88 * dim) | 0},${(52 * dim) | 0},0.5)`;
-    for (const t of lay.tunnels) {
-      const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
-      ctx.lineWidth = Math.max(5, 9 * z);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    for (const ch of lay.chambers) {
-      const c = camera.worldToScreen(ch.x, ch.y);
-      const R = ch.r * z * 1.5;
-      const halo = ctx.createRadialGradient(c.x, c.y, R * 0.25, c.x, c.y, R);
-      halo.addColorStop(0, `rgba(${(122 * dim) | 0},${(90 * dim) | 0},${(54 * dim) | 0},0.55)`);
-      halo.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = halo;
-      ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, Math.PI * 2); ctx.fill();
-    }
-    // 2) hollow interiors (the open dug-out tunnels + chambers)
-    ctx.strokeStyle = `rgba(${(22 * dim) | 0},${(14 * dim) | 0},${(8 * dim) | 0},0.92)`;
-    for (const t of lay.tunnels) {
-      const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
-      ctx.lineWidth = Math.max(2, 4 * z);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    for (const ch of lay.chambers) {
-      const c = camera.worldToScreen(ch.x, ch.y);
-      const R = ch.r * z;
-      ctx.fillStyle = `rgba(${(24 * dim) | 0},${(15 * dim) | 0},${(8 * dim) | 0},0.95)`;
-      ctx.beginPath(); ctx.ellipse(c.x, c.y, R, R * 0.82, 0, 0, Math.PI * 2); ctx.fill();
-      // 3) chamber contents — pale eggs + a few resident ants
-      const rnd = antRand(ch.seed);
-      ctx.fillStyle = `rgba(${(238 * dim) | 0},${(228 * dim) | 0},${(200 * dim) | 0},0.9)`;
-      for (let e = 0; e < ch.eggs; e++) {
-        const ex = c.x + (rnd() * 2 - 1) * R * 0.55, ey = c.y + (rnd() * 2 - 1) * R * 0.4;
-        ctx.beginPath(); ctx.ellipse(ex, ey, Math.max(1, 1.5 * z), Math.max(1.5, 2.5 * z), 0.5, 0, Math.PI * 2); ctx.fill();
+    if (hasAsset('antColony')) {
+      // Image-based nest burrow, anchored at the surface and extending down.
+      const img = asset('antColony');
+      const w = sub.cellSize * 3.4 * z, h = w * (img.height / img.width);
+      const top = camera.worldToScreen(nest.x, nest.y);
+      ctx.save();
+      ctx.globalAlpha = dim;
+      ctx.drawImage(img, top.x - w / 2, top.y, w, h);
+      ctx.restore();
+    } else {
+      const lay = nestLayout(nest, sub);
+      // 1) loose excavated-soil halo behind tunnels + chambers
+      ctx.strokeStyle = `rgba(${(120 * dim) | 0},${(88 * dim) | 0},${(52 * dim) | 0},0.5)`;
+      for (const t of lay.tunnels) {
+        const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
+        ctx.lineWidth = Math.max(5, 9 * z);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      for (let aI = 0; aI < ch.ants; aI++) {
-        const ax = c.x + (rnd() * 2 - 1) * R * 0.6, ay = c.y + (rnd() * 2 - 1) * R * 0.5;
-        drawAnt(ctx, ax, ay, rnd() * Math.PI * 2, Math.max(1.5, 2.1 * z), dim);
+      for (const ch of lay.chambers) {
+        const c = camera.worldToScreen(ch.x, ch.y);
+        const R = ch.r * z * 1.5;
+        const halo = ctx.createRadialGradient(c.x, c.y, R * 0.25, c.x, c.y, R);
+        halo.addColorStop(0, `rgba(${(122 * dim) | 0},${(90 * dim) | 0},${(54 * dim) | 0},0.55)`);
+        halo.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(c.x, c.y, R, 0, Math.PI * 2); ctx.fill();
+      }
+      // 2) hollow interiors (the open dug-out tunnels + chambers)
+      ctx.strokeStyle = `rgba(${(22 * dim) | 0},${(14 * dim) | 0},${(8 * dim) | 0},0.92)`;
+      for (const t of lay.tunnels) {
+        const a = camera.worldToScreen(t.x1, t.y1), b = camera.worldToScreen(t.x2, t.y2);
+        ctx.lineWidth = Math.max(2, 4 * z);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+      for (const ch of lay.chambers) {
+        const c = camera.worldToScreen(ch.x, ch.y);
+        const R = ch.r * z;
+        ctx.fillStyle = `rgba(${(24 * dim) | 0},${(15 * dim) | 0},${(8 * dim) | 0},0.95)`;
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, R, R * 0.82, 0, 0, Math.PI * 2); ctx.fill();
+        // 3) chamber contents — pale eggs + a few resident ants
+        const rnd = antRand(ch.seed);
+        ctx.fillStyle = `rgba(${(238 * dim) | 0},${(228 * dim) | 0},${(200 * dim) | 0},0.9)`;
+        for (let e = 0; e < ch.eggs; e++) {
+          const ex = c.x + (rnd() * 2 - 1) * R * 0.55, ey = c.y + (rnd() * 2 - 1) * R * 0.4;
+          ctx.beginPath(); ctx.ellipse(ex, ey, Math.max(1, 1.5 * z), Math.max(1.5, 2.5 * z), 0.5, 0, Math.PI * 2); ctx.fill();
+        }
+        for (let aI = 0; aI < ch.ants; aI++) {
+          const ax = c.x + (rnd() * 2 - 1) * R * 0.6, ay = c.y + (rnd() * 2 - 1) * R * 0.5;
+          drawAnt(ctx, ax, ay, rnd() * Math.PI * 2, Math.max(1.5, 2.1 * z), dim);
+        }
       }
     }
     // 4) surface entrance hole
@@ -669,6 +681,47 @@ function rockCells() {
   state.substrate.forEachCell((c, col, row) => { if (c.rock) cells.push(state.substrate.cellCenter(col, row)); });
   _rockState = state; _rockCells = cells;
   return cells;
+}
+
+// Above-ground props (trees / grass / houses) placed along the surface line.
+// Deterministic per map (seeded by state.seed) and cached, so they don't flicker
+// or move between frames. Gated on the sprites being present.
+const _hashf = (a, b) => { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); };
+let _propState = null, _props = null;
+function surfaceProps() {
+  if (_propState === state) return _props;
+  const sub = state.substrate, seed = (state.seed || 1) * 0.013, props = [];
+  let lastTree = -99, lastHouse = -99;
+  for (let c = 2; c < sub.cols - 2; c++) {
+    const surf = sub.surface[c];
+    const r = _hashf(c + 0.5, seed);
+    if (surf.soil) {
+      if (r < 0.06 && c - lastTree > 3 && hasAsset('tree')) { props.push({ key: 'tree', col: c, h: 124, flip: _hashf(c, 7) < 0.5 }); lastTree = c; }
+      else if (r < 0.42 && hasAsset('grassTuft')) props.push({ key: 'grassTuft', col: c, h: 34, flip: _hashf(c, 3) < 0.5 });
+    } else if (r < 0.10 && c - lastHouse > 4 && hasAsset('house')) {
+      props.push({ key: 'house', col: c, h: 86, flip: _hashf(c, 9) < 0.5 }); lastHouse = c;
+    }
+  }
+  _propState = state; _props = props;
+  return props;
+}
+
+function drawSurfaceProps() {
+  const props = surfaceProps();
+  if (!props || !props.length) return;
+  const sub = state.substrate, z = camera.zoom;
+  for (const pr of props) {
+    const img = asset(pr.key);
+    if (!img) continue;
+    const h = pr.h * z, w = h * (img.width / img.height);
+    const cx = pr.col * sub.cellSize + sub.cellSize / 2;
+    const s = camera.worldToScreen(cx, sub.surfaceY);
+    if (s.x < -w || s.x > camera.viewW + w || s.y < -h || s.y > camera.viewH + h) continue;
+    ctx.save();
+    if (pr.flip) { ctx.translate(s.x, s.y); ctx.scale(-1, 1); ctx.drawImage(img, -w / 2, -h, w, h); }
+    else ctx.drawImage(img, s.x - w / 2, s.y - h, w, h);
+    ctx.restore();
+  }
 }
 
 // Nematodes: small pale wriggling worms. They writhe in place, tint reddish
@@ -808,11 +861,18 @@ function drawTargetingCursor(time) {
     ctx.save();
     if (best) {
       // Encircle the whole underground colony (entrance + every chamber).
-      const lay = nestLayout(best, state.substrate);
-      let minX = best.x, maxX = best.x, minY = best.y, maxY = best.y;
-      for (const ch of lay.chambers) {
-        minX = Math.min(minX, ch.x - ch.r); maxX = Math.max(maxX, ch.x + ch.r);
-        minY = Math.min(minY, ch.y - ch.r); maxY = Math.max(maxY, ch.y + ch.r);
+      let minX, maxX, minY, maxY;
+      if (hasAsset('antColony')) {
+        const img = asset('antColony');
+        const w = state.substrate.cellSize * 3.4, h = w * (img.height / img.width);
+        minX = best.x - w / 2; maxX = best.x + w / 2; minY = best.y; maxY = best.y + h;
+      } else {
+        const lay = nestLayout(best, state.substrate);
+        minX = best.x; maxX = best.x; minY = best.y; maxY = best.y;
+        for (const ch of lay.chambers) {
+          minX = Math.min(minX, ch.x - ch.r); maxX = Math.max(maxX, ch.x + ch.r);
+          minY = Math.min(minY, ch.y - ch.r); maxY = Math.max(maxY, ch.y + ch.r);
+        }
       }
       const tl = camera.worldToScreen(minX, minY), br = camera.worldToScreen(maxX, maxY);
       const cx = (tl.x + br.x) / 2, cy = (tl.y + br.y) / 2;

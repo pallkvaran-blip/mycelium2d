@@ -9,12 +9,16 @@ Status: 🟢 generated · ⚪ planned
 | key | kind | size | status | purpose |
 |-----|------|------|--------|---------|
 | `soil` | texture | 1024² | 🟢 | underground earth detail, tiled over the soil |
-| `rockface` | texture | 1024² | ⚪ | fill/overlay for impassable rock formations |
-| `boulder` | sprite | 1024² | ⚪ | discrete rock props (map editor) |
-| `antColony` | sprite | 1024² | ⚪ | underground nest backdrop (HP/ants drawn over it) |
-| `tree` | sprite | 1024² | ⚪ | surface prop — dark tree silhouette w/ faint glow |
-| `grassTuft` | sprite | 512² | ⚪ | surface prop — small grass clump |
-| `house` | sprite | 1024² | ⚪ | surface prop — small dark building |
+| `rockface` | texture | 1024² | 🟢 | fill/overlay for impassable rock formations |
+| `antColony` | sprite | ~640 | 🟢 | underground nest burrow (HP bar / trail drawn over it) |
+| `tree` | sprite | ~640 | 🟢 | surface prop — tree, shadows lifted so it reads at night |
+| `grassTuft` | sprite | ~530 | 🟢 | surface prop — small grass clump |
+| `house` | sprite | ~640 | 🟢 | surface prop — small cabin w/ lit window |
+| `boulder` | sprite | 1024² | ⚪ | discrete rock props (deferred — for the map editor) |
+
+Sprites are generated on a plain white background then matted with BiRefMet
+(`scripts/gensprite.sh`); dark silhouette props get their shadows lifted (PIL)
+so they read against the night sky.
 
 ## Prompts (asset-specific part; style-guide prefix is prepended)
 

@@ -188,8 +188,8 @@ export const CONFIG = {
   render: {
     // sky / air — deep twilight night so the underground life-light is the star
     skyTop: '#060b14',                    // deep night blue
-    skyHorizon: '#13283a',                // dark teal horizon
-    horizonGlow: 'rgba(80,140,170,0.18)', // faint cool horizon haze
+    skyHorizon: '#2c4a5e',                // luminous twilight horizon (silhouettes props)
+    horizonGlow: 'rgba(120,180,205,0.30)',// cool twilight haze hugging the surface
     sun: 'rgba(170,205,232,0.30)',        // a soft moon, not a sun
     sunWash: 'rgba(110,160,195,0.10)',    // faint cool light over open soil
     shadeWash: 'rgba(36,66,98,0.24)',     // cooler light under canopy
