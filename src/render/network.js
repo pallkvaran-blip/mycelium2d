@@ -102,8 +102,8 @@ export class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      const tint = lerpColor([116, 84, 54], fil, n.health);
-      octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
+      // constant cream — strands don't brown/dim with health (look is vitality-independent)
+      octx.strokeStyle = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
       const strands = s > 8 ? 2 : 1;
@@ -163,10 +163,11 @@ export class NetworkRenderer {
     if (this.structureDirty) this.bakeStructure();
     const r = this.config.render;
     const net = this.network;
-    // Slow "breath" — the colony gently brightens and dims (~4.2s period)
-    // instead of streaming busy pulses.
-    const breath = 0.86 + 0.14 * Math.sin(time * (Math.PI * 2 / 4200));
-    const brightness = (r.minBrightness + (1 - r.minBrightness) * net.vitality) * brightnessScale * breath;
+    // Slow "breath" — the colony gently brightens and dims (~4.2s period).
+    // Appearance is INDEPENDENT of vitality (vitality stays a HUD/gameplay stat
+    // only) so the mycelium never dims or browns as health drops.
+    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200));
+    const brightness = brightnessScale * breath;
 
     // Static structure (baked), dimmed by vitality.
     const tl = camera.worldToScreen(0, 0);

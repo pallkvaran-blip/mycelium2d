@@ -304,14 +304,16 @@ export class Network {
     }
 
     let created = 0;
-    const len = g.segmentLength * 0.5;
     for (const { cell, nodes } of byCell.values()) {
       if (this.nodes.length >= g.maxNodes) break;
+      // Strands lengthen as the pocket fills, so a fully colonised piece ends up
+      // almost packed with mycelium.
+      const len = g.segmentLength * (0.85 + cell.colonized * 0.7);
       const parent = nodes[Math.floor(rng() * nodes.length)];
-      const branches = 1 + (rng() < 0.5 ? 1 : 0);
+      const branches = 1 + (rng() < 0.6 ? 1 : 0);
       for (let b = 0; b < branches; b++) {
         const ang = rng() * Math.PI * 2;
-        const dist = len * (0.6 + rng() * 0.8);
+        const dist = len * (0.7 + rng() * 0.6);
         const nx = parent.x + Math.cos(ang) * dist;
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;

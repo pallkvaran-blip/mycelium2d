@@ -946,14 +946,16 @@ class Network {
     }
 
     let created = 0;
-    const len = g.segmentLength * 0.5;
     for (const { cell, nodes } of byCell.values()) {
       if (this.nodes.length >= g.maxNodes) break;
+      // Strands lengthen as the pocket fills, so a fully colonised piece ends up
+      // almost packed with mycelium.
+      const len = g.segmentLength * (0.85 + cell.colonized * 0.7);
       const parent = nodes[Math.floor(rng() * nodes.length)];
-      const branches = 1 + (rng() < 0.5 ? 1 : 0);
+      const branches = 1 + (rng() < 0.6 ? 1 : 0);
       for (let b = 0; b < branches; b++) {
         const ang = rng() * Math.PI * 2;
-        const dist = len * (0.6 + rng() * 0.8);
+        const dist = len * (0.7 + rng() * 0.6);
         const nx = parent.x + Math.cos(ang) * dist;
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
@@ -2410,8 +2412,8 @@ class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      const tint = lerpColor([116, 84, 54], fil, n.health);
-      octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
+      // constant cream — strands don't brown/dim with health (look is vitality-independent)
+      octx.strokeStyle = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
       const strands = s > 8 ? 2 : 1;
@@ -2471,10 +2473,11 @@ class NetworkRenderer {
     if (this.structureDirty) this.bakeStructure();
     const r = this.config.render;
     const net = this.network;
-    // Slow "breath" — the colony gently brightens and dims (~4.2s period)
-    // instead of streaming busy pulses.
-    const breath = 0.86 + 0.14 * Math.sin(time * (Math.PI * 2 / 4200));
-    const brightness = (r.minBrightness + (1 - r.minBrightness) * net.vitality) * brightnessScale * breath;
+    // Slow "breath" — the colony gently brightens and dims (~4.2s period).
+    // Appearance is INDEPENDENT of vitality (vitality stays a HUD/gameplay stat
+    // only) so the mycelium never dims or browns as health drops.
+    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200));
+    const brightness = brightnessScale * breath;
 
     // Static structure (baked), dimmed by vitality.
     const tl = camera.worldToScreen(0, 0);
@@ -2596,7 +2599,7 @@ class Lighting {
   compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0) {
     const r = this.config.render;
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
-    const breath = 0.86 + 0.14 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
+    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
     const W = camera.viewW, H = camera.viewH;
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;
@@ -2656,14 +2659,14 @@ class Lighting {
     // The living network — mint glow following the filaments.
     for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
-      const bright = (0.35 + 0.65 * net.vitality) * breath;
+      const bright = breath; // glow independent of vitality
       const nodes = net.nodes;
       // Keep glow DENSITY roughly constant as the colony grows (don't let a
       // fixed light budget spread thin and make a big colony look faint).
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
-        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9 * n.health, W, H);
+        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
       }
     }
 

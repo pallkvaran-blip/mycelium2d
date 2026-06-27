@@ -28,7 +28,7 @@ export class Lighting {
   compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0) {
     const r = this.config.render;
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
-    const breath = 0.86 + 0.14 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
+    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
     const W = camera.viewW, H = camera.viewH;
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;
@@ -88,14 +88,14 @@ export class Lighting {
     // The living network — mint glow following the filaments.
     for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
-      const bright = (0.35 + 0.65 * net.vitality) * breath;
+      const bright = breath; // glow independent of vitality
       const nodes = net.nodes;
       // Keep glow DENSITY roughly constant as the colony grows (don't let a
       // fixed light budget spread thin and make a big colony look faint).
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
-        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9 * n.health, W, H);
+        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
       }
     }
 
