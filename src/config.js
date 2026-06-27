@@ -124,11 +124,11 @@ export const CONFIG = {
       energyCost: 4,
       radius: 60,                // cut radius (world units) — removes ALL strands inside it (SLIDER)
     },
-    express: {
+    attackAnts: {
       moveCost: 1,
-      energyCostBase: 16,        // cost of taking a trait from level n -> n+1
-      energyCostPerLevel: 9,     // added per current level (escalating)
-      maxLevel: 5,
+      energyCost: 30,            // expensive: ~3 bombs (each -40% HP) to destroy a nest
+      damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
+      pickRadius: 90,            // click tolerance (world units) for hitting a nest
     },
     digest: {
       moveCost: 1,
@@ -147,11 +147,15 @@ export const CONFIG = {
     },
   },
 
-  // ---- Genetic defence trait (A2, B5) — kept deliberately simple ----------
-  traits: {
-    // The one defence: broad passive armour AND it resists the INITIAL
-    // Trichoderma contact (it does NOT slow the spread once inside you).
-    melanize: { damageReductionPerLevel: 0.16, contactResistPerLevel: 0.18 },
+  // ---- Ants (A2, B6) — a fixed territorial threat + food rival ------------
+  // A nest near the surface runs a trail to the nearest food and harvests it,
+  // working through the whole map (nests see everything — no sight limit). The
+  // trail is impassable to your growth. You go around, bomb the nest, or race
+  // them to the food so they relocate.
+  ants: {
+    nestCount: 2,                // nests seeded per (sandbox) map
+    maxHp: 100,
+    harvestRate: 60,             // nutrient an active nest carries off its target food per turn (SLIDER)
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -243,6 +247,8 @@ export const SLIDERS = [
   { path: 'trichoderma.sightRadius',     label: 'Mold Sight Range',    min: 100, max: 1500, step: 50 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
+  { path: 'ants.harvestRate',            label: 'Ant Harvest Rate',    min: 0,   max: 200, step: 5 },
+  { path: 'actions.attackAnts.energyCost', label: 'Attack Ants Cost',  min: 0,   max: 80,  step: 5 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },

@@ -274,6 +274,7 @@ function frame(time) {
 
   drawChest(time);
   drawCloudSight();
+  drawAnts(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -358,6 +359,79 @@ function drawCloudSight() {
   ctx.restore();
 }
 
+// Ants: each nest is a surface mound running an impassable trail to its target
+// food, with little ants marching along it. A dormant nest (no reachable food)
+// is dimmed. Nests carry an HP bar so the player can see how many bombs remain.
+function drawAnts(time) {
+  const ants = state.ants;
+  if (!ants || !ants.length) return;
+  const sub = state.substrate;
+  const z = camera.zoom;
+  ctx.save();
+  for (const nest of ants) {
+    const path = nest.path || [];
+    const total = path.length - 1;
+
+    // --- trail line through the path cells ---
+    if (total >= 1) {
+      ctx.lineWidth = Math.max(2, 3.5 * z);
+      ctx.strokeStyle = nest.dormant ? 'rgba(110,85,55,0.30)' : 'rgba(55,38,22,0.55)';
+      ctx.beginPath();
+      for (let i = 0; i < path.length; i++) {
+        const c = sub.cellCenter(path[i].col, path[i].row);
+        const p = camera.worldToScreen(c.x, c.y);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+
+      // --- marching ants: dots flowing toward the food end ---
+      if (!nest.dormant) {
+        const dots = Math.min(14, Math.max(3, total));
+        const flow = (time * 0.00045) % 1;
+        ctx.fillStyle = 'rgba(20,14,8,0.92)';
+        for (let d = 0; d < dots; d++) {
+          const t = (flow + d / dots) % 1;
+          const fp = t * total;
+          const i0 = Math.min(total - 1, Math.floor(fp)), frac = fp - i0;
+          const a = sub.cellCenter(path[i0].col, path[i0].row);
+          const b = sub.cellCenter(path[i0 + 1].col, path[i0 + 1].row);
+          const sp = camera.worldToScreen(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac);
+          ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(1.3, 2.2 * z), 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // --- nest mound at the surface ---
+    const s = camera.worldToScreen(nest.x, nest.y);
+    const rad = Math.max(13, 16 * z);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    const dim = nest.dormant ? 0.6 : 1;
+    const g = ctx.createRadialGradient(0, -rad * 0.3, rad * 0.2, 0, 0, rad);
+    g.addColorStop(0, `rgba(${Math.round(125 * dim)},${Math.round(90 * dim)},${Math.round(55 * dim)},1)`);
+    g.addColorStop(1, `rgba(${Math.round(58 * dim)},${Math.round(38 * dim)},${Math.round(20 * dim)},1)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-rad, 0);
+    ctx.quadraticCurveTo(0, -rad * 1.25, rad, 0);
+    ctx.closePath();
+    ctx.fill();
+    // entrance hole
+    ctx.fillStyle = 'rgba(10,6,3,0.9)';
+    ctx.beginPath(); ctx.ellipse(0, -rad * 0.12, rad * 0.28, rad * 0.20, 0, 0, Math.PI * 2); ctx.fill();
+
+    // HP bar above the mound
+    const bw = rad * 1.8, bh = Math.max(3, 4 * z), by = -rad * 1.55;
+    const frac = Math.max(0, nest.hp / nest.maxHp);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(-bw / 2, by, bw, bh);
+    ctx.fillStyle = frac > 0.5 ? '#5fbf52' : frac > 0.25 ? '#d8b13a' : '#d85a3a';
+    ctx.fillRect(-bw / 2, by, bw * frac, bh);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawTargetingCursor(time) {
   const sel = ui && ui.selectedAction;
   if (!sel) return;
@@ -394,13 +468,45 @@ function drawTargetingCursor(time) {
     ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.arc(s.x, s.y, rad * camera.zoom, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
+  } else if (sel === 'attackAnts') {
+    // Mark the nest that this click would bomb (nearest within pick radius).
+    const pick = state.config.actions.attackAnts.pickRadius;
+    let best = null, bestD2 = pick * pick;
+    for (const nest of (state.ants || [])) {
+      const dx = nest.x - w.x, dy = nest.y - w.y, d2 = dx * dx + dy * dy;
+      if (d2 <= bestD2) { bestD2 = d2; best = nest; }
+    }
+    ctx.save();
+    if (best) {
+      const sp = camera.worldToScreen(best.x, best.y);
+      const pulse = 0.6 + 0.4 * Math.sin(time * 0.008);
+      ctx.strokeStyle = `rgba(255,90,60,${pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(20, 22 * camera.zoom), 0, Math.PI * 2); ctx.stroke();
+      // crosshair
+      ctx.beginPath();
+      ctx.moveTo(sp.x - 30, sp.y); ctx.lineTo(sp.x - 14, sp.y);
+      ctx.moveTo(sp.x + 14, sp.y); ctx.lineTo(sp.x + 30, sp.y);
+      ctx.moveTo(sp.x, sp.y - 30); ctx.lineTo(sp.x, sp.y - 14);
+      ctx.moveTo(sp.x, sp.y + 14); ctx.lineTo(sp.x, sp.y + 30);
+      ctx.stroke();
+    } else {
+      // no nest in range — a faint reticle at the cursor
+      const sp = camera.worldToScreen(w.x, w.y);
+      ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, 16, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
 // --- boot -------------------------------------------------------------------
-// Default to the PUZZLE on load (we're playtesting it). "New Map ↻" starts a
-// random sandbox; "#sandbox" in the URL also boots straight into a random map.
+// Default to a random SANDBOX on load (we're playtesting the ant threat, which
+// only appears in the sandbox). "#puzzle" in the URL boots the fixed puzzle;
+// the "Puzzle 🧩" button switches to it at any time.
 setupInput();
-if (location.hash === '#sandbox') start((Date.now() & 0x7fffffff) || 1);
-else startPuzzle();
+if (location.hash === '#puzzle') startPuzzle();
+else start((Date.now() & 0x7fffffff) || 1);
 requestAnimationFrame(frame);

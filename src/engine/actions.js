@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { spawnTrichodermaAt, tickThreat } from './threats.js';
+import { attackNest } from './ants.js';
 
 export const ACTIONS = {
   grow: {
@@ -55,21 +56,17 @@ export const ACTIONS = {
     },
   },
 
-  express: {
-    label: 'Express',
-    target: 'trait',
-    desc: 'Induce a genetic defence trait across the whole organism.',
-    energyCost(state, ctx) {
-      return state.active.expressCost(ctx.trait);
-    },
+  attackAnts: {
+    label: 'Attack Ants',
+    target: 'point',
+    desc: 'Drop a bomb on an ant nest — removes a chunk of its HP.',
     apply(state, ctx) {
-      const net = state.active;
-      const max = state.config.actions.express.maxLevel;
-      if (net.traits[ctx.trait] >= max) {
-        return { ok: false, message: `${cap(ctx.trait)} is already at max level.` };
-      }
-      net.expressTrait(ctx.trait);
-      return { ok: true, message: `Expressed ${cap(ctx.trait)} → level ${net.traits[ctx.trait]}.` };
+      const a = state.config.actions.attackAnts;
+      const hit = attackNest(state, ctx.x, ctx.y, a.pickRadius, a.damageFrac);
+      if (!hit) return { ok: false, message: 'No ant nest close enough to bomb.' };
+      return hit.dead
+        ? { ok: true, message: 'Bombed the nest — it collapsed! The ants scatter.' }
+        : { ok: true, message: `Bombed the nest — HP down to ${Math.round(hit.hp)}/${hit.maxHp}.` };
     },
   },
 
@@ -124,9 +121,6 @@ export const ACTIONS = {
     },
   },
 };
-
-// Capitalise a trait name for messages.
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // What it costs to perform an action right now (energy may be dynamic).
 export function actionCost(state, name, ctx = {}) {

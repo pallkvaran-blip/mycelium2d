@@ -11,6 +11,7 @@
 // =============================================================================
 
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
+import { stepAnts } from './ants.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -21,6 +22,10 @@ export function endTurn(state) {
   // The mould also acts on end-turn: the clouds creep/eat once more, and the
   // infection keeps spreading — so ending your turn never freezes the threat.
   spreadTrichoderma(state);
+
+  // Ants harvest their target food once per turn, retargeting when it runs out,
+  // and re-stamp their impassable trails (chewing any strand now under them).
+  stepAnts(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;

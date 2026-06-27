@@ -20,7 +20,7 @@ export class Network {
     this.byId = new Map();     // id -> node
     this.nextNodeId = 0;
 
-    this.traits = { melanize: 0 };
+    this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -178,9 +178,9 @@ export class Network {
       // Keep growth underground and inside the world.
       ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
       nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
-      // Can't grow through rock.
+      // Can't grow through rock or across an active ant trail.
       const tcell = substrate.cellAtWorld(nx, ny);
-      if (tcell && tcell.rock) continue;
+      if (tcell && (tcell.rock || tcell.antTrail)) continue;
       // Don't pile nodes on top of each other.
       if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
       const child = this.addNode(nx, ny, node);
@@ -235,19 +235,6 @@ export class Network {
     if (this.nodes.length === 0) this.alive = false;
     this.recomputeVitality();
     return removed.size;
-  }
-
-  // --- Express (A2): raise a defence trait one level, organism-wide --------
-  expressTrait(name) {
-    if (!(name in this.traits)) return false;
-    const max = this.config.actions.express.maxLevel;
-    if (this.traits[name] >= max) return false;
-    this.traits[name]++;
-    return true;
-  }
-  expressCost(name) {
-    const e = this.config.actions.express;
-    return e.energyCostBase + e.energyCostPerLevel * this.traits[name];
   }
 
   // --- Occupancy: which cells the network sits in (income + held ground) ---
@@ -315,7 +302,7 @@ export class Network {
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
         const tc = substrate.cellAtWorld(nx, ny);
-        if (tc && tc.rock) continue;
+        if (tc && (tc.rock || tc.antTrail)) continue;
         this.addNode(nx, ny, parent);
         created++;
       }
@@ -328,26 +315,6 @@ export class Network {
   // the renderer to thicken the colony progressively, petri-dish style).
   agePass() {
     for (const n of this.nodes) n.age++;
-  }
-
-  // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
-  // Strands recover only when genuinely safe AND fed: not in a hazard cell,
-  // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise
-  // recovery would silently cancel the mold's contact damage applied just
-  // before this step, and would heal even while starving.
-  applyHazardDamage(substrate) {
-    const v = this.config.vitality;
-    const melaninRed = this.traits.melanize * this.config.traits.melanize.damageReductionPerLevel;
-    const dmgMul = Math.max(0, 1 - melaninRed);
-    const fed = this.energy > 0;
-    for (const n of this.nodes) {
-      const cell = substrate.cellAtWorld(n.x, n.y);
-      if (cell && cell.hazard) {
-        n.health -= v.hazardDamagePerTurn * dmgMul;
-      } else if (n.health < 1 && fed && (!cell || cell.trich <= 0)) {
-        n.health = Math.min(1, n.health + v.recoveryPerTurn);
-      }
-    }
   }
 
   applyStarvation() {

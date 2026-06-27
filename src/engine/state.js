@@ -10,6 +10,7 @@ import { makeRng } from './rng.js';
 import { generateSubstrate, Substrate } from './substrate.js';
 import { Network } from './network.js';
 import { seedTrichoderma, placeClouds } from './threats.js';
+import { seedAnts } from './ants.js';
 import { buildPuzzle } from './puzzle.js';
 import { setByPath } from '../config.js';
 
@@ -25,7 +26,10 @@ export function createState(config, seed) {
   // from both food and you, and visibly creep in toward their nearest target.
   const clouds = seedTrichoderma(substrate, config, rng, network);
 
-  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox' });
+  // Ant nests near the surface, each running a trail to its nearest food.
+  const ants = seedAnts(substrate, config, rng, network);
+
+  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants });
 }
 
 // Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
@@ -46,6 +50,7 @@ export function createPuzzleState(baseConfig) {
     mode: 'puzzle',
     chest: built.chest,
     won: false,
+    ants: [],   // ants are a sandbox threat for now; the puzzle has none
   });
 }
 

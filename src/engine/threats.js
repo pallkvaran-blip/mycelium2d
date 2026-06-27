@@ -241,13 +241,11 @@ function stampCloudField(sub, clouds) {
 // When a cloud's edge touches a healthy strand it breaches — infecting that
 // strand and instantly claiming a chunk of mycelium around it — then the cloud
 // is spent (it begins to fade). After that the rot races along your filaments
-// several rings per turn. Melanize gives a chance to resist the initial breach.
+// several rings per turn.
 export function infectNetwork(net, state) {
   const { config, substrate: sub, rng } = state;
   const t = config.trichoderma;
   const cs = sub.cellSize;
-  const melanize = net.traits.melanize || 0;
-  const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
 
   // 1) Contact — a cloud that touches you infects (chunk) and then spends itself.
   for (const cloud of (state.clouds || [])) {
@@ -260,7 +258,7 @@ export function infectNetwork(net, state) {
       if (d <= reach * reach && d < best) { best = d; hit = n; }
     }
     if (hit) {
-      if (rng() < t.contactChance * (1 - resist)) {
+      if (rng() < t.contactChance) {
         hit.infected = true;
         infectAround(net, hit, t.contactChunk, 1, rng);
       }

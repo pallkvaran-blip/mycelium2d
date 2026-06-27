@@ -7,6 +7,7 @@ import { createState, createPuzzleState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
 import { totalTrichoderma, spawnTrichodermaAt, infectNetwork, spreadTrichoderma } from '../src/engine/threats.js';
+import { stepAnts, attackNest } from '../src/engine/ants.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -25,6 +26,7 @@ const state = createState(cfg, 12345);
 // own section).
 state.clouds = [];
 state.config.trichoderma.initialPatches = 0;
+state.ants = [];   // ants act on end-turn; isolate them from the generic action tests
 ok(state.networks.length === 1, 'holds a list with one network');
 ok(state.active === state.networks[0], 'active network is the first');
 ok(state.substrate.cols > 0 && state.substrate.rows > 0, 'substrate grid generated');
@@ -64,13 +66,6 @@ const dr = performAction(state, 'digest');
 if (dr.ok) ok(state.active.energy > eBeforeDigest - cfg.actions.digest.energyCost,
   'Digest yielded an Energy burst');
 else ok(true, 'Digest had no occupied food (acceptable depending on map)');
-
-console.log('# Express raises a trait, organism-wide');
-state.active.energy += 200;
-const er = performAction(state, 'express', { trait: 'melanize' });
-ok(er.ok && state.active.traits.melanize === 1, 'Melanize expressed to level 1');
-const cost1 = state.active.expressCost('melanize');
-ok(cost1 > cfg.actions.express.energyCostBase, 'Express cost escalates with level');
 
 console.log('# Amputate cuts out strands within a radius');
 const countBefore = state.active.nodes.length;
@@ -179,32 +174,6 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   ok(!s.clouds.includes(cloud), `the spent cloud dies off over ~${fade} steps (infect each cloud ~once)`);
 }
 
-console.log('# Melanize reduces incoming damage (defensive trait matters)');
-{
-  const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 999);
-  const n2 = s2.active;
-  // Put hazard under every node so damage is guaranteed.
-  for (const node of n2.nodes) {
-    const cell = s2.substrate.cellAtWorld(node.x, node.y);
-    if (cell) cell.hazard = true;
-  }
-  const undef = n2.nodes.map((n) => n.health);
-  n2.applyHazardDamage(s2.substrate);
-  const dmgNoMel = undef.reduce((a, h, i) => a + (h - n2.nodes[i].health), 0);
-  // reset + melanize
-  const s3 = createState(JSON.parse(JSON.stringify(CONFIG)), 999);
-  const n3 = s3.active;
-  for (const node of n3.nodes) {
-    const cell = s3.substrate.cellAtWorld(node.x, node.y);
-    if (cell) cell.hazard = true;
-  }
-  n3.traits.melanize = 3;
-  const base = n3.nodes.map((n) => n.health);
-  n3.applyHazardDamage(s3.substrate);
-  const dmgMel = base.reduce((a, h, i) => a + (h - n3.nodes[i].health), 0);
-  ok(dmgMel < dmgNoMel, `Melanize reduced hazard damage (${dmgMel.toFixed(3)} < ${dmgNoMel.toFixed(3)})`);
-}
-
 console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cures');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
@@ -236,22 +205,6 @@ console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cu
   const removed = net.amputateAt(inf.x, inf.y, s.config.actions.amputate.radius);
   ok(removed > 0 && net.nodes.length < before, `Amputate cuts out the infected patch (-${removed})`);
   ok(!net.byId.has(inf.id), 'the targeted infected strand is gone');
-
-  // Melanize gives a chance to resist the initial contact. Isolate the breach
-  // (no chunk, no race), one cloud per node, and count breaches with/without it.
-  function contactBreaches(seed, melanize) {
-    const st = createState(JSON.parse(JSON.stringify(CONFIG)), seed);
-    st.config.trichoderma.contactChunk = 0;
-    st.config.trichoderma.spreadDepthPerTurn = 0;
-    st.active.traits.melanize = melanize;
-    st.clouds = [];
-    for (const node of st.active.nodes) spawnTrichodermaAt(st, node.x, node.y);
-    infectNetwork(st.active, st);
-    return st.active.nodes.filter((n) => n.infected).length;
-  }
-  const brNoMel = contactBreaches(7, 0);
-  const brMel = contactBreaches(7, 5);
-  ok(brMel < brNoMel, `Melanize resists initial contact (${brMel} < ${brNoMel})`);
 }
 
 console.log('# Infection also advances on End Turn (no dodging the rot)');
@@ -341,6 +294,84 @@ console.log('# Trichoderma cannot travel through rock');
   ok(!crossed, 'a cloud cannot tunnel through a solid rock wall');
 }
 
+console.log('# Ants: nests seed at the surface, each with a trail to food');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  ok(s.ants.length === CONFIG.ants.nestCount, `seeded ${s.ants.length} nests (config ${CONFIG.ants.nestCount})`);
+  ok(s.ants.every((n) => Math.abs(n.y - s.substrate.surfaceY) < 1e-6), 'nests sit on the surface line');
+  ok(s.ants.every((n) => n.hp === n.maxHp && n.maxHp === CONFIG.ants.maxHp), 'nests start at full HP');
+  ok(s.ants.some((n) => n.path && n.path.length > 1), 'at least one nest ran a trail to food');
+}
+
+console.log('# Ants: the trail walls growth off (cannot pierce it)');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
+  const sub = s.substrate;
+  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; c.rock = false; c.antTrail = false; }
+  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
+  const net = s.active;
+  const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
+  // A near lure to pull growth toward the wall, plus food on the far side.
+  const nearCtr = sub.cellCenter(rootCol + 1, rootRow);
+  sub.deposit(nearCtr.x, nearCtr.y, 100, 1);
+  const wallCol = rootCol + 3;
+  for (let row = 0; row < sub.rows; row++) { const cell = sub.cellAt(wallCol, row); if (cell) cell.antTrail = true; }
+  const far = sub.cellAt(wallCol + 3, rootRow); if (far) { far.nutrient = 100; far.maxNutrient = 100; }
+  const before = net.nodes.length;
+  for (let i = 0; i < 40; i++) net.grow(sub, s.rng);
+  const crossed = net.nodes.some((n) => sub.colAtX(n.x) > wallCol);
+  ok(net.nodes.length > before, 'the colony grew toward the lure');
+  ok(!crossed, 'growth cannot cross an ant-trail wall');
+}
+
+console.log('# Ants: harvest the target food, then relocate when it runs out');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  const sub = s.substrate;
+  const nest = s.ants.find((n) => n.target);
+  ok(nest, 'a nest has a target food');
+  const tgt = nest.target;
+  const cell = sub.cellAt(tgt.col, tgt.row);
+  const before = cell.nutrient;
+  stepAnts(s);
+  ok(cell.nutrient < before, `ants harvest the target (${before} -> ${cell.nutrient})`);
+  // Drain the target to force a relocate to the next-nearest food.
+  cell.nutrient = 0; cell.maxNutrient = 0;
+  const oldKey = tgt.col + ',' + tgt.row;
+  stepAnts(s);
+  const newKey = nest.target ? nest.target.col + ',' + nest.target.row : null;
+  ok(newKey !== oldKey, 'ants retarget when their food runs out (relocate or go dormant)');
+}
+
+console.log('# Ants: bombing a nest removes 40% max HP; a kill clears its trail');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  const a = s.config.actions.attackAnts;
+  const nest = s.ants[0];
+  const before = nest.hp;
+  const r1 = attackNest(s, nest.x, nest.y, a.pickRadius, a.damageFrac);
+  ok(r1 && approx(nest.hp, before - a.damageFrac * nest.maxHp), `a bomb removes ${(a.damageFrac * 100) | 0}% of max HP`);
+  const miss = attackNest(s, nest.x + a.pickRadius * 6, nest.y, a.pickRadius, a.damageFrac);
+  ok(miss === null, 'a bomb far from any nest misses');
+
+  // Isolate one nest with a real trail, then bomb it to death and confirm its
+  // impassable trail is fully cleared from the cells.
+  const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  const b = s2.config.actions.attackAnts;
+  const lone = s2.ants.filter((n) => n.path && n.path.length > 1)
+    .sort((p, q) => q.path.length - p.path.length)[0] || s2.ants[0];
+  s2.ants = [lone];
+  stepAnts(s2);   // stamp only this nest's trail
+  const trailBefore = s2.substrate.cells.filter((c) => c.antTrail).length;
+  ok(trailBefore > 0, `a lone nest stamps an impassable trail (${trailBefore} cells)`);
+  let dead = false;
+  for (let i = 0; i < 6 && !dead; i++) { const r = attackNest(s2, lone.x, lone.y, b.pickRadius, b.damageFrac); dead = !!(r && r.dead); }
+  const trailAfter = s2.substrate.cells.filter((c) => c.antTrail).length;
+  ok(dead, 'enough bombs destroy the nest');
+  ok(!s2.ants.includes(lone), 'a destroyed nest is removed from the list');
+  ok(trailAfter === 0, `killing the nest clears its trail (${trailBefore} -> ${trailAfter})`);
+}
+
 console.log('# Puzzle mode: builds a fixed level and is navigable to the chest');
 {
   const s = createPuzzleState(JSON.parse(JSON.stringify(CONFIG)));
@@ -387,7 +418,7 @@ console.log('# Fruit pays Spores and ends the cycle');
 }
 
 console.log('# Config is data-driven (every action has costs)');
-for (const name of ['grow', 'addSubstrate', 'amputate', 'express', 'digest', 'fruit']) {
+for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
   ok(typeof cfg.actions[name].moveCost === 'number', `${name} has moveCost in CONFIG`);
 }
 

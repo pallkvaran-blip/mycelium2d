@@ -288,11 +288,11 @@ const CONFIG = {
       energyCost: 4,
       radius: 60,                // cut radius (world units) — removes ALL strands inside it (SLIDER)
     },
-    express: {
+    attackAnts: {
       moveCost: 1,
-      energyCostBase: 16,        // cost of taking a trait from level n -> n+1
-      energyCostPerLevel: 9,     // added per current level (escalating)
-      maxLevel: 5,
+      energyCost: 30,            // expensive: ~3 bombs (each -40% HP) to destroy a nest
+      damageFrac: 0.4,           // fraction of MAX nest HP removed per bomb
+      pickRadius: 90,            // click tolerance (world units) for hitting a nest
     },
     digest: {
       moveCost: 1,
@@ -311,11 +311,15 @@ const CONFIG = {
     },
   },
 
-  // ---- Genetic defence trait (A2, B5) — kept deliberately simple ----------
-  traits: {
-    // The one defence: broad passive armour AND it resists the INITIAL
-    // Trichoderma contact (it does NOT slow the spread once inside you).
-    melanize: { damageReductionPerLevel: 0.16, contactResistPerLevel: 0.18 },
+  // ---- Ants (A2, B6) — a fixed territorial threat + food rival ------------
+  // A nest near the surface runs a trail to the nearest food and harvests it,
+  // working through the whole map (nests see everything — no sight limit). The
+  // trail is impassable to your growth. You go around, bomb the nest, or race
+  // them to the food so they relocate.
+  ants: {
+    nestCount: 2,                // nests seeded per (sandbox) map
+    maxHp: 100,
+    harvestRate: 60,             // nutrient an active nest carries off its target food per turn (SLIDER)
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -407,6 +411,8 @@ const SLIDERS = [
   { path: 'trichoderma.sightRadius',     label: 'Mold Sight Range',    min: 100, max: 1500, step: 50 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
+  { path: 'ants.harvestRate',            label: 'Ant Harvest Rate',    min: 0,   max: 200, step: 5 },
+  { path: 'actions.attackAnts.energyCost', label: 'Attack Ants Cost',  min: 0,   max: 80,  step: 5 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
@@ -478,7 +484,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     this.surface = new Array(this.cols);
@@ -687,7 +693,7 @@ class Network {
     this.byId = new Map();     // id -> node
     this.nextNodeId = 0;
 
-    this.traits = { melanize: 0 };
+    this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -845,9 +851,9 @@ class Network {
       // Keep growth underground and inside the world.
       ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
       nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
-      // Can't grow through rock.
+      // Can't grow through rock or across an active ant trail.
       const tcell = substrate.cellAtWorld(nx, ny);
-      if (tcell && tcell.rock) continue;
+      if (tcell && (tcell.rock || tcell.antTrail)) continue;
       // Don't pile nodes on top of each other.
       if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
       const child = this.addNode(nx, ny, node);
@@ -902,19 +908,6 @@ class Network {
     if (this.nodes.length === 0) this.alive = false;
     this.recomputeVitality();
     return removed.size;
-  }
-
-  // --- Express (A2): raise a defence trait one level, organism-wide --------
-  expressTrait(name) {
-    if (!(name in this.traits)) return false;
-    const max = this.config.actions.express.maxLevel;
-    if (this.traits[name] >= max) return false;
-    this.traits[name]++;
-    return true;
-  }
-  expressCost(name) {
-    const e = this.config.actions.express;
-    return e.energyCostBase + e.energyCostPerLevel * this.traits[name];
   }
 
   // --- Occupancy: which cells the network sits in (income + held ground) ---
@@ -982,7 +975,7 @@ class Network {
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
         const tc = substrate.cellAtWorld(nx, ny);
-        if (tc && tc.rock) continue;
+        if (tc && (tc.rock || tc.antTrail)) continue;
         this.addNode(nx, ny, parent);
         created++;
       }
@@ -995,26 +988,6 @@ class Network {
   // the renderer to thicken the colony progressively, petri-dish style).
   agePass() {
     for (const n of this.nodes) n.age++;
-  }
-
-  // --- Per-turn hazard damage (Trichoderma handled in threats.js) ----------
-  // Strands recover only when genuinely safe AND fed: not in a hazard cell,
-  // not in a Trichoderma-infected cell, and with Energy to spare. Otherwise
-  // recovery would silently cancel the mold's contact damage applied just
-  // before this step, and would heal even while starving.
-  applyHazardDamage(substrate) {
-    const v = this.config.vitality;
-    const melaninRed = this.traits.melanize * this.config.traits.melanize.damageReductionPerLevel;
-    const dmgMul = Math.max(0, 1 - melaninRed);
-    const fed = this.energy > 0;
-    for (const n of this.nodes) {
-      const cell = substrate.cellAtWorld(n.x, n.y);
-      if (cell && cell.hazard) {
-        n.health -= v.hazardDamagePerTurn * dmgMul;
-      } else if (n.health < 1 && fed && (!cell || cell.trich <= 0)) {
-        n.health = Math.min(1, n.health + v.recoveryPerTurn);
-      }
-    }
   }
 
   applyStarvation() {
@@ -1356,13 +1329,11 @@ function stampCloudField(sub, clouds) {
 // When a cloud's edge touches a healthy strand it breaches — infecting that
 // strand and instantly claiming a chunk of mycelium around it — then the cloud
 // is spent (it begins to fade). After that the rot races along your filaments
-// several rings per turn. Melanize gives a chance to resist the initial breach.
+// several rings per turn.
 function infectNetwork(net, state) {
   const { config, substrate: sub, rng } = state;
   const t = config.trichoderma;
   const cs = sub.cellSize;
-  const melanize = net.traits.melanize || 0;
-  const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
 
   // 1) Contact — a cloud that touches you infects (chunk) and then spends itself.
   for (const cloud of (state.clouds || [])) {
@@ -1375,7 +1346,7 @@ function infectNetwork(net, state) {
       if (d <= reach * reach && d < best) { best = d; hit = n; }
     }
     if (hit) {
-      if (rng() < t.contactChance * (1 - resist)) {
+      if (rng() < t.contactChance) {
         hit.infected = true;
         infectAround(net, hit, t.contactChunk, 1, rng);
       }
@@ -1459,6 +1430,162 @@ function totalTrichoderma(substrate) {
 }
 
   return { seedTrichoderma, placeClouds, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, tickThreat, checkPuzzleGoal, totalTrichoderma };
+})();
+
+// ===================== src/engine/ants.js =====================
+const __m_engine_ants = (function () {
+// =============================================================================
+// Ants — a fixed territorial threat + food rival (A2/B6).
+//
+// A nest sits near the surface and runs a TRAIL to the nearest reachable food
+// (BFS around rock). The ants harvest that food; when it's gone they retarget
+// the next-nearest food, so an un-bombed nest works through the whole map
+// (nests see everything — no sight limit). The trail is IMPASSABLE to your
+// growth, so you can't pierce it; you go around, race them to the food (so they
+// relocate), or bomb the nest (Attack Ants action).
+//
+// Renderer-agnostic: operates on substrate cells + the Network objects, with the
+// live nest list on `state.ants`. No genetic-trait defence (Melanize) here.
+// =============================================================================
+
+// Seed nests near the surface, away from the colony's start column.
+function seedAnts(substrate, config, rng, network) {
+  const a = config.ants;
+  const nests = [];
+  const rootCol = network && network.root ? substrate.colAtX(network.root.x) : -99;
+  for (let i = 0; i < (a.nestCount || 0); i++) {
+    let col = rng.int(2, substrate.cols - 3);
+    for (let tries = 0; tries < 40; tries++) {
+      col = rng.int(2, substrate.cols - 3);
+      const top = substrate.cellAt(col, 0);
+      if (top && !top.rock && Math.abs(col - rootCol) > 6) break;
+    }
+    const ctr = substrate.cellCenter(col, 0);
+    const nest = {
+      col, x: ctr.x, y: substrate.surfaceY,
+      hp: a.maxHp, maxHp: a.maxHp,
+      target: null, path: [], phase: 0, dormant: false,
+    };
+    retarget(substrate, nest);
+    nests.push(nest);
+  }
+  setTrailFields(substrate, nests);
+  return nests;
+}
+
+// Per-turn: each nest harvests its target food (retargeting when it's gone),
+// then we re-stamp the trail barrier and eat any strands a trail moved onto.
+function stepAnts(state) {
+  const sub = state.substrate;
+  const nests = state.ants;
+  if (!nests || !nests.length) return;
+  for (const nest of nests) {
+    let cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
+    if (!cell || cell.nutrient <= 0) {
+      retarget(sub, nest);
+      cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
+    }
+    if (cell && cell.nutrient > 0) {
+      cell.nutrient = Math.max(0, cell.nutrient - state.config.ants.harvestRate);
+      nest.dormant = false;
+    } else {
+      nest.dormant = true;   // no reachable food left
+    }
+    nest.phase = (nest.phase || 0) + 1;
+  }
+  setTrailFields(sub, nests);
+  eatStrandsOnTrail(state);
+}
+
+// Bomb the nearest nest within radius: remove a fraction of its MAX hp; destroy
+// it (and clear its trail) at <= 0. Returns {hp,maxHp,dead} or null if no hit.
+function attackNest(state, x, y, radius, frac) {
+  const nests = state.ants || [];
+  let best = null, bestD2 = radius * radius;
+  for (const nest of nests) {
+    const dx = nest.x - x, dy = nest.y - y, d2 = dx * dx + dy * dy;
+    if (d2 <= bestD2) { bestD2 = d2; best = nest; }
+  }
+  if (!best) return null;
+  best.hp -= frac * best.maxHp;
+  if (best.hp <= 0) {
+    best.hp = 0;
+    state.ants = nests.filter((n) => n !== best);
+    setTrailFields(state.substrate, state.ants);
+    return { hp: 0, maxHp: best.maxHp, dead: true };
+  }
+  return { hp: best.hp, maxHp: best.maxHp, dead: false };
+}
+
+// --- internals --------------------------------------------------------------
+
+// Point a nest at the nearest reachable food and lay its trail there.
+function retarget(sub, nest) {
+  const t = buildTrail(sub, nest.col, 0);
+  if (t) { nest.target = t.target; nest.path = t.path; nest.dormant = false; }
+  else { nest.target = null; nest.path = []; nest.dormant = true; }
+}
+
+// BFS from the nest cell (around rock) to the nearest food cell; returns the
+// {target, path} (path is a list of {col,row} from nest to food) or null.
+function buildTrail(sub, nestCol, nestRow) {
+  const W = sub.cols, H = sub.rows;
+  const parent = new Int32Array(W * H).fill(-2);   // -2 unvisited, -1 = start
+  const start = nestRow * W + nestCol;
+  parent[start] = -1;
+  const q = [start];
+  let head = 0, foodIdx = -1;
+  const nbrs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  while (head < q.length) {
+    const cur = q[head++];
+    const cell = sub.cells[cur];
+    if (cell.nutrient > 0 && cur !== start) { foodIdx = cur; break; }  // nearest food (BFS order)
+    const c = cur % W, r = (cur / W) | 0;
+    for (const [dc, dr] of nbrs) {
+      const nc = c + dc, nr = r + dr;
+      if (nc < 0 || nr < 0 || nc >= W || nr >= H) continue;
+      const ni = nr * W + nc;
+      if (parent[ni] !== -2 || sub.cells[ni].rock) continue;
+      parent[ni] = cur;
+      q.push(ni);
+    }
+  }
+  if (foodIdx === -1) return null;
+  const path = [];
+  for (let cur = foodIdx; cur !== -1; cur = parent[cur]) path.push({ col: cur % W, row: (cur / W) | 0 });
+  path.reverse();
+  return { target: { col: foodIdx % W, row: (foodIdx / W) | 0 }, path };
+}
+
+// Stamp the trail barrier into cells: every trail cell EXCEPT the food endpoint
+// blocks growth (the endpoint stays reachable so you can still race for it).
+function setTrailFields(sub, nests) {
+  for (const c of sub.cells) c.antTrail = false;
+  for (const nest of nests) {
+    if (!nest.path) continue;
+    for (let k = 0; k < nest.path.length - 1; k++) {
+      const p = nest.path[k];
+      const cell = sub.cellAt(p.col, p.row);
+      if (cell && !cell.rock) cell.antTrail = true;
+    }
+  }
+}
+
+// Ants chew any of your strands a trail now runs through (e.g. after it moved).
+function eatStrandsOnTrail(state) {
+  const sub = state.substrate;
+  for (const net of state.networks) {
+    if (!net.alive) continue;
+    const remove = new Set();
+    for (const n of net.nodes) {
+      const cell = sub.cellAtWorld(n.x, n.y);
+      if (cell && cell.antTrail) remove.add(n.id);
+    }
+    if (remove.size) net._removeNodes(remove);
+  }
+}
+
+  return { seedAnts, stepAnts, attackNest };
 })();
 
 // ===================== src/engine/puzzle.js =====================
@@ -1569,6 +1696,7 @@ const __m_engine_state = (function () {
   const { generateSubstrate, Substrate } = __m_engine_substrate;
   const { Network } = __m_engine_network;
   const { seedTrichoderma, placeClouds } = __m_engine_threats;
+  const { seedAnts } = __m_engine_ants;
   const { buildPuzzle } = __m_engine_puzzle;
   const { setByPath } = __m_config;
 // =============================================================================
@@ -1592,7 +1720,10 @@ function createState(config, seed) {
   // from both food and you, and visibly creep in toward their nearest target.
   const clouds = seedTrichoderma(substrate, config, rng, network);
 
-  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox' });
+  // Ant nests near the surface, each running a trail to its nearest food.
+  const ants = seedAnts(substrate, config, rng, network);
+
+  return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants });
 }
 
 // Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world
@@ -1613,6 +1744,7 @@ function createPuzzleState(baseConfig) {
     mode: 'puzzle',
     chest: built.chest,
     won: false,
+    ants: [],   // ants are a sandbox threat for now; the puzzle has none
   });
 }
 
@@ -1658,6 +1790,7 @@ function newRun(config, seed) {
 // ===================== src/engine/actions.js =====================
 const __m_engine_actions = (function () {
   const { spawnTrichodermaAt, tickThreat } = __m_engine_threats;
+  const { attackNest } = __m_engine_ants;
 // =============================================================================
 // Actions — the six basic actions, the backbone of the game (A2, B5).
 //
@@ -1714,21 +1847,17 @@ const ACTIONS = {
     },
   },
 
-  express: {
-    label: 'Express',
-    target: 'trait',
-    desc: 'Induce a genetic defence trait across the whole organism.',
-    energyCost(state, ctx) {
-      return state.active.expressCost(ctx.trait);
-    },
+  attackAnts: {
+    label: 'Attack Ants',
+    target: 'point',
+    desc: 'Drop a bomb on an ant nest — removes a chunk of its HP.',
     apply(state, ctx) {
-      const net = state.active;
-      const max = state.config.actions.express.maxLevel;
-      if (net.traits[ctx.trait] >= max) {
-        return { ok: false, message: `${cap(ctx.trait)} is already at max level.` };
-      }
-      net.expressTrait(ctx.trait);
-      return { ok: true, message: `Expressed ${cap(ctx.trait)} → level ${net.traits[ctx.trait]}.` };
+      const a = state.config.actions.attackAnts;
+      const hit = attackNest(state, ctx.x, ctx.y, a.pickRadius, a.damageFrac);
+      if (!hit) return { ok: false, message: 'No ant nest close enough to bomb.' };
+      return hit.dead
+        ? { ok: true, message: 'Bombed the nest — it collapsed! The ants scatter.' }
+        : { ok: true, message: `Bombed the nest — HP down to ${Math.round(hit.hp)}/${hit.maxHp}.` };
     },
   },
 
@@ -1783,9 +1912,6 @@ const ACTIONS = {
     },
   },
 };
-
-// Capitalise a trait name for messages.
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // What it costs to perform an action right now (energy may be dynamic).
 function actionCost(state, name, ctx = {}) {
@@ -1849,6 +1975,7 @@ function devSpawnTrichoderma(state, x, y) {
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
+  const { stepAnts } = __m_engine_ants;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -1871,6 +1998,10 @@ function endTurn(state) {
   // The mould also acts on end-turn: the clouds creep/eat once more, and the
   // infection keeps spreading — so ending your turn never freezes the threat.
   spreadTrichoderma(state);
+
+  // Ants harvest their target food once per turn, retargeting when it runs out,
+  // and re-stamp their impassable trails (chewing any strand now under them).
+  stepAnts(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -3087,15 +3218,11 @@ const __m_render_ui = (function () {
 // =============================================================================
 
 
-const TRAITS = [
-  { key: 'melanize', label: 'Melanize', hint: 'armour; resists the initial mould contact' },
-];
-
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
   'Does 3-moves + Energy make each turn a real prioritisation?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
-  'Does Express (defend, organism-wide) vs. Grow (expand) feel like a meaningful recurring tradeoff?',
+  'Ants: is "go around / race them to the food / bomb the nest" a meaningful three-way choice?',
   'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
   'Is Digest-burst a useful lever or redundant?',
 ];
@@ -3132,7 +3259,6 @@ class UI {
       <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
       </div>
-      <div class="traits" id="hud-traits"></div>
     `;
     root.appendChild(hud);
 
@@ -3159,23 +3285,8 @@ class UI {
     const bar = div('panel actionbar');
     this.el.buttons = {};
 
-    const order = ['grow', 'addSubstrate', 'amputate'];
+    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit'];
     for (const name of order) bar.appendChild(this._actionButton(name));
-
-    // Express group (three traits)
-    const exprGroup = div('expr-group');
-    exprGroup.appendChild(span('Express', 'group-label'));
-    for (const t of TRAITS) {
-      const b = button(`btn trait`, '');
-      b.dataset.trait = t.key;
-      b.title = t.hint;
-      b.onclick = () => this.handlers.onAction('express', { trait: t.key });
-      exprGroup.appendChild(b);
-      this.el.buttons['express:' + t.key] = b;
-    }
-    bar.appendChild(exprGroup);
-
-    for (const name of ['digest', 'fruit']) bar.appendChild(this._actionButton(name));
 
     // End turn + restart
     const ctrl = div('ctrl');
@@ -3280,6 +3391,7 @@ class UI {
     const hints = {
       addSubstrate: 'Click underground to place a food patch and lure growth there.',
       amputate: 'Click to cut out every strand inside the red circle.',
+      attackAnts: 'Click an ant nest to bomb it — each hit removes a chunk of its HP.',
     };
     if (name && hints[name]) this.setHint(hints[name]);
   }
@@ -3337,33 +3449,16 @@ class UI {
       vfill.style.background = vitalityColor(net.vitality);
     }
 
-    // Express trait readout
-    const traitsEl = document.getElementById('hud-traits');
-    if (traitsEl) {
-      traitsEl.innerHTML = TRAITS.map((t) => {
-        const lvl = net.traits[t.key];
-        return `<span class="tr ${lvl > 0 ? 'on' : ''}">${t.label[0]}${t.label[1]}<b>${lvl}</b></span>`;
-      }).join('');
-    }
-
     // Button states / costs
-    for (const name of ['grow', 'addSubstrate', 'amputate', 'digest', 'fruit']) {
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
       const { moves, energy } = actionCost(s, name);
       btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive;
-    }
-    // Express trait buttons (dynamic cost)
-    for (const t of TRAITS) {
-      const btn = this.el.buttons['express:' + t.key];
-      if (!btn) continue;
-      const lvl = net.traits[t.key];
-      const cost = net.expressCost(t.key);
-      const maxed = lvl >= s.config.actions.express.maxLevel;
-      btn.innerHTML = `${t.label} <span class="lvl">L${lvl}</span> <span class="cost">${maxed ? 'MAX' : cost + '⚡'}</span>`;
-      btn.disabled = s.runOver || maxed || s.movesLeft < s.config.actions.express.moveCost
-        || net.energy < cost || !net.alive;
+      // Hide the ant-bomb entirely when there are no nests to bomb (e.g. puzzle).
+      const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
+      btn.style.display = noAnts ? 'none' : '';
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || noAnts;
     }
     this.el.endBtn.disabled = s.runOver;
 
@@ -3673,6 +3768,7 @@ function frame(time) {
 
   drawChest(time);
   drawCloudSight();
+  drawAnts(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -3757,6 +3853,79 @@ function drawCloudSight() {
   ctx.restore();
 }
 
+// Ants: each nest is a surface mound running an impassable trail to its target
+// food, with little ants marching along it. A dormant nest (no reachable food)
+// is dimmed. Nests carry an HP bar so the player can see how many bombs remain.
+function drawAnts(time) {
+  const ants = state.ants;
+  if (!ants || !ants.length) return;
+  const sub = state.substrate;
+  const z = camera.zoom;
+  ctx.save();
+  for (const nest of ants) {
+    const path = nest.path || [];
+    const total = path.length - 1;
+
+    // --- trail line through the path cells ---
+    if (total >= 1) {
+      ctx.lineWidth = Math.max(2, 3.5 * z);
+      ctx.strokeStyle = nest.dormant ? 'rgba(110,85,55,0.30)' : 'rgba(55,38,22,0.55)';
+      ctx.beginPath();
+      for (let i = 0; i < path.length; i++) {
+        const c = sub.cellCenter(path[i].col, path[i].row);
+        const p = camera.worldToScreen(c.x, c.y);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+
+      // --- marching ants: dots flowing toward the food end ---
+      if (!nest.dormant) {
+        const dots = Math.min(14, Math.max(3, total));
+        const flow = (time * 0.00045) % 1;
+        ctx.fillStyle = 'rgba(20,14,8,0.92)';
+        for (let d = 0; d < dots; d++) {
+          const t = (flow + d / dots) % 1;
+          const fp = t * total;
+          const i0 = Math.min(total - 1, Math.floor(fp)), frac = fp - i0;
+          const a = sub.cellCenter(path[i0].col, path[i0].row);
+          const b = sub.cellCenter(path[i0 + 1].col, path[i0 + 1].row);
+          const sp = camera.worldToScreen(a.x + (b.x - a.x) * frac, a.y + (b.y - a.y) * frac);
+          ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(1.3, 2.2 * z), 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // --- nest mound at the surface ---
+    const s = camera.worldToScreen(nest.x, nest.y);
+    const rad = Math.max(13, 16 * z);
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    const dim = nest.dormant ? 0.6 : 1;
+    const g = ctx.createRadialGradient(0, -rad * 0.3, rad * 0.2, 0, 0, rad);
+    g.addColorStop(0, `rgba(${Math.round(125 * dim)},${Math.round(90 * dim)},${Math.round(55 * dim)},1)`);
+    g.addColorStop(1, `rgba(${Math.round(58 * dim)},${Math.round(38 * dim)},${Math.round(20 * dim)},1)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-rad, 0);
+    ctx.quadraticCurveTo(0, -rad * 1.25, rad, 0);
+    ctx.closePath();
+    ctx.fill();
+    // entrance hole
+    ctx.fillStyle = 'rgba(10,6,3,0.9)';
+    ctx.beginPath(); ctx.ellipse(0, -rad * 0.12, rad * 0.28, rad * 0.20, 0, 0, Math.PI * 2); ctx.fill();
+
+    // HP bar above the mound
+    const bw = rad * 1.8, bh = Math.max(3, 4 * z), by = -rad * 1.55;
+    const frac = Math.max(0, nest.hp / nest.maxHp);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(-bw / 2, by, bw, bh);
+    ctx.fillStyle = frac > 0.5 ? '#5fbf52' : frac > 0.25 ? '#d8b13a' : '#d85a3a';
+    ctx.fillRect(-bw / 2, by, bw * frac, bh);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 function drawTargetingCursor(time) {
   const sel = ui && ui.selectedAction;
   if (!sel) return;
@@ -3793,15 +3962,47 @@ function drawTargetingCursor(time) {
     ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.arc(s.x, s.y, rad * camera.zoom, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
+  } else if (sel === 'attackAnts') {
+    // Mark the nest that this click would bomb (nearest within pick radius).
+    const pick = state.config.actions.attackAnts.pickRadius;
+    let best = null, bestD2 = pick * pick;
+    for (const nest of (state.ants || [])) {
+      const dx = nest.x - w.x, dy = nest.y - w.y, d2 = dx * dx + dy * dy;
+      if (d2 <= bestD2) { bestD2 = d2; best = nest; }
+    }
+    ctx.save();
+    if (best) {
+      const sp = camera.worldToScreen(best.x, best.y);
+      const pulse = 0.6 + 0.4 * Math.sin(time * 0.008);
+      ctx.strokeStyle = `rgba(255,90,60,${pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, Math.max(20, 22 * camera.zoom), 0, Math.PI * 2); ctx.stroke();
+      // crosshair
+      ctx.beginPath();
+      ctx.moveTo(sp.x - 30, sp.y); ctx.lineTo(sp.x - 14, sp.y);
+      ctx.moveTo(sp.x + 14, sp.y); ctx.lineTo(sp.x + 30, sp.y);
+      ctx.moveTo(sp.x, sp.y - 30); ctx.lineTo(sp.x, sp.y - 14);
+      ctx.moveTo(sp.x, sp.y + 14); ctx.lineTo(sp.x, sp.y + 30);
+      ctx.stroke();
+    } else {
+      // no nest in range — a faint reticle at the cursor
+      const sp = camera.worldToScreen(w.x, w.y);
+      ctx.strokeStyle = 'rgba(200,200,200,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, 16, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
 // --- boot -------------------------------------------------------------------
-// Default to the PUZZLE on load (we're playtesting it). "New Map ↻" starts a
-// random sandbox; "#sandbox" in the URL also boots straight into a random map.
+// Default to a random SANDBOX on load (we're playtesting the ant threat, which
+// only appears in the sandbox). "#puzzle" in the URL boots the fixed puzzle;
+// the "Puzzle 🧩" button switches to it at any time.
 setupInput();
-if (location.hash === '#sandbox') start((Date.now() & 0x7fffffff) || 1);
-else startPuzzle();
+if (location.hash === '#puzzle') startPuzzle();
+else start((Date.now() & 0x7fffffff) || 1);
 requestAnimationFrame(frame);
 
   return {  };

@@ -10,15 +10,11 @@
 import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 
-const TRAITS = [
-  { key: 'melanize', label: 'Melanize', hint: 'armour; resists the initial mould contact' },
-];
-
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
   'Does 3-moves + Energy make each turn a real prioritisation?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
-  'Does Express (defend, organism-wide) vs. Grow (expand) feel like a meaningful recurring tradeoff?',
+  'Ants: is "go around / race them to the food / bomb the nest" a meaningful three-way choice?',
   'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
   'Is Digest-burst a useful lever or redundant?',
 ];
@@ -55,7 +51,6 @@ export class UI {
       <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
       </div>
-      <div class="traits" id="hud-traits"></div>
     `;
     root.appendChild(hud);
 
@@ -82,23 +77,8 @@ export class UI {
     const bar = div('panel actionbar');
     this.el.buttons = {};
 
-    const order = ['grow', 'addSubstrate', 'amputate'];
+    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit'];
     for (const name of order) bar.appendChild(this._actionButton(name));
-
-    // Express group (three traits)
-    const exprGroup = div('expr-group');
-    exprGroup.appendChild(span('Express', 'group-label'));
-    for (const t of TRAITS) {
-      const b = button(`btn trait`, '');
-      b.dataset.trait = t.key;
-      b.title = t.hint;
-      b.onclick = () => this.handlers.onAction('express', { trait: t.key });
-      exprGroup.appendChild(b);
-      this.el.buttons['express:' + t.key] = b;
-    }
-    bar.appendChild(exprGroup);
-
-    for (const name of ['digest', 'fruit']) bar.appendChild(this._actionButton(name));
 
     // End turn + restart
     const ctrl = div('ctrl');
@@ -203,6 +183,7 @@ export class UI {
     const hints = {
       addSubstrate: 'Click underground to place a food patch and lure growth there.',
       amputate: 'Click to cut out every strand inside the red circle.',
+      attackAnts: 'Click an ant nest to bomb it — each hit removes a chunk of its HP.',
     };
     if (name && hints[name]) this.setHint(hints[name]);
   }
@@ -260,33 +241,16 @@ export class UI {
       vfill.style.background = vitalityColor(net.vitality);
     }
 
-    // Express trait readout
-    const traitsEl = document.getElementById('hud-traits');
-    if (traitsEl) {
-      traitsEl.innerHTML = TRAITS.map((t) => {
-        const lvl = net.traits[t.key];
-        return `<span class="tr ${lvl > 0 ? 'on' : ''}">${t.label[0]}${t.label[1]}<b>${lvl}</b></span>`;
-      }).join('');
-    }
-
     // Button states / costs
-    for (const name of ['grow', 'addSubstrate', 'amputate', 'digest', 'fruit']) {
+    for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
       const { moves, energy } = actionCost(s, name);
       btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive;
-    }
-    // Express trait buttons (dynamic cost)
-    for (const t of TRAITS) {
-      const btn = this.el.buttons['express:' + t.key];
-      if (!btn) continue;
-      const lvl = net.traits[t.key];
-      const cost = net.expressCost(t.key);
-      const maxed = lvl >= s.config.actions.express.maxLevel;
-      btn.innerHTML = `${t.label} <span class="lvl">L${lvl}</span> <span class="cost">${maxed ? 'MAX' : cost + '⚡'}</span>`;
-      btn.disabled = s.runOver || maxed || s.movesLeft < s.config.actions.express.moveCost
-        || net.energy < cost || !net.alive;
+      // Hide the ant-bomb entirely when there are no nests to bomb (e.g. puzzle).
+      const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
+      btn.style.display = noAnts ? 'none' : '';
+      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || noAnts;
     }
     this.el.endBtn.disabled = s.runOver;
 
