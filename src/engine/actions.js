@@ -38,7 +38,7 @@ export const ACTIONS = {
       const a = state.config.actions.addSubstrate;
       const sub = state.substrate;
       if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
-      sub.deposit(ctx.x, ctx.y, a.amount * a.lureStrength, a.radius);
+      sub.deposit(ctx.x, ctx.y, state.config.substrate.foodCellNutrient, a.radius);
       return { ok: true, message: 'Placed substrate to lure growth.' };
     },
   },
@@ -81,23 +81,19 @@ export const ACTIONS = {
       const d = state.config.actions.digest;
       const net = state.active;
       const sub = state.substrate;
-      const cells = net.collectOccupiedCells(sub)
-        .filter((c) => c.nutrient > 0)
-        .sort((a, b) => b.nutrient - a.nutrient);
+      const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
       if (cells.length === 0) return { ok: false, message: 'No occupied substrate to digest.' };
-      let remaining = d.burstSize;
+      // Drain a fixed fraction of EACH occupied cell — 2 uses fully digests a
+      // pile of any size, at no loss (you get its full Energy value, just now).
       let gained = 0;
       for (const cell of cells) {
-        if (remaining <= 0) break;
-        const take = Math.min(cell.nutrient, remaining);
+        const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction);
+        cell.nutrient -= take;
         gained += take;
-        // Over-digesting exhausts the patch faster than the Energy it yields.
-        cell.nutrient = Math.max(0, cell.nutrient - take * d.extraDepletion);
-        remaining -= take;
       }
       const energy = Math.round(gained * state.config.energy.incomeEfficiency);
       net.energy += energy;
-      return { ok: true, message: `Digest burst: +${energy} Energy (burns the patch faster).` };
+      return { ok: true, message: `Digest: +${energy} Energy.` };
     },
   },
 

@@ -24,8 +24,7 @@ export const CONFIG = {
     foodClusterCount: 9,         // fewer, rarer pockets — reaching them is the game
     foodClusterRadiusMin: 1,     // small, concentrated pockets
     foodClusterRadiusMax: 3,
-    foodRichnessMin: 95,         // dense & rich (a colonised pocket is a real prize)
-    foodRichnessMax: 185,
+    foodCellNutrient: 100,       // every food cell is worth the same — a pile's value is its SIZE
     rockCount: 7,                // impassable rock formations to route around
     rockRadiusMin: 2,
     rockRadiusMax: 5,
@@ -52,8 +51,8 @@ export const CONFIG = {
   energy: {
     start: 120,                  // starting Energy (SLIDER)
     baselineTrickle: 2,          // small free trickle (you depend on colonising food)
-    passiveIncomeRate: 7,        // max nutrient pulled from each occupied cell/turn (SLIDER)
-    incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed (lossy)
+    passiveIncomeRate: 34,       // nutrient pulled from each colonised cell/turn — ~3 turns to empty a cell (SLIDER)
+    incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },
 
   // ---- Turn loop (A2, B4) -------------------------------------------------
@@ -86,17 +85,18 @@ export const CONFIG = {
 
   // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
   trichoderma: {
-    initialPatches: 3,           // mold patches seeded at map generation
-    patchRadiusMin: 1,
-    patchRadiusMax: 2,
-    spreadRate: 0.55,            // base spread aggressiveness per turn (SLIDER)
-    spreadBase: 0.25,            // base fraction applied to each neighbour spread step
-    spreadThreshold: 0.25,       // a cell must reach this intensity before it spreads
+    initialPatches: 3,           // small mold patches seeded at map generation
+    patchRadiusMin: 0,           // tiny at the start (0 = a single cell)
+    patchRadiusMax: 1,
+    spreadRate: 0.5,             // base spread aggressiveness per turn (SLIDER)
+    spreadBase: 0.16,            // base fraction applied to each neighbour spread step
+    spreadThreshold: 0.35,       // a cell must reach this intensity before it spreads
     spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
     spreadJitterMax: 1.0,
-    foodAttraction: 1.6,         // spreads faster toward food-rich cells
-    intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
-    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist the ground mold
+    decayRate: 0.16,             // mold fades each turn (so it stays a creeping patch, not a blanket)
+    foodAttraction: 1.8,         // creeps toward food / your colonised pockets
+    intensityGainOnFood: 0.06,   // small intensity gain over substrate (kept low so it doesn't balloon)
+    heldResist: 0.6,             // dense healthy network only SLOWS the mold creeping in (doesn't block)
     seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
     // --- network infection (the mould turning your strands green/dead) ---
@@ -133,8 +133,7 @@ export const CONFIG = {
     digest: {
       moveCost: 1,
       energyCost: 8,
-      burstSize: 120,            // big burst — ~3 uses fully digests a typical pocket (SLIDER)
-      extraDepletion: 2.0,       // over-digesting burns the patch ~2x faster than passive income
+      drainFraction: 0.5,        // drains this fraction of EACH occupied cell per use — 2 uses fully digests (SLIDER)
     },
     fruit: {
       moveCost: 1,
@@ -238,12 +237,12 @@ export const CONFIG = {
 export const SLIDERS = [
   { path: 'energy.start',                label: 'Starting Energy',     min: 0,   max: 400, step: 5 },
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
-  { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 30,  step: 1 },
+  { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
   { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
-  { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
+  { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
   { path: 'actions.fruit.shadeMultiplier', label: 'Shade Multiplier',  min: 1,   max: 3,   step: 0.1 },
   { path: 'render.ambientLight',          label: 'Ambient Light',       min: 0.1, max: 1,   step: 0.05 },

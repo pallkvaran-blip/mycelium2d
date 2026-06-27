@@ -23,7 +23,7 @@ export class SubstrateRenderer {
     this.config = config;
     this.noise = makeNoise((seed ^ 0x9e3779b1) >>> 0);
     this.rng = makeRng((seed ^ 0x85ebca6b) >>> 0);
-    this.nutrientRef = config.substrate.foodRichnessMax * 1.4;
+    this.nutrientRef = config.substrate.foodCellNutrient;
 
     const W = Math.ceil(substrate.worldWidth);
     const H = Math.ceil(substrate.worldHeight);

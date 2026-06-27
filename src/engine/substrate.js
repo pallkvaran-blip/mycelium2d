@@ -91,11 +91,9 @@ export class Substrate {
         if (dist > radiusCells) continue;
         const cell = this.cells[this.index(col, row)];
         if (cell.rock) continue;                 // can't place food in rock
-        const falloff = 1 - dist / (radiusCells + 1);
-        const add = amount * falloff;
-        cell.nutrient += add;
-        cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
-        cell.hazard = false; // fresh food displaces a little hazard ground
+        cell.nutrient = Math.max(cell.nutrient, amount);  // flat patch (same value per cell)
+        cell.maxNutrient = Math.max(cell.maxNutrient, amount);
+        cell.hazard = false;
       }
     }
   }
@@ -158,11 +156,12 @@ export function generateSubstrate(config, rng) {
     });
   }
 
-  // 3) Food clusters (gaussian-ish bumps of nutrient).
+  // 3) Food clusters — every cell holds the SAME nutrient (flat), so a pile's
+  //    energy value is purely its size, not random richness.
+  const N = s.foodCellNutrient;
   for (let i = 0; i < s.foodClusterCount; i++) {
     const radius = rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax);
     let cc, cr;
-    const rich = rng.range(s.foodRichnessMin, s.foodRichnessMax);
 
     if (rng.chance(s.richNearRockChance) && rocks.length) {
       // Tuck a rich pocket up against a rock formation (route around to reach).
@@ -183,11 +182,10 @@ export function generateSubstrate(config, rng) {
       cr = rng.int(1, Math.max(1, sub.rows - 2));
     }
 
-    stamp(sub, cc, cr, radius, (cell, dist) => {
+    stamp(sub, cc, cr, radius, (cell) => {
       if (cell.hazard || cell.rock) return;       // no food inside rock
-      const v = rich * Math.max(0, 1 - dist / (radius + 0.5));
-      cell.nutrient += v;
-      cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
+      cell.nutrient = N;                          // flat — same value every cell
+      cell.maxNutrient = N;
     });
   }
 

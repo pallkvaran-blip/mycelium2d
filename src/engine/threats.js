@@ -76,7 +76,7 @@ export function spreadTrichoderma(substrate, network, config, rng) {
       if (intensity <= 0) continue;
       const cell = substrate.cells[idx];
 
-      // Intensity self-gain over food (it eats substrate), capped.
+      // Small self-gain over food (so it persists on a pile), kept low.
       if (cell.nutrient > 0) {
         delta[idx] += t.intensityGainOnFood * intensity;
       }
@@ -88,25 +88,24 @@ export function spreadTrichoderma(substrate, network, config, rng) {
         if (!substrate.inBounds(nc, nr)) continue;
         const nidx = substrate.index(nc, nr);
         const ncell = substrate.cells[nidx];
-        if (ncell.hazard) continue;
-        // Firmly-held ground resists infection.
-        if (ncell.held > t.avoidHeldThreshold) continue;
+        if (ncell.hazard || ncell.rock) continue;
         let amount = t.spreadRate * intensity * t.spreadBase;
-        if (ncell.nutrient > 0) amount *= t.foodAttraction;
-        // A little randomness so the front is organic, not a perfect square.
+        if (ncell.nutrient > 0) amount *= t.foodAttraction;  // creep toward food / your pockets
         amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
-        // Held-but-not-firm ground partially resists, scaled by how held it is.
-        if (ncell.held > 0) amount *= Math.max(0.1, 1 - ncell.held);
+        // Dense healthy network only SLOWS the creep in (it no longer blocks it,
+        // so the mould can actually reach and infect you).
+        if (ncell.held > 0) amount *= Math.max(0.15, 1 - t.heldResist * ncell.held);
         delta[nidx] += amount;
       }
     }
   }
 
-  // Apply spread.
+  // Apply: decay everywhere (so mould fades on barren ground and stays a
+  // creeping patch), then add the spread, clamped to [0, 1].
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
-    if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
-    if (cell.trich < 0.01) cell.trich = 0;
+    cell.trich = Math.min(1, cell.trich * (1 - t.decayRate) + delta[i]);
+    if (cell.trich < 0.02) cell.trich = 0;
   }
 
   // Ambient new outbreaks (off by default).

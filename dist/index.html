@@ -166,8 +166,7 @@ const CONFIG = {
     foodClusterCount: 9,         // fewer, rarer pockets — reaching them is the game
     foodClusterRadiusMin: 1,     // small, concentrated pockets
     foodClusterRadiusMax: 3,
-    foodRichnessMin: 95,         // dense & rich (a colonised pocket is a real prize)
-    foodRichnessMax: 185,
+    foodCellNutrient: 100,       // every food cell is worth the same — a pile's value is its SIZE
     rockCount: 7,                // impassable rock formations to route around
     rockRadiusMin: 2,
     rockRadiusMax: 5,
@@ -194,8 +193,8 @@ const CONFIG = {
   energy: {
     start: 120,                  // starting Energy (SLIDER)
     baselineTrickle: 2,          // small free trickle (you depend on colonising food)
-    passiveIncomeRate: 7,        // max nutrient pulled from each occupied cell/turn (SLIDER)
-    incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed (lossy)
+    passiveIncomeRate: 34,       // nutrient pulled from each colonised cell/turn — ~3 turns to empty a cell (SLIDER)
+    incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },
 
   // ---- Turn loop (A2, B4) -------------------------------------------------
@@ -228,17 +227,18 @@ const CONFIG = {
 
   // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
   trichoderma: {
-    initialPatches: 3,           // mold patches seeded at map generation
-    patchRadiusMin: 1,
-    patchRadiusMax: 2,
-    spreadRate: 0.55,            // base spread aggressiveness per turn (SLIDER)
-    spreadBase: 0.25,            // base fraction applied to each neighbour spread step
-    spreadThreshold: 0.25,       // a cell must reach this intensity before it spreads
+    initialPatches: 3,           // small mold patches seeded at map generation
+    patchRadiusMin: 0,           // tiny at the start (0 = a single cell)
+    patchRadiusMax: 1,
+    spreadRate: 0.5,             // base spread aggressiveness per turn (SLIDER)
+    spreadBase: 0.16,            // base fraction applied to each neighbour spread step
+    spreadThreshold: 0.35,       // a cell must reach this intensity before it spreads
     spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
     spreadJitterMax: 1.0,
-    foodAttraction: 1.6,         // spreads faster toward food-rich cells
-    intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
-    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist the ground mold
+    decayRate: 0.16,             // mold fades each turn (so it stays a creeping patch, not a blanket)
+    foodAttraction: 1.8,         // creeps toward food / your colonised pockets
+    intensityGainOnFood: 0.06,   // small intensity gain over substrate (kept low so it doesn't balloon)
+    heldResist: 0.6,             // dense healthy network only SLOWS the mold creeping in (doesn't block)
     seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
     // --- network infection (the mould turning your strands green/dead) ---
@@ -275,8 +275,7 @@ const CONFIG = {
     digest: {
       moveCost: 1,
       energyCost: 8,
-      burstSize: 120,            // big burst — ~3 uses fully digests a typical pocket (SLIDER)
-      extraDepletion: 2.0,       // over-digesting burns the patch ~2x faster than passive income
+      drainFraction: 0.5,        // drains this fraction of EACH occupied cell per use — 2 uses fully digests (SLIDER)
     },
     fruit: {
       moveCost: 1,
@@ -380,12 +379,12 @@ const CONFIG = {
 const SLIDERS = [
   { path: 'energy.start',                label: 'Starting Energy',     min: 0,   max: 400, step: 5 },
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
-  { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 30,  step: 1 },
+  { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
   { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
-  { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
+  { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
   { path: 'actions.fruit.shadeMultiplier', label: 'Shade Multiplier',  min: 1,   max: 3,   step: 0.1 },
   { path: 'render.ambientLight',          label: 'Ambient Light',       min: 0.1, max: 1,   step: 0.05 },
@@ -524,11 +523,9 @@ class Substrate {
         if (dist > radiusCells) continue;
         const cell = this.cells[this.index(col, row)];
         if (cell.rock) continue;                 // can't place food in rock
-        const falloff = 1 - dist / (radiusCells + 1);
-        const add = amount * falloff;
-        cell.nutrient += add;
-        cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
-        cell.hazard = false; // fresh food displaces a little hazard ground
+        cell.nutrient = Math.max(cell.nutrient, amount);  // flat patch (same value per cell)
+        cell.maxNutrient = Math.max(cell.maxNutrient, amount);
+        cell.hazard = false;
       }
     }
   }
@@ -591,11 +588,12 @@ function generateSubstrate(config, rng) {
     });
   }
 
-  // 3) Food clusters (gaussian-ish bumps of nutrient).
+  // 3) Food clusters — every cell holds the SAME nutrient (flat), so a pile's
+  //    energy value is purely its size, not random richness.
+  const N = s.foodCellNutrient;
   for (let i = 0; i < s.foodClusterCount; i++) {
     const radius = rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax);
     let cc, cr;
-    const rich = rng.range(s.foodRichnessMin, s.foodRichnessMax);
 
     if (rng.chance(s.richNearRockChance) && rocks.length) {
       // Tuck a rich pocket up against a rock formation (route around to reach).
@@ -616,11 +614,10 @@ function generateSubstrate(config, rng) {
       cr = rng.int(1, Math.max(1, sub.rows - 2));
     }
 
-    stamp(sub, cc, cr, radius, (cell, dist) => {
+    stamp(sub, cc, cr, radius, (cell) => {
       if (cell.hazard || cell.rock) return;       // no food inside rock
-      const v = rich * Math.max(0, 1 - dist / (radius + 0.5));
-      cell.nutrient += v;
-      cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
+      cell.nutrient = N;                          // flat — same value every cell
+      cell.maxNutrient = N;
     });
   }
 
@@ -1188,7 +1185,7 @@ function spreadTrichoderma(substrate, network, config, rng) {
       if (intensity <= 0) continue;
       const cell = substrate.cells[idx];
 
-      // Intensity self-gain over food (it eats substrate), capped.
+      // Small self-gain over food (so it persists on a pile), kept low.
       if (cell.nutrient > 0) {
         delta[idx] += t.intensityGainOnFood * intensity;
       }
@@ -1200,25 +1197,24 @@ function spreadTrichoderma(substrate, network, config, rng) {
         if (!substrate.inBounds(nc, nr)) continue;
         const nidx = substrate.index(nc, nr);
         const ncell = substrate.cells[nidx];
-        if (ncell.hazard) continue;
-        // Firmly-held ground resists infection.
-        if (ncell.held > t.avoidHeldThreshold) continue;
+        if (ncell.hazard || ncell.rock) continue;
         let amount = t.spreadRate * intensity * t.spreadBase;
-        if (ncell.nutrient > 0) amount *= t.foodAttraction;
-        // A little randomness so the front is organic, not a perfect square.
+        if (ncell.nutrient > 0) amount *= t.foodAttraction;  // creep toward food / your pockets
         amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
-        // Held-but-not-firm ground partially resists, scaled by how held it is.
-        if (ncell.held > 0) amount *= Math.max(0.1, 1 - ncell.held);
+        // Dense healthy network only SLOWS the creep in (it no longer blocks it,
+        // so the mould can actually reach and infect you).
+        if (ncell.held > 0) amount *= Math.max(0.15, 1 - t.heldResist * ncell.held);
         delta[nidx] += amount;
       }
     }
   }
 
-  // Apply spread.
+  // Apply: decay everywhere (so mould fades on barren ground and stays a
+  // creeping patch), then add the spread, clamped to [0, 1].
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
-    if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
-    if (cell.trich < 0.01) cell.trich = 0;
+    cell.trich = Math.min(1, cell.trich * (1 - t.decayRate) + delta[i]);
+    if (cell.trich < 0.02) cell.trich = 0;
   }
 
   // Ambient new outbreaks (off by default).
@@ -1373,7 +1369,7 @@ const ACTIONS = {
       const a = state.config.actions.addSubstrate;
       const sub = state.substrate;
       if (ctx.y <= sub.surfaceY) return { ok: false, message: 'Place substrate underground (below the soil line).' };
-      sub.deposit(ctx.x, ctx.y, a.amount * a.lureStrength, a.radius);
+      sub.deposit(ctx.x, ctx.y, state.config.substrate.foodCellNutrient, a.radius);
       return { ok: true, message: 'Placed substrate to lure growth.' };
     },
   },
@@ -1416,23 +1412,19 @@ const ACTIONS = {
       const d = state.config.actions.digest;
       const net = state.active;
       const sub = state.substrate;
-      const cells = net.collectOccupiedCells(sub)
-        .filter((c) => c.nutrient > 0)
-        .sort((a, b) => b.nutrient - a.nutrient);
+      const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
       if (cells.length === 0) return { ok: false, message: 'No occupied substrate to digest.' };
-      let remaining = d.burstSize;
+      // Drain a fixed fraction of EACH occupied cell — 2 uses fully digests a
+      // pile of any size, at no loss (you get its full Energy value, just now).
       let gained = 0;
       for (const cell of cells) {
-        if (remaining <= 0) break;
-        const take = Math.min(cell.nutrient, remaining);
+        const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction);
+        cell.nutrient -= take;
         gained += take;
-        // Over-digesting exhausts the patch faster than the Energy it yields.
-        cell.nutrient = Math.max(0, cell.nutrient - take * d.extraDepletion);
-        remaining -= take;
       }
       const energy = Math.round(gained * state.config.energy.incomeEfficiency);
       net.energy += energy;
-      return { ok: true, message: `Digest burst: +${energy} Energy (burns the patch faster).` };
+      return { ok: true, message: `Digest: +${energy} Energy.` };
     },
   },
 
@@ -1753,7 +1745,7 @@ class SubstrateRenderer {
     this.config = config;
     this.noise = makeNoise((seed ^ 0x9e3779b1) >>> 0);
     this.rng = makeRng((seed ^ 0x85ebca6b) >>> 0);
-    this.nutrientRef = config.substrate.foodRichnessMax * 1.4;
+    this.nutrientRef = config.substrate.foodCellNutrient;
 
     const W = Math.ceil(substrate.worldWidth);
     const H = Math.ceil(substrate.worldHeight);
