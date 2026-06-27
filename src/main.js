@@ -398,6 +398,9 @@ function drawTargetingCursor(time) {
 }
 
 // --- boot -------------------------------------------------------------------
+// Default to the PUZZLE on load (we're playtesting it). "New Map ↻" starts a
+// random sandbox; "#sandbox" in the URL also boots straight into a random map.
 setupInput();
-start((Date.now() & 0x7fffffff) || 1);
+if (location.hash === '#sandbox') start((Date.now() & 0x7fffffff) || 1);
+else startPuzzle();
 requestAnimationFrame(frame);
