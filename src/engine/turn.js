@@ -11,6 +11,7 @@
 // =============================================================================
 
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
+import { refillHand } from './cards.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -58,9 +59,10 @@ export function endTurn(state) {
 
   checkPuzzleGoal(state);
 
-  // Advance the clock and refill moves.
+  // Advance the clock, refill moves, and deal a fresh hand of cards.
   state.turn += 1;
   state.movesLeft = config.turn.movesPerTurn;
+  if (!state.runOver && state.hand) refillHand(state);
 
   if (!state.runOver) {
     const trickle = config.energy.baselineTrickle;
@@ -75,10 +77,11 @@ export function endTurn(state) {
 function resolveIncome(net, substrate, config) {
   const e = config.energy;
   const cells = net.collectOccupiedCells(substrate);
+  const rate = e.passiveIncomeRate + (net.incomeBonus || 0);   // engine cards raise this
   let nutrientDrawn = 0;
   for (const cell of cells) {
     // You only digest substrate you've colonised — income ramps with the mat.
-    const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
+    const take = Math.min(cell.nutrient, rate) * cell.colonized;
     cell.nutrient -= take;
     nutrientDrawn += take;
   }

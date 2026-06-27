@@ -9,7 +9,8 @@
 
 import { CONFIG } from './config.js';
 import { createState, createPuzzleState } from './engine/state.js';
-import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
+import { devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
+import { playCard, CARDS } from './engine/cards.js';
 import { endTurn } from './engine/turn.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
@@ -26,8 +27,6 @@ let state, ui, substrateRenderer;
 const networkRenderers = new Map();
 
 let uiDirty = true;
-let previewFruit = false;
-let previewFruitPoints = [];
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -40,12 +39,10 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 function begin(newState) {
   state = newState;
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
+  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, playCard, endTurn };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
-  ui.setSelectedAction(null);
-  previewFruit = false;
-  previewFruitPoints = [];
+  ui.setSelectedCard(null);
   resize();
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
@@ -82,22 +79,35 @@ function expandedBounds() {
 
 // --- input handlers (passed to UI) -----------------------------------------
 const handlers = {
-  onAction(name, ctx) {
-    const a = ACTIONS[name];
-    // Targeted actions: first click selects targeting mode; the canvas click
-    // supplies coordinates.
-    if ((a.target === 'point' || a.target === 'node') && (!ctx || ctx.x === undefined)) {
-      ui.setSelectedAction(ui.selectedAction === name ? null : name);
+  // Click a card in hand. Instant cards play now; targeted cards (substrate /
+  // amputate) arm a board click.
+  onCard(inst) {
+    const card = CARDS[inst.key];
+    if (!card) return;
+    if (card.target === 'point' || card.target === 'node') {
+      ui.setSelectedCard(ui.selectedCard === inst ? null : inst);
       uiDirty = true;
       return;
     }
-    const res = performAction(state, name, ctx || {});
-    afterAction(name, res);
+    afterCardPlay(playCard(state, inst));
+  },
+  onFruit() {
+    const f = state.config.actions.fruit;
+    if (!state.active.alive || state.runOver) return;
+    if (state.active.energy < f.energyCost) { state.log('Not enough Energy to fruit.', 'warn'); uiDirty = true; return; }
+    const res = ACTIONS.fruit.apply(state, {});
+    if (res.ok) { state.active.energy -= f.energyCost; state.log(res.message, 'action'); }
+    else state.log(res.message, 'warn');
+    substrateRenderer.markDirty();
+    rendererFor(state.active).markStructureDirty();
+    if (state.runOver) ui.showOverlay(state.runResult);
+    uiDirty = true;
   },
   onEndTurn() {
     endTurn(state);
     substrateRenderer.markDirty();
     for (const net of state.networks) rendererFor(net).markStructureDirty();
+    ui.setSelectedCard(null);
     if (state.runOver) ui.showOverlay(state.runResult);
     uiDirty = true;
   },
@@ -121,34 +131,26 @@ const handlers = {
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
-  onFruitPreview(on) {
-    previewFruit = on;
-    // Compute the candidate fruit points once, on hover-start (a UI event, not
-    // the render loop), so the per-frame draw just reuses this cache.
-    if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
-  },
 };
 
-function afterAction(name, res) {
+function afterCardPlay(res) {
   if (!res || !res.ok) { uiDirty = true; return; }
-  // The mould steps on EVERY action, so both layers may have changed: clouds
-  // moved / ate (substrate) and the rot advanced along filaments (structure).
+  // The mould steps on EVERY card played, so both layers may have changed:
+  // clouds moved / ate (substrate) and the rot advanced (network structure).
   substrateRenderer.markDirty();
   rendererFor(state.active).markStructureDirty();
-  if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
+  ui.setSelectedCard(null);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
 }
 
 // --- canvas interaction -----------------------------------------------------
 function onCanvasClick(worldX, worldY) {
-  const sel = ui.selectedAction;
-  if (!sel) return;
-  const a = ACTIONS[sel];
-  if (a.target === 'point' || a.target === 'node') {
-    const res = performAction(state, sel, { x: worldX, y: worldY });
-    afterAction(sel, res);
-    if (state.movesLeft <= 0 || state.active.energy < 0) ui.setSelectedAction(null);
+  const inst = ui.selectedCard;
+  if (!inst) return;
+  const card = CARDS[inst.key];
+  if (card && (card.target === 'point' || card.target === 'node')) {
+    afterCardPlay(playCard(state, inst, { x: worldX, y: worldY }));
   }
 }
 
@@ -207,7 +209,7 @@ function setupInput() {
     mouse.down = false;
     if (mouse.moved) return;
     const rect = canvas.getBoundingClientRect();
-    if (!ui.selectedAction) {
+    if (!ui.selectedCard) {
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
       if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
@@ -259,11 +261,6 @@ function frame(time) {
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
     if (net.fruited && net.fruitPoints.length) drawFruitBodies(ctx, camera, net.fruitPoints, time, false);
-  }
-
-  // Fruit preview (where would it fruit?) — uses the cache from hover-start.
-  if (previewFruit && !state.runOver) {
-    drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
   // Dynamic lighting: dim the earth, then add the colony's glow back in.
@@ -359,23 +356,32 @@ function drawCloudSight() {
 }
 
 function drawTargetingCursor(time) {
-  const sel = ui && ui.selectedAction;
-  if (!sel) return;
+  const inst = ui && ui.selectedCard;
+  if (!inst) return;
+  const card = CARDS[inst.key];
+  if (!card) return;
   const rect = canvas.getBoundingClientRect();
   const w = camera.screenToWorld(mouse.x - rect.left, mouse.y - rect.top);
-  if (sel === 'addSubstrate') {
-    const rad = state.config.actions.addSubstrate.radius * state.substrate.cellSize * camera.zoom;
-    const s = camera.worldToScreen(w.x, w.y);
+  const s = camera.worldToScreen(w.x, w.y);
+  if (card.action === 'addSubstrate') {
+    const cellR = Math.max((card.params && card.params.radius) || 0, 0.5);
+    const rad = cellR * state.substrate.cellSize * camera.zoom;
+    // valid if underground AND (no reach limit, or within reach of a strand)
+    let valid = w.y > state.substrate.surfaceY;
+    if (valid && card.maxDist != null) {
+      let best = Infinity;
+      for (const n of state.active.nodes) best = Math.min(best, Math.hypot(n.x - w.x, n.y - w.y));
+      valid = best <= card.maxDist;
+    }
     ctx.save();
-    ctx.strokeStyle = w.y > state.substrate.surfaceY ? 'rgba(120,220,140,0.8)' : 'rgba(220,120,120,0.8)';
+    ctx.strokeStyle = valid ? 'rgba(120,220,140,0.85)' : 'rgba(220,120,120,0.85)';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-  } else if (sel === 'amputate') {
-    const rad = state.config.actions.amputate.radius;
+  } else if (card.action === 'amputate') {
+    const rad = (card.params && card.params.radius) || state.config.actions.amputate.radius;
     const r2 = rad * rad;
-    const s = camera.worldToScreen(w.x, w.y);
     ctx.save();
     // Highlight every strand that would be cut out within the radius.
     ctx.strokeStyle = 'rgba(255,90,90,0.9)';

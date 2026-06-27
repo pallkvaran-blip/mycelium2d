@@ -7,7 +7,7 @@
 // later removal (B7).
 // =============================================================================
 
-import { ACTIONS, actionCost } from '../engine/actions.js';
+import { CARDS } from '../engine/cards.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 
 const TRAITS = [
@@ -15,19 +15,18 @@ const TRAITS = [
 ];
 
 const TESTING_QUESTIONS = [
-  'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
-  'Does 3-moves + Energy make each turn a real prioritisation?',
+  'Does drawing a hand of cards (instead of free actions) make each turn a real decision?',
+  'Is the deck — Grow / Digest / Amputate / substrate lures / engine cards — the right starting set?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
-  'Does Express (defend, organism-wide) vs. Grow (expand) feel like a meaningful recurring tradeoff?',
-  'Is Fruit a satisfying payoff, and does the soil/shade surface make WHERE to fruit an interesting choice?',
-  'Is Digest-burst a useful lever or redundant?',
+  'Do the engine-building cards feel worth drafting over more growth?',
+  'Does card scarcity make navigating to food/the chest more interesting?',
 ];
 
 export class UI {
   constructor(state, handlers) {
     this.state = state;
     this.handlers = handlers;
-    this.selectedAction = null;
+    this.selectedCard = null;   // a targeted card awaiting a board click
     this.el = {};
     this._build();
   }
@@ -50,7 +49,7 @@ export class UI {
         <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
         <div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>
         <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
-        <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
+        <div class="stat"><span class="k">Deck</span><span class="v" id="hud-deck">0</span></div>
       </div>
       <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
@@ -78,40 +77,24 @@ export class UI {
     legend.querySelector('.title').onclick = () => legend.classList.toggle('collapsed');
     root.appendChild(legend);
 
-    // ---- Bottom action bar ----
+    // ---- Bottom bar: your HAND of cards + controls ----
     const bar = div('panel actionbar');
-    this.el.buttons = {};
+    this.el.hand = div('hand');           // populated each update() from state.hand
+    bar.appendChild(this.el.hand);
 
-    const order = ['grow', 'addSubstrate', 'amputate'];
-    for (const name of order) bar.appendChild(this._actionButton(name));
-
-    // Express group (three traits)
-    const exprGroup = div('expr-group');
-    exprGroup.appendChild(span('Express', 'group-label'));
-    for (const t of TRAITS) {
-      const b = button(`btn trait`, '');
-      b.dataset.trait = t.key;
-      b.title = t.hint;
-      b.onclick = () => this.handlers.onAction('express', { trait: t.key });
-      exprGroup.appendChild(b);
-      this.el.buttons['express:' + t.key] = b;
-    }
-    bar.appendChild(exprGroup);
-
-    for (const name of ['digest', 'fruit']) bar.appendChild(this._actionButton(name));
-
-    // End turn + restart
     const ctrl = div('ctrl');
     const endBtn = button('btn end', 'End Turn ⏭');
     endBtn.onclick = () => this.handlers.onEndTurn();
     this.el.endBtn = endBtn;
+    const fruitBtn = button('btn', 'Fruit 🍄');
+    fruitBtn.title = 'Push up fruiting bodies for Spores — ends the colony.';
+    fruitBtn.onclick = () => this.handlers.onFruit();
+    this.el.fruitBtn = fruitBtn;
     const restartBtn = button('btn restart', 'New Map ↻');
     restartBtn.onclick = () => this.handlers.onRestart();
     const puzzleBtn = button('btn restart', 'Puzzle 🧩');
     puzzleBtn.onclick = () => this.handlers.onPuzzle();
-    ctrl.appendChild(endBtn);
-    ctrl.appendChild(restartBtn);
-    ctrl.appendChild(puzzleBtn);
+    ctrl.append(endBtn, fruitBtn, restartBtn, puzzleBtn);
     bar.appendChild(ctrl);
 
     root.appendChild(bar);
@@ -181,30 +164,45 @@ export class UI {
     root.appendChild(this.el.overlay);
   }
 
-  _actionButton(name) {
-    const a = ACTIONS[name];
-    const b = button('btn act', '');
-    b.dataset.action = name;
-    b.title = a.desc;
-    b.onclick = () => this.handlers.onAction(name);
-    if (name === 'fruit') {
-      b.onmouseenter = () => this.handlers.onFruitPreview(true);
-      b.onmouseleave = () => this.handlers.onFruitPreview(false);
+  // Select a targeted card (it waits for a board click); pass null to clear.
+  setSelectedCard(inst) {
+    this.selectedCard = inst;
+    const card = inst && CARDS[inst.key];
+    if (card) {
+      const what = card.target === 'node'
+        ? 'Click the map to cut out strands inside the red circle.'
+        : 'Click the map to place it (within the green circle of the colony).';
+      this.setHint(`${card.name}: ${what}`);
+    } else {
+      this.setHint('Play a card from your hand.');
     }
-    this.el.buttons[name] = b;
-    return b;
+    this._renderHand();
   }
 
-  setSelectedAction(name) {
-    this.selectedAction = name;
-    for (const [key, btn] of Object.entries(this.el.buttons)) {
-      btn.classList.toggle('selected', key === name);
+  // Build the hand of cards from state.hand.
+  _renderHand() {
+    const wrap = this.el.hand;
+    if (!wrap) return;
+    const s = this.state;
+    const net = s.active;
+    wrap.innerHTML = '';
+    for (const inst of (s.hand || [])) {
+      const card = CARDS[inst.key];
+      if (!card) continue;
+      const el = div('card t-' + card.type);
+      const affordable = net && net.energy >= card.cost && !s.runOver && net.alive;
+      if (!affordable) el.classList.add('disabled');
+      if (inst === this.selectedCard) el.classList.add('selected');
+      el.title = card.desc;
+      el.innerHTML = `<div class="card-cost">${card.cost}⚡</div>`
+        + `<div class="card-name">${card.name}</div>`
+        + `<div class="card-type">${card.type}</div>`;
+      el.onclick = () => this.handlers.onCard(inst);
+      wrap.appendChild(el);
     }
-    const hints = {
-      addSubstrate: 'Click underground to place a food patch and lure growth there.',
-      amputate: 'Click to cut out every strand inside the red circle.',
-    };
-    if (name && hints[name]) this.setHint(hints[name]);
+    if (!(s.hand && s.hand.length)) {
+      wrap.innerHTML = '<div class="hand-empty">No cards in hand — End Turn to draw.</div>';
+    }
   }
 
   setHint(text) { this.el.hint.textContent = text; }
@@ -253,14 +251,14 @@ export class UI {
     text('hud-energy', Math.floor(net.energy));
     text('hud-spores', Math.floor(s.spores));
     text('hud-turn', s.turn);
-    text('hud-moves', `${s.movesLeft}/${s.config.turn.movesPerTurn}`);
+    text('hud-deck', `${(s.deck || []).length}+${(s.discard || []).length}`);
     const vfill = document.getElementById('hud-vitality');
     if (vfill) {
       vfill.style.width = `${Math.round(net.vitality * 100)}%`;
       vfill.style.background = vitalityColor(net.vitality);
     }
 
-    // Express trait readout
+    // Express trait readout (Melanize level, from the card)
     const traitsEl = document.getElementById('hud-traits');
     if (traitsEl) {
       traitsEl.innerHTML = TRAITS.map((t) => {
@@ -269,26 +267,9 @@ export class UI {
       }).join('');
     }
 
-    // Button states / costs
-    for (const name of ['grow', 'addSubstrate', 'amputate', 'digest', 'fruit']) {
-      const btn = this.el.buttons[name];
-      if (!btn) continue;
-      const { moves, energy } = actionCost(s, name);
-      btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive;
-    }
-    // Express trait buttons (dynamic cost)
-    for (const t of TRAITS) {
-      const btn = this.el.buttons['express:' + t.key];
-      if (!btn) continue;
-      const lvl = net.traits[t.key];
-      const cost = net.expressCost(t.key);
-      const maxed = lvl >= s.config.actions.express.maxLevel;
-      btn.innerHTML = `${t.label} <span class="lvl">L${lvl}</span> <span class="cost">${maxed ? 'MAX' : cost + '⚡'}</span>`;
-      btn.disabled = s.runOver || maxed || s.movesLeft < s.config.actions.express.moveCost
-        || net.energy < cost || !net.alive;
-    }
-    this.el.endBtn.disabled = s.runOver;
+    this._renderHand();
+    if (this.el.endBtn) this.el.endBtn.disabled = s.runOver;
+    if (this.el.fruitBtn) this.el.fruitBtn.disabled = s.runOver || !net.alive;
 
     this._renderLog();
   }

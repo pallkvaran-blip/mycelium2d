@@ -7,6 +7,7 @@ import { createState, createPuzzleState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
 import { totalTrichoderma, spawnTrichodermaAt, infectNetwork, spreadTrichoderma } from '../src/engine/threats.js';
+import { playCard, refillHand, drawCards, STARTING_DECK, HAND_SIZE } from '../src/engine/cards.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -368,6 +369,48 @@ console.log('# Puzzle mode: builds a fixed level and is navigable to the chest')
   }
   const reach = Math.max(...s.active.nodes.map((n) => s.substrate.colAtX(n.x)));
   ok(s.won, `the colony can be routed to the chest (reached col ${reach}, chest col 73)`);
+}
+
+console.log('# Cards: deck, hand, play, and end-of-turn refill');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  ok(s.hand.length === HAND_SIZE, `opening hand dealt (${s.hand.length})`);
+  ok(s.deck.length + s.hand.length + s.discard.length === STARTING_DECK.length, 'every card accounted for');
+
+  // Play an engine card (always playable) — energy up, card moves hand->discard.
+  s.hand[0] = { uid: 'test', key: 'surge' };
+  const e0 = s.active.energy, h0 = s.hand.length;
+  const r = playCard(s, s.hand[0]);
+  ok(r.ok && s.active.energy === e0 + 25, 'engine card (Surge) gave +25 Energy');
+  ok(s.hand.length === h0 - 1 && s.discard.length === 1, 'played card moved hand -> discard');
+
+  // Can't play a card you can't afford.
+  s.hand[0] = { uid: 'test2', key: 'mound' };  // cost 15
+  s.active.energy = 5;
+  const r2 = playCard(s, s.hand[0], { x: s.active.root.x, y: s.active.root.y + 20 });
+  ok(!r2.ok, 'a card you cannot afford is blocked');
+
+  // End-of-turn refill: hand is replenished and the count is conserved.
+  const total = s.deck.length + s.hand.length + s.discard.length;
+  refillHand(s);
+  ok(s.hand.length === HAND_SIZE, `hand refilled to ${HAND_SIZE}`);
+  ok(s.deck.length + s.hand.length + s.discard.length === total, 'no cards lost on refill');
+
+  // Drawing past the deck reshuffles the discard back in (no crash, conserved).
+  let safety = 0;
+  while (s.deck.length > 0 && safety++ < 999) drawCards(s, 1);
+  drawCards(s, 3);
+  ok(s.deck.length + s.hand.length + s.discard.length === total, 'discard reshuffles into the deck');
+}
+
+console.log('# Engine card raises passive income for the run');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 11);
+  const before = s.active.incomeBonus;
+  s.hand[0] = { uid: 'd', key: 'deepen' };
+  s.active.energy = 100;
+  playCard(s, s.hand[0]);
+  ok(s.active.incomeBonus === before + 8, 'Deepen Roots raised passive income bonus');
 }
 
 console.log('# Fruit pays Spores and ends the cycle');

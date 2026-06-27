@@ -30,6 +30,7 @@ export class Network {
 
     this.vitality = 1;         // 0..1, cached; drives render brightness
     this._vitalityDip = 0;     // transient hit (Digest), decays each turn
+    this.incomeBonus = 0;      // per-run passive-income boost from engine cards
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
