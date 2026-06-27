@@ -303,6 +303,29 @@ console.log('# Growth: infected strands cannot grow; cut-loose healthy ones can'
   ok(net.nodes.length > before && grewFromLone, 'a cut-loose healthy strand still grows');
 }
 
+console.log('# Trichoderma cannot travel through rock');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
+  const sub = s.substrate;
+  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; c.rock = false; }
+  s.clouds = [];
+  s.config.trichoderma.initialPatches = 0;
+  // A solid vertical rock wall between the cloud and the food behind it.
+  for (let row = 0; row < sub.rows; row++) { const cell = sub.cellAt(20, row); if (cell) cell.rock = true; }
+  const fcell = sub.cellAt(24, 7); fcell.nutrient = 100; fcell.maxNutrient = 100;
+  const near = sub.cellCenter(16, 7);
+  const cloud = spawnTrichodermaAt(s, near.x, near.y);
+  let everInRock = false, crossed = false;
+  for (let i = 0; i < 40; i++) {
+    spreadTrichoderma(s);
+    const c = sub.cellAtWorld(cloud.cx, cloud.cy);
+    if (c && c.rock) everInRock = true;
+    if (sub.colAtX(cloud.cx) > 20) crossed = true;   // got to the far side
+  }
+  ok(!everInRock, 'a cloud never ends up inside a rock cell');
+  ok(!crossed, 'a cloud cannot tunnel through a solid rock wall');
+}
+
 console.log('# Fruit pays Spores and ends the cycle');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 2024);

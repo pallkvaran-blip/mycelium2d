@@ -1230,23 +1230,18 @@ function spreadTrichoderma(state) {
       if (d < best) { best = d; tx = n.x; ty = n.y; }
     }
     if (tx != null) {
+      // Creep toward the target, sliding ALONG rock faces (clouds can't travel
+      // through rock) so they route around formations instead of tunnelling.
       const dx = tx - cloud.cx, dy = ty - cloud.cy;
       const dist = Math.hypot(dx, dy) || 1;
-      const s = Math.min(dist, step);
-      cloud.cx += (dx / dist) * s;
-      cloud.cy += (dy / dist) * s;
       cloud.heading = Math.atan2(dy, dx);
+      moveCloud(cloud, dx / dist, dy / dist, Math.min(dist, step), sub);
     } else {
-      // Nothing sensed — roam, bouncing off the world bounds.
+      // Nothing sensed — roam; turn away when a rock or the world edge blocks it.
       if (cloud.heading == null) cloud.heading = rng.range(0, Math.PI * 2);
       cloud.heading += rng.range(-0.4, 0.4);
-      let nx = cloud.cx + Math.cos(cloud.heading) * step;
-      let ny = cloud.cy + Math.sin(cloud.heading) * step;
-      const minX = cs, maxX = sub.worldWidth - cs;
-      const minY = sub.surfaceY + cs, maxY = sub.worldHeight - cs;
-      if (nx < minX || nx > maxX) { cloud.heading = Math.PI - cloud.heading; nx = Math.max(minX, Math.min(maxX, nx)); }
-      if (ny < minY || ny > maxY) { cloud.heading = -cloud.heading; ny = Math.max(minY, Math.min(maxY, ny)); }
-      cloud.cx = nx; cloud.cy = ny;
+      const moved = moveCloud(cloud, Math.cos(cloud.heading), Math.sin(cloud.heading), step, sub);
+      if (!moved) cloud.heading += rng.range(2, 4); // blocked — pick a new way
     }
 
     // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
@@ -1267,6 +1262,32 @@ function spreadTrichoderma(state) {
   }
 
   stampCloudField(sub, state.clouds);
+}
+
+// Move a cloud by (ux,uy)*s, but never THROUGH rock or out of bounds. The whole
+// path is checked (not just the destination) so a long step can't jump over a
+// thin wall. If the straight move is blocked, slide along the obstacle (x-only
+// then y-only) so the cloud rounds rock formations. Returns true if it moved.
+function moveCloud(cloud, ux, uy, s, sub) {
+  const cs = sub.cellSize;
+  const minX = cs, maxX = sub.worldWidth - cs;
+  const minY = sub.surfaceY + cs, maxY = sub.worldHeight - cs;
+  const pathClear = (x1, y1) => {
+    const dx = x1 - cloud.cx, dy = y1 - cloud.cy;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+    for (let i = 1; i <= steps; i++) {
+      const x = cloud.cx + dx * (i / steps), y = cloud.cy + dy * (i / steps);
+      if (x < minX || x > maxX || y < minY || y > maxY) return false;
+      const c = sub.cellAtWorld(x, y);
+      if (c && c.rock) return false;
+    }
+    return true;
+  };
+  const fx = cloud.cx + ux * s, fy = cloud.cy + uy * s;
+  if (pathClear(fx, fy)) { cloud.cx = fx; cloud.cy = fy; return true; }
+  if (ux !== 0 && pathClear(fx, cloud.cy)) { cloud.cx = fx; return true; }   // slide along x
+  if (uy !== 0 && pathClear(cloud.cx, fy)) { cloud.cy = fy; return true; }   // slide along y
+  return false;                                                              // fully blocked
 }
 
 // Eat the substrate the cloud covers WHOLE: every food cell within reach is
