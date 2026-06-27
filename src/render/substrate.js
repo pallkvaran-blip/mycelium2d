@@ -508,14 +508,16 @@ export class SubstrateRenderer {
       // the network renderer — no decorative mat overlay here any more.
     });
 
-    // Trichoderma — fuzzy speckled growth.
+    // Trichoderma — fuzzy speckled growth. Drawn boldly so it's easy to spot:
+    // even faint mould reads clearly, and it holds opacity well across the cell.
     sub.forEachCell((cell, col, row) => {
       if (cell.trich <= 0) return;
-      const a = Math.min(0.8, cell.trich);
+      const a = Math.min(0.95, 0.5 + cell.trich * 0.5);
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
-      const rad = cs * 0.8;
+      const rad = cs * 0.85;
       const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rad);
       g.addColorStop(0, withAlpha(hexToRgb(r.trich), a));
+      g.addColorStop(0.6, withAlpha(hexToRgb(r.trich), a * 0.85));
       g.addColorStop(1, withAlpha(hexToRgb(r.trich), 0));
       octx.fillStyle = g;
       octx.beginPath();

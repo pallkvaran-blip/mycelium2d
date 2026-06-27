@@ -93,16 +93,21 @@ export const CONFIG = {
     spreadThreshold: 0.35,       // a cell must reach this intensity before it spreads
     spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
     spreadJitterMax: 1.0,
-    decayRate: 0.16,             // mold fades each turn (so it stays a creeping patch, not a blanket)
-    foodAttraction: 1.8,         // creeps toward food / your colonised pockets
-    intensityGainOnFood: 0.06,   // small intensity gain over substrate (kept low so it doesn't balloon)
+    decayRate: 0.10,             // faint spread edges fade (an unfed FRONT can recede)…
+    sustainSeed: 0.2,            // …but any cell that gets established (>= this) …
+    sustainLevel: 0.4,           // …never dies out — it persists at least this strong (a real colony)
+    foodAttraction: 1.4,         // creeps toward food / your colonised pockets
+    intensityGainOnFood: 0.05,   // eating a pile grows the cloud only a little (no ballooning)
+    consumeFraction: 0.6,        // nutrient eaten per turn from each cell on/next to the mold — a pile is gone in ~2 turns
     heldResist: 0.6,             // dense healthy network only SLOWS the mold creeping in (doesn't block)
     seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
     // --- network infection (the mould turning your strands green/dead) ---
     contactThreshold: 0.25,      // mold intensity needed to infect a touched strand
-    contactChance: 0.5,          // per-turn chance a touched strand is infected (pre-Melanize)
-    infectionSpreadChance: 0.5,  // per-turn chance infection jumps to each connected strand (SLIDER)
+    contactChance: 1.0,          // touch = infection, immediately (Melanize still gives a chance to resist)
+    contactChunk: 4,             // on first contact the rot instantly claims this many rings of mycelium
+    spreadDepthPerTurn: 3,       // once inside, the rot races this many rings along your filaments each turn
+    infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
   },
 
   // ---- The six basic actions (A2, B5) ------------------------------------

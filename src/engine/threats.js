@@ -2,11 +2,12 @@
 // Threats — Trichoderma, the one Phase 1 threat (A2/A5, B6).
 //
 // Trichoderma is a competing mold. It lives as an intensity field on substrate
-// cells (cell.trich, 0..1). It spreads toward food, damages network parts it
-// touches, and avoids firmly-held ground. It is countered by:
-//   - Amputate  (cut off infected strands)            -> network.amputate*
-//   - Express -> Antifungal (slows & damages the mold) -> traits.antifungal
-//   - Express -> Melanize  (reduces the damage it deals)-> traits.melanize
+// cells (cell.trich, 0..1). It creeps toward food, devours any substrate it
+// reaches, persists once established (it never just dies out), and when it
+// touches your network it infects it — turning strands green/dead and racing
+// the rot along your filaments. It is countered by:
+//   - Amputate (cut out the infected branch — the only cure once inside) -> network.amputate*
+//   - Melanize (resists the INITIAL contact only)                        -> traits.melanize
 //
 // Renderer-agnostic: operates only on substrate cells + the Network object.
 // =============================================================================
@@ -76,8 +77,12 @@ export function spreadTrichoderma(substrate, network, config, rng) {
       if (intensity <= 0) continue;
       const cell = substrate.cells[idx];
 
-      // Small self-gain over food (so it persists on a pile), kept low.
+      // Devour substrate fast — the mold eats the cell it sits on AND digests
+      // into adjacent food, so a pile it reaches is gone in ~2 turns. Eating
+      // grows the cloud only a little (capped), so reaching food no longer
+      // makes it balloon across the map.
       if (cell.nutrient > 0) {
+        cell.nutrient = Math.max(0, cell.nutrient - cell.maxNutrient * t.consumeFraction);
         delta[idx] += t.intensityGainOnFood * intensity;
       }
 
@@ -89,8 +94,12 @@ export function spreadTrichoderma(substrate, network, config, rng) {
         const nidx = substrate.index(nc, nr);
         const ncell = substrate.cells[nidx];
         if (ncell.hazard || ncell.rock) continue;
+        // Digest into adjacent food even before the cloud covers it.
+        if (ncell.nutrient > 0) {
+          ncell.nutrient = Math.max(0, ncell.nutrient - ncell.maxNutrient * t.consumeFraction);
+        }
         let amount = t.spreadRate * intensity * t.spreadBase;
-        if (ncell.nutrient > 0) amount *= t.foodAttraction;  // creep toward food / your pockets
+        if (ncell.maxNutrient > 0) amount *= t.foodAttraction;  // creep toward food piles
         amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
         // Dense healthy network only SLOWS the creep in (it no longer blocks it,
         // so the mould can actually reach and infect you).
@@ -100,11 +109,13 @@ export function spreadTrichoderma(substrate, network, config, rng) {
     }
   }
 
-  // Apply: decay everywhere (so mould fades on barren ground and stays a
-  // creeping patch), then add the spread, clamped to [0, 1].
+  // Apply: an unfed front EDGE decays (so the creep can recede), then add the
+  // spread, clamped to [0, 1]. But any cell that ever got established never just
+  // dies out — it persists at sustainLevel, a real colony you must cut/outrun.
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
     cell.trich = Math.min(1, cell.trich * (1 - t.decayRate) + delta[i]);
+    if (snapshot[i] >= t.sustainSeed && cell.trich < t.sustainLevel) cell.trich = t.sustainLevel;
     if (cell.trich < 0.02) cell.trich = 0;
   }
 
@@ -120,37 +131,55 @@ export function spreadTrichoderma(substrate, network, config, rng) {
 }
 
 // --- Per-turn network infection (B6) ----------------------------------------
-// The mould overruns the colony: strands standing in mould get infected
-// (green/dead), then the infection jumps along your filaments turning more
-// green each turn. Melanize resists the INITIAL contact only; once it's inside,
-// only Amputate (cutting the infected branch) stops it.
+// The mould overruns the colony. The moment a strand touches mould it is
+// infected (green/dead) and the rot INSTANTLY claims a chunk of the surrounding
+// mycelium. From then on it races along your filaments several rings per turn —
+// real consequences. Melanize resists the INITIAL contact only; once it's
+// inside, only Amputate (cutting the infected branch out) stops it.
 export function infectNetwork(network, substrate, config, rng) {
   const t = config.trichoderma;
   const melanize = network.traits.melanize || 0;
   const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
 
-  // 1) Contact — a healthy strand standing in mould may be infected.
+  // 1) Contact — touching mould infects immediately, and the rot instantly
+  //    eats a chunk of nearby mycelium around that breach. Melanize only gives
+  //    a chance the initial contact fails to take hold.
+  const breaches = [];
   for (const n of network.nodes) {
     if (n.infected) continue;
     const cell = substrate.cellAtWorld(n.x, n.y);
-    if (cell && cell.trich >= t.contactThreshold) {
-      if (rng() < t.contactChance * cell.trich * (1 - resist)) n.infected = true;
+    if (cell && cell.trich >= t.contactThreshold && rng() < t.contactChance * (1 - resist)) {
+      n.infected = true;
+      breaches.push(n);
     }
   }
+  for (const seed of breaches) infectAround(network, seed, t.contactChunk, 1, rng);
 
-  // 2) Internal spread — infection jumps one ring along the filaments (from a
-  //    snapshot of the current front, so it advances one step per turn).
+  // 2) Internal spread — from the whole current front, the rot races
+  //    spreadDepthPerTurn rings along the filaments this turn.
   const front = [];
   for (const n of network.nodes) if (n.infected) front.push(n);
-  for (const n of front) {
-    if (n.parentId != null) {
-      const p = network.byId.get(n.parentId);
-      if (p && !p.infected && rng() < t.infectionSpreadChance) p.infected = true;
+  for (const n of front) infectAround(network, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng);
+}
+
+// Flood the infection outward from `seed` up to `depth` rings along the graph
+// (parent + children each step). `chance` 1 = guaranteed (an instant chunk);
+// < 1 = an organic race that may stall short of `depth`.
+function infectAround(network, seed, depth, chance, rng) {
+  let frontier = [seed];
+  for (let d = 0; d < depth && frontier.length; d++) {
+    const next = [];
+    for (const n of frontier) {
+      if (n.parentId != null) {
+        const p = network.byId.get(n.parentId);
+        if (p && !p.infected && (chance >= 1 || rng() < chance)) { p.infected = true; next.push(p); }
+      }
+      for (const cid of n.children) {
+        const c = network.byId.get(cid);
+        if (c && !c.infected && (chance >= 1 || rng() < chance)) { c.infected = true; next.push(c); }
+      }
     }
-    for (const cid of n.children) {
-      const c = network.byId.get(cid);
-      if (c && !c.infected && rng() < t.infectionSpreadChance) c.infected = true;
-    }
+    frontier = next;
   }
 }
 
