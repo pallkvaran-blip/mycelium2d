@@ -102,8 +102,9 @@ export class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      // constant cream — strands don't brown/dim with health (look is vitality-independent)
-      octx.strokeStyle = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+      // Infected strands render green (overrun by mould); otherwise constant
+      // cream (look is independent of vitality/health).
+      octx.strokeStyle = n.infected ? r.infected : `rgb(${fil[0]},${fil[1]},${fil[2]})`;
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
       const strands = s > 8 ? 2 : 1;

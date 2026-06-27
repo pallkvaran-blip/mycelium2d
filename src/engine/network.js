@@ -20,7 +20,7 @@ export class Network {
     this.byId = new Map();     // id -> node
     this.nextNodeId = 0;
 
-    this.traits = { melanize: 0, antifungal: 0, antipredator: 0 };
+    this.traits = { melanize: 0 };
     this.energy = config.energy.start;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -44,6 +44,7 @@ export class Network {
       children: [],
       health: 1,
       age: 0,
+      infected: false,   // overrun by Trichoderma (green/dead)
     };
     this.nodes.push(node);
     this.byId.set(node.id, node);
@@ -118,6 +119,7 @@ export class Network {
     const key = (col, row) => col + ',' + row;
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
+      if (n.infected) continue;                 // infected strands can't grow
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -267,6 +269,7 @@ export class Network {
     this.occupiedIdx.clear();
     const income = [];
     for (const n of this.nodes) {
+      if (n.infected) continue;                 // dead strands don't feed or hold ground
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -293,6 +296,7 @@ export class Network {
     // Group the network's nodes by the (uncolonised) substrate cell they're in.
     const byCell = new Map();
     for (const n of this.nodes) {
+      if (n.infected) continue;                 // infected strands can't colonise
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -377,13 +381,18 @@ export class Network {
     return removed;
   }
 
-  // --- Vitality (drives render brightness) ---------------------------------
+  // Healthy (uninfected) strand count.
+  healthyCount() {
+    let c = 0;
+    for (const n of this.nodes) if (!n.infected) c++;
+    return c;
+  }
+
+  // --- Vitality = fraction of the colony still healthy (uninfected) --------
+  // (Appearance no longer depends on this; it drives the HUD "% healthy" bar.)
   recomputeVitality() {
     if (this.nodes.length === 0) { this.vitality = 0; return; }
-    let sum = 0;
-    for (const n of this.nodes) sum += n.health;
-    const avg = sum / this.nodes.length;
-    this.vitality = Math.max(0, Math.min(1, avg - this._vitalityDip));
+    this.vitality = this.healthyCount() / this.nodes.length;
   }
   decayVitalityDip() {
     this._vitalityDip = Math.max(0, this._vitalityDip - this.config.vitality.dipDecayPerTurn);
@@ -408,6 +417,7 @@ export class Network {
       // Is there a node near the surface beneath this column?
       let reachable = false;
       for (const n of this.nodes) {
+        if (n.infected) continue;               // dead strands can't fruit
         const depth = n.y - substrate.surfaceY;
         if (depth >= 0 && depth <= f.reachDepth && Math.abs(n.x - cx) <= f.reachSpread + substrate.cellSize / 2) {
           reachable = true; break;

@@ -95,6 +95,7 @@ export class Lighting {
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
+        if (n.infected) continue;  // dead strands don't glow
         this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
       }
     }

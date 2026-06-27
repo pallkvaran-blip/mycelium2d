@@ -6,7 +6,7 @@ import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
 import { endTurn } from '../src/engine/turn.js';
-import { totalTrichoderma, spawnTrichodermaAt, applyTrichodermaDamage } from '../src/engine/threats.js';
+import { totalTrichoderma, spawnTrichodermaAt, infectNetwork } from '../src/engine/threats.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -111,43 +111,35 @@ console.log('# Melanize reduces incoming damage (defensive trait matters)');
   ok(dmgMel < dmgNoMel, `Melanize reduced hazard damage (${dmgMel.toFixed(3)} < ${dmgNoMel.toFixed(3)})`);
 }
 
-console.log('# Trichoderma damage sticks (recovery does not cancel it; needs fed+safe)');
+console.log('# Trichoderma infects and spreads through the network; Amputate cures');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
   const net = s.active;
-  net.energy = 100; // fed
-  // Infect every node's cell (non-hazard), then run damage + recovery order.
-  for (const node of net.nodes) {
-    const cell = s.substrate.cellAtWorld(node.x, node.y);
-    if (cell) { cell.hazard = false; cell.trich = 1; }
-  }
-  const before = net.nodes.reduce((a, n) => a + n.health, 0);
-  applyTrichodermaDamage(net, s.substrate, s.config);
-  net.applyHazardDamage(s.substrate); // recovery step must NOT heal infected cells
-  const after = net.nodes.reduce((a, n) => a + n.health, 0);
-  ok(after < before, `Trichoderma net-damaged the network (${after.toFixed(2)} < ${before.toFixed(2)})`);
+  for (const node of net.nodes) { const c = s.substrate.cellAtWorld(node.x, node.y); if (c) c.trich = 1; }
+  ok(net.healthyCount() === net.nodes.length, 'starts fully healthy (uninfected)');
+  for (let i = 0; i < 8; i++) infectNetwork(net, s.substrate, s.config, s.rng);
+  const infected = net.nodes.length - net.healthyCount();
+  ok(infected > 0, `Trichoderma infected strands (${infected}/${net.nodes.length})`);
+  net.recomputeVitality();
+  ok(net.vitality < 1, `vitality now means % healthy and dropped (${net.vitality.toFixed(2)})`);
 
-  // A safe, fed, damaged node DOES recover.
-  const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 8);
-  const n2 = s2.active;
-  n2.energy = 100;
-  n2.nodes.forEach((n) => { n.health = 0.5; });
-  for (const node of n2.nodes) { const c = s2.substrate.cellAtWorld(node.x, node.y); if (c) { c.hazard = false; c.trich = 0; } }
-  const b2 = n2.nodes.reduce((a, n) => a + n.health, 0);
-  n2.applyHazardDamage(s2.substrate);
-  const a2 = n2.nodes.reduce((a, n) => a + n.health, 0);
-  ok(a2 > b2, 'Safe, fed strands recover health');
+  // Amputate removes infected strands (the cure / firebreak).
+  const inf = net.nodes.find((n) => n.infected);
+  const before = net.nodes.length;
+  const removed = net.amputateNode(inf.id);
+  ok(removed > 0 && net.nodes.length < before, `Amputate cuts out infected strands (-${removed})`);
 
-  // A starving node does NOT recover.
-  const s3 = createState(JSON.parse(JSON.stringify(CONFIG)), 9);
-  const n3 = s3.active;
-  n3.energy = 0; // starving
-  n3.nodes.forEach((n) => { n.health = 0.5; });
-  for (const node of n3.nodes) { const c = s3.substrate.cellAtWorld(node.x, node.y); if (c) { c.hazard = false; c.trich = 0; } }
-  const b3 = n3.nodes.reduce((a, n) => a + n.health, 0);
-  n3.applyHazardDamage(s3.substrate);
-  const a3 = n3.nodes.reduce((a, n) => a + n.health, 0);
-  ok(Math.abs(a3 - b3) < 1e-9, 'Starving strands do not recover');
+  // Melanize resists the INITIAL contact (same seed -> fewer contact infections).
+  const sa = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
+  for (const node of sa.active.nodes) { const c = sa.substrate.cellAtWorld(node.x, node.y); if (c) c.trich = 1; }
+  infectNetwork(sa.active, sa.substrate, sa.config, sa.rng);
+  const infNoMel = sa.active.nodes.filter((n) => n.infected).length;
+  const sb = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
+  sb.active.traits.melanize = 5;
+  for (const node of sb.active.nodes) { const c = sb.substrate.cellAtWorld(node.x, node.y); if (c) c.trich = 1; }
+  infectNetwork(sb.active, sb.substrate, sb.config, sb.rng);
+  const infMel = sb.active.nodes.filter((n) => n.infected).length;
+  ok(infMel <= infNoMel, `Melanize resists initial contact (${infMel} <= ${infNoMel})`);
 }
 
 console.log('# Fruit pays Spores and ends the cycle');

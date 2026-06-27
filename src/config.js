@@ -96,10 +96,13 @@ export const CONFIG = {
     spreadJitterMax: 1.0,
     foodAttraction: 1.6,         // spreads faster toward food-rich cells
     intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
-    contactDamage: 0.09,         // health damage/turn to network nodes in infected cells
-    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist infection
+    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist the ground mold
     seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
+    // --- network infection (the mould turning your strands green/dead) ---
+    contactThreshold: 0.25,      // mold intensity needed to infect a touched strand
+    contactChance: 0.5,          // per-turn chance a touched strand is infected (pre-Melanize)
+    infectionSpreadChance: 0.5,  // per-turn chance infection jumps to each connected strand (SLIDER)
   },
 
   // ---- The six basic actions (A2, B5) ------------------------------------
@@ -145,11 +148,11 @@ export const CONFIG = {
     },
   },
 
-  // ---- Genetic defence traits (A2, B5) -----------------------------------
+  // ---- Genetic defence trait (A2, B5) — kept deliberately simple ----------
   traits: {
-    melanize:     { damageReductionPerLevel: 0.16 },   // passive armour (all damage)
-    antifungal:   { slowPerLevel: 0.22, damagePerLevel: 0.13 }, // vs Trichoderma
-    antipredator: { noteOnly: true },                  // no fungivore threat in Phase 1
+    // The one defence: broad passive armour AND it resists the INITIAL
+    // Trichoderma contact (it does NOT slow the spread once inside you).
+    melanize: { damageReductionPerLevel: 0.16, contactResistPerLevel: 0.18 },
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -199,6 +202,7 @@ export const CONFIG = {
     // Trichoderma
     trich: '#8aa23e',
     trichSpore: '#d2e074',
+    infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
     // the living network (luminous accent — kept distinct from the earth)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
@@ -236,7 +240,8 @@ export const SLIDERS = [
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 30,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
-  { path: 'trichoderma.spreadRate',      label: 'Trichoderma Spread',  min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },

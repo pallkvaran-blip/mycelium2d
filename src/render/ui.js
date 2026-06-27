@@ -11,9 +11,7 @@ import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 
 const TRAITS = [
-  { key: 'melanize',     label: 'Melanize',     hint: 'passive armour vs all damage' },
-  { key: 'antifungal',   label: 'Antifungal',   hint: 'slows & damages Trichoderma' },
-  { key: 'antipredator', label: 'Antipredator', hint: 'vs fungivores (no threat yet)' },
+  { key: 'melanize', label: 'Melanize', hint: 'armour; resists the initial mould contact' },
 ];
 
 const TESTING_QUESTIONS = [
@@ -54,7 +52,7 @@ export class UI {
         <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
         <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
       </div>
-      <div class="vitality"><span class="k">Vitality</span>
+      <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
       </div>
       <div class="traits" id="hud-traits"></div>
@@ -64,9 +62,9 @@ export class UI {
     // ---- Map legend (keeps the cross-section legible) ----
     const legend = div('panel legend' + maybeCollapsed);
     const items = [
-      ['#3f7d3a', 'Food (richer = brighter)'],
-      ['#7a2230', 'Hazard — damages growth'],
-      ['#86a23c', 'Trichoderma (mold threat)'],
+      ['#7c5326', 'Substrate (organic matter)'],
+      ['#8aa23e', 'Trichoderma — infects your net'],
+      ['#5d574e', 'Rock — impassable'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
       ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],

@@ -232,10 +232,13 @@ const CONFIG = {
     spreadJitterMax: 1.0,
     foodAttraction: 1.6,         // spreads faster toward food-rich cells
     intensityGainOnFood: 0.18,   // intensity a cell gains per turn over substrate
-    contactDamage: 0.09,         // health damage/turn to network nodes in infected cells
-    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist infection
+    avoidHeldThreshold: 0.55,    // firmly-held cells (healthy net) resist the ground mold
     seedFoodBias: 0.75,          // chance an initial patch is biased toward food
     spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
+    // --- network infection (the mould turning your strands green/dead) ---
+    contactThreshold: 0.25,      // mold intensity needed to infect a touched strand
+    contactChance: 0.5,          // per-turn chance a touched strand is infected (pre-Melanize)
+    infectionSpreadChance: 0.5,  // per-turn chance infection jumps to each connected strand (SLIDER)
   },
 
   // ---- The six basic actions (A2, B5) ------------------------------------
@@ -281,11 +284,11 @@ const CONFIG = {
     },
   },
 
-  // ---- Genetic defence traits (A2, B5) -----------------------------------
+  // ---- Genetic defence trait (A2, B5) — kept deliberately simple ----------
   traits: {
-    melanize:     { damageReductionPerLevel: 0.16 },   // passive armour (all damage)
-    antifungal:   { slowPerLevel: 0.22, damagePerLevel: 0.13 }, // vs Trichoderma
-    antipredator: { noteOnly: true },                  // no fungivore threat in Phase 1
+    // The one defence: broad passive armour AND it resists the INITIAL
+    // Trichoderma contact (it does NOT slow the spread once inside you).
+    melanize: { damageReductionPerLevel: 0.16, contactResistPerLevel: 0.18 },
   },
 
   // ---- Rendering / feel (A8) — visual only, never gameplay ---------------
@@ -335,6 +338,7 @@ const CONFIG = {
     // Trichoderma
     trich: '#8aa23e',
     trichSpore: '#d2e074',
+    infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
     // the living network (luminous accent — kept distinct from the earth)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
@@ -372,7 +376,8 @@ const SLIDERS = [
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 30,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
-  { path: 'trichoderma.spreadRate',      label: 'Trichoderma Spread',  min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
@@ -655,7 +660,7 @@ class Network {
     this.byId = new Map();     // id -> node
     this.nextNodeId = 0;
 
-    this.traits = { melanize: 0, antifungal: 0, antipredator: 0 };
+    this.traits = { melanize: 0 };
     this.energy = config.energy.start;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -679,6 +684,7 @@ class Network {
       children: [],
       health: 1,
       age: 0,
+      infected: false,   // overrun by Trichoderma (green/dead)
     };
     this.nodes.push(node);
     this.byId.set(node.id, node);
@@ -753,6 +759,7 @@ class Network {
     const key = (col, row) => col + ',' + row;
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
+      if (n.infected) continue;                 // infected strands can't grow
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -902,6 +909,7 @@ class Network {
     this.occupiedIdx.clear();
     const income = [];
     for (const n of this.nodes) {
+      if (n.infected) continue;                 // dead strands don't feed or hold ground
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -928,6 +936,7 @@ class Network {
     // Group the network's nodes by the (uncolonised) substrate cell they're in.
     const byCell = new Map();
     for (const n of this.nodes) {
+      if (n.infected) continue;                 // infected strands can't colonise
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -1012,13 +1021,18 @@ class Network {
     return removed;
   }
 
-  // --- Vitality (drives render brightness) ---------------------------------
+  // Healthy (uninfected) strand count.
+  healthyCount() {
+    let c = 0;
+    for (const n of this.nodes) if (!n.infected) c++;
+    return c;
+  }
+
+  // --- Vitality = fraction of the colony still healthy (uninfected) --------
+  // (Appearance no longer depends on this; it drives the HUD "% healthy" bar.)
   recomputeVitality() {
     if (this.nodes.length === 0) { this.vitality = 0; return; }
-    let sum = 0;
-    for (const n of this.nodes) sum += n.health;
-    const avg = sum / this.nodes.length;
-    this.vitality = Math.max(0, Math.min(1, avg - this._vitalityDip));
+    this.vitality = this.healthyCount() / this.nodes.length;
   }
   decayVitalityDip() {
     this._vitalityDip = Math.max(0, this._vitalityDip - this.config.vitality.dipDecayPerTurn);
@@ -1043,6 +1057,7 @@ class Network {
       // Is there a node near the surface beneath this column?
       let reachable = false;
       for (const n of this.nodes) {
+        if (n.infected) continue;               // dead strands can't fruit
         const depth = n.y - substrate.surfaceY;
         if (depth >= 0 && depth <= f.reachDepth && Math.abs(n.x - cx) <= f.reachSpread + substrate.cellSize / 2) {
           reachable = true; break;
@@ -1153,10 +1168,6 @@ function stampTrich(substrate, cc, cr, radius) {
 // infected this turn doesn't cascade-spread within the same turn.
 function spreadTrichoderma(substrate, network, config, rng) {
   const t = config.trichoderma;
-  const antifungal = network ? network.traits.antifungal : 0;
-  const slow = Math.max(0, 1 - antifungal * config.traits.antifungal.slowPerLevel);
-  const afDamage = antifungal * config.traits.antifungal.damagePerLevel;
-
   const cols = substrate.cols, rows = substrate.rows;
   const snapshot = new Float32Array(substrate.cells.length);
   for (let i = 0; i < substrate.cells.length; i++) snapshot[i] = substrate.cells[i].trich;
@@ -1186,7 +1197,7 @@ function spreadTrichoderma(substrate, network, config, rng) {
         if (ncell.hazard) continue;
         // Firmly-held ground resists infection.
         if (ncell.held > t.avoidHeldThreshold) continue;
-        let amount = t.spreadRate * slow * intensity * t.spreadBase;
+        let amount = t.spreadRate * intensity * t.spreadBase;
         if (ncell.nutrient > 0) amount *= t.foodAttraction;
         // A little randomness so the front is organic, not a perfect square.
         amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
@@ -1197,14 +1208,10 @@ function spreadTrichoderma(substrate, network, config, rng) {
     }
   }
 
-  // Apply spread, then antifungal pushback where the network is present.
+  // Apply spread.
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
     if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
-    // Antifungal damages mold on/near held ground.
-    if (afDamage > 0 && cell.held > 0 && cell.trich > 0) {
-      cell.trich = Math.max(0, cell.trich - afDamage);
-    }
     if (cell.trich < 0.01) cell.trich = 0;
   }
 
@@ -1219,15 +1226,37 @@ function spreadTrichoderma(substrate, network, config, rng) {
   }
 }
 
-// --- Per-turn damage to the network (B6) ------------------------------------
-function applyTrichodermaDamage(network, substrate, config) {
+// --- Per-turn network infection (B6) ----------------------------------------
+// The mould overruns the colony: strands standing in mould get infected
+// (green/dead), then the infection jumps along your filaments turning more
+// green each turn. Melanize resists the INITIAL contact only; once it's inside,
+// only Amputate (cutting the infected branch) stops it.
+function infectNetwork(network, substrate, config, rng) {
   const t = config.trichoderma;
-  const melaninRed = network.traits.melanize * config.traits.melanize.damageReductionPerLevel;
-  const dmgMul = Math.max(0, 1 - melaninRed);
+  const melanize = network.traits.melanize || 0;
+  const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
+
+  // 1) Contact — a healthy strand standing in mould may be infected.
   for (const n of network.nodes) {
+    if (n.infected) continue;
     const cell = substrate.cellAtWorld(n.x, n.y);
-    if (cell && cell.trich > 0) {
-      n.health -= t.contactDamage * cell.trich * dmgMul;
+    if (cell && cell.trich >= t.contactThreshold) {
+      if (rng() < t.contactChance * cell.trich * (1 - resist)) n.infected = true;
+    }
+  }
+
+  // 2) Internal spread — infection jumps one ring along the filaments (from a
+  //    snapshot of the current front, so it advances one step per turn).
+  const front = [];
+  for (const n of network.nodes) if (n.infected) front.push(n);
+  for (const n of front) {
+    if (n.parentId != null) {
+      const p = network.byId.get(n.parentId);
+      if (p && !p.infected && rng() < t.infectionSpreadChance) p.infected = true;
+    }
+    for (const cid of n.children) {
+      const c = network.byId.get(cid);
+      if (c && !c.infected && rng() < t.infectionSpreadChance) c.infected = true;
     }
   }
 }
@@ -1238,7 +1267,7 @@ function totalTrichoderma(substrate) {
   return total;
 }
 
-  return { seedTrichoderma, spawnTrichodermaAt, spreadTrichoderma, applyTrichodermaDamage, totalTrichoderma };
+  return { seedTrichoderma, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, totalTrichoderma };
 })();
 
 // ===================== src/engine/state.js =====================
@@ -1487,7 +1516,7 @@ function devSpawnTrichoderma(state, x, y) {
 
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
-  const { spreadTrichoderma, applyTrichodermaDamage } = __m_engine_threats;
+  const { spreadTrichoderma, infectNetwork } = __m_engine_threats;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -1518,30 +1547,26 @@ function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: Trichoderma spreads, then damages contacted strands.
+    // 2) Threat: the ground mould creeps, then infects/overruns the network.
     spreadTrichoderma(substrate, net, config, rng);
-    applyTrichodermaDamage(net, substrate, config);
+    infectNetwork(net, substrate, config, rng);
 
-    // 3) Hazard damage (and slow recovery for safe, healthy strands).
-    net.applyHazardDamage(substrate);
-
-    // 4) Starvation if the colony is out of Energy.
+    // 3) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
       net.energy = 0;
       net.applyStarvation();
+      net.pruneDead();
     }
 
-    // 5) Remove dead strands; recompute vitality.
-    net.pruneDead();
-    net.decayVitalityDip();
+    // 4) Recompute % healthy. Dead when no healthy strands remain (fully
+    //    overrun by mould) or nothing is left.
     net.recomputeVitality();
-
-    if (!net.alive || net.nodes.length === 0) {
+    if (net.nodes.length === 0 || net.healthyCount() === 0) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The network has died. Run over.', 'warn');
+        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
       }
     }
   }
@@ -2404,8 +2429,9 @@ class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      // constant cream — strands don't brown/dim with health (look is vitality-independent)
-      octx.strokeStyle = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+      // Infected strands render green (overrun by mould); otherwise constant
+      // cream (look is independent of vitality/health).
+      octx.strokeStyle = n.infected ? r.infected : `rgb(${fil[0]},${fil[1]},${fil[2]})`;
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
       const strands = s > 8 ? 2 : 1;
@@ -2658,6 +2684,7 @@ class Lighting {
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
+        if (n.infected) continue;  // dead strands don't glow
         this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
       }
     }
@@ -2720,9 +2747,7 @@ const __m_render_ui = (function () {
 
 
 const TRAITS = [
-  { key: 'melanize',     label: 'Melanize',     hint: 'passive armour vs all damage' },
-  { key: 'antifungal',   label: 'Antifungal',   hint: 'slows & damages Trichoderma' },
-  { key: 'antipredator', label: 'Antipredator', hint: 'vs fungivores (no threat yet)' },
+  { key: 'melanize', label: 'Melanize', hint: 'armour; resists the initial mould contact' },
 ];
 
 const TESTING_QUESTIONS = [
@@ -2763,7 +2788,7 @@ class UI {
         <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
         <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
       </div>
-      <div class="vitality"><span class="k">Vitality</span>
+      <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
       </div>
       <div class="traits" id="hud-traits"></div>
@@ -2773,9 +2798,9 @@ class UI {
     // ---- Map legend (keeps the cross-section legible) ----
     const legend = div('panel legend' + maybeCollapsed);
     const items = [
-      ['#3f7d3a', 'Food (richer = brighter)'],
-      ['#7a2230', 'Hazard — damages growth'],
-      ['#86a23c', 'Trichoderma (mold threat)'],
+      ['#7c5326', 'Substrate (organic matter)'],
+      ['#8aa23e', 'Trichoderma — infects your net'],
+      ['#5d574e', 'Rock — impassable'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
       ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],

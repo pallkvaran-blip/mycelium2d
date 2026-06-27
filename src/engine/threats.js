@@ -62,10 +62,6 @@ function stampTrich(substrate, cc, cr, radius) {
 // infected this turn doesn't cascade-spread within the same turn.
 export function spreadTrichoderma(substrate, network, config, rng) {
   const t = config.trichoderma;
-  const antifungal = network ? network.traits.antifungal : 0;
-  const slow = Math.max(0, 1 - antifungal * config.traits.antifungal.slowPerLevel);
-  const afDamage = antifungal * config.traits.antifungal.damagePerLevel;
-
   const cols = substrate.cols, rows = substrate.rows;
   const snapshot = new Float32Array(substrate.cells.length);
   for (let i = 0; i < substrate.cells.length; i++) snapshot[i] = substrate.cells[i].trich;
@@ -95,7 +91,7 @@ export function spreadTrichoderma(substrate, network, config, rng) {
         if (ncell.hazard) continue;
         // Firmly-held ground resists infection.
         if (ncell.held > t.avoidHeldThreshold) continue;
-        let amount = t.spreadRate * slow * intensity * t.spreadBase;
+        let amount = t.spreadRate * intensity * t.spreadBase;
         if (ncell.nutrient > 0) amount *= t.foodAttraction;
         // A little randomness so the front is organic, not a perfect square.
         amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
@@ -106,14 +102,10 @@ export function spreadTrichoderma(substrate, network, config, rng) {
     }
   }
 
-  // Apply spread, then antifungal pushback where the network is present.
+  // Apply spread.
   for (let i = 0; i < substrate.cells.length; i++) {
     const cell = substrate.cells[i];
     if (delta[i] > 0) cell.trich = Math.min(1, cell.trich + delta[i]);
-    // Antifungal damages mold on/near held ground.
-    if (afDamage > 0 && cell.held > 0 && cell.trich > 0) {
-      cell.trich = Math.max(0, cell.trich - afDamage);
-    }
     if (cell.trich < 0.01) cell.trich = 0;
   }
 
@@ -128,15 +120,37 @@ export function spreadTrichoderma(substrate, network, config, rng) {
   }
 }
 
-// --- Per-turn damage to the network (B6) ------------------------------------
-export function applyTrichodermaDamage(network, substrate, config) {
+// --- Per-turn network infection (B6) ----------------------------------------
+// The mould overruns the colony: strands standing in mould get infected
+// (green/dead), then the infection jumps along your filaments turning more
+// green each turn. Melanize resists the INITIAL contact only; once it's inside,
+// only Amputate (cutting the infected branch) stops it.
+export function infectNetwork(network, substrate, config, rng) {
   const t = config.trichoderma;
-  const melaninRed = network.traits.melanize * config.traits.melanize.damageReductionPerLevel;
-  const dmgMul = Math.max(0, 1 - melaninRed);
+  const melanize = network.traits.melanize || 0;
+  const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
+
+  // 1) Contact — a healthy strand standing in mould may be infected.
   for (const n of network.nodes) {
+    if (n.infected) continue;
     const cell = substrate.cellAtWorld(n.x, n.y);
-    if (cell && cell.trich > 0) {
-      n.health -= t.contactDamage * cell.trich * dmgMul;
+    if (cell && cell.trich >= t.contactThreshold) {
+      if (rng() < t.contactChance * cell.trich * (1 - resist)) n.infected = true;
+    }
+  }
+
+  // 2) Internal spread — infection jumps one ring along the filaments (from a
+  //    snapshot of the current front, so it advances one step per turn).
+  const front = [];
+  for (const n of network.nodes) if (n.infected) front.push(n);
+  for (const n of front) {
+    if (n.parentId != null) {
+      const p = network.byId.get(n.parentId);
+      if (p && !p.infected && rng() < t.infectionSpreadChance) p.infected = true;
+    }
+    for (const cid of n.children) {
+      const c = network.byId.get(cid);
+      if (c && !c.infected && rng() < t.infectionSpreadChance) c.infected = true;
     }
   }
 }

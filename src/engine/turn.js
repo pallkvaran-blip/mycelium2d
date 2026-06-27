@@ -10,7 +10,7 @@
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
-import { spreadTrichoderma, applyTrichodermaDamage } from './threats.js';
+import { spreadTrichoderma, infectNetwork } from './threats.js';
 
 export function endTurn(state) {
   if (state.runOver) return;
@@ -29,30 +29,26 @@ export function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: Trichoderma spreads, then damages contacted strands.
+    // 2) Threat: the ground mould creeps, then infects/overruns the network.
     spreadTrichoderma(substrate, net, config, rng);
-    applyTrichodermaDamage(net, substrate, config);
+    infectNetwork(net, substrate, config, rng);
 
-    // 3) Hazard damage (and slow recovery for safe, healthy strands).
-    net.applyHazardDamage(substrate);
-
-    // 4) Starvation if the colony is out of Energy.
+    // 3) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
       net.energy = 0;
       net.applyStarvation();
+      net.pruneDead();
     }
 
-    // 5) Remove dead strands; recompute vitality.
-    net.pruneDead();
-    net.decayVitalityDip();
+    // 4) Recompute % healthy. Dead when no healthy strands remain (fully
+    //    overrun by mould) or nothing is left.
     net.recomputeVitality();
-
-    if (!net.alive || net.nodes.length === 0) {
+    if (net.nodes.length === 0 || net.healthyCount() === 0) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The network has died. Run over.', 'warn');
+        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
       }
     }
   }
