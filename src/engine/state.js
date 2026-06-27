@@ -14,7 +14,7 @@ import { seedTrichoderma } from './threats.js';
 export function createState(config, seed) {
   const rng = makeRng(seed >>> 0 || 1);
   const substrate = generateSubstrate(config, rng);
-  seedTrichoderma(substrate, config, rng);
+  const clouds = seedTrichoderma(substrate, config, rng);
 
   const network = new Network(config);
   network.seed(substrate, rng);
@@ -24,6 +24,7 @@ export function createState(config, seed) {
     rng,
     seed,
     substrate,
+    clouds,                // roaming Trichoderma clouds (shared cross-section threat)
     networks: [network],   // list-of-networks (A5-ready); one active in Phase 1
     active: network,
     spores: 0,             // run-wide Spore total (summed across networks later)

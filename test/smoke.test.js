@@ -73,45 +73,77 @@ const tip = state.active.nodes[state.active.nodes.length - 1];
 const ar = performAction(state, 'amputate', { x: tip.x, y: tip.y });
 ok(ar.ok && state.active.nodes.length < countBefore, 'Amputate removed strand(s)');
 
-console.log('# Trichoderma spreads, persists, and devours substrate');
-const trichBefore = totalTrichoderma(state.substrate);
-// Force mold right onto the network to guarantee contact.
-spawnTrichodermaAt(state.substrate, state.active.root.x, state.active.root.y + 30, cfg, state.rng);
+console.log('# Trichoderma clouds roam, persist, devour, and fade after infecting');
+// Drop a cloud right on the network and run two turns — the world stays finite.
+spawnTrichodermaAt(state, state.active.root.x, state.active.root.y + 30);
 state.movesLeft = 0;
 endTurn(state);
 endTurn(state);
-const trichAfter = totalTrichoderma(state.substrate);
-ok(trichAfter > 0, 'Trichoderma present on the map');
 ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
 
-// Persistence: established mould never just dies out (no food, no contact).
+// Persistence: a healthy cloud keeps roaming for many turns (it doesn't just
+// die out on its own — only spending itself on you removes it).
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 321);
-  const sub = s.substrate;
-  // Clear food so there's nothing to feed it, then stamp a strong patch.
-  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
-  const mid = sub.index((sub.cols / 2) | 0, (sub.rows / 2) | 0);
-  sub.cells[mid].trich = 1;
-  for (let i = 0; i < 30; i++) spreadTrichoderma(sub, s.active, s.config, s.rng);
-  ok(totalTrichoderma(sub) > 0, 'mould persists for many turns with no food (does not die out)');
+  s.clouds = [];
+  spawnTrichodermaAt(s, s.active.root.x + 200, s.active.root.y + 40);
+  for (let i = 0; i < 20; i++) spreadTrichoderma(s);
+  ok(s.clouds.length > 0 && totalTrichoderma(s.substrate) > 0,
+    'a healthy cloud persists for many turns (does not die out)');
 }
 
-// Consumption: mould sitting on a pile eats it within ~2 turns.
+// Bounded size: a small cloud that eats a giant pile stays small (never giant).
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 808);
+  const sub = s.substrate;
+  const N = s.config.substrate.foodCellNutrient;
+  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
+  // A huge slab of food.
+  for (let row = 2; row < 14; row++) for (let col = 4; col < 28; col++) {
+    const cell = sub.cellAt(col, row);
+    if (cell && !cell.rock) { cell.nutrient = N; cell.maxNutrient = N; }
+  }
+  s.clouds = [];
+  const ctr = sub.cellCenter(6, 6);
+  const cloud = spawnTrichodermaAt(s, ctr.x, ctr.y);
+  const r0 = cloud.r;
+  for (let i = 0; i < 20; i++) spreadTrichoderma(s);
+  ok(cloud.r <= s.config.trichoderma.cloudRadiusMax + 1e-6 && cloud.r < r0 + 2,
+    `cloud stays small after eating a giant pile (r ${r0.toFixed(2)} -> ${cloud.r.toFixed(2)}, cap ${s.config.trichoderma.cloudRadiusMax})`);
+}
+
+// Consumption: a cloud sitting on a pile eats it within ~2 turns.
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 654);
   const sub = s.substrate;
   const N = s.config.substrate.foodCellNutrient;
-  // Clear all map food, then lay one small pile fully covered by mould.
-  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; c.trich = 0; }
+  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
   const c0 = 10, r0 = 5;
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
     const cell = sub.cellAt(c0 + dc, r0 + dr);
-    if (cell) { cell.nutrient = N; cell.maxNutrient = N; cell.rock = false; cell.hazard = false; cell.trich = 1; }
+    if (cell) { cell.nutrient = N; cell.maxNutrient = N; cell.rock = false; cell.hazard = false; }
   }
+  s.clouds = [];
+  const ctr = sub.cellCenter(c0, r0);
+  spawnTrichodermaAt(s, ctr.x, ctr.y);
   const food0 = sub.totalNutrient();
-  spreadTrichoderma(sub, s.active, s.config, s.rng);
-  spreadTrichoderma(sub, s.active, s.config, s.rng);
-  ok(sub.totalNutrient() < food0 * 0.1, `mould devoured the pile in 2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
+  spreadTrichoderma(s);
+  spreadTrichoderma(s);
+  ok(sub.totalNutrient() < food0 * 0.1, `a cloud devoured the pile in 2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
+}
+
+// Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 55);
+  s.clouds = [];
+  const node = s.active.nodes[s.active.nodes.length - 1];
+  const cloud = spawnTrichodermaAt(s, node.x, node.y);
+  infectNetwork(s.active, s);
+  ok(cloud.dying === true, 'cloud spends itself (dying) the moment it infects you');
+  ok(s.active.nodes.some((n) => n.infected), 'contact infected the network');
+  spreadTrichoderma(s);
+  spreadTrichoderma(s);
+  ok(!s.clouds.includes(cloud), 'the spent cloud disappears over ~2 turns (infect each cloud ~once)');
 }
 
 console.log('# Melanize reduces incoming damage (defensive trait matters)');
@@ -142,21 +174,24 @@ console.log('# Melanize reduces incoming damage (defensive trait matters)');
 
 console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cures');
 {
-  // A single point of contact must immediately claim a CHUNK, not one strand.
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 7);
   const net = s.active;
+  s.clouds = [];
+  // Grow a sizable network so a single chunk doesn't cover the whole thing.
+  const seedNode = net.nodes[net.nodes.length - 1];
+  s.substrate.deposit(seedNode.x, seedNode.y + 30, 100, 3);
+  for (let i = 0; i < 12; i++) net.grow(s.substrate, s.rng);
   ok(net.healthyCount() === net.nodes.length, 'starts fully healthy (uninfected)');
-  // Mould under exactly one interior node (one that has neighbours to claim).
+
+  // A cloud touching one interior strand instantly claims a CHUNK, not one node.
   const hub = net.nodes.find((n) => n.parentId != null && n.children.length > 0) || net.nodes[1];
-  const hc = s.substrate.cellAtWorld(hub.x, hub.y);
-  if (hc) hc.trich = 1;
-  infectNetwork(net, s.substrate, s.config, s.rng);
+  spawnTrichodermaAt(s, hub.x, hub.y);
+  infectNetwork(net, s);
   const afterContact = net.nodes.length - net.healthyCount();
   ok(afterContact > 1, `one contact instantly rots a chunk (${afterContact} strands)`);
 
-  // Now flood everything and let it race — it should overrun fast.
-  for (const node of net.nodes) { const c = s.substrate.cellAtWorld(node.x, node.y); if (c) c.trich = 1; }
-  for (let i = 0; i < 4; i++) infectNetwork(net, s.substrate, s.config, s.rng);
+  // The rot then races inward along the filaments each turn (clouds now spent).
+  for (let i = 0; i < 5; i++) infectNetwork(net, s);
   const infected = net.nodes.length - net.healthyCount();
   ok(infected > afterContact, `infection races through the network (${infected}/${net.nodes.length})`);
   net.recomputeVitality();
@@ -168,20 +203,21 @@ console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cu
   const removed = net.amputateNode(inf.id);
   ok(removed > 0 && net.nodes.length < before, `Amputate cuts out infected strands (-${removed})`);
 
-  // Melanize resists the INITIAL contact only. Isolate contact (no chunk, no
-  // internal race) so the trait's effect on first contact is measurable.
-  function contactOnly(seed, melanize) {
+  // Melanize gives a chance to resist the initial contact. Isolate the breach
+  // (no chunk, no race), one cloud per node, and count breaches with/without it.
+  function contactBreaches(seed, melanize) {
     const st = createState(JSON.parse(JSON.stringify(CONFIG)), seed);
     st.config.trichoderma.contactChunk = 0;
     st.config.trichoderma.spreadDepthPerTurn = 0;
     st.active.traits.melanize = melanize;
-    for (const node of st.active.nodes) { const c = st.substrate.cellAtWorld(node.x, node.y); if (c) c.trich = 1; }
-    infectNetwork(st.active, st.substrate, st.config, st.rng);
+    st.clouds = [];
+    for (const node of st.active.nodes) spawnTrichodermaAt(st, node.x, node.y);
+    infectNetwork(st.active, st);
     return st.active.nodes.filter((n) => n.infected).length;
   }
-  const infNoMel = contactOnly(7, 0);
-  const infMel = contactOnly(7, 5);
-  ok(infMel < infNoMel, `Melanize resists initial contact (${infMel} < ${infNoMel})`);
+  const brNoMel = contactBreaches(7, 0);
+  const brMel = contactBreaches(7, 5);
+  ok(brMel < brNoMel, `Melanize resists initial contact (${brMel} < ${brNoMel})`);
 }
 
 console.log('# Fruit pays Spores and ends the cycle');

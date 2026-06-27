@@ -248,28 +248,22 @@ const CONFIG = {
   },
 
   // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
+  // Trichoderma is a few discrete, roughly fixed-size CLOUDS that roam toward
+  // food, eat what they pass without growing much, and spend themselves fading
+  // away after they infect you (so each cloud infects you ~once).
   trichoderma: {
-    initialPatches: 3,           // small mold patches seeded at map generation
-    patchRadiusMin: 0,           // tiny at the start (0 = a single cell)
-    patchRadiusMax: 1,
-    spreadRate: 0.5,             // base spread aggressiveness per turn (SLIDER)
-    spreadBase: 0.16,            // base fraction applied to each neighbour spread step
-    spreadThreshold: 0.35,       // a cell must reach this intensity before it spreads
-    spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
-    spreadJitterMax: 1.0,
-    decayRate: 0.10,             // faint spread edges fade (an unfed FRONT can recede)…
-    sustainSeed: 0.2,            // …but any cell that gets established (>= this) …
-    sustainLevel: 0.4,           // …never dies out — it persists at least this strong (a real colony)
-    foodAttraction: 1.4,         // creeps toward food / your colonised pockets
-    intensityGainOnFood: 0.05,   // eating a pile grows the cloud only a little (no ballooning)
-    consumeFraction: 0.6,        // nutrient eaten per turn from each cell on/next to the mold — a pile is gone in ~2 turns
-    heldResist: 0.6,             // dense healthy network only SLOWS the mold creeping in (doesn't block)
-    seedFoodBias: 0.75,          // chance an initial patch is biased toward food
-    spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
-    // --- network infection (the mould turning your strands green/dead) ---
-    contactThreshold: 0.25,      // mold intensity needed to infect a touched strand
-    contactChance: 1.0,          // touch = infection, immediately (Melanize still gives a chance to resist)
-    contactChunk: 4,             // on first contact the rot instantly claims this many rings of mycelium
+    initialPatches: 3,           // number of roaming mold clouds on the map
+    cloudRadiusMin: 1.6,         // starting cloud size, in grid cells
+    cloudRadiusMax: 3.0,         // HARD cap — a cloud never grows giant, however much it eats
+    growthPerEat: 0.03,          // radius gained per turn it's eating (tiny — stays ~the same size)
+    moveSpeed: 2.0,              // cells/turn a cloud creeps toward the nearest food (SLIDER)
+    consumeFraction: 0.6,        // food drained per turn from cells under the cloud (~2 turns to clear)
+    fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
+    seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
+    spawnChancePerTurn: 0.0,     // ambient new clouds (0 = only seeded + dev spawn)
+    // --- network infection (a cloud's edge touching you turns strands green) ---
+    contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
+    contactChunk: 4,             // the breach instantly claims this many rings of mycelium
     spreadDepthPerTurn: 3,       // once inside, the rot races this many rings along your filaments each turn
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
   },
@@ -408,7 +402,7 @@ const SLIDERS = [
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
-  { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
@@ -1137,169 +1131,218 @@ const __m_engine_threats = (function () {
 // =============================================================================
 // Threats — Trichoderma, the one Phase 1 threat (A2/A5, B6).
 //
-// Trichoderma is a competing mold. It lives as an intensity field on substrate
-// cells (cell.trich, 0..1). It creeps toward food, devours any substrate it
-// reaches, persists once established (it never just dies out), and when it
-// touches your network it infects it — turning strands green/dead and racing
-// the rot along your filaments. It is countered by:
-//   - Amputate (cut out the infected branch — the only cure once inside) -> network.amputate*
-//   - Melanize (resists the INITIAL contact only)                        -> traits.melanize
+// Trichoderma is modelled as a small number of discrete, roughly fixed-size
+// CLOUDS that roam the cross-section:
+//   - Each cloud creeps toward the nearest food source.
+//   - It devours any substrate it passes over (a pile it sits on is gone in
+//     ~2 turns) but eating barely grows it — a small cloud that eats a giant
+//     pile stays small.
+//   - The moment a cloud's outer edge touches your network it infects you
+//     (turning a chunk of strands green/dead), then spends itself: it keeps
+//     drifting toward food while fading away completely over ~2 turns. So each
+//     cloud infects you at most once.
+//   - Once the rot is inside you it races along your filaments (several rings a
+//     turn) until you Amputate the infected branch.
 //
-// Renderer-agnostic: operates only on substrate cells + the Network object.
+// The discrete clouds are projected into a per-cell intensity field
+// (cell.trich) every turn purely so the renderer and recovery checks can read
+// a simple scalar. Countered by:
+//   - Amputate (cut out the infected branch — the only cure once inside)
+//   - Melanize (a chance to resist the initial contact)
+//
+// Renderer-agnostic: operates only on substrate cells + the Network objects,
+// with the live cloud list living on `state.clouds`.
 // =============================================================================
 
-// Seed initial mold patches at map generation, biased toward food clusters so
-// that the richest substrate is also the most contested (B6 tension).
+function makeCloud(cx, cy, r) {
+  return { cx, cy, r, strength: 1, dying: false };
+}
+
+// Seed the initial roaming clouds at map generation, biased to start near food
+// clusters so the richest substrate is also the most contested (B6). Returns
+// the cloud list (stored on state.clouds) and stamps the field for first paint.
 function seedTrichoderma(substrate, config, rng) {
   const t = config.trichoderma;
-  // Candidate centres: prefer food-rich, non-hazard cells.
+  const clouds = [];
   const candidates = [];
   substrate.forEachCell((cell, col, row) => {
-    if (!cell.hazard && cell.nutrient > 0) candidates.push({ col, row, w: cell.nutrient });
+    if (!cell.rock && !cell.hazard && cell.nutrient > 0) candidates.push(substrate.cellCenter(col, row));
   });
   for (let i = 0; i < t.initialPatches; i++) {
-    let col, row;
+    let cx, cy;
     if (candidates.length && rng.chance(t.seedFoodBias)) {
       const c = rng.pick(candidates);
-      // nudge a little off the food so it has somewhere to grow into
-      col = c.col + rng.int(-2, 2);
-      row = c.row + rng.int(-2, 2);
+      cx = c.x + rng.range(-2, 2) * substrate.cellSize;
+      cy = c.y + rng.range(-2, 2) * substrate.cellSize;
     } else {
-      col = rng.int(1, substrate.cols - 2);
-      row = rng.int(1, substrate.rows - 2);
+      cx = rng.range(0, substrate.worldWidth);
+      cy = substrate.surfaceY + rng.range(0, substrate.rows * substrate.cellSize);
     }
-    const radius = rng.int(t.patchRadiusMin, t.patchRadiusMax);
-    stampTrich(substrate, col, row, radius);
+    clouds.push(makeCloud(cx, cy, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
+  stampCloudField(substrate, clouds);
+  return clouds;
 }
 
-// Dev cheat / Add-substrate-near hook: spawn a mold patch at a world point.
-function spawnTrichodermaAt(substrate, x, y, config, rng) {
+// Dev cheat / spawn hook: drop a fresh cloud at a world point.
+function spawnTrichodermaAt(state, x, y) {
+  const t = state.config.trichoderma;
+  const r = (t.cloudRadiusMin + t.cloudRadiusMax) / 2;
+  const cloud = makeCloud(x, y, r);
+  if (!state.clouds) state.clouds = [];
+  state.clouds.push(cloud);
+  stampCloudField(state.substrate, state.clouds);
+  return cloud;
+}
+
+// --- Per-turn cloud step (B6) -----------------------------------------------
+// Move every cloud toward the nearest food, devour what it sits on, fade any
+// spent cloud, then re-project the clouds into the cell.trich field.
+function spreadTrichoderma(state) {
+  const { config, substrate: sub, rng } = state;
   const t = config.trichoderma;
-  const col = substrate.colAtX(x), row = substrate.rowAtY(y);
-  const radius = rng.int(t.patchRadiusMin, t.patchRadiusMax + 1);
-  stampTrich(substrate, col, row, radius);
-}
+  const cs = sub.cellSize;
+  if (!state.clouds) state.clouds = [];
 
-function stampTrich(substrate, cc, cr, radius) {
-  for (let row = cr - radius; row <= cr + radius; row++) {
-    for (let col = cc - radius; col <= cc + radius; col++) {
-      if (!substrate.inBounds(col, row)) continue;
-      const dist = Math.hypot(col - cc, row - cr);
-      if (dist > radius) continue;
-      const cell = substrate.cells[substrate.index(col, row)];
-      if (cell.hazard) continue;
-      cell.trich = Math.min(1, Math.max(cell.trich, 1 - dist / (radius + 0.5)));
+  // Current food cell centres — clouds home in on the nearest one.
+  const food = [];
+  sub.forEachCell((cell, col, row) => {
+    if (cell.nutrient > 0 && !cell.rock) food.push(sub.cellCenter(col, row));
+  });
+  const nodes = state.active && state.active.alive ? state.active.nodes : [];
+
+  const survivors = [];
+  for (const cloud of state.clouds) {
+    // A spent cloud fades to nothing over fadeTurns, then is dropped.
+    if (cloud.dying) {
+      cloud.strength -= 1 / Math.max(1, t.fadeTurns);
+      if (cloud.strength <= 0.01) continue;
     }
-  }
-}
 
-// --- Per-turn spread (B6) ---------------------------------------------------
-// Snapshot current intensities, accumulate deltas, then apply — so a cell
-// infected this turn doesn't cascade-spread within the same turn.
-function spreadTrichoderma(substrate, network, config, rng) {
-  const t = config.trichoderma;
-  const cols = substrate.cols, rows = substrate.rows;
-  const snapshot = new Float32Array(substrate.cells.length);
-  for (let i = 0; i < substrate.cells.length; i++) snapshot[i] = substrate.cells[i].trich;
-  const delta = new Float32Array(substrate.cells.length);
-
-  const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]];
-
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const idx = substrate.index(col, row);
-      const intensity = snapshot[idx];
-      if (intensity <= 0) continue;
-      const cell = substrate.cells[idx];
-
-      // Devour substrate fast — the mold eats the cell it sits on AND digests
-      // into adjacent food, so a pile it reaches is gone in ~2 turns. Eating
-      // grows the cloud only a little (capped), so reaching food no longer
-      // makes it balloon across the map.
-      if (cell.nutrient > 0) {
-        cell.nutrient = Math.max(0, cell.nutrient - cell.maxNutrient * t.consumeFraction);
-        delta[idx] += t.intensityGainOnFood * intensity;
-      }
-
-      if (intensity < t.spreadThreshold) continue;
-
-      for (const [dc, dr] of neighbors) {
-        const nc = col + dc, nr = row + dr;
-        if (!substrate.inBounds(nc, nr)) continue;
-        const nidx = substrate.index(nc, nr);
-        const ncell = substrate.cells[nidx];
-        if (ncell.hazard || ncell.rock) continue;
-        // Digest into adjacent food even before the cloud covers it.
-        if (ncell.nutrient > 0) {
-          ncell.nutrient = Math.max(0, ncell.nutrient - ncell.maxNutrient * t.consumeFraction);
-        }
-        let amount = t.spreadRate * intensity * t.spreadBase;
-        if (ncell.maxNutrient > 0) amount *= t.foodAttraction;  // creep toward food piles
-        amount *= rng.range(t.spreadJitterMin, t.spreadJitterMax);
-        // Dense healthy network only SLOWS the creep in (it no longer blocks it,
-        // so the mould can actually reach and infect you).
-        if (ncell.held > 0) amount *= Math.max(0.15, 1 - t.heldResist * ncell.held);
-        delta[nidx] += amount;
+    // Drift toward the nearest food (or, if the map is bare, toward you).
+    let tx = null, ty = null, best = Infinity;
+    for (const f of food) {
+      const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
+      if (d < best) { best = d; tx = f.x; ty = f.y; }
+    }
+    if (tx == null) {
+      for (const n of nodes) {
+        const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
+        if (d < best) { best = d; tx = n.x; ty = n.y; }
       }
     }
-  }
+    if (tx != null) {
+      const dx = tx - cloud.cx, dy = ty - cloud.cy;
+      const dist = Math.hypot(dx, dy) || 1;
+      const step = Math.min(dist, t.moveSpeed * cs);
+      cloud.cx += (dx / dist) * step;
+      cloud.cy += (dy / dist) * step;
+    }
 
-  // Apply: an unfed front EDGE decays (so the creep can recede), then add the
-  // spread, clamped to [0, 1]. But any cell that ever got established never just
-  // dies out — it persists at sustainLevel, a real colony you must cut/outrun.
-  for (let i = 0; i < substrate.cells.length; i++) {
-    const cell = substrate.cells[i];
-    cell.trich = Math.min(1, cell.trich * (1 - t.decayRate) + delta[i]);
-    if (snapshot[i] >= t.sustainSeed && cell.trich < t.sustainLevel) cell.trich = t.sustainLevel;
-    if (cell.trich < 0.02) cell.trich = 0;
+    // Devour the substrate under the cloud — fast (a covered cell is gone in
+    // ~2 turns). Eating barely grows the cloud, hard-capped so it never gets
+    // giant no matter how much food it consumes.
+    const ate = eatUnder(sub, cloud, t.consumeFraction);
+    if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
+
+    survivors.push(cloud);
   }
+  state.clouds = survivors;
 
   // Ambient new outbreaks (off by default).
   if (t.spawnChancePerTurn > 0 && rng.chance(t.spawnChancePerTurn)) {
-    spawnTrichodermaAt(
-      substrate,
-      rng.range(0, substrate.worldWidth),
-      substrate.surfaceY + rng.range(0, substrate.rows * substrate.cellSize),
-      config, rng,
-    );
+    spawnTrichodermaAt(state, rng.range(0, sub.worldWidth), sub.surfaceY + rng.range(0, sub.rows * cs));
+  }
+
+  stampCloudField(sub, state.clouds);
+}
+
+// Drain substrate within a cloud's footprint; returns total nutrient eaten.
+function eatUnder(sub, cloud, frac) {
+  const cs = sub.cellSize;
+  const c0 = sub.colAtX(cloud.cx), r0 = sub.rowAtY(cloud.cy);
+  const radCells = Math.ceil(cloud.r) + 1;
+  const reach = cloud.r * cs;
+  let ate = 0;
+  for (let row = r0 - radCells; row <= r0 + radCells; row++) {
+    for (let col = c0 - radCells; col <= c0 + radCells; col++) {
+      if (!sub.inBounds(col, row)) continue;
+      const cell = sub.cells[sub.index(col, row)];
+      if (cell.nutrient <= 0) continue;
+      const ctr = sub.cellCenter(col, row);
+      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) > reach) continue;
+      const take = Math.min(cell.nutrient, cell.maxNutrient * frac);
+      cell.nutrient -= take;
+      ate += take;
+    }
+  }
+  return ate;
+}
+
+// Project the discrete clouds into the per-cell intensity field (render + the
+// network's recovery check both read cell.trich). Cleared and rebuilt each step.
+function stampCloudField(sub, clouds) {
+  const cs = sub.cellSize;
+  for (const cell of sub.cells) cell.trich = 0;
+  for (const cloud of clouds) {
+    const c0 = sub.colAtX(cloud.cx), r0 = sub.rowAtY(cloud.cy);
+    const radCells = Math.ceil(cloud.r) + 1;
+    const reach = cloud.r * cs;
+    const strength = cloud.strength == null ? 1 : cloud.strength;
+    for (let row = r0 - radCells; row <= r0 + radCells; row++) {
+      for (let col = c0 - radCells; col <= c0 + radCells; col++) {
+        if (!sub.inBounds(col, row)) continue;
+        const cell = sub.cells[sub.index(col, row)];
+        if (cell.rock) continue;
+        const ctr = sub.cellCenter(col, row);
+        const d = Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy);
+        if (d > reach) continue;
+        const inten = strength * (1 - d / (reach + cs * 0.5));
+        if (inten > cell.trich) cell.trich = inten;
+      }
+    }
   }
 }
 
 // --- Per-turn network infection (B6) ----------------------------------------
-// The mould overruns the colony. The moment a strand touches mould it is
-// infected (green/dead) and the rot INSTANTLY claims a chunk of the surrounding
-// mycelium. From then on it races along your filaments several rings per turn —
-// real consequences. Melanize resists the INITIAL contact only; once it's
-// inside, only Amputate (cutting the infected branch out) stops it.
-function infectNetwork(network, substrate, config, rng) {
+// When a cloud's edge touches a healthy strand it breaches — infecting that
+// strand and instantly claiming a chunk of mycelium around it — then the cloud
+// is spent (it begins to fade). After that the rot races along your filaments
+// several rings per turn. Melanize gives a chance to resist the initial breach.
+function infectNetwork(net, state) {
+  const { config, substrate: sub, rng } = state;
   const t = config.trichoderma;
-  const melanize = network.traits.melanize || 0;
+  const cs = sub.cellSize;
+  const melanize = net.traits.melanize || 0;
   const resist = Math.min(0.9, melanize * config.traits.melanize.contactResistPerLevel);
 
-  // 1) Contact — touching mould infects immediately, and the rot instantly
-  //    eats a chunk of nearby mycelium around that breach. Melanize only gives
-  //    a chance the initial contact fails to take hold.
-  const breaches = [];
-  for (const n of network.nodes) {
-    if (n.infected) continue;
-    const cell = substrate.cellAtWorld(n.x, n.y);
-    if (cell && cell.trich >= t.contactThreshold && rng() < t.contactChance * (1 - resist)) {
-      n.infected = true;
-      breaches.push(n);
+  // 1) Contact — a cloud that touches you infects (chunk) and then spends itself.
+  for (const cloud of (state.clouds || [])) {
+    if (cloud.dying) continue;                 // already spent — fading away
+    const reach = cloud.r * cs;
+    let hit = null, best = Infinity;
+    for (const n of net.nodes) {
+      if (n.infected) continue;
+      const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
+      if (d <= reach * reach && d < best) { best = d; hit = n; }
+    }
+    if (hit) {
+      if (rng() < t.contactChance * (1 - resist)) {
+        hit.infected = true;
+        infectAround(net, hit, t.contactChunk, 1, rng);
+      }
+      cloud.dying = true;   // it spent itself breaching you — now it fades out
     }
   }
-  for (const seed of breaches) infectAround(network, seed, t.contactChunk, 1, rng);
 
-  // 2) Internal spread — from the whole current front, the rot races
-  //    spreadDepthPerTurn rings along the filaments this turn.
+  // 2) Internal spread — the rot races along the filaments from the whole front.
   const front = [];
-  for (const n of network.nodes) if (n.infected) front.push(n);
-  for (const n of front) infectAround(network, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng);
+  for (const n of net.nodes) if (n.infected) front.push(n);
+  for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng);
 }
 
-// Flood the infection outward from `seed` up to `depth` rings along the graph
-// (parent + children each step). `chance` 1 = guaranteed (an instant chunk);
+// Flood infection outward from `seed` up to `depth` rings along the graph
+// (parent + children each step). chance 1 = guaranteed (an instant chunk);
 // < 1 = an organic race that may stall short of `depth`.
 function infectAround(network, seed, depth, chance, rng) {
   let frontier = [seed];
@@ -1346,7 +1389,7 @@ const __m_engine_state = (function () {
 function createState(config, seed) {
   const rng = makeRng(seed >>> 0 || 1);
   const substrate = generateSubstrate(config, rng);
-  seedTrichoderma(substrate, config, rng);
+  const clouds = seedTrichoderma(substrate, config, rng);
 
   const network = new Network(config);
   network.seed(substrate, rng);
@@ -1356,6 +1399,7 @@ function createState(config, seed) {
     rng,
     seed,
     substrate,
+    clouds,                // roaming Trichoderma clouds (shared cross-section threat)
     networks: [network],   // list-of-networks (A5-ready); one active in Phase 1
     active: network,
     spores: 0,             // run-wide Spore total (summed across networks later)
@@ -1559,10 +1603,10 @@ function performAction(state, name, ctx = {}) {
   return { ok: true, message: result.message, moves, energy };
 }
 
-// --- Dev cheat: spawn a Trichoderma patch at a point (B7) -------------------
+// --- Dev cheat: spawn a Trichoderma cloud at a point (B7) -------------------
 function devSpawnTrichoderma(state, x, y) {
-  spawnTrichodermaAt(state.substrate, x, y, state.config, state.rng);
-  state.log('DEV: spawned Trichoderma.', 'dev');
+  spawnTrichodermaAt(state, x, y);
+  state.log('DEV: spawned a Trichoderma cloud.', 'dev');
 }
 
   return { ACTIONS, actionCost, actionBlockedReason, performAction, devSpawnTrichoderma };
@@ -1587,8 +1631,11 @@ const __m_engine_turn = (function () {
 function endTurn(state) {
   if (state.runOver) return;
 
-  const { config, substrate, rng } = state;
+  const { config, substrate } = state;
   let totalIncome = 0;
+
+  // The roaming mould clouds move/eat once per turn (shared cross-section).
+  spreadTrichoderma(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -1601,9 +1648,8 @@ function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: the ground mould creeps, then infects/overruns the network.
-    spreadTrichoderma(substrate, net, config, rng);
-    infectNetwork(net, substrate, config, rng);
+    // 2) Threat: any cloud touching this network infects/overruns it.
+    infectNetwork(net, state);
 
     // 3) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {

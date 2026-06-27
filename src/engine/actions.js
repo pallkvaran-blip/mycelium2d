@@ -172,8 +172,8 @@ export function performAction(state, name, ctx = {}) {
   return { ok: true, message: result.message, moves, energy };
 }
 
-// --- Dev cheat: spawn a Trichoderma patch at a point (B7) -------------------
+// --- Dev cheat: spawn a Trichoderma cloud at a point (B7) -------------------
 export function devSpawnTrichoderma(state, x, y) {
-  spawnTrichodermaAt(state.substrate, x, y, state.config, state.rng);
-  state.log('DEV: spawned Trichoderma.', 'dev');
+  spawnTrichodermaAt(state, x, y);
+  state.log('DEV: spawned a Trichoderma cloud.', 'dev');
 }

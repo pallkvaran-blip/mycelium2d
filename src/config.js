@@ -84,28 +84,22 @@ export const CONFIG = {
   },
 
   // ---- Threat: Trichoderma (A2/A5, B6) -----------------------------------
+  // Trichoderma is a few discrete, roughly fixed-size CLOUDS that roam toward
+  // food, eat what they pass without growing much, and spend themselves fading
+  // away after they infect you (so each cloud infects you ~once).
   trichoderma: {
-    initialPatches: 3,           // small mold patches seeded at map generation
-    patchRadiusMin: 0,           // tiny at the start (0 = a single cell)
-    patchRadiusMax: 1,
-    spreadRate: 0.5,             // base spread aggressiveness per turn (SLIDER)
-    spreadBase: 0.16,            // base fraction applied to each neighbour spread step
-    spreadThreshold: 0.35,       // a cell must reach this intensity before it spreads
-    spreadJitterMin: 0.6,        // per-cell spread randomness range (organic front)
-    spreadJitterMax: 1.0,
-    decayRate: 0.10,             // faint spread edges fade (an unfed FRONT can recede)…
-    sustainSeed: 0.2,            // …but any cell that gets established (>= this) …
-    sustainLevel: 0.4,           // …never dies out — it persists at least this strong (a real colony)
-    foodAttraction: 1.4,         // creeps toward food / your colonised pockets
-    intensityGainOnFood: 0.05,   // eating a pile grows the cloud only a little (no ballooning)
-    consumeFraction: 0.6,        // nutrient eaten per turn from each cell on/next to the mold — a pile is gone in ~2 turns
-    heldResist: 0.6,             // dense healthy network only SLOWS the mold creeping in (doesn't block)
-    seedFoodBias: 0.75,          // chance an initial patch is biased toward food
-    spawnChancePerTurn: 0.0,     // ambient new patches (0 = only seeded + dev/spawn)
-    // --- network infection (the mould turning your strands green/dead) ---
-    contactThreshold: 0.25,      // mold intensity needed to infect a touched strand
-    contactChance: 1.0,          // touch = infection, immediately (Melanize still gives a chance to resist)
-    contactChunk: 4,             // on first contact the rot instantly claims this many rings of mycelium
+    initialPatches: 3,           // number of roaming mold clouds on the map
+    cloudRadiusMin: 1.6,         // starting cloud size, in grid cells
+    cloudRadiusMax: 3.0,         // HARD cap — a cloud never grows giant, however much it eats
+    growthPerEat: 0.03,          // radius gained per turn it's eating (tiny — stays ~the same size)
+    moveSpeed: 2.0,              // cells/turn a cloud creeps toward the nearest food (SLIDER)
+    consumeFraction: 0.6,        // food drained per turn from cells under the cloud (~2 turns to clear)
+    fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
+    seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
+    spawnChancePerTurn: 0.0,     // ambient new clouds (0 = only seeded + dev spawn)
+    // --- network infection (a cloud's edge touching you turns strands green) ---
+    contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
+    contactChunk: 4,             // the breach instantly claims this many rings of mycelium
     spreadDepthPerTurn: 3,       // once inside, the rot races this many rings along your filaments each turn
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
   },
@@ -244,7 +238,7 @@ export const SLIDERS = [
   { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
-  { path: 'trichoderma.spreadRate',      label: 'Mold Creep (ground)', min: 0,   max: 2,   step: 0.05 },
+  { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },

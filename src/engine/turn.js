@@ -15,8 +15,11 @@ import { spreadTrichoderma, infectNetwork } from './threats.js';
 export function endTurn(state) {
   if (state.runOver) return;
 
-  const { config, substrate, rng } = state;
+  const { config, substrate } = state;
   let totalIncome = 0;
+
+  // The roaming mould clouds move/eat once per turn (shared cross-section).
+  spreadTrichoderma(state);
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -29,9 +32,8 @@ export function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: the ground mould creeps, then infects/overruns the network.
-    spreadTrichoderma(substrate, net, config, rng);
-    infectNetwork(net, substrate, config, rng);
+    // 2) Threat: any cloud touching this network infects/overruns it.
+    infectNetwork(net, state);
 
     // 3) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
