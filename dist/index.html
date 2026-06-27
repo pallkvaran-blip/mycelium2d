@@ -3447,9 +3447,11 @@ function begin(newState) {
   previewFruitPoints = [];
   resize();
   if (state.mode === 'puzzle') {
-    // show the whole level so the layout (rocks, food, chest, mould) reads
-    camera.fitBounds({ minX: 0, minY: state.substrate.surfaceY - 30,
-      maxX: state.substrate.worldWidth, maxY: state.substrate.worldHeight }, 40);
+    // show the whole level so the layout (rocks, food, chest, mould) reads;
+    // pad the sides so the start (far left) and chest (far right) aren't jammed
+    // against the screen edges / under the HUD + dev panels.
+    camera.fitBounds({ minX: -160, minY: state.substrate.surfaceY - 30,
+      maxX: state.substrate.worldWidth + 160, maxY: state.substrate.worldHeight }, 30);
   } else {
     camera.fitBounds(expandedBounds(), 120);
   }
@@ -3669,7 +3671,7 @@ function frame(time) {
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
-  drawChest();
+  drawChest(time);
   drawCloudSight();
   drawTargetingCursor(time);
 
@@ -3677,22 +3679,52 @@ function frame(time) {
   requestAnimationFrame(frame);
 }
 
-// Puzzle mode: the treasure chest goal — a glowing buried chest.
-function drawChest() {
+// Puzzle mode: the treasure chest goal. Made deliberately easy to find — a
+// pulsing glow + a light beacon rising to the surface, a minimum on-screen size
+// so it never shrinks away when zoomed out, and an edge arrow when off-screen.
+function drawChest(time) {
   if (!state.chest) return;
+  const W = window.innerWidth, H = window.innerHeight;
   const s = camera.worldToScreen(state.chest.x, state.chest.y);
   const z = camera.zoom;
+  const pulse = 0.75 + 0.25 * Math.sin(time * 0.004);
+
+  // Off-screen? Draw a gold arrow at the screen edge pointing to it.
+  if (s.x < 0 || s.x > W || s.y < 0 || s.y > H) {
+    const cx = Math.max(28, Math.min(W - 28, s.x));
+    const cy = Math.max(28, Math.min(H - 28, s.y));
+    const ang = Math.atan2(s.y - cy, s.x - cx);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(ang);
+    ctx.fillStyle = `rgba(255,210,90,${0.85 * pulse})`;
+    ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-10, -10); ctx.lineTo(-10, 10); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
-  // warm glow so it's easy to spot in the dark earth
-  const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, state.chest.r * z);
-  gr.addColorStop(0, 'rgba(255,210,90,0.55)');
+  // light beacon rising to the surface — visible from across the map
+  const surfY = camera.worldToScreen(state.chest.x, state.substrate.surfaceY).y;
+  const beam = ctx.createLinearGradient(0, surfY - 40, 0, s.y);
+  beam.addColorStop(0, 'rgba(255,220,120,0)');
+  beam.addColorStop(1, `rgba(255,220,120,${0.18 * pulse})`);
+  ctx.fillStyle = beam;
+  const bw = Math.max(12, 20 * z);
+  ctx.fillRect(s.x - bw / 2, surfY - 40, bw, s.y - (surfY - 40));
+
+  // pulsing glow
+  const R = Math.max(48, state.chest.r * z) * (0.9 + 0.25 * pulse);
+  const gr = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, R);
+  gr.addColorStop(0, 'rgba(255,210,90,0.6)');
   gr.addColorStop(1, 'rgba(255,210,90,0)');
   ctx.fillStyle = gr;
-  ctx.beginPath(); ctx.arc(s.x, s.y, state.chest.r * z, 0, Math.PI * 2); ctx.fill();
-  // chest
-  const w = 30 * z, h = 22 * z;
+  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
+
+  // chest — minimum on-screen size so it stays visible when zoomed out
+  const sc = Math.max(1, z);
+  const w = 32 * sc, h = 24 * sc;
   ctx.translate(s.x, s.y);
-  ctx.lineWidth = Math.max(1, 2 * z);
+  ctx.lineWidth = Math.max(1.5, 2 * sc);
   ctx.fillStyle = '#7a4e22'; ctx.strokeStyle = '#2c1a0c';
   ctx.fillRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
   ctx.strokeRect(-w / 2, -h / 2 + h * 0.35, w, h * 0.65);
@@ -3700,8 +3732,8 @@ function drawChest() {
   ctx.fillRect(-w / 2, -h / 2, w, h * 0.4);
   ctx.strokeRect(-w / 2, -h / 2, w, h * 0.4);
   ctx.fillStyle = '#ffd45a';                       // gold band + lock
-  ctx.fillRect(-2.5 * z, -h / 2, 5 * z, h);
-  ctx.beginPath(); ctx.arc(0, -h * 0.05, 3 * z, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(-2.5 * sc, -h / 2, 5 * sc, h);
+  ctx.beginPath(); ctx.arc(0, -h * 0.05, 3 * sc, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
