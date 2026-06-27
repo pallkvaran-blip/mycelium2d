@@ -194,10 +194,10 @@ export const CONFIG = {
     sunWash: 'rgba(110,160,195,0.10)',    // faint cool light over open soil
     shadeWash: 'rgba(36,66,98,0.24)',     // cooler light under canopy
     canopy: 'rgba(9,18,17,0.6)',          // foliage silhouette over shade
-    // earth strata (top -> deep) — near-black cool earth, lit only by life
-    soilTop: '#1b1712',
-    soilMid: '#101014',
-    soilDeep: '#07080b',
+    // earth strata (top -> deep) — rich earthy brown, darkening with depth
+    soilTop: '#5e4528',
+    soilMid: '#45331e',
+    soilDeep: '#2a1d12',
     rock: '#23262c',             // small buried pebbles
     rockLip: '#3a4656',
     // impassable rock formations (cold dark slate)
@@ -243,7 +243,7 @@ export const CONFIG = {
     particleCount: 80,
     // dynamic lighting: the network/food/hazards emit light into the dark earth
     lighting: true,
-    ambientLight: 0.4,          // earth falls to a deep cool dark; life lights it (1 = lighting off)
+    ambientLight: 0.62,         // unlit earth stays a visible warm brown; life adds glow (1 = lighting off)
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
     hazardLight: 'rgba(90,220,200,1)',

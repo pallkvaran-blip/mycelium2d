@@ -8,13 +8,20 @@ Status: 🟢 generated · ⚪ planned
 
 | key | kind | size | status | purpose |
 |-----|------|------|--------|---------|
-| `soil` | texture | 1024² | 🟢 | underground earth detail, tiled over the soil |
-| `rockface` | texture | 1024² | 🟢 | fill/overlay for impassable rock formations |
-| `antColony` | sprite | ~640 | 🟢 | underground nest burrow (HP bar / trail drawn over it) |
+| `substrate` | texture | 1024² | 🟢 | decaying organic matter, clipped to the food cells |
+| `rockface` | texture | 1024² | 🟢 | rock type 1 — dark slate |
+| `rockface2` | texture | 1024² | 🟢 | rock type 2 — warm iron/sandstone |
+| `rockface3` | texture | 1024² | 🟢 | rock type 3 — basalt w/ glowing veins |
 | `tree` | sprite | ~640 | 🟢 | surface prop — tree, shadows lifted so it reads at night |
 | `grassTuft` | sprite | ~530 | 🟢 | surface prop — small grass clump |
 | `house` | sprite | ~640 | 🟢 | surface prop — small cabin w/ lit window |
+| `soil` | texture | — | ✖ | dropped (came out blobby; brown palette + substrate suffice) |
+| `antColony` | — | — | ✖ | reverted to the procedural formicarium (reads better) |
 | `boulder` | sprite | 1024² | ⚪ | discrete rock props (deferred — for the map editor) |
+
+Each connected rock formation is assigned one of the three rock textures for
+variety. The earth palette is warm brown (config.render); the deep-earth look
+comes from lighting, not a black base.
 
 Sprites are generated on a plain white background then matted with BiRefMet
 (`scripts/gensprite.sh`); dark silhouette props get their shadows lifted (PIL)

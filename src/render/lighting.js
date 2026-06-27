@@ -38,8 +38,8 @@ export class Lighting {
     // 1) Darken ONLY the underground; the daytime sky above stays bright (the
     //    light map is white over the sky, so the multiply leaves it untouched).
     const a = r.ambientLight;
-    // cool tint so unlit earth falls to a deep blue-black (bioluminescent deep-earth)
-    const amb = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
+    // warm tint so unlit earth reads as rich brown (not cold black)
+    const amb = `rgb(${clamp255(255 * a)},${clamp255(255 * a * 0.9)},${clamp255(255 * a * 0.76)})`;
     lc.globalCompositeOperation = 'source-over';
     const surfY = camera.worldToScreen(0, state.substrate.surfaceY).y;
     const band = 50; // soft transition across the soil line

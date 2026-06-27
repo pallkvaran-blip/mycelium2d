@@ -631,27 +631,40 @@ function drawAnts(time) {
 // zoom-scaled so they sit on the earth; gated on the asset being present, so
 // with no assets the game keeps its procedural look.
 function drawTerrainAssets() {
-  const sub = state.substrate;
-  const undergroundTL = camera.worldToScreen(0, sub.surfaceY);
-  const undergroundBR = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
-  const cover = { x: undergroundTL.x, y: undergroundTL.y, w: undergroundBR.x - undergroundTL.x, h: undergroundBR.y - undergroundTL.y };
+  const sub = state.substrate, z = camera.zoom;
+  const tl = camera.worldToScreen(0, sub.surfaceY);
+  const br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  const cover = { x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y };
 
-  // Soil detail over the whole underground.
   if (hasAsset('soil')) fillPatternWorld('soil', null, cover, 0.5);
 
-  // Rock face clipped to the impassable rock formations (matches their shape).
-  if (hasAsset('rockface')) {
-    const cells = rockCells();
-    if (cells.length) {
-      const rad = sub.cellSize * 0.78 * camera.zoom;
-      const clip = new Path2D();
-      for (const c of cells) {
+  // Substrate (decaying organic matter) clipped to the current food cells.
+  // Rebuilt each frame since food is eaten/added during play.
+  if (hasAsset('substrate')) {
+    const rad = sub.cellSize * 0.72 * z;
+    const clip = new Path2D();
+    let any = false;
+    sub.forEachCell((cell, col, row) => {
+      if (cell.nutrient > 0 && !cell.rock) {
+        const c = sub.cellCenter(col, row);
         const s = camera.worldToScreen(c.x, c.y);
-        clip.moveTo(s.x + rad, s.y);
-        clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
+        clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
+        any = true;
       }
-      fillPatternWorld('rockface', clip, cover, 1);
+    });
+    if (any) fillPatternWorld('substrate', clip, cover, 0.9);
+  }
+
+  // Rock formations — each connected formation gets ONE of the rock textures
+  // (slate / iron / basalt) for variety, clipped to its shape.
+  const rad = sub.cellSize * 0.78 * z;
+  for (const g of rockGroups()) {
+    const clip = new Path2D();
+    for (const c of g.cells) {
+      const s = camera.worldToScreen(c.x, c.y);
+      clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
     }
+    fillPatternWorld(g.key, clip, cover, 1);
   }
 }
 
@@ -673,14 +686,37 @@ function fillPatternWorld(key, clipPath, cover, defaultOpacity) {
   ctx.restore();
 }
 
-// Rock-formation cell centres (world) — static per map, cached by state.
-let _rockState = null, _rockCells = null;
-function rockCells() {
-  if (_rockState === state) return _rockCells;
-  const cells = [];
-  state.substrate.forEachCell((c, col, row) => { if (c.rock) cells.push(state.substrate.cellCenter(col, row)); });
-  _rockState = state; _rockCells = cells;
-  return cells;
+// Rock formations grouped into connected clusters, each assigned one rock
+// texture variant for variety. Static per map, cached by state.
+let _rockState = null, _rockGroups = null;
+function rockGroups() {
+  if (_rockState === state) return _rockGroups;
+  const sub = state.substrate;
+  const variants = ['rockface', 'rockface2', 'rockface3'].filter(hasAsset);
+  const groups = [];
+  if (variants.length) {
+    const seen = new Set();
+    const id = (c, r) => r * sub.cols + c;
+    const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    sub.forEachCell((cell, col, row) => {
+      if (!cell.rock || seen.has(id(col, row))) return;
+      const cells = [];
+      const q = [[col, row]]; seen.add(id(col, row));
+      while (q.length) {
+        const [c, r] = q.pop();
+        cells.push(sub.cellCenter(c, r));
+        for (const [dc, dr] of NB) {
+          const nc = c + dc, nr = r + dr;
+          if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
+          const ncell = sub.cellAt(nc, nr);
+          if (ncell && ncell.rock) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+        }
+      }
+      groups.push({ key: variants[groups.length % variants.length], cells });
+    });
+  }
+  _rockState = state; _rockGroups = groups;
+  return groups;
 }
 
 // Above-ground props (trees / grass / houses) placed along the surface line.
