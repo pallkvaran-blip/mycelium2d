@@ -42,9 +42,10 @@ export const CONFIG = {
     richNearHazardChance: 0,     // (no hazards now)
     richNearRockChance: 0.4,
     richUnderNonSoilChance: 0.4,
-    // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
-    // threading in and thickening until the patch is fully overgrown.
-    colonizeRate: 0.14,
+    // Colonisation advances per GROW cycle: each Grow, the mycelium branches
+    // within occupied substrate and makes this much progress, so ~1/this grow
+    // cycles are needed to fully colonise (and densely branch) a pocket.
+    colonizeRate: 0.2,
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------

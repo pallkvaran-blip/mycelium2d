@@ -463,7 +463,6 @@ export class SubstrateRenderer {
       if (cell.hazard || cell.maxNutrient <= 0) return;
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
       const rem = Math.min(1, cell.nutrient / this.nutrientRef);  // matter left
-      const colo = cell.colonized;                                 // 0..1
 
       // --- the decaying matter itself (shrinks as it's digested) ---
       if (rem > 0.02) {
@@ -505,42 +504,8 @@ export class SubstrateRenderer {
         }
       }
 
-      // --- mycelial mat threading through + thickening as it colonises ---
-      if (colo > 0.02) {
-        // Soft radial falloff (not a hard disc) so adjacent colonised cells
-        // blend into one continuous mat instead of a grid of white circles.
-        const matA = 0.04 + 0.16 * colo * colo;
-        const matR = cs * 0.85;
-        const mg = octx.createRadialGradient(cx, cy, 0, cx, cy, matR);
-        mg.addColorStop(0, `rgba(${r.mat},${matA})`);
-        mg.addColorStop(0.6, `rgba(${r.mat},${matA * 0.6})`);
-        mg.addColorStop(1, `rgba(${r.mat},0)`);
-        octx.fillStyle = mg;
-        octx.beginPath();
-        octx.arc(cx, cy, matR, 0, Math.PI * 2);
-        octx.fill();
-        const threads = Math.floor(1 + colo * colo * 11);  // sparse early, dense when full
-        octx.strokeStyle = `rgba(${r.mat},${0.18 * colo + 0.06})`;
-        octx.lineWidth = 0.7 + colo * 0.9;
-        for (let k = 0; k < threads; k++) {
-          const a = h2(col + k * 13, row + k * 5) * 6.283;
-          const lx = cx + (h2(col * 5 + k, row + k) * 2 - 1) * cs * 0.5;
-          const ly = cy + (h2(col + k, row * 5 + k) * 2 - 1) * cs * 0.5;
-          octx.beginPath();
-          octx.moveTo(lx - Math.cos(a) * cs * 0.42, ly - Math.sin(a) * cs * 0.42);
-          octx.quadraticCurveTo(lx, ly, lx + Math.cos(a) * cs * 0.42, ly + Math.sin(a) * cs * 0.42);
-          octx.stroke();
-        }
-        if (colo > 0.4) {
-          octx.fillStyle = `rgba(${r.mat},${0.5 * colo})`;
-          for (let k = 0; k < 3; k++) {
-            octx.beginPath();
-            octx.arc(cx + (h2(col + k, row + k * 2) * 2 - 1) * cs * 0.4,
-                     cy + (h2(col + k * 2, row + k) * 2 - 1) * cs * 0.4, 0.9 + colo, 0, Math.PI * 2);
-            octx.fill();
-          }
-        }
-      }
+      // The colonising mycelium itself (the dense branched hyphae) is drawn by
+      // the network renderer — no decorative mat overlay here any more.
     });
 
     // Trichoderma — fuzzy speckled growth.

@@ -184,9 +184,10 @@ const CONFIG = {
     richNearHazardChance: 0,     // (no hazards now)
     richNearRockChance: 0.4,
     richUnderNonSoilChance: 0.4,
-    // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
-    // threading in and thickening until the patch is fully overgrown.
-    colonizeRate: 0.14,
+    // Colonisation advances per GROW cycle: each Grow, the mycelium branches
+    // within occupied substrate and makes this much progress, so ~1/this grow
+    // cycles are needed to fully colonise (and densely branch) a pocket.
+    colonizeRate: 0.2,
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
@@ -732,6 +733,9 @@ class Network {
       created += this._growStep(substrate, rng);
       if (this.nodes.length >= g.maxNodes) break;
     }
+    // Each Grow also branches the mycelium within the substrate it occupies,
+    // colonising it denser over successive growth cycles.
+    created += this._colonizeStep(substrate, rng);
     if (created > 0) this.recomputeVitality();
     return created;
   }
@@ -917,17 +921,49 @@ class Network {
     return income;
   }
 
-  // --- Colonisation: occupied substrate is progressively overgrown ---------
-  // Each turn, every substrate cell the network sits in advances toward fully
-  // colonised (the mycelium threading in and thickening, as in real life).
-  colonize(substrate) {
-    const rate = this.config.substrate.colonizeRate;
+  // --- Colonisation (per Grow cycle): branch within occupied substrate ------
+  // Each Grow, every substrate cell the network sits in (that isn't yet fully
+  // colonised) sprouts a fresh branch or two of real hyphae and advances its
+  // colonisation. Over several growth cycles the pocket fills with a dense,
+  // genuinely branched mycelial network — the look comes from real structure.
+  _colonizeStep(substrate, rng) {
+    const g = this.config.growth;
+    const step = this.config.substrate.colonizeRate;
+    if (this.nodes.length >= g.maxNodes) return 0;
+
+    // Group the network's nodes by the (uncolonised) substrate cell they're in.
+    const byCell = new Map();
     for (const n of this.nodes) {
-      const cell = substrate.cellAtWorld(n.x, n.y);
-      if (cell && cell.maxNutrient > 0 && !cell.hazard && cell.colonized < 1) {
-        cell.colonized = Math.min(1, cell.colonized + rate * n.health);
-      }
+      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
+      if (!substrate.inBounds(col, row)) continue;
+      const idx = substrate.index(col, row);
+      const cell = substrate.cells[idx];
+      if (cell.maxNutrient <= 0 || cell.rock || cell.hazard || cell.colonized >= 1) continue;
+      let e = byCell.get(idx);
+      if (!e) byCell.set(idx, (e = { cell, nodes: [] }));
+      e.nodes.push(n);
     }
+
+    let created = 0;
+    const len = g.segmentLength * 0.5;
+    for (const { cell, nodes } of byCell.values()) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const parent = nodes[Math.floor(rng() * nodes.length)];
+      const branches = 1 + (rng() < 0.5 ? 1 : 0);
+      for (let b = 0; b < branches; b++) {
+        const ang = rng() * Math.PI * 2;
+        const dist = len * (0.6 + rng() * 0.8);
+        const nx = parent.x + Math.cos(ang) * dist;
+        const ny = parent.y + Math.sin(ang) * dist;
+        if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
+        const tc = substrate.cellAtWorld(nx, ny);
+        if (tc && tc.rock) continue;
+        this.addNode(nx, ny, parent);
+        created++;
+      }
+      cell.colonized = Math.min(1, cell.colonized + step * parent.health);
+    }
+    return created;
   }
 
   // Age every strand a step each turn — older mycelium fills in denser (used by
@@ -1483,9 +1519,8 @@ function endTurn(state) {
     const income = resolveIncome(net, substrate, config);
     if (net.active) totalIncome = income;
 
-    // 1b) Progressively colonise the substrate the network occupies, and age
-    //     the strands so the colony visibly thickens over growth cycles.
-    net.colonize(substrate);
+    // 1b) Age the strands so the colony visibly thickens over time.
+    //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
     // 2) Threat: Trichoderma spreads, then damages contacted strands.
@@ -2132,7 +2167,6 @@ class SubstrateRenderer {
       if (cell.hazard || cell.maxNutrient <= 0) return;
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
       const rem = Math.min(1, cell.nutrient / this.nutrientRef);  // matter left
-      const colo = cell.colonized;                                 // 0..1
 
       // --- the decaying matter itself (shrinks as it's digested) ---
       if (rem > 0.02) {
@@ -2174,42 +2208,8 @@ class SubstrateRenderer {
         }
       }
 
-      // --- mycelial mat threading through + thickening as it colonises ---
-      if (colo > 0.02) {
-        // Soft radial falloff (not a hard disc) so adjacent colonised cells
-        // blend into one continuous mat instead of a grid of white circles.
-        const matA = 0.04 + 0.16 * colo * colo;
-        const matR = cs * 0.85;
-        const mg = octx.createRadialGradient(cx, cy, 0, cx, cy, matR);
-        mg.addColorStop(0, `rgba(${r.mat},${matA})`);
-        mg.addColorStop(0.6, `rgba(${r.mat},${matA * 0.6})`);
-        mg.addColorStop(1, `rgba(${r.mat},0)`);
-        octx.fillStyle = mg;
-        octx.beginPath();
-        octx.arc(cx, cy, matR, 0, Math.PI * 2);
-        octx.fill();
-        const threads = Math.floor(1 + colo * colo * 11);  // sparse early, dense when full
-        octx.strokeStyle = `rgba(${r.mat},${0.18 * colo + 0.06})`;
-        octx.lineWidth = 0.7 + colo * 0.9;
-        for (let k = 0; k < threads; k++) {
-          const a = h2(col + k * 13, row + k * 5) * 6.283;
-          const lx = cx + (h2(col * 5 + k, row + k) * 2 - 1) * cs * 0.5;
-          const ly = cy + (h2(col + k, row * 5 + k) * 2 - 1) * cs * 0.5;
-          octx.beginPath();
-          octx.moveTo(lx - Math.cos(a) * cs * 0.42, ly - Math.sin(a) * cs * 0.42);
-          octx.quadraticCurveTo(lx, ly, lx + Math.cos(a) * cs * 0.42, ly + Math.sin(a) * cs * 0.42);
-          octx.stroke();
-        }
-        if (colo > 0.4) {
-          octx.fillStyle = `rgba(${r.mat},${0.5 * colo})`;
-          for (let k = 0; k < 3; k++) {
-            octx.beginPath();
-            octx.arc(cx + (h2(col + k, row + k * 2) * 2 - 1) * cs * 0.4,
-                     cy + (h2(col + k * 2, row + k) * 2 - 1) * cs * 0.4, 0.9 + colo, 0, Math.PI * 2);
-            octx.fill();
-          }
-        }
-      }
+      // The colonising mycelium itself (the dense branched hyphae) is drawn by
+      // the network renderer — no decorative mat overlay here any more.
     });
 
     // Trichoderma — fuzzy speckled growth.

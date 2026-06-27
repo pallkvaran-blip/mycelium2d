@@ -92,6 +92,9 @@ export class Network {
       created += this._growStep(substrate, rng);
       if (this.nodes.length >= g.maxNodes) break;
     }
+    // Each Grow also branches the mycelium within the substrate it occupies,
+    // colonising it denser over successive growth cycles.
+    created += this._colonizeStep(substrate, rng);
     if (created > 0) this.recomputeVitality();
     return created;
   }
@@ -277,17 +280,49 @@ export class Network {
     return income;
   }
 
-  // --- Colonisation: occupied substrate is progressively overgrown ---------
-  // Each turn, every substrate cell the network sits in advances toward fully
-  // colonised (the mycelium threading in and thickening, as in real life).
-  colonize(substrate) {
-    const rate = this.config.substrate.colonizeRate;
+  // --- Colonisation (per Grow cycle): branch within occupied substrate ------
+  // Each Grow, every substrate cell the network sits in (that isn't yet fully
+  // colonised) sprouts a fresh branch or two of real hyphae and advances its
+  // colonisation. Over several growth cycles the pocket fills with a dense,
+  // genuinely branched mycelial network — the look comes from real structure.
+  _colonizeStep(substrate, rng) {
+    const g = this.config.growth;
+    const step = this.config.substrate.colonizeRate;
+    if (this.nodes.length >= g.maxNodes) return 0;
+
+    // Group the network's nodes by the (uncolonised) substrate cell they're in.
+    const byCell = new Map();
     for (const n of this.nodes) {
-      const cell = substrate.cellAtWorld(n.x, n.y);
-      if (cell && cell.maxNutrient > 0 && !cell.hazard && cell.colonized < 1) {
-        cell.colonized = Math.min(1, cell.colonized + rate * n.health);
-      }
+      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
+      if (!substrate.inBounds(col, row)) continue;
+      const idx = substrate.index(col, row);
+      const cell = substrate.cells[idx];
+      if (cell.maxNutrient <= 0 || cell.rock || cell.hazard || cell.colonized >= 1) continue;
+      let e = byCell.get(idx);
+      if (!e) byCell.set(idx, (e = { cell, nodes: [] }));
+      e.nodes.push(n);
     }
+
+    let created = 0;
+    const len = g.segmentLength * 0.5;
+    for (const { cell, nodes } of byCell.values()) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const parent = nodes[Math.floor(rng() * nodes.length)];
+      const branches = 1 + (rng() < 0.5 ? 1 : 0);
+      for (let b = 0; b < branches; b++) {
+        const ang = rng() * Math.PI * 2;
+        const dist = len * (0.6 + rng() * 0.8);
+        const nx = parent.x + Math.cos(ang) * dist;
+        const ny = parent.y + Math.sin(ang) * dist;
+        if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
+        const tc = substrate.cellAtWorld(nx, ny);
+        if (tc && tc.rock) continue;
+        this.addNode(nx, ny, parent);
+        created++;
+      }
+      cell.colonized = Math.min(1, cell.colonized + step * parent.health);
+    }
+    return created;
   }
 
   // Age every strand a step each turn — older mycelium fills in denser (used by
