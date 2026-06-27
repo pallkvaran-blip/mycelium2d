@@ -344,32 +344,32 @@ const CONFIG = {
   // A cross-section: a bright daytime sky over rich, textured earth, with the
   // dark underground lit by the luminous mint network colonising organic matter.
   render: {
-    // sky / air (daytime)
-    skyTop: '#3f86c8',                    // daytime blue
-    skyHorizon: '#cbe4ea',                // pale haze near the horizon
-    horizonGlow: 'rgba(255,244,214,0.4)', // warm daylight haze
-    sun: 'rgba(255,250,232,0.95)',        // the sun
-    sunWash: 'rgba(255,238,188,0.20)',    // warm light over sunny soil
-    shadeWash: 'rgba(74,118,150,0.26)',   // cool light over shaded soil
-    canopy: 'rgba(46,74,42,0.5)',         // foliage silhouette over shade
-    // earth strata (top -> deep) — earthy brown all the way down, never black
-    soilTop: '#6d5132',
-    soilMid: '#4c3722',
-    soilDeep: '#2f2114',
-    rock: '#41382d',             // small buried pebbles
-    rockLip: '#5b5040',
-    // impassable rock formations (stone you cannot grow through)
-    rockMass: '#5d574e',
-    rockFacet: '#787065',
-    rockShadow: 'rgba(8,8,10,0.45)',
-    rockEdge: 'rgba(0,0,0,0.45)',
-    vein: 'rgba(214,182,120,0.45)',       // mineral veins
-    fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
+    // sky / air — deep twilight night so the underground life-light is the star
+    skyTop: '#060b14',                    // deep night blue
+    skyHorizon: '#13283a',                // dark teal horizon
+    horizonGlow: 'rgba(80,140,170,0.18)', // faint cool horizon haze
+    sun: 'rgba(170,205,232,0.30)',        // a soft moon, not a sun
+    sunWash: 'rgba(110,160,195,0.10)',    // faint cool light over open soil
+    shadeWash: 'rgba(36,66,98,0.24)',     // cooler light under canopy
+    canopy: 'rgba(9,18,17,0.6)',          // foliage silhouette over shade
+    // earth strata (top -> deep) — near-black cool earth, lit only by life
+    soilTop: '#1b1712',
+    soilMid: '#101014',
+    soilDeep: '#07080b',
+    rock: '#23262c',             // small buried pebbles
+    rockLip: '#3a4656',
+    // impassable rock formations (cold dark slate)
+    rockMass: '#1c2027',
+    rockFacet: '#2b313b',
+    rockShadow: 'rgba(0,0,0,0.55)',
+    rockEdge: 'rgba(0,0,0,0.55)',
+    vein: 'rgba(120,155,175,0.22)',       // cool mineral veins
+    fleck: 'rgba(150,225,200,0.45)',      // faint mint mineral flecks
     // substrate = decaying organic matter (rotting wood + leaf litter)
-    detritusBase: '#4a3219',              // dark rotting mass (brown, reads as matter)
-    detritusWood: '#7c5326',              // woody chips / twigs
-    detritusLeaf: '#5d5a26',              // leaf litter
-    detritusEdge: 'rgba(18,11,5,0.55)',   // outline
+    detritusBase: '#2a2417',              // dark rotting mass
+    detritusWood: '#5a4a2c',              // woody chips / twigs
+    detritusLeaf: '#3f4a26',              // leaf litter
+    detritusEdge: 'rgba(6,5,3,0.6)',      // outline
     mat: '230,242,228',                   // mycelial mat (rgb) overgrowing it
     foodVein: '#f2d784',
     // hazards (toxic pools / nests)
@@ -378,17 +378,17 @@ const CONFIG = {
     hazardCaustic: 'rgba(78,210,176,0.8)',
     hazardBubble: 'rgba(150,240,210,0.5)',
     // surface
-    crust: '#52402b',
-    crustLip: '#6c5536',
-    grassSun: '#86b154',
-    grassShade: '#4f8088',
-    concrete: '#383b43',
-    concreteCrack: 'rgba(0,0,0,0.4)',
+    crust: '#241d14',
+    crustLip: '#3a2f20',
+    grassSun: '#4a7a52',
+    grassShade: '#2f5a66',
+    concrete: '#1e2228',
+    concreteCrack: 'rgba(0,0,0,0.5)',
     // Trichoderma
     trich: '#8aa23e',
     trichSpore: '#d2e074',
     infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
-    // the living network (luminous accent — kept distinct from the earth)
+    // the living network (luminous accent — the brightest thing on screen)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
     sensingRing: 'rgba(160,255,190,0.15)',
@@ -397,11 +397,11 @@ const CONFIG = {
     minBrightness: 0.45,        // brightness floor so the network never washes out
     // atmosphere
     spore: 'rgba(202,255,216,0.75)',
-    mote: 'rgba(226,196,142,0.5)',
+    mote: 'rgba(150,205,195,0.42)',
     particleCount: 80,
     // dynamic lighting: the network/food/hazards emit light into the dark earth
     lighting: true,
-    ambientLight: 0.72,         // unlit earth stays a visible warm brown (1 = lighting off)
+    ambientLight: 0.4,          // earth falls to a deep cool dark; life lights it (1 = lighting off)
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
     hazardLight: 'rgba(90,220,200,1)',
@@ -3368,8 +3368,8 @@ class Lighting {
     // 1) Darken ONLY the underground; the daytime sky above stays bright (the
     //    light map is white over the sky, so the multiply leaves it untouched).
     const a = r.ambientLight;
-    // warm tint so unlit earth reads as brown, not cold black
-    const amb = `rgb(${clamp255(255 * a)},${clamp255(255 * a * 0.92)},${clamp255(255 * a * 0.8)})`;
+    // cool tint so unlit earth falls to a deep blue-black (bioluminescent deep-earth)
+    const amb = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
     lc.globalCompositeOperation = 'source-over';
     const surfY = camera.worldToScreen(0, state.substrate.surfaceY).y;
     const band = 50; // soft transition across the soil line
