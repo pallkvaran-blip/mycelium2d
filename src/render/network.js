@@ -81,31 +81,75 @@ export class NetworkRenderer {
     const r = this.config.render;
     octx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     octx.lineCap = 'round';
+    const fil = hexToRgb(r.filament);
 
-    // Filaments, thicker near the trunk.
+    // Each filament is rendered as a BUNDLE of fine, meandering hyphae (a cord),
+    // with feathery side-hairs and a fan of exploratory hyphae at the growing
+    // tips — so it reads as mycelium, not tree roots. Hairs are decorative (the
+    // sim skeleton stays light); detail is hashed per-node so it's stable.
     for (const n of network.nodes) {
       if (n.parentId == null) continue;
       const p = network.byId.get(n.parentId);
       if (!p) continue;
       const s = this.subtreeSize.get(n.id) || 1;
-      const width = Math.min(5, 0.8 + Math.log(1 + s) * 0.7);
-      // health tints the strand (sick strands go dim/brown)
-      const tint = lerpColor([130, 90, 60], hexToRgb(r.filament), n.health);
+      const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len, perpx = -uy, perpy = ux;
+      const baseAng = Math.atan2(uy, ux);
+      const isTip = n.children.length === 0;
+      const tint = lerpColor([116, 84, 54], fil, n.health);
       octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
-      octx.lineWidth = width;
-      octx.beginPath();
-      octx.moveTo(p.x, p.y);
-      octx.lineTo(n.x, n.y);
-      octx.stroke();
-    }
 
-    // Soft, uniform node dots (no special glowing tips).
-    octx.fillStyle = withAlpha(r.filament, 0.5);
-    for (const n of network.nodes) {
-      octx.beginPath();
-      octx.arc(n.x, n.y, 1.4, 0, Math.PI * 2);
-      octx.fill();
+      // bundle of strands — more strands toward the trunk (a thicker cord),
+      // a single fine hypha at the tips. Always fine, never a fat root.
+      const strands = 1 + Math.min(3, Math.floor(Math.log2(s + 1) / 1.6));
+      const baseW = 0.4 + Math.min(1.2, Math.log(1 + s) * 0.2);
+      const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
+      for (let k = 0; k < strands; k++) {
+        const o = (k - (strands - 1) / 2) * 1.3;
+        const mx = (p.x + n.x) / 2 + perpx * (o + meander);
+        const my = (p.y + n.y) / 2 + perpy * (o + meander);
+        octx.lineWidth = baseW * (0.7 + 0.5 * nh(n.id, k + 2));
+        octx.globalAlpha = 0.85;
+        octx.beginPath();
+        octx.moveTo(p.x + perpx * o, p.y + perpy * o);
+        octx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
+        octx.stroke();
+      }
+
+      // feathery side-hairs along the strand
+      const hairs = isTip ? 0 : (nh(n.id, 7) < 0.5 ? 1 : 2);
+      octx.globalAlpha = 0.45;
+      octx.lineWidth = 0.5;
+      for (let h = 0; h < hairs; h++) {
+        const t = 0.3 + 0.5 * nh(n.id, h + 10);
+        const bx = p.x + dx * t, by = p.y + dy * t;
+        const side = nh(n.id, h + 20) < 0.5 ? 1 : -1;
+        const a = baseAng + side * (0.5 + 0.5 * nh(n.id, h + 30));
+        const hl = 4 + 5 * nh(n.id, h + 40);
+        octx.beginPath();
+        octx.moveTo(bx, by);
+        octx.lineTo(bx + Math.cos(a) * hl, by + Math.sin(a) * hl);
+        octx.stroke();
+      }
+
+      // exploratory feather-fan at the growing tip
+      if (isTip) {
+        octx.globalAlpha = 0.5;
+        octx.lineWidth = 0.5;
+        const fan = 4 + Math.floor(nh(n.id, 5) * 3);
+        for (let f = 0; f < fan; f++) {
+          const a = baseAng + (f / (fan - 1) - 0.5) * 1.5 + (nh(n.id, f + 50) - 0.5) * 0.3;
+          const hl = 5 + 6 * nh(n.id, f + 60);
+          const mx = n.x + Math.cos(a) * hl * 0.55 + perpx * (nh(n.id, f) * 2 - 1) * 1.5;
+          const my = n.y + Math.sin(a) * hl * 0.55 + perpy * (nh(n.id, f) * 2 - 1) * 1.5;
+          octx.beginPath();
+          octx.moveTo(n.x, n.y);
+          octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
+          octx.stroke();
+        }
+      }
     }
+    octx.globalAlpha = 1;
 
     this.structureDirty = false;
   }
@@ -203,6 +247,8 @@ function hexToRgb(hex) {
   const v = hex.replace('#', '');
   return [parseInt(v.substring(0, 2), 16), parseInt(v.substring(2, 4), 16), parseInt(v.substring(4, 6), 16)];
 }
+// Stable per-node pseudo-random in [0,1) for decorative hyphae detail.
+function nh(id, k) { const v = Math.sin(id * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); }
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
   return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];

@@ -75,7 +75,8 @@ function resolveIncome(net, substrate, config) {
   const cells = net.collectOccupiedCells(substrate);
   let nutrientDrawn = 0;
   for (const cell of cells) {
-    const take = Math.min(cell.nutrient, e.passiveIncomeRate);
+    // You only digest substrate you've colonised — income ramps with the mat.
+    const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
     nutrientDrawn += take;
   }

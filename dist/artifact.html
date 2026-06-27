@@ -157,12 +157,15 @@ const CONFIG = {
 
   // ---- Substrate field + surface terrain generation (A4, B1) -------------
   substrate: {
-    foodClusterCount: 16,        // number of food clusters scattered underground
-    foodClusterRadiusMin: 2,     // cluster radius in cells
-    foodClusterRadiusMax: 6,
-    foodRichnessMin: 45,         // peak nutrient at a cluster centre
-    foodRichnessMax: 130,
-    hazardCount: 6,              // ant colonies / waterlogged-toxic pools
+    foodClusterCount: 9,         // fewer, rarer pockets — reaching them is the game
+    foodClusterRadiusMin: 1,     // small, concentrated pockets
+    foodClusterRadiusMax: 3,
+    foodRichnessMin: 95,         // dense & rich (a colonised pocket is a real prize)
+    foodRichnessMax: 185,
+    rockCount: 7,                // impassable rock formations to route around
+    rockRadiusMin: 2,
+    rockRadiusMax: 5,
+    hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
     // Surface line: alternating segments of soil (fruitable) / non-soil.
@@ -170,9 +173,10 @@ const CONFIG = {
     surfaceSegmentMaxCols: 11,
     soilFraction: 0.6,           // ~fraction of surface segments that are soil
     shadeFraction: 0.45,         // ~fraction of soil columns that are shaded
-    // Deliberate tension: bias some rich food to sit near hazards / under
-    // non-soil so steering toward food is a real risk/reward choice (B1).
-    richNearHazardChance: 0.45,
+    // Deliberate tension: tuck some rich food against rock / under non-soil so
+    // reaching it means routing around obstacles (B1).
+    richNearHazardChance: 0,     // (no hazards now)
+    richNearRockChance: 0.4,
     richUnderNonSoilChance: 0.4,
     // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
     // threading in and thickening until the patch is fully overgrown.
@@ -181,9 +185,9 @@ const CONFIG = {
 
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
-    start: 110,                  // starting Energy (SLIDER)
-    baselineTrickle: 4,          // free Energy per turn, prevents soft-lock
-    passiveIncomeRate: 6,        // max nutrient pulled from each occupied cell/turn (SLIDER)
+    start: 120,                  // starting Energy (SLIDER)
+    baselineTrickle: 2,          // small free trickle (you depend on colonising food)
+    passiveIncomeRate: 7,        // max nutrient pulled from each occupied cell/turn (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed (lossy)
   },
 
@@ -296,16 +300,21 @@ const CONFIG = {
     sunWash: 'rgba(255,238,188,0.20)',    // warm light over sunny soil
     shadeWash: 'rgba(74,118,150,0.26)',   // cool light over shaded soil
     canopy: 'rgba(46,74,42,0.5)',         // foliage silhouette over shade
-    // earth strata (top -> deep)
-    soilTop: '#473221',
-    soilMid: '#241a10',
-    soilDeep: '#0c0805',
-    rock: '#41382d',
+    // earth strata (top -> deep) — earthy brown all the way down, never black
+    soilTop: '#6d5132',
+    soilMid: '#4c3722',
+    soilDeep: '#2f2114',
+    rock: '#41382d',             // small buried pebbles
     rockLip: '#5b5040',
+    // impassable rock formations (stone you cannot grow through)
+    rockMass: '#5d574e',
+    rockFacet: '#787065',
+    rockShadow: 'rgba(8,8,10,0.45)',
+    rockEdge: 'rgba(0,0,0,0.45)',
     vein: 'rgba(214,182,120,0.45)',       // mineral veins
     fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
     // substrate = decaying organic matter (rotting wood + leaf litter)
-    detritusBase: '#39260f',              // dark rotting mass
+    detritusBase: '#4a3219',              // dark rotting mass (brown, reads as matter)
     detritusWood: '#7c5326',              // woody chips / twigs
     detritusLeaf: '#5d5a26',              // leaf litter
     detritusEdge: 'rgba(18,11,5,0.55)',   // outline
@@ -339,7 +348,7 @@ const CONFIG = {
     particleCount: 80,
     // dynamic lighting: the network/food/hazards emit light into the dark earth
     lighting: true,
-    ambientLight: 0.5,          // brightness of unlit areas (1 = lighting off)
+    ambientLight: 0.72,         // unlit earth stays a visible warm brown (1 = lighting off)
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
     hazardLight: 'rgba(90,220,200,1)',
@@ -434,7 +443,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     this.surface = new Array(this.cols);
@@ -501,8 +510,9 @@ class Substrate {
         if (!this.inBounds(col, row)) continue;
         const dist = Math.hypot(col - c0, row - r0);
         if (dist > radiusCells) continue;
-        const falloff = 1 - dist / (radiusCells + 1);
         const cell = this.cells[this.index(col, row)];
+        if (cell.rock) continue;                 // can't place food in rock
+        const falloff = 1 - dist / (radiusCells + 1);
         const add = amount * falloff;
         cell.nutrient += add;
         cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
@@ -545,7 +555,7 @@ function generateSubstrate(config, rng) {
     }
   }
 
-  // 2) Hazards (ant colonies / toxic pools) as elliptical blobs underground.
+  // 2) Hazards (toxic pools) — disabled (hazardCount 0), kept for compatibility.
   const hazards = [];
   for (let i = 0; i < s.hazardCount; i++) {
     const hc = rng.int(2, sub.cols - 3);
@@ -555,19 +565,33 @@ function generateSubstrate(config, rng) {
     stamp(sub, hc, hr, radius, (cell) => { cell.hazard = true; cell.nutrient = 0; cell.maxNutrient = 0; });
   }
 
+  // 2b) Rock formations — impassable stone the mycelium must route around.
+  const rocks = [];
+  for (let i = 0; i < (s.rockCount || 0); i++) {
+    const rc = rng.int(2, sub.cols - 3);
+    const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
+    const radius = rng.int(s.rockRadiusMin, s.rockRadiusMax);
+    rocks.push({ col: rc, row: rr, radius });
+    stamp(sub, rc, rr, radius, (cell, dist) => {
+      // irregular edge so formations aren't perfect circles
+      if (dist > radius - 0.5 && rng.chance(0.4)) return;
+      cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+    });
+  }
+
   // 3) Food clusters (gaussian-ish bumps of nutrient).
   for (let i = 0; i < s.foodClusterCount; i++) {
     const radius = rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax);
     let cc, cr;
     const rich = rng.range(s.foodRichnessMin, s.foodRichnessMax);
 
-    if (rng.chance(s.richNearHazardChance) && hazards.length) {
-      // Place a rich cluster adjacent to a hazard (tempting but dangerous).
-      const h = rng.pick(hazards);
+    if (rng.chance(s.richNearRockChance) && rocks.length) {
+      // Tuck a rich pocket up against a rock formation (route around to reach).
+      const rk = rng.pick(rocks);
       const ang = rng.range(0, Math.PI * 2);
-      const off = h.radius + radius - 1;
-      cc = Math.round(h.col + Math.cos(ang) * off);
-      cr = Math.round(h.row + Math.sin(ang) * off);
+      const off = rk.radius + radius;
+      cc = Math.round(rk.col + Math.cos(ang) * off);
+      cr = Math.round(rk.row + Math.sin(ang) * off);
     } else if (rng.chance(s.richUnderNonSoilChance)) {
       // Place a rich cluster directly under a non-soil stretch (can feed but
       // can't fruit there) — forces a feed-vs-fruit decision.
@@ -581,7 +605,7 @@ function generateSubstrate(config, rng) {
     }
 
     stamp(sub, cc, cr, radius, (cell, dist) => {
-      if (cell.hazard) return;
+      if (cell.hazard || cell.rock) return;       // no food inside rock
       const v = rich * Math.max(0, 1 - dist / (radius + 0.5));
       cell.nutrient += v;
       cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
@@ -669,9 +693,17 @@ class Network {
     const g = this.config.growth;
     // Pick a soil column near the centre to root under (so it can fruit later).
     let bestCol = Math.floor(substrate.cols / 2);
-    for (let tries = 0; tries < 40; tries++) {
+    const depthRows = Math.ceil(g.startDepth / substrate.cellSize) + 1;
+    const columnClear = (c) => {
+      for (let row = 0; row <= depthRows; row++) {
+        const cell = substrate.cellAt(c, row);
+        if (cell && cell.rock) return false;
+      }
+      return true;
+    };
+    for (let tries = 0; tries < 60; tries++) {
       const c = rng.int(Math.floor(substrate.cols * 0.25), Math.floor(substrate.cols * 0.75));
-      if (substrate.surface[c] && substrate.surface[c].soil) { bestCol = c; break; }
+      if (substrate.surface[c] && substrate.surface[c].soil && columnClear(c)) { bestCol = c; break; }
     }
     const x = bestCol * substrate.cellSize + substrate.cellSize / 2;
     const topY = substrate.surfaceY + 6;
@@ -769,6 +801,9 @@ class Network {
       // Keep growth underground and inside the world.
       ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
       nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
+      // Can't grow through rock.
+      const tcell = substrate.cellAtWorld(nx, ny);
+      if (tcell && tcell.rock) continue;
       // Don't pile nodes on top of each other.
       if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
       const child = this.addNode(nx, ny, node);
@@ -1486,7 +1521,8 @@ function resolveIncome(net, substrate, config) {
   const cells = net.collectOccupiedCells(substrate);
   let nutrientDrawn = 0;
   for (const cell of cells) {
-    const take = Math.min(cell.nutrient, e.passiveIncomeRate);
+    // You only digest substrate you've colonised — income ramps with the mat.
+    const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
     nutrientDrawn += take;
   }
@@ -1682,6 +1718,7 @@ class SubstrateRenderer {
     this._bakeVeins();
     this._bakeRocks();
     this._bakeFlecks();
+    this._bakeRockFormations();
     this._bakeHazards();
     this._bakeSurface();
   }
@@ -1857,6 +1894,78 @@ class SubstrateRenderer {
     octx.globalAlpha = 1;
   }
 
+  // Impassable rock formations — solid faceted stone the mycelium routes around.
+  _bakeRockFormations() {
+    const octx = this.baseCtx;
+    const r = this.config.render;
+    const sub = this.substrate;
+    const cs = sub.cellSize, sy = sub.surfaceY;
+
+    const cells = [];
+    sub.forEachCell((cell, col, row) => { if (cell.rock) cells.push([col, row]); });
+    if (!cells.length) return;
+
+    const unionPath = () => {
+      octx.beginPath();
+      for (const [col, row] of cells) {
+        const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+        octx.moveTo(cx + cs * 0.78, cy);
+        octx.arc(cx, cy, cs * 0.78, 0, Math.PI * 2);
+      }
+    };
+
+    // solid body with a soft drop shadow so it sits in the earth
+    octx.save();
+    octx.shadowColor = r.rockShadow;
+    octx.shadowBlur = 9;
+    octx.shadowOffsetY = 4;
+    octx.fillStyle = r.rockMass;
+    unionPath();
+    octx.fill();
+    octx.restore();
+
+    // facets, cracks and top-light, clipped to the formation
+    octx.save();
+    unionPath();
+    octx.clip();
+    // angular facets
+    for (const [col, row] of cells) {
+      const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      octx.fillStyle = r.rockFacet;
+      octx.globalAlpha = 0.2 + h2(col, row) * 0.3;
+      const a0 = h2(col, row) * 6.283;
+      octx.beginPath();
+      octx.moveTo(cx, cy);
+      for (let k = 0; k < 3; k++) {
+        const a = a0 + k * 2.1;
+        octx.lineTo(cx + Math.cos(a) * cs * 0.55, cy + Math.sin(a) * cs * 0.5);
+      }
+      octx.closePath();
+      octx.fill();
+    }
+    octx.globalAlpha = 1;
+    // cracks
+    octx.strokeStyle = r.rockEdge;
+    octx.lineWidth = 1.4;
+    for (const [col, row] of cells) {
+      if (h2(col * 3, row * 3) < 0.55) continue;
+      const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      const a = h2(col, row) * 3.14;
+      octx.beginPath();
+      octx.moveTo(cx - Math.cos(a) * cs * 0.5, cy - Math.sin(a) * cs * 0.5);
+      octx.lineTo(cx + Math.cos(a) * cs * 0.6, cy + Math.sin(a) * cs * 0.55);
+      octx.stroke();
+    }
+    // top highlight -> bottom shadow across the whole formation
+    const gg = octx.createLinearGradient(0, sy, 0, this.base.height);
+    gg.addColorStop(0, 'rgba(255,255,255,0.10)');
+    gg.addColorStop(0.5, 'rgba(0,0,0,0)');
+    gg.addColorStop(1, 'rgba(0,0,0,0.28)');
+    octx.fillStyle = gg;
+    octx.fillRect(0, sy, this.base.width, this.base.height - sy);
+    octx.restore();
+  }
+
   _bakeHazards() {
     const octx = this.baseCtx;
     const r = this.config.render;
@@ -2014,10 +2123,10 @@ class SubstrateRenderer {
       // --- the decaying matter itself (shrinks as it's digested) ---
       if (rem > 0.02) {
         if (rem > 0.2) this.foodLightPoints.push({ x: cx, y: cy, i: rem });
-        const base = cs * (0.32 + rem * 0.46);
-        // dark rotting mass (a few overlapping lumps)
-        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.55 + 0.4 * rem);
-        for (let k = 0; k < 4; k++) {
+        const base = cs * (0.45 + rem * 0.5);
+        // dark rotting mass (overlapping lumps — packed dense)
+        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.62 + 0.35 * rem);
+        for (let k = 0; k < 6; k++) {
           const ox = (h2(col + k * 4, row + k) * 2 - 1) * base * 0.5;
           const oy = (h2(col + k, row + k * 4) * 2 - 1) * base * 0.5;
           octx.beginPath();
@@ -2026,7 +2135,7 @@ class SubstrateRenderer {
         }
         // woody chips / twigs
         octx.strokeStyle = r.detritusWood;
-        for (let k = 0; k < 3; k++) {
+        for (let k = 0; k < 5; k++) {
           const a = h2(col * 2 + k, row + k * 5) * 6.283;
           const len = cs * 0.26 * (0.6 + rem);
           const px = cx + (h2(col + k * 7, row + k) * 2 - 1) * base * 0.6;
@@ -2039,7 +2148,7 @@ class SubstrateRenderer {
         }
         // leaf-litter flecks
         octx.fillStyle = r.detritusLeaf;
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 8; k++) {
           const px = cx + (h2(col * 3 + k, row + k) * 2 - 1) * base;
           const py = cy + (h2(col + k, row * 3 + k) * 2 - 1) * base;
           octx.save();
@@ -2257,31 +2366,75 @@ class NetworkRenderer {
     const r = this.config.render;
     octx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     octx.lineCap = 'round';
+    const fil = hexToRgb(r.filament);
 
-    // Filaments, thicker near the trunk.
+    // Each filament is rendered as a BUNDLE of fine, meandering hyphae (a cord),
+    // with feathery side-hairs and a fan of exploratory hyphae at the growing
+    // tips — so it reads as mycelium, not tree roots. Hairs are decorative (the
+    // sim skeleton stays light); detail is hashed per-node so it's stable.
     for (const n of network.nodes) {
       if (n.parentId == null) continue;
       const p = network.byId.get(n.parentId);
       if (!p) continue;
       const s = this.subtreeSize.get(n.id) || 1;
-      const width = Math.min(5, 0.8 + Math.log(1 + s) * 0.7);
-      // health tints the strand (sick strands go dim/brown)
-      const tint = lerpColor([130, 90, 60], hexToRgb(r.filament), n.health);
+      const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len, perpx = -uy, perpy = ux;
+      const baseAng = Math.atan2(uy, ux);
+      const isTip = n.children.length === 0;
+      const tint = lerpColor([116, 84, 54], fil, n.health);
       octx.strokeStyle = `rgb(${tint[0]},${tint[1]},${tint[2]})`;
-      octx.lineWidth = width;
-      octx.beginPath();
-      octx.moveTo(p.x, p.y);
-      octx.lineTo(n.x, n.y);
-      octx.stroke();
-    }
 
-    // Soft, uniform node dots (no special glowing tips).
-    octx.fillStyle = withAlpha(r.filament, 0.5);
-    for (const n of network.nodes) {
-      octx.beginPath();
-      octx.arc(n.x, n.y, 1.4, 0, Math.PI * 2);
-      octx.fill();
+      // bundle of strands — more strands toward the trunk (a thicker cord),
+      // a single fine hypha at the tips. Always fine, never a fat root.
+      const strands = 1 + Math.min(3, Math.floor(Math.log2(s + 1) / 1.6));
+      const baseW = 0.4 + Math.min(1.2, Math.log(1 + s) * 0.2);
+      const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
+      for (let k = 0; k < strands; k++) {
+        const o = (k - (strands - 1) / 2) * 1.3;
+        const mx = (p.x + n.x) / 2 + perpx * (o + meander);
+        const my = (p.y + n.y) / 2 + perpy * (o + meander);
+        octx.lineWidth = baseW * (0.7 + 0.5 * nh(n.id, k + 2));
+        octx.globalAlpha = 0.85;
+        octx.beginPath();
+        octx.moveTo(p.x + perpx * o, p.y + perpy * o);
+        octx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
+        octx.stroke();
+      }
+
+      // feathery side-hairs along the strand
+      const hairs = isTip ? 0 : (nh(n.id, 7) < 0.5 ? 1 : 2);
+      octx.globalAlpha = 0.45;
+      octx.lineWidth = 0.5;
+      for (let h = 0; h < hairs; h++) {
+        const t = 0.3 + 0.5 * nh(n.id, h + 10);
+        const bx = p.x + dx * t, by = p.y + dy * t;
+        const side = nh(n.id, h + 20) < 0.5 ? 1 : -1;
+        const a = baseAng + side * (0.5 + 0.5 * nh(n.id, h + 30));
+        const hl = 4 + 5 * nh(n.id, h + 40);
+        octx.beginPath();
+        octx.moveTo(bx, by);
+        octx.lineTo(bx + Math.cos(a) * hl, by + Math.sin(a) * hl);
+        octx.stroke();
+      }
+
+      // exploratory feather-fan at the growing tip
+      if (isTip) {
+        octx.globalAlpha = 0.5;
+        octx.lineWidth = 0.5;
+        const fan = 4 + Math.floor(nh(n.id, 5) * 3);
+        for (let f = 0; f < fan; f++) {
+          const a = baseAng + (f / (fan - 1) - 0.5) * 1.5 + (nh(n.id, f + 50) - 0.5) * 0.3;
+          const hl = 5 + 6 * nh(n.id, f + 60);
+          const mx = n.x + Math.cos(a) * hl * 0.55 + perpx * (nh(n.id, f) * 2 - 1) * 1.5;
+          const my = n.y + Math.sin(a) * hl * 0.55 + perpy * (nh(n.id, f) * 2 - 1) * 1.5;
+          octx.beginPath();
+          octx.moveTo(n.x, n.y);
+          octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
+          octx.stroke();
+        }
+      }
     }
+    octx.globalAlpha = 1;
 
     this.structureDirty = false;
   }
@@ -2379,6 +2532,8 @@ function hexToRgb(hex) {
   const v = hex.replace('#', '');
   return [parseInt(v.substring(0, 2), 16), parseInt(v.substring(2, 4), 16), parseInt(v.substring(4, 6), 16)];
 }
+// Stable per-node pseudo-random in [0,1) for decorative hyphae detail.
+function nh(id, k) { const v = Math.sin(id * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); }
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
   return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
@@ -2427,7 +2582,8 @@ class Lighting {
     // 1) Darken ONLY the underground; the daytime sky above stays bright (the
     //    light map is white over the sky, so the multiply leaves it untouched).
     const a = r.ambientLight;
-    const amb = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
+    // warm tint so unlit earth reads as brown, not cold black
+    const amb = `rgb(${clamp255(255 * a)},${clamp255(255 * a * 0.92)},${clamp255(255 * a * 0.8)})`;
     lc.globalCompositeOperation = 'source-over';
     const surfY = camera.worldToScreen(0, state.substrate.surfaceY).y;
     const band = 50; // soft transition across the soil line

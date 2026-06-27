@@ -22,7 +22,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     this.surface = new Array(this.cols);
@@ -89,8 +89,9 @@ export class Substrate {
         if (!this.inBounds(col, row)) continue;
         const dist = Math.hypot(col - c0, row - r0);
         if (dist > radiusCells) continue;
-        const falloff = 1 - dist / (radiusCells + 1);
         const cell = this.cells[this.index(col, row)];
+        if (cell.rock) continue;                 // can't place food in rock
+        const falloff = 1 - dist / (radiusCells + 1);
         const add = amount * falloff;
         cell.nutrient += add;
         cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);
@@ -133,7 +134,7 @@ export function generateSubstrate(config, rng) {
     }
   }
 
-  // 2) Hazards (ant colonies / toxic pools) as elliptical blobs underground.
+  // 2) Hazards (toxic pools) — disabled (hazardCount 0), kept for compatibility.
   const hazards = [];
   for (let i = 0; i < s.hazardCount; i++) {
     const hc = rng.int(2, sub.cols - 3);
@@ -143,19 +144,33 @@ export function generateSubstrate(config, rng) {
     stamp(sub, hc, hr, radius, (cell) => { cell.hazard = true; cell.nutrient = 0; cell.maxNutrient = 0; });
   }
 
+  // 2b) Rock formations — impassable stone the mycelium must route around.
+  const rocks = [];
+  for (let i = 0; i < (s.rockCount || 0); i++) {
+    const rc = rng.int(2, sub.cols - 3);
+    const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
+    const radius = rng.int(s.rockRadiusMin, s.rockRadiusMax);
+    rocks.push({ col: rc, row: rr, radius });
+    stamp(sub, rc, rr, radius, (cell, dist) => {
+      // irregular edge so formations aren't perfect circles
+      if (dist > radius - 0.5 && rng.chance(0.4)) return;
+      cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+    });
+  }
+
   // 3) Food clusters (gaussian-ish bumps of nutrient).
   for (let i = 0; i < s.foodClusterCount; i++) {
     const radius = rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax);
     let cc, cr;
     const rich = rng.range(s.foodRichnessMin, s.foodRichnessMax);
 
-    if (rng.chance(s.richNearHazardChance) && hazards.length) {
-      // Place a rich cluster adjacent to a hazard (tempting but dangerous).
-      const h = rng.pick(hazards);
+    if (rng.chance(s.richNearRockChance) && rocks.length) {
+      // Tuck a rich pocket up against a rock formation (route around to reach).
+      const rk = rng.pick(rocks);
       const ang = rng.range(0, Math.PI * 2);
-      const off = h.radius + radius - 1;
-      cc = Math.round(h.col + Math.cos(ang) * off);
-      cr = Math.round(h.row + Math.sin(ang) * off);
+      const off = rk.radius + radius;
+      cc = Math.round(rk.col + Math.cos(ang) * off);
+      cr = Math.round(rk.row + Math.sin(ang) * off);
     } else if (rng.chance(s.richUnderNonSoilChance)) {
       // Place a rich cluster directly under a non-soil stretch (can feed but
       // can't fruit there) — forces a feed-vs-fruit decision.
@@ -169,7 +184,7 @@ export function generateSubstrate(config, rng) {
     }
 
     stamp(sub, cc, cr, radius, (cell, dist) => {
-      if (cell.hazard) return;
+      if (cell.hazard || cell.rock) return;       // no food inside rock
       const v = rich * Math.max(0, 1 - dist / (radius + 0.5));
       cell.nutrient += v;
       cell.maxNutrient = Math.max(cell.maxNutrient, cell.nutrient);

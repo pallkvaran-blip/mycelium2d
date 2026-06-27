@@ -63,6 +63,7 @@ export class SubstrateRenderer {
     this._bakeVeins();
     this._bakeRocks();
     this._bakeFlecks();
+    this._bakeRockFormations();
     this._bakeHazards();
     this._bakeSurface();
   }
@@ -238,6 +239,78 @@ export class SubstrateRenderer {
     octx.globalAlpha = 1;
   }
 
+  // Impassable rock formations — solid faceted stone the mycelium routes around.
+  _bakeRockFormations() {
+    const octx = this.baseCtx;
+    const r = this.config.render;
+    const sub = this.substrate;
+    const cs = sub.cellSize, sy = sub.surfaceY;
+
+    const cells = [];
+    sub.forEachCell((cell, col, row) => { if (cell.rock) cells.push([col, row]); });
+    if (!cells.length) return;
+
+    const unionPath = () => {
+      octx.beginPath();
+      for (const [col, row] of cells) {
+        const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+        octx.moveTo(cx + cs * 0.78, cy);
+        octx.arc(cx, cy, cs * 0.78, 0, Math.PI * 2);
+      }
+    };
+
+    // solid body with a soft drop shadow so it sits in the earth
+    octx.save();
+    octx.shadowColor = r.rockShadow;
+    octx.shadowBlur = 9;
+    octx.shadowOffsetY = 4;
+    octx.fillStyle = r.rockMass;
+    unionPath();
+    octx.fill();
+    octx.restore();
+
+    // facets, cracks and top-light, clipped to the formation
+    octx.save();
+    unionPath();
+    octx.clip();
+    // angular facets
+    for (const [col, row] of cells) {
+      const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      octx.fillStyle = r.rockFacet;
+      octx.globalAlpha = 0.2 + h2(col, row) * 0.3;
+      const a0 = h2(col, row) * 6.283;
+      octx.beginPath();
+      octx.moveTo(cx, cy);
+      for (let k = 0; k < 3; k++) {
+        const a = a0 + k * 2.1;
+        octx.lineTo(cx + Math.cos(a) * cs * 0.55, cy + Math.sin(a) * cs * 0.5);
+      }
+      octx.closePath();
+      octx.fill();
+    }
+    octx.globalAlpha = 1;
+    // cracks
+    octx.strokeStyle = r.rockEdge;
+    octx.lineWidth = 1.4;
+    for (const [col, row] of cells) {
+      if (h2(col * 3, row * 3) < 0.55) continue;
+      const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      const a = h2(col, row) * 3.14;
+      octx.beginPath();
+      octx.moveTo(cx - Math.cos(a) * cs * 0.5, cy - Math.sin(a) * cs * 0.5);
+      octx.lineTo(cx + Math.cos(a) * cs * 0.6, cy + Math.sin(a) * cs * 0.55);
+      octx.stroke();
+    }
+    // top highlight -> bottom shadow across the whole formation
+    const gg = octx.createLinearGradient(0, sy, 0, this.base.height);
+    gg.addColorStop(0, 'rgba(255,255,255,0.10)');
+    gg.addColorStop(0.5, 'rgba(0,0,0,0)');
+    gg.addColorStop(1, 'rgba(0,0,0,0.28)');
+    octx.fillStyle = gg;
+    octx.fillRect(0, sy, this.base.width, this.base.height - sy);
+    octx.restore();
+  }
+
   _bakeHazards() {
     const octx = this.baseCtx;
     const r = this.config.render;
@@ -395,10 +468,10 @@ export class SubstrateRenderer {
       // --- the decaying matter itself (shrinks as it's digested) ---
       if (rem > 0.02) {
         if (rem > 0.2) this.foodLightPoints.push({ x: cx, y: cy, i: rem });
-        const base = cs * (0.32 + rem * 0.46);
-        // dark rotting mass (a few overlapping lumps)
-        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.55 + 0.4 * rem);
-        for (let k = 0; k < 4; k++) {
+        const base = cs * (0.45 + rem * 0.5);
+        // dark rotting mass (overlapping lumps — packed dense)
+        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.62 + 0.35 * rem);
+        for (let k = 0; k < 6; k++) {
           const ox = (h2(col + k * 4, row + k) * 2 - 1) * base * 0.5;
           const oy = (h2(col + k, row + k * 4) * 2 - 1) * base * 0.5;
           octx.beginPath();
@@ -407,7 +480,7 @@ export class SubstrateRenderer {
         }
         // woody chips / twigs
         octx.strokeStyle = r.detritusWood;
-        for (let k = 0; k < 3; k++) {
+        for (let k = 0; k < 5; k++) {
           const a = h2(col * 2 + k, row + k * 5) * 6.283;
           const len = cs * 0.26 * (0.6 + rem);
           const px = cx + (h2(col + k * 7, row + k) * 2 - 1) * base * 0.6;
@@ -420,7 +493,7 @@ export class SubstrateRenderer {
         }
         // leaf-litter flecks
         octx.fillStyle = r.detritusLeaf;
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 8; k++) {
           const px = cx + (h2(col * 3 + k, row + k) * 2 - 1) * base;
           const py = cy + (h2(col + k, row * 3 + k) * 2 - 1) * base;
           octx.save();

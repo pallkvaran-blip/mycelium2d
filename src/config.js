@@ -21,12 +21,15 @@ export const CONFIG = {
 
   // ---- Substrate field + surface terrain generation (A4, B1) -------------
   substrate: {
-    foodClusterCount: 16,        // number of food clusters scattered underground
-    foodClusterRadiusMin: 2,     // cluster radius in cells
-    foodClusterRadiusMax: 6,
-    foodRichnessMin: 45,         // peak nutrient at a cluster centre
-    foodRichnessMax: 130,
-    hazardCount: 6,              // ant colonies / waterlogged-toxic pools
+    foodClusterCount: 9,         // fewer, rarer pockets — reaching them is the game
+    foodClusterRadiusMin: 1,     // small, concentrated pockets
+    foodClusterRadiusMax: 3,
+    foodRichnessMin: 95,         // dense & rich (a colonised pocket is a real prize)
+    foodRichnessMax: 185,
+    rockCount: 7,                // impassable rock formations to route around
+    rockRadiusMin: 2,
+    rockRadiusMax: 5,
+    hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
     // Surface line: alternating segments of soil (fruitable) / non-soil.
@@ -34,9 +37,10 @@ export const CONFIG = {
     surfaceSegmentMaxCols: 11,
     soilFraction: 0.6,           // ~fraction of surface segments that are soil
     shadeFraction: 0.45,         // ~fraction of soil columns that are shaded
-    // Deliberate tension: bias some rich food to sit near hazards / under
-    // non-soil so steering toward food is a real risk/reward choice (B1).
-    richNearHazardChance: 0.45,
+    // Deliberate tension: tuck some rich food against rock / under non-soil so
+    // reaching it means routing around obstacles (B1).
+    richNearHazardChance: 0,     // (no hazards now)
+    richNearRockChance: 0.4,
     richUnderNonSoilChance: 0.4,
     // How fast occupied substrate is colonised (0..1 per turn) — the mycelium
     // threading in and thickening until the patch is fully overgrown.
@@ -45,9 +49,9 @@ export const CONFIG = {
 
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
-    start: 110,                  // starting Energy (SLIDER)
-    baselineTrickle: 4,          // free Energy per turn, prevents soft-lock
-    passiveIncomeRate: 6,        // max nutrient pulled from each occupied cell/turn (SLIDER)
+    start: 120,                  // starting Energy (SLIDER)
+    baselineTrickle: 2,          // small free trickle (you depend on colonising food)
+    passiveIncomeRate: 7,        // max nutrient pulled from each occupied cell/turn (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed (lossy)
   },
 
@@ -160,16 +164,21 @@ export const CONFIG = {
     sunWash: 'rgba(255,238,188,0.20)',    // warm light over sunny soil
     shadeWash: 'rgba(74,118,150,0.26)',   // cool light over shaded soil
     canopy: 'rgba(46,74,42,0.5)',         // foliage silhouette over shade
-    // earth strata (top -> deep)
-    soilTop: '#473221',
-    soilMid: '#241a10',
-    soilDeep: '#0c0805',
-    rock: '#41382d',
+    // earth strata (top -> deep) — earthy brown all the way down, never black
+    soilTop: '#6d5132',
+    soilMid: '#4c3722',
+    soilDeep: '#2f2114',
+    rock: '#41382d',             // small buried pebbles
     rockLip: '#5b5040',
+    // impassable rock formations (stone you cannot grow through)
+    rockMass: '#5d574e',
+    rockFacet: '#787065',
+    rockShadow: 'rgba(8,8,10,0.45)',
+    rockEdge: 'rgba(0,0,0,0.45)',
     vein: 'rgba(214,182,120,0.45)',       // mineral veins
     fleck: 'rgba(226,206,150,0.5)',       // mineral flecks
     // substrate = decaying organic matter (rotting wood + leaf litter)
-    detritusBase: '#39260f',              // dark rotting mass
+    detritusBase: '#4a3219',              // dark rotting mass (brown, reads as matter)
     detritusWood: '#7c5326',              // woody chips / twigs
     detritusLeaf: '#5d5a26',              // leaf litter
     detritusEdge: 'rgba(18,11,5,0.55)',   // outline
@@ -203,7 +212,7 @@ export const CONFIG = {
     particleCount: 80,
     // dynamic lighting: the network/food/hazards emit light into the dark earth
     lighting: true,
-    ambientLight: 0.5,          // brightness of unlit areas (1 = lighting off)
+    ambientLight: 0.72,         // unlit earth stays a visible warm brown (1 = lighting off)
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
     hazardLight: 'rgba(90,220,200,1)',

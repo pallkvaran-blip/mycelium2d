@@ -59,9 +59,17 @@ export class Network {
     const g = this.config.growth;
     // Pick a soil column near the centre to root under (so it can fruit later).
     let bestCol = Math.floor(substrate.cols / 2);
-    for (let tries = 0; tries < 40; tries++) {
+    const depthRows = Math.ceil(g.startDepth / substrate.cellSize) + 1;
+    const columnClear = (c) => {
+      for (let row = 0; row <= depthRows; row++) {
+        const cell = substrate.cellAt(c, row);
+        if (cell && cell.rock) return false;
+      }
+      return true;
+    };
+    for (let tries = 0; tries < 60; tries++) {
       const c = rng.int(Math.floor(substrate.cols * 0.25), Math.floor(substrate.cols * 0.75));
-      if (substrate.surface[c] && substrate.surface[c].soil) { bestCol = c; break; }
+      if (substrate.surface[c] && substrate.surface[c].soil && columnClear(c)) { bestCol = c; break; }
     }
     const x = bestCol * substrate.cellSize + substrate.cellSize / 2;
     const topY = substrate.surfaceY + 6;
@@ -159,6 +167,9 @@ export class Network {
       // Keep growth underground and inside the world.
       ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
       nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
+      // Can't grow through rock.
+      const tcell = substrate.cellAtWorld(nx, ny);
+      if (tcell && tcell.rock) continue;
       // Don't pile nodes on top of each other.
       if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
       const child = this.addNode(nx, ny, node);
