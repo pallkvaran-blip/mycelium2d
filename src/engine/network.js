@@ -33,6 +33,7 @@ export class Network {
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
+    this.slices = [];          // visible cut marks {x,y,angle} left by Amputate
   }
 
   // --- node helpers --------------------------------------------------------
@@ -221,31 +222,28 @@ export class Network {
     return this.amputateNode(target.id);
   }
 
+  // Amputate = SEVER the link, don't delete. The strand and everything beyond it
+  // are cut loose into a disconnected fragment (so an infected branch can no
+  // longer reach the colony, and the rot can't climb back across the cut) — but
+  // nothing is removed, so the healthy (white) mycelium survives. A visible
+  // "slice" is recorded across the cut. Returns 1 if a link was severed.
   amputateNode(nodeId) {
-    const start = this.byId.get(nodeId);
-    if (!start) return 0;
-    // Collect the subtree (the node and everything downstream of it).
-    const toRemove = new Set();
-    const stack = [start];
-    while (stack.length) {
-      const n = stack.pop();
-      if (toRemove.has(n.id)) continue;
-      toRemove.add(n.id);
-      for (const cid of n.children) {
-        const c = this.byId.get(cid);
-        if (c) stack.push(c);
-      }
+    const node = this.byId.get(nodeId);
+    if (!node || node.parentId == null) return 0;   // nothing to sever (it's the root)
+    const parent = this.byId.get(node.parentId);
+    if (parent) {
+      parent.children = parent.children.filter((id) => id !== node.id);
+      // a clean cut mark across the severed link (midpoint, perpendicular)
+      this.slices.push({
+        x: (node.x + parent.x) / 2,
+        y: (node.y + parent.y) / 2,
+        angle: Math.atan2(node.y - parent.y, node.x - parent.x),
+      });
+      if (this.slices.length > 60) this.slices.shift();
     }
-    // Detach from parent.
-    if (start.parentId != null) {
-      const parent = this.byId.get(start.parentId);
-      if (parent) parent.children = parent.children.filter((id) => id !== start.id);
-    }
-    for (const id of toRemove) this.byId.delete(id);
-    this.nodes = this.nodes.filter((n) => !toRemove.has(n.id));
-    if (this.nodes.length === 0) this.alive = false;
+    node.parentId = null;   // the subtree is now a free, disconnected fragment
     this.recomputeVitality();
-    return toRemove.size;
+    return 1;
   }
 
   // --- Express (A2): raise a defence trait one level, organism-wide --------

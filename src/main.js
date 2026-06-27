@@ -298,23 +298,37 @@ function drawTargetingCursor(time) {
     ctx.restore();
   } else if (sel === 'amputate') {
     const target = state.active.nodeNear(w.x, w.y, CONFIG.actions.amputate.pickRadius * 2);
-    if (target) {
-      // Highlight the subtree that would be cut.
+    if (target && target.parentId != null) {
+      const p = state.active.byId.get(target.parentId);
+      // Faintly outline the fragment that would be cut loose (it survives, just
+      // disconnected) so you can see exactly what you're severing off.
       const toCut = collectSubtree(state.active, target.id);
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+      ctx.strokeStyle = 'rgba(255,170,90,0.45)';
       ctx.lineWidth = 2;
       for (const id of toCut) {
         const n = state.active.byId.get(id);
         if (!n || n.parentId == null) continue;
-        const p = state.active.byId.get(n.parentId);
-        if (!p) continue;
-        const a = camera.worldToScreen(p.x, p.y), b = camera.worldToScreen(n.x, n.y);
+        const pp = state.active.byId.get(n.parentId);
+        if (!pp) continue;
+        const a = camera.worldToScreen(pp.x, pp.y), b = camera.worldToScreen(n.x, n.y);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      const ts = camera.worldToScreen(target.x, target.y);
-      ctx.fillStyle = 'rgba(255,90,90,0.95)';
-      ctx.beginPath(); ctx.arc(ts.x, ts.y, 5, 0, Math.PI * 2); ctx.fill();
+      // The cut itself — a bright slice across the link to be severed.
+      if (p) {
+        const mx = (target.x + p.x) / 2, my = (target.y + p.y) / 2;
+        const ang = Math.atan2(target.y - p.y, target.x - p.x);
+        const nx = -Math.sin(ang), ny = Math.cos(ang);
+        const c = camera.worldToScreen(mx, my);
+        const half = 13;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,245,215,0.95)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(c.x + nx * half, c.y + ny * half);
+        ctx.lineTo(c.x - nx * half, c.y - ny * half);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }

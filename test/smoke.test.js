@@ -72,11 +72,13 @@ ok(er.ok && state.active.traits.melanize === 1, 'Melanize expressed to level 1')
 const cost1 = state.active.expressCost('melanize');
 ok(cost1 > cfg.actions.express.energyCostBase, 'Express cost escalates with level');
 
-console.log('# Amputate removes a subtree');
+console.log('# Amputate severs a link (strands survive)');
 const countBefore = state.active.nodes.length;
 const tip = state.active.nodes[state.active.nodes.length - 1];
 const ar = performAction(state, 'amputate', { x: tip.x, y: tip.y });
-ok(ar.ok && state.active.nodes.length < countBefore, 'Amputate removed strand(s)');
+ok(ar.ok && state.active.nodes.length === countBefore, 'Amputate severs without deleting (strands survive)');
+ok(tip.parentId === null, 'the picked strand is cut loose from its parent');
+ok(state.active.slices.length > 0, 'a visible slice is recorded at the cut');
 
 console.log('# Trichoderma clouds roam, persist, devour, and fade after infecting');
 // Drop a cloud right on the network and run two turns — the world stays finite.
@@ -167,14 +169,16 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 55);
   s.clouds = [];
+  s.config.trichoderma.initialPatches = 0;   // no respawn noise
   const node = s.active.nodes[s.active.nodes.length - 1];
   const cloud = spawnTrichodermaAt(s, node.x, node.y);
   infectNetwork(s.active, s);
   ok(cloud.dying === true, 'cloud spends itself (dying) the moment it infects you');
   ok(s.active.nodes.some((n) => n.infected), 'contact infected the network');
+  const fade = s.config.trichoderma.fadeTurns;
+  for (let i = 0; i < fade - 1; i++) { spreadTrichoderma(s); ok(s.clouds.includes(cloud), `cloud still fading (step ${i + 1}/${fade})`); }
   spreadTrichoderma(s);
-  spreadTrichoderma(s);
-  ok(!s.clouds.includes(cloud), 'the spent cloud disappears over ~2 turns (infect each cloud ~once)');
+  ok(!s.clouds.includes(cloud), `the spent cloud dies off over ~${fade} steps (infect each cloud ~once)`);
 }
 
 console.log('# Melanize reduces incoming damage (defensive trait matters)');
@@ -228,11 +232,12 @@ console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cu
   net.recomputeVitality();
   ok(net.vitality < 1, `vitality now means % healthy and dropped (${net.vitality.toFixed(2)})`);
 
-  // Amputate removes infected strands (the cure / firebreak).
-  const inf = net.nodes.find((n) => n.infected);
+  // Amputate severs the infected branch loose WITHOUT deleting strands.
+  const inf = net.nodes.find((n) => n.infected && n.parentId != null);
   const before = net.nodes.length;
   const removed = net.amputateNode(inf.id);
-  ok(removed > 0 && net.nodes.length < before, `Amputate cuts out infected strands (-${removed})`);
+  ok(removed === 1 && net.nodes.length === before, 'Amputate severs the infected branch (no strands deleted)');
+  ok(inf.parentId === null, 'the infected branch is cut loose from the colony');
 
   // Melanize gives a chance to resist the initial contact. Isolate the breach
   // (no chunk, no race), one cloud per node, and count breaches with/without it.

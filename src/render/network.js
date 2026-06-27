@@ -158,6 +158,22 @@ export class NetworkRenderer {
     }
     octx.globalAlpha = 1;
 
+    // Amputation slices — a clean perpendicular cut where a link was severed, so
+    // the separation between the colony and the cut-off fragment is visible.
+    for (const sl of network.slices) {
+      const px = -Math.sin(sl.angle), py = Math.cos(sl.angle); // perpendicular to the strand
+      const half = 8;
+      const ax = sl.x + px * half, ay = sl.y + py * half;
+      const bx = sl.x - px * half, by = sl.y - py * half;
+      octx.lineCap = 'round';
+      octx.strokeStyle = 'rgba(12,16,14,0.85)';   // dark gap of the cut
+      octx.lineWidth = 4;
+      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
+      octx.strokeStyle = 'rgba(225,245,230,0.9)'; // bright sliced edge
+      octx.lineWidth = 1.4;
+      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
+    }
+
     this.structureDirty = false;
   }
 

@@ -260,7 +260,7 @@ const CONFIG = {
     sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
-    fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
+    fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
     // --- network infection (a cloud's edge touching you turns strands green) ---
@@ -700,6 +700,7 @@ class Network {
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
+    this.slices = [];          // visible cut marks {x,y,angle} left by Amputate
   }
 
   // --- node helpers --------------------------------------------------------
@@ -888,31 +889,28 @@ class Network {
     return this.amputateNode(target.id);
   }
 
+  // Amputate = SEVER the link, don't delete. The strand and everything beyond it
+  // are cut loose into a disconnected fragment (so an infected branch can no
+  // longer reach the colony, and the rot can't climb back across the cut) — but
+  // nothing is removed, so the healthy (white) mycelium survives. A visible
+  // "slice" is recorded across the cut. Returns 1 if a link was severed.
   amputateNode(nodeId) {
-    const start = this.byId.get(nodeId);
-    if (!start) return 0;
-    // Collect the subtree (the node and everything downstream of it).
-    const toRemove = new Set();
-    const stack = [start];
-    while (stack.length) {
-      const n = stack.pop();
-      if (toRemove.has(n.id)) continue;
-      toRemove.add(n.id);
-      for (const cid of n.children) {
-        const c = this.byId.get(cid);
-        if (c) stack.push(c);
-      }
+    const node = this.byId.get(nodeId);
+    if (!node || node.parentId == null) return 0;   // nothing to sever (it's the root)
+    const parent = this.byId.get(node.parentId);
+    if (parent) {
+      parent.children = parent.children.filter((id) => id !== node.id);
+      // a clean cut mark across the severed link (midpoint, perpendicular)
+      this.slices.push({
+        x: (node.x + parent.x) / 2,
+        y: (node.y + parent.y) / 2,
+        angle: Math.atan2(node.y - parent.y, node.x - parent.x),
+      });
+      if (this.slices.length > 60) this.slices.shift();
     }
-    // Detach from parent.
-    if (start.parentId != null) {
-      const parent = this.byId.get(start.parentId);
-      if (parent) parent.children = parent.children.filter((id) => id !== start.id);
-    }
-    for (const id of toRemove) this.byId.delete(id);
-    this.nodes = this.nodes.filter((n) => !toRemove.has(n.id));
-    if (this.nodes.length === 0) this.alive = false;
+    node.parentId = null;   // the subtree is now a free, disconnected fragment
     this.recomputeVitality();
-    return toRemove.size;
+    return 1;
   }
 
   // --- Express (A2): raise a defence trait one level, organism-wide --------
@@ -1562,12 +1560,12 @@ const ACTIONS = {
   amputate: {
     label: 'Amputate',
     target: 'node',
-    desc: 'Cut a strand and everything downstream of it.',
+    desc: 'Sever a link — cut an infected branch loose; the healthy mycelium survives.',
     apply(state, ctx) {
       const a = state.config.actions.amputate;
       const removed = state.active.amputateAt(ctx.x, ctx.y, a.pickRadius);
       if (removed === 0) return { ok: false, message: 'No strand close enough to cut there.' };
-      return { ok: true, message: `Amputated ${removed} segment${removed > 1 ? 's' : ''}.` };
+      return { ok: true, message: 'Severed the strand — the branch beyond it is cut loose.' };
     },
   },
 
@@ -2679,6 +2677,22 @@ class NetworkRenderer {
     }
     octx.globalAlpha = 1;
 
+    // Amputation slices — a clean perpendicular cut where a link was severed, so
+    // the separation between the colony and the cut-off fragment is visible.
+    for (const sl of network.slices) {
+      const px = -Math.sin(sl.angle), py = Math.cos(sl.angle); // perpendicular to the strand
+      const half = 8;
+      const ax = sl.x + px * half, ay = sl.y + py * half;
+      const bx = sl.x - px * half, by = sl.y - py * half;
+      octx.lineCap = 'round';
+      octx.strokeStyle = 'rgba(12,16,14,0.85)';   // dark gap of the cut
+      octx.lineWidth = 4;
+      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
+      octx.strokeStyle = 'rgba(225,245,230,0.9)'; // bright sliced edge
+      octx.lineWidth = 1.4;
+      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
+    }
+
     this.structureDirty = false;
   }
 
@@ -3529,23 +3543,37 @@ function drawTargetingCursor(time) {
     ctx.restore();
   } else if (sel === 'amputate') {
     const target = state.active.nodeNear(w.x, w.y, CONFIG.actions.amputate.pickRadius * 2);
-    if (target) {
-      // Highlight the subtree that would be cut.
+    if (target && target.parentId != null) {
+      const p = state.active.byId.get(target.parentId);
+      // Faintly outline the fragment that would be cut loose (it survives, just
+      // disconnected) so you can see exactly what you're severing off.
       const toCut = collectSubtree(state.active, target.id);
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+      ctx.strokeStyle = 'rgba(255,170,90,0.45)';
       ctx.lineWidth = 2;
       for (const id of toCut) {
         const n = state.active.byId.get(id);
         if (!n || n.parentId == null) continue;
-        const p = state.active.byId.get(n.parentId);
-        if (!p) continue;
-        const a = camera.worldToScreen(p.x, p.y), b = camera.worldToScreen(n.x, n.y);
+        const pp = state.active.byId.get(n.parentId);
+        if (!pp) continue;
+        const a = camera.worldToScreen(pp.x, pp.y), b = camera.worldToScreen(n.x, n.y);
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
-      const ts = camera.worldToScreen(target.x, target.y);
-      ctx.fillStyle = 'rgba(255,90,90,0.95)';
-      ctx.beginPath(); ctx.arc(ts.x, ts.y, 5, 0, Math.PI * 2); ctx.fill();
+      // The cut itself — a bright slice across the link to be severed.
+      if (p) {
+        const mx = (target.x + p.x) / 2, my = (target.y + p.y) / 2;
+        const ang = Math.atan2(target.y - p.y, target.x - p.x);
+        const nx = -Math.sin(ang), ny = Math.cos(ang);
+        const c = camera.worldToScreen(mx, my);
+        const half = 13;
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,245,215,0.95)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(c.x + nx * half, c.y + ny * half);
+        ctx.lineTo(c.x - nx * half, c.y - ny * half);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }
