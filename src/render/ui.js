@@ -129,7 +129,9 @@ export class UI {
       c2.onclick = () => this.handlers.onCheat('spores');
       const c3 = button('btn dev-btn', 'Spawn Trichoderma');
       c3.onclick = () => this.handlers.onCheat('trichoderma');
-      cheats.append(c1, c2, c3);
+      const c4 = button('btn dev-btn', 'No-Trich Map ↻');
+      c4.onclick = () => this.handlers.onNoTrichMap();
+      cheats.append(c1, c2, c3, c4);
       body.appendChild(cheats);
 
       const sliders = div('sliders');

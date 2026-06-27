@@ -23,6 +23,7 @@ const camera = new Camera();
 const lighting = new Lighting(CONFIG);
 
 let state, ui, substrateRenderer;
+let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
 const networkRenderers = new Map();
 
 let uiDirty = true;
@@ -34,7 +35,17 @@ let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
 let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
 
 // --- setup / restart --------------------------------------------------------
-function start(seed) { begin(createState(CONFIG, seed)); }
+function start(seed) {
+  let cfg = CONFIG;
+  if (noTrich) {
+    // A trich-free sandbox (testing aid): clone CONFIG so the global stays
+    // intact, and disable both the initial clouds and respawns.
+    cfg = JSON.parse(JSON.stringify(CONFIG));
+    cfg.trichoderma.initialPatches = 0;
+    cfg.trichoderma.respawnChance = 0;
+  }
+  begin(createState(cfg, seed));
+}
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
@@ -102,6 +113,11 @@ const handlers = {
     uiDirty = true;
   },
   onRestart() {
+    noTrich = false;                  // "New Map" returns to a normal (mould) map
+    start((Date.now() & 0x7fffffff) || 1);
+  },
+  onNoTrichMap() {
+    noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
     start((Date.now() & 0x7fffffff) || 1);
   },
   onPuzzle() {
@@ -641,9 +657,11 @@ function drawTargetingCursor(time) {
 
 // --- boot -------------------------------------------------------------------
 // Default to a random SANDBOX on load (we're playtesting the ant threat, which
-// only appears in the sandbox). "#puzzle" in the URL boots the fixed puzzle;
-// the "Puzzle 🧩" button switches to it at any time.
+// only appears in the sandbox). "#puzzle" boots the fixed puzzle; "#notrich"
+// (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
+// isolation. The matching buttons switch modes at any time.
 setupInput();
 if (location.hash === '#puzzle') startPuzzle();
+else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);
 requestAnimationFrame(frame);
