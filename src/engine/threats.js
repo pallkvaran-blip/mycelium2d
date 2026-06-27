@@ -28,30 +28,44 @@ function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false };
 }
 
-// Seed the initial roaming clouds at map generation, biased to start near food
-// clusters so the richest substrate is also the most contested (B6). Returns
-// the cloud list (stored on state.clouds) and stamps the field for first paint.
-export function seedTrichoderma(substrate, config, rng) {
+// Seed the initial roaming clouds at map generation. They start in OPEN ground
+// (not on food) and a good way from the colony, so each one visibly creeps in
+// toward its nearest target. Returns the cloud list (stored on state.clouds)
+// and stamps the field for first paint.
+export function seedTrichoderma(substrate, config, rng, network) {
   const t = config.trichoderma;
+  const root = network && network.root ? network.root : null;
   const clouds = [];
-  const candidates = [];
-  substrate.forEachCell((cell, col, row) => {
-    if (!cell.rock && !cell.hazard && cell.nutrient > 0) candidates.push(substrate.cellCenter(col, row));
-  });
   for (let i = 0; i < t.initialPatches; i++) {
-    let cx, cy;
-    if (candidates.length && rng.chance(t.seedFoodBias)) {
-      const c = rng.pick(candidates);
-      cx = c.x + rng.range(-2, 2) * substrate.cellSize;
-      cy = c.y + rng.range(-2, 2) * substrate.cellSize;
-    } else {
-      cx = rng.range(0, substrate.worldWidth);
-      cy = substrate.surfaceY + rng.range(0, substrate.rows * substrate.cellSize);
-    }
-    clouds.push(makeCloud(cx, cy, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
+    const spot = pickOpenSpot(substrate, rng, root, t);
+    clouds.push(makeCloud(spot.x, spot.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
   stampCloudField(substrate, clouds);
   return clouds;
+}
+
+// Pick an open underground spot — NOT on food/rock and (ideally) a good way from
+// the colony — so a cloud has a clear journey ahead of it.
+function pickOpenSpot(substrate, rng, root, t) {
+  const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
+  let fallback = null;
+  for (let tries = 0; tries < 40; tries++) {
+    const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize);
+    const cell = substrate.cellAtWorld(x, y);
+    if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
+    fallback = { x, y };
+    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
+  }
+  return fallback || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+}
+
+// Spawn a fresh roaming cloud in open ground far from the colony.
+function spawnFarCloud(state) {
+  const t = state.config.trichoderma;
+  const root = state.active && state.active.root ? state.active.root : null;
+  const spot = pickOpenSpot(state.substrate, state.rng, root, t);
+  state.clouds.push(makeCloud(spot.x, spot.y, (t.cloudRadiusMin + t.cloudRadiusMax) / 2));
 }
 
 // Dev cheat / spawn hook: drop a fresh cloud at a world point.
@@ -119,9 +133,11 @@ export function spreadTrichoderma(state) {
   }
   state.clouds = survivors;
 
-  // Ambient new outbreaks (off by default).
-  if (t.spawnChancePerTurn > 0 && rng.chance(t.spawnChancePerTurn)) {
-    spawnTrichodermaAt(state, rng.range(0, sub.worldWidth), sub.surfaceY + rng.range(0, sub.rows * cs));
+  // Keep the roaming population topped up: a cloud that infected you and faded
+  // is eventually replaced by a fresh one creeping in from elsewhere, so the
+  // threat never just ends and there's always something on the move.
+  if (state.clouds.length < t.initialPatches && rng.chance(t.respawnChance)) {
+    spawnFarCloud(state);
   }
 
   stampCloudField(sub, state.clouds);

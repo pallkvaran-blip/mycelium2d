@@ -20,9 +20,11 @@ const cfg = JSON.parse(JSON.stringify(CONFIG));
 
 console.log('# State + map generation');
 const state = createState(cfg, 12345);
-// performAction now ticks the mould on every action; clear clouds so the
-// generic action tests below aren't perturbed (the threat has its own section).
+// performAction now ticks the mould on every action; clear clouds AND disable
+// respawn so the generic action tests below aren't perturbed (threat has its
+// own section).
 state.clouds = [];
+state.config.trichoderma.initialPatches = 0;
 ok(state.networks.length === 1, 'holds a list with one network');
 ok(state.active === state.networks[0], 'active network is the first');
 ok(state.substrate.cols > 0 && state.substrate.rows > 0, 'substrate grid generated');
@@ -83,6 +85,26 @@ state.movesLeft = 0;
 endTurn(state);
 endTurn(state);
 ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
+
+// Seeding: clouds start in OPEN ground (not sitting on food) so they travel.
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 2468);
+  let onFood = 0;
+  for (const c of s.clouds) { const cell = s.substrate.cellAtWorld(c.cx, c.cy); if (cell && cell.maxNutrient > 0) onFood++; }
+  ok(s.clouds.length === CONFIG.trichoderma.initialPatches, 'all clouds seeded');
+  ok(onFood === 0, `clouds seed in open ground, not on food (${onFood}/${s.clouds.length} on food)`);
+}
+
+// Travel: a seeded cloud visibly moves toward its nearest target each action.
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 2468);
+  s.clouds = [s.clouds[0]];
+  const c = s.clouds[0];
+  const p0 = { x: c.cx, y: c.cy };
+  for (let i = 0; i < 3; i++) spreadTrichoderma(s);
+  const moved = Math.hypot(c.cx - p0.x, c.cy - p0.y);
+  ok(moved > 1, `a seeded cloud moves toward food/colony (${moved | 0}px over 3 actions)`);
+}
 
 // Persistence: a healthy cloud keeps roaming for many turns (it doesn't just
 // die out on its own — only spending itself on you removes it).

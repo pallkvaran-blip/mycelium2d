@@ -14,10 +14,13 @@ import { seedTrichoderma } from './threats.js';
 export function createState(config, seed) {
   const rng = makeRng(seed >>> 0 || 1);
   const substrate = generateSubstrate(config, rng);
-  const clouds = seedTrichoderma(substrate, config, rng);
 
   const network = new Network(config);
   network.seed(substrate, rng);
+
+  // Seed the mould AFTER the colony so clouds can start in open ground, away
+  // from both food and you, and visibly creep in toward their nearest target.
+  const clouds = seedTrichoderma(substrate, config, rng, network);
 
   const state = {
     config,

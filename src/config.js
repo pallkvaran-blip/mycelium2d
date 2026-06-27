@@ -93,11 +93,11 @@ export const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    moveSpeed: 1.0,              // cells per ACTION a cloud creeps toward the nearest food (SLIDER)
+    moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeFraction: 0.2,        // per ACTION, drains this fraction of each cell in a TOUCHED pile — a whole pile is gone in ~2 turns
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
-    seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
-    spawnChancePerTurn: 0.0,     // ambient new clouds (0 = only seeded + dev spawn)
+    seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
+    respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium

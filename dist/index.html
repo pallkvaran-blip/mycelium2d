@@ -257,11 +257,11 @@ const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    moveSpeed: 1.0,              // cells per ACTION a cloud creeps toward the nearest food (SLIDER)
+    moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeFraction: 0.2,        // per ACTION, drains this fraction of each cell in a TOUCHED pile — a whole pile is gone in ~2 turns
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
-    seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
-    spawnChancePerTurn: 0.0,     // ambient new clouds (0 = only seeded + dev spawn)
+    seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
+    respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium
@@ -1159,30 +1159,44 @@ function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false };
 }
 
-// Seed the initial roaming clouds at map generation, biased to start near food
-// clusters so the richest substrate is also the most contested (B6). Returns
-// the cloud list (stored on state.clouds) and stamps the field for first paint.
-function seedTrichoderma(substrate, config, rng) {
+// Seed the initial roaming clouds at map generation. They start in OPEN ground
+// (not on food) and a good way from the colony, so each one visibly creeps in
+// toward its nearest target. Returns the cloud list (stored on state.clouds)
+// and stamps the field for first paint.
+function seedTrichoderma(substrate, config, rng, network) {
   const t = config.trichoderma;
+  const root = network && network.root ? network.root : null;
   const clouds = [];
-  const candidates = [];
-  substrate.forEachCell((cell, col, row) => {
-    if (!cell.rock && !cell.hazard && cell.nutrient > 0) candidates.push(substrate.cellCenter(col, row));
-  });
   for (let i = 0; i < t.initialPatches; i++) {
-    let cx, cy;
-    if (candidates.length && rng.chance(t.seedFoodBias)) {
-      const c = rng.pick(candidates);
-      cx = c.x + rng.range(-2, 2) * substrate.cellSize;
-      cy = c.y + rng.range(-2, 2) * substrate.cellSize;
-    } else {
-      cx = rng.range(0, substrate.worldWidth);
-      cy = substrate.surfaceY + rng.range(0, substrate.rows * substrate.cellSize);
-    }
-    clouds.push(makeCloud(cx, cy, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
+    const spot = pickOpenSpot(substrate, rng, root, t);
+    clouds.push(makeCloud(spot.x, spot.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
   stampCloudField(substrate, clouds);
   return clouds;
+}
+
+// Pick an open underground spot — NOT on food/rock and (ideally) a good way from
+// the colony — so a cloud has a clear journey ahead of it.
+function pickOpenSpot(substrate, rng, root, t) {
+  const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
+  let fallback = null;
+  for (let tries = 0; tries < 40; tries++) {
+    const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize);
+    const cell = substrate.cellAtWorld(x, y);
+    if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
+    fallback = { x, y };
+    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
+  }
+  return fallback || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+}
+
+// Spawn a fresh roaming cloud in open ground far from the colony.
+function spawnFarCloud(state) {
+  const t = state.config.trichoderma;
+  const root = state.active && state.active.root ? state.active.root : null;
+  const spot = pickOpenSpot(state.substrate, state.rng, root, t);
+  state.clouds.push(makeCloud(spot.x, spot.y, (t.cloudRadiusMin + t.cloudRadiusMax) / 2));
 }
 
 // Dev cheat / spawn hook: drop a fresh cloud at a world point.
@@ -1250,9 +1264,11 @@ function spreadTrichoderma(state) {
   }
   state.clouds = survivors;
 
-  // Ambient new outbreaks (off by default).
-  if (t.spawnChancePerTurn > 0 && rng.chance(t.spawnChancePerTurn)) {
-    spawnTrichodermaAt(state, rng.range(0, sub.worldWidth), sub.surfaceY + rng.range(0, sub.rows * cs));
+  // Keep the roaming population topped up: a cloud that infected you and faded
+  // is eventually replaced by a fresh one creeping in from elsewhere, so the
+  // threat never just ends and there's always something on the move.
+  if (state.clouds.length < t.initialPatches && rng.chance(t.respawnChance)) {
+    spawnFarCloud(state);
   }
 
   stampCloudField(sub, state.clouds);
@@ -1439,10 +1455,13 @@ const __m_engine_state = (function () {
 function createState(config, seed) {
   const rng = makeRng(seed >>> 0 || 1);
   const substrate = generateSubstrate(config, rng);
-  const clouds = seedTrichoderma(substrate, config, rng);
 
   const network = new Network(config);
   network.seed(substrate, rng);
+
+  // Seed the mould AFTER the colony so clouds can start in open ground, away
+  // from both food and you, and visibly creep in toward their nearest target.
+  const clouds = seedTrichoderma(substrate, config, rng, network);
 
   const state = {
     config,
