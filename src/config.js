@@ -130,9 +130,8 @@ export const CONFIG = {
     digest: {
       moveCost: 1,
       energyCost: 8,
-      burstSize: 70,             // total nutrient burst-converted to Energy (SLIDER)
-      extraDepletion: 1.6,      // depletion multiplier — exhausts the patch faster
-      vitalityDip: 0.09,         // temporary network-wide vitality hit
+      burstSize: 120,            // big burst — ~3 uses fully digests a typical pocket (SLIDER)
+      extraDepletion: 2.0,       // over-digesting burns the patch ~2x faster than passive income
     },
     fruit: {
       moveCost: 1,

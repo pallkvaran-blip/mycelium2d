@@ -97,8 +97,7 @@ export const ACTIONS = {
       }
       const energy = Math.round(gained * state.config.energy.incomeEfficiency);
       net.energy += energy;
-      net.addVitalityDip(d.vitalityDip);
-      return { ok: true, message: `Digest burst: +${energy} Energy (vitality dips briefly).` };
+      return { ok: true, message: `Digest burst: +${energy} Energy (burns the patch faster).` };
     },
   },
 
