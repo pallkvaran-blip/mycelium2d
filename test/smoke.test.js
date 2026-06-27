@@ -20,6 +20,9 @@ const cfg = JSON.parse(JSON.stringify(CONFIG));
 
 console.log('# State + map generation');
 const state = createState(cfg, 12345);
+// performAction now ticks the mould on every action; clear clouds so the
+// generic action tests below aren't perturbed (the threat has its own section).
+state.clouds = [];
 ok(state.networks.length === 1, 'holds a list with one network');
 ok(state.active === state.networks[0], 'active network is the first');
 ok(state.substrate.cols > 0 && state.substrate.rows > 0, 'substrate grid generated');
@@ -112,14 +115,15 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
     `cloud stays small after eating a giant pile (r ${r0.toFixed(2)} -> ${cloud.r.toFixed(2)}, cap ${s.config.trichoderma.cloudRadiusMax})`);
 }
 
-// Consumption: a cloud sitting on a pile eats it within ~2 turns.
+// Consumption: the substrate UNDER a cloud is devoured within ~2 turns.
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 654);
   const sub = s.substrate;
   const N = s.config.substrate.foodCellNutrient;
   for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
   const c0 = 10, r0 = 5;
-  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+  // A small pile that fits under one (now-small) cloud's footprint.
+  for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
     const cell = sub.cellAt(c0 + dc, r0 + dr);
     if (cell) { cell.nutrient = N; cell.maxNutrient = N; cell.rock = false; cell.hazard = false; }
   }
@@ -129,7 +133,7 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   const food0 = sub.totalNutrient();
   spreadTrichoderma(s);
   spreadTrichoderma(s);
-  ok(sub.totalNutrient() < food0 * 0.1, `a cloud devoured the pile in 2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
+  ok(sub.totalNutrient() < food0 * 0.1, `a cloud devoured the pile under it in 2 turns (${food0|0} -> ${sub.totalNutrient()|0})`);
 }
 
 // Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.

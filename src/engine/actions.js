@@ -13,7 +13,7 @@
 //   - null    : no target (Grow, Digest, Fruit)
 // =============================================================================
 
-import { spawnTrichodermaAt } from './threats.js';
+import { spawnTrichodermaAt, tickThreat } from './threats.js';
 
 export const ACTIONS = {
   grow: {
@@ -169,6 +169,12 @@ export function performAction(state, name, ctx = {}) {
   state.active.energy -= energy;
   state.active.recomputeVitality();
   state.log(result.message, 'action');
+
+  // The mould reacts to your every move: clouds creep + eat, and the rot races
+  // a little further along any infected filaments. (Fruit ends the run, so the
+  // guard inside tickThreat makes this a no-op in that case.)
+  tickThreat(state);
+
   return { ok: true, message: result.message, moves, energy };
 }
 

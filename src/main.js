@@ -117,9 +117,12 @@ const handlers = {
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
-  if (name === 'grow' || name === 'amputate') rendererFor(state.active).markStructureDirty();
-  if (name === 'addSubstrate' || name === 'digest') substrateRenderer.markDirty();
-  if (name === 'fruit') { state.active.computeFruitPoints(state.substrate); if (state.runOver) ui.showOverlay(state.runResult); }
+  // The mould steps on EVERY action, so both layers may have changed: clouds
+  // moved / ate (substrate) and the rot advanced along filaments (structure).
+  substrateRenderer.markDirty();
+  rendererFor(state.active).markStructureDirty();
+  if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
+  if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
 }
 

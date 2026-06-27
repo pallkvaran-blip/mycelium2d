@@ -164,11 +164,11 @@ export class NetworkRenderer {
     if (this.structureDirty) this.bakeStructure();
     const r = this.config.render;
     const net = this.network;
-    // Slow "breath" — the colony gently brightens and dims (~4.2s period).
-    // Appearance is INDEPENDENT of vitality (vitality stays a HUD/gameplay stat
-    // only) so the mycelium never dims or browns as health drops.
-    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200));
-    const brightness = brightnessScale * breath;
+    // Steady brightness — no global "breathing" (the constant brightening/dimming
+    // made the whole map pulse and was hard to look at). Appearance is also
+    // INDEPENDENT of vitality (that stays a HUD/gameplay stat only), so the
+    // mycelium never dims or browns as health drops.
+    const brightness = brightnessScale;
 
     // Static structure (baked), dimmed by vitality.
     const tl = camera.worldToScreen(0, 0);

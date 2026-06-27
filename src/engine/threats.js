@@ -232,6 +232,28 @@ function infectAround(network, seed, depth, chance, rng) {
   }
 }
 
+// --- Per-action threat tick (B6) --------------------------------------------
+// The mould reacts to the player's EVERY action (not just at end of turn): the
+// roaming clouds creep + eat, and any rot already inside races further along
+// the filaments. Called from performAction after each successful action.
+export function tickThreat(state) {
+  if (state.runOver) return;
+  spreadTrichoderma(state);
+  for (const net of state.networks) {
+    if (!net.alive) continue;
+    infectNetwork(net, state);
+    net.recomputeVitality();
+    if (net.nodes.length === 0 || net.healthyCount() === 0) {
+      net.alive = false;
+      if (net.active && !state.runOver) {
+        state.runOver = true;
+        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+      }
+    }
+  }
+}
+
 export function totalTrichoderma(substrate) {
   let total = 0;
   for (const cell of substrate.cells) total += cell.trich;

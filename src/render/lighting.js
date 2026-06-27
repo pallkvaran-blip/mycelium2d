@@ -28,7 +28,7 @@ export class Lighting {
   compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0) {
     const r = this.config.render;
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
-    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
+    const breath = 1; // steady lighting (no global breathing — it's distracting)
     const W = camera.viewW, H = camera.viewH;
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;

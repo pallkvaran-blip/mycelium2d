@@ -10,16 +10,15 @@
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
-import { spreadTrichoderma, infectNetwork } from './threats.js';
-
 export function endTurn(state) {
   if (state.runOver) return;
 
   const { config, substrate } = state;
   let totalIncome = 0;
 
-  // The roaming mould clouds move/eat once per turn (shared cross-section).
-  spreadTrichoderma(state);
+  // NOTE: the mould (cloud movement + infection) no longer steps here — it
+  // reacts to the player's every action instead (see tickThreat, called from
+  // performAction). End-turn only resolves the turn-based economy below.
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -32,30 +31,27 @@ export function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: any cloud touching this network infects/overruns it.
-    infectNetwork(net, state);
-
-    // 3) Starvation if the colony is out of Energy (prunes strands).
+    // 2) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
       net.energy = 0;
       net.applyStarvation();
       net.pruneDead();
     }
 
-    // 4) Recompute % healthy. Dead when no healthy strands remain (fully
-    //    overrun by mould) or nothing is left.
+    // 3) Recompute % healthy. Dead when no healthy strands remain (fully
+    //    overrun by mould) or nothing is left (e.g. starved out this turn).
     net.recomputeVitality();
     if (net.nodes.length === 0 || net.healthyCount() === 0) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+        state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
   }
 
-  // 6) Advance the clock and refill moves.
+  // Advance the clock and refill moves.
   state.turn += 1;
   state.movesLeft = config.turn.movesPerTurn;
 

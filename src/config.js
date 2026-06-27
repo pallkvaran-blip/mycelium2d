@@ -89,10 +89,10 @@ export const CONFIG = {
   // away after they infect you (so each cloud infects you ~once).
   trichoderma: {
     initialPatches: 3,           // number of roaming mold clouds on the map
-    cloudRadiusMin: 1.6,         // starting cloud size, in grid cells
-    cloudRadiusMax: 3.0,         // HARD cap — a cloud never grows giant, however much it eats
-    growthPerEat: 0.03,          // radius gained per turn it's eating (tiny — stays ~the same size)
-    moveSpeed: 2.0,              // cells/turn a cloud creeps toward the nearest food (SLIDER)
+    cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
+    cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
+    growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
+    moveSpeed: 1.0,              // cells per ACTION a cloud creeps toward the nearest food (SLIDER)
     consumeFraction: 0.6,        // food drained per turn from cells under the cloud (~2 turns to clear)
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
     seedFoodBias: 0.8,           // chance a cloud starts near a food cluster

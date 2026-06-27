@@ -253,10 +253,10 @@ const CONFIG = {
   // away after they infect you (so each cloud infects you ~once).
   trichoderma: {
     initialPatches: 3,           // number of roaming mold clouds on the map
-    cloudRadiusMin: 1.6,         // starting cloud size, in grid cells
-    cloudRadiusMax: 3.0,         // HARD cap — a cloud never grows giant, however much it eats
-    growthPerEat: 0.03,          // radius gained per turn it's eating (tiny — stays ~the same size)
-    moveSpeed: 2.0,              // cells/turn a cloud creeps toward the nearest food (SLIDER)
+    cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
+    cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
+    growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
+    moveSpeed: 1.0,              // cells per ACTION a cloud creeps toward the nearest food (SLIDER)
     consumeFraction: 0.6,        // food drained per turn from cells under the cloud (~2 turns to clear)
     fadeTurns: 2,                // after infecting you, a cloud vanishes completely over this many turns
     seedFoodBias: 0.8,           // chance a cloud starts near a food cluster
@@ -1362,13 +1362,35 @@ function infectAround(network, seed, depth, chance, rng) {
   }
 }
 
+// --- Per-action threat tick (B6) --------------------------------------------
+// The mould reacts to the player's EVERY action (not just at end of turn): the
+// roaming clouds creep + eat, and any rot already inside races further along
+// the filaments. Called from performAction after each successful action.
+function tickThreat(state) {
+  if (state.runOver) return;
+  spreadTrichoderma(state);
+  for (const net of state.networks) {
+    if (!net.alive) continue;
+    infectNetwork(net, state);
+    net.recomputeVitality();
+    if (net.nodes.length === 0 || net.healthyCount() === 0) {
+      net.alive = false;
+      if (net.active && !state.runOver) {
+        state.runOver = true;
+        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+      }
+    }
+  }
+}
+
 function totalTrichoderma(substrate) {
   let total = 0;
   for (const cell of substrate.cells) total += cell.trich;
   return total;
 }
 
-  return { seedTrichoderma, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, totalTrichoderma };
+  return { seedTrichoderma, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, tickThreat, totalTrichoderma };
 })();
 
 // ===================== src/engine/state.js =====================
@@ -1429,7 +1451,7 @@ function newRun(config, seed) {
 
 // ===================== src/engine/actions.js =====================
 const __m_engine_actions = (function () {
-  const { spawnTrichodermaAt } = __m_engine_threats;
+  const { spawnTrichodermaAt, tickThreat } = __m_engine_threats;
 // =============================================================================
 // Actions — the six basic actions, the backbone of the game (A2, B5).
 //
@@ -1600,6 +1622,12 @@ function performAction(state, name, ctx = {}) {
   state.active.energy -= energy;
   state.active.recomputeVitality();
   state.log(result.message, 'action');
+
+  // The mould reacts to your every move: clouds creep + eat, and the rot races
+  // a little further along any infected filaments. (Fruit ends the run, so the
+  // guard inside tickThreat makes this a no-op in that case.)
+  tickThreat(state);
+
   return { ok: true, message: result.message, moves, energy };
 }
 
@@ -1614,7 +1642,6 @@ function devSpawnTrichoderma(state, x, y) {
 
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
-  const { spreadTrichoderma, infectNetwork } = __m_engine_threats;
 // =============================================================================
 // Turn loop (A2, B4).
 //
@@ -1627,15 +1654,15 @@ const __m_engine_turn = (function () {
 // network list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
-
 function endTurn(state) {
   if (state.runOver) return;
 
   const { config, substrate } = state;
   let totalIncome = 0;
 
-  // The roaming mould clouds move/eat once per turn (shared cross-section).
-  spreadTrichoderma(state);
+  // NOTE: the mould (cloud movement + infection) no longer steps here — it
+  // reacts to the player's every action instead (see tickThreat, called from
+  // performAction). End-turn only resolves the turn-based economy below.
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -1648,30 +1675,27 @@ function endTurn(state) {
     //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 2) Threat: any cloud touching this network infects/overruns it.
-    infectNetwork(net, state);
-
-    // 3) Starvation if the colony is out of Energy (prunes strands).
+    // 2) Starvation if the colony is out of Energy (prunes strands).
     if (net.energy <= 0) {
       net.energy = 0;
       net.applyStarvation();
       net.pruneDead();
     }
 
-    // 4) Recompute % healthy. Dead when no healthy strands remain (fully
-    //    overrun by mould) or nothing is left.
+    // 3) Recompute % healthy. Dead when no healthy strands remain (fully
+    //    overrun by mould) or nothing is left (e.g. starved out this turn).
     net.recomputeVitality();
     if (net.nodes.length === 0 || net.healthyCount() === 0) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
         state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The colony has been consumed by Trichoderma. Run over.', 'warn');
+        state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
   }
 
-  // 6) Advance the clock and refill moves.
+  // Advance the clock and refill moves.
   state.turn += 1;
   state.movesLeft = config.turn.movesPerTurn;
 
@@ -2593,11 +2617,11 @@ class NetworkRenderer {
     if (this.structureDirty) this.bakeStructure();
     const r = this.config.render;
     const net = this.network;
-    // Slow "breath" — the colony gently brightens and dims (~4.2s period).
-    // Appearance is INDEPENDENT of vitality (vitality stays a HUD/gameplay stat
-    // only) so the mycelium never dims or browns as health drops.
-    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200));
-    const brightness = brightnessScale * breath;
+    // Steady brightness — no global "breathing" (the constant brightening/dimming
+    // made the whole map pulse and was hard to look at). Appearance is also
+    // INDEPENDENT of vitality (that stays a HUD/gameplay stat only), so the
+    // mycelium never dims or browns as health drops.
+    const brightness = brightnessScale;
 
     // Static structure (baked), dimmed by vitality.
     const tl = camera.worldToScreen(0, 0);
@@ -2719,7 +2743,7 @@ class Lighting {
   compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0) {
     const r = this.config.render;
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
-    const breath = 0.9 + 0.1 * Math.sin(time * (Math.PI * 2 / 4200)); // slow glow breath
+    const breath = 1; // steady lighting (no global breathing — it's distracting)
     const W = camera.viewW, H = camera.viewH;
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;
@@ -3253,9 +3277,12 @@ const handlers = {
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
-  if (name === 'grow' || name === 'amputate') rendererFor(state.active).markStructureDirty();
-  if (name === 'addSubstrate' || name === 'digest') substrateRenderer.markDirty();
-  if (name === 'fruit') { state.active.computeFruitPoints(state.substrate); if (state.runOver) ui.showOverlay(state.runResult); }
+  // The mould steps on EVERY action, so both layers may have changed: clouds
+  // moved / ate (substrate) and the rot advanced along filaments (structure).
+  substrateRenderer.markDirty();
+  rendererFor(state.active).markStructureDirty();
+  if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
+  if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
 }
 
