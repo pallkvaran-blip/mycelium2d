@@ -107,14 +107,14 @@ export class NetworkRenderer {
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere
       const strands = s > 8 ? 2 : 1;
-      const baseW = 0.4 + Math.min(0.9, Math.log(1 + s) * 0.18);
+      const baseW = 0.7 + Math.min(1.2, Math.log(1 + s) * 0.24);
       const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
       for (let k = 0; k < strands; k++) {
         const o = (k - (strands - 1) / 2) * 1.2;
         const mx = (p.x + n.x) / 2 + perpx * (o + meander);
         const my = (p.y + n.y) / 2 + perpy * (o + meander);
-        octx.lineWidth = baseW * (0.75 + 0.4 * nh(n.id, k + 2));
-        octx.globalAlpha = 0.8;
+        octx.lineWidth = baseW * (0.8 + 0.4 * nh(n.id, k + 2));
+        octx.globalAlpha = 0.95;
         octx.beginPath();
         octx.moveTo(p.x + perpx * o, p.y + perpy * o);
         octx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
@@ -123,13 +123,13 @@ export class NetworkRenderer {
 
       // cottony fuzz — short fine hyphae radiating out, denser as the strand ages
       const fuzz = isTip ? Math.round(ageF * 2) : Math.round(ageF * 5);
-      octx.lineWidth = 0.5;
+      octx.lineWidth = 0.7;
       for (let f = 0; f < fuzz; f++) {
         const a = nh(n.id, f + 11) * 6.283;
         const hl = 4 + 7 * nh(n.id, f + 23);
         const mx = n.x + Math.cos(a) * hl * 0.5 + perpx * (nh(n.id, f + 31) * 2 - 1) * 1.4;
         const my = n.y + Math.sin(a) * hl * 0.5 + perpy * (nh(n.id, f + 31) * 2 - 1) * 1.4;
-        octx.globalAlpha = 0.16 + 0.16 * nh(n.id, f + 5);
+        octx.globalAlpha = 0.3 + 0.2 * nh(n.id, f + 5);
         octx.beginPath();
         octx.moveTo(n.x, n.y);
         octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
@@ -138,8 +138,8 @@ export class NetworkRenderer {
 
       // exploratory feather-fan at the growing tip
       if (isTip) {
-        octx.globalAlpha = 0.5;
-        octx.lineWidth = 0.5;
+        octx.globalAlpha = 0.62;
+        octx.lineWidth = 0.7;
         const fan = 4 + Math.floor(nh(n.id, 5) * 3);
         for (let f = 0; f < fan; f++) {
           const a = baseAng + (f / (fan - 1) - 0.5) * 1.5 + (nh(n.id, f + 50) - 0.5) * 0.3;
@@ -179,19 +179,8 @@ export class NetworkRenderer {
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
-    // Sensing rings ONLY on the outer frontier tips (interior sensing is
-    // obvious and the inner rings just add clutter).
-    const sr = this.config.growth.sensingRadius * camera.zoom;
-    ctx.save();
-    ctx.strokeStyle = r.sensingRing;
-    ctx.lineWidth = 1;
-    for (const t of this.frontierTips) {
-      const s = camera.worldToScreen(t.x, t.y);
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, sr, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
+    // (The sensing range is shown by the lighting pass as a soft "in-range"
+    //  glow, not per-tip rings.)
 
     // A single, slow nutrient pulse sweeping outward from the core as one soft
     // ring (~every 3.8s) — a heartbeat, not a stream of marching dots.

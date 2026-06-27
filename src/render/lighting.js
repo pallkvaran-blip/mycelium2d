@@ -21,6 +21,7 @@ export class Lighting {
     this.spriteNetwork = makeGlowSprite(r.networkLight);
     this.spriteFood = makeGlowSprite(r.foodLight);
     this.spriteHazard = makeGlowSprite(r.hazardLight);
+    this.spriteSense = makeGlowSprite(r.senseLight);
   }
 
   // Dim the scene already drawn to `ctx` and add the colony's light back in.
@@ -68,6 +69,19 @@ export class Lighting {
       const hs = Math.max(1, Math.ceil(hp.length / 60));
       for (let i = 0; i < hp.length; i += hs) {
         this._light(lc, camera, this.spriteHazard, hp[i].x, hp[i].y, baseR * 1.0, 0.6, W, H);
+      }
+    }
+
+    // Sensing range — the area the colony can sense reads as faintly more lit
+    // than out-of-range earth (a soft aura at the frontier, not per-tip rings).
+    const senseR = this.config.growth.sensingRadius * camera.zoom;
+    for (const net of state.networks) {
+      if (!net.alive && !net.fruited) continue;
+      const rend = networkRenderers && networkRenderers.get(net.id);
+      const tips = rend && rend.frontierTips;
+      if (!tips) continue;
+      for (const t of tips) {
+        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, 0.1 * breath, W, H);
       }
     }
 

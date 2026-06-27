@@ -217,6 +217,7 @@ export const CONFIG = {
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
     hazardLight: 'rgba(90,220,200,1)',
+    senseLight: 'rgba(170,205,180,1)', // soft glow marking the sensed (in-range) area
     lightRadius: 64,            // base light radius (world units)
   },
 
