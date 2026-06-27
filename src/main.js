@@ -162,19 +162,22 @@ function setupInput() {
     }
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size >= 2) {
-      // Pinch to zoom about the midpoint of the two fingers.
-      const d = pointerSpread();
-      if (pinchDist > 0 && d > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const mid = pointerMid();
-        camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+    if (pointers.has(e.pointerId)) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size >= 2) {
+        // Pinch to zoom about the midpoint of the two fingers.
+        const d = pointerSpread();
+        if (pinchDist > 0 && d > 0) {
+          const rect = canvas.getBoundingClientRect();
+          const mid = pointerMid();
+          camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+        }
+        pinchDist = d;
+        return;
       }
-      pinchDist = d;
-      return;
     }
+    // Always track the cursor (even on a plain hover with no button down) so the
+    // targeting preview — e.g. the Amputate cut radius — follows the mouse.
     const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y;
     mouse.x = e.clientX; mouse.y = e.clientY;
     if (mouse.down) {
@@ -297,53 +300,28 @@ function drawTargetingCursor(time) {
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   } else if (sel === 'amputate') {
-    const target = state.active.nodeNear(w.x, w.y, CONFIG.actions.amputate.pickRadius * 2);
-    if (target && target.parentId != null) {
-      const p = state.active.byId.get(target.parentId);
-      // Faintly outline the fragment that would be cut loose (it survives, just
-      // disconnected) so you can see exactly what you're severing off.
-      const toCut = collectSubtree(state.active, target.id);
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,170,90,0.45)';
-      ctx.lineWidth = 2;
-      for (const id of toCut) {
-        const n = state.active.byId.get(id);
-        if (!n || n.parentId == null) continue;
-        const pp = state.active.byId.get(n.parentId);
-        if (!pp) continue;
-        const a = camera.worldToScreen(pp.x, pp.y), b = camera.worldToScreen(n.x, n.y);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      }
-      // The cut itself — a bright slice across the link to be severed.
-      if (p) {
-        const mx = (target.x + p.x) / 2, my = (target.y + p.y) / 2;
-        const ang = Math.atan2(target.y - p.y, target.x - p.x);
-        const nx = -Math.sin(ang), ny = Math.cos(ang);
-        const c = camera.worldToScreen(mx, my);
-        const half = 13;
-        ctx.setLineDash([]);
-        ctx.strokeStyle = 'rgba(255,245,215,0.95)';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(c.x + nx * half, c.y + ny * half);
-        ctx.lineTo(c.x - nx * half, c.y - ny * half);
-        ctx.stroke();
-      }
-      ctx.restore();
+    const rad = CONFIG.actions.amputate.radius;
+    const r2 = rad * rad;
+    const s = camera.worldToScreen(w.x, w.y);
+    ctx.save();
+    // Highlight every strand that would be cut out within the radius.
+    ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+    ctx.lineWidth = 2;
+    for (const n of state.active.nodes) {
+      const dx = n.x - w.x, dy = n.y - w.y;
+      if (dx * dx + dy * dy > r2 || n.parentId == null) continue;
+      const p = state.active.byId.get(n.parentId);
+      if (!p) continue;
+      const a = camera.worldToScreen(p.x, p.y), b = camera.worldToScreen(n.x, n.y);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
+    // The cut radius itself.
+    ctx.strokeStyle = 'rgba(255,120,120,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, rad * camera.zoom, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
-}
-
-function collectSubtree(net, nodeId) {
-  const set = new Set(); const stack = [nodeId];
-  while (stack.length) {
-    const id = stack.pop();
-    if (set.has(id)) continue;
-    set.add(id);
-    const n = net.byId.get(id);
-    if (n) for (const c of n.children) stack.push(c);
-  }
-  return set;
 }
 
 // --- boot -------------------------------------------------------------------

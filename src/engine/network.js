@@ -33,7 +33,6 @@ export class Network {
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
-    this.slices = [];          // visible cut marks {x,y,angle} left by Amputate
   }
 
   // --- node helpers --------------------------------------------------------
@@ -116,14 +115,13 @@ export class Network {
     if (attractors.length === 0) return 0;
 
     // 2) Spatial hash of nodes (bucketed by substrate cell) for nearest lookup.
-    //    Only the LIVING front grows — not infected strands, nor healthy strands
-    //    stranded behind an infected section (cut off from the root).
-    const healthy = this.healthyFront();
+    //    Any UNINFECTED strand can grow — including healthy mycelium that's been
+    //    cut loose from the root (a severed fragment keeps living and growing).
     const buckets = new Map();
     const key = (col, row) => col + ',' + row;
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
-      if (!healthy.has(n.id)) continue;         // can't grow from dead/severed strands
+      if (n.infected) continue;                 // infected (dead) strands can't grow
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -205,45 +203,34 @@ export class Network {
     return false;
   }
 
-  // --- Amputate (A2): remove the node nearest a click + its whole subtree ---
-  nodeNear(x, y, maxDist) {
-    let best = null, bd2 = maxDist * maxDist;
+  // --- Amputate (A2): cut out every strand within a radius of the click -----
+  // Removes all nodes inside the circle (a clean excision of the infected blob).
+  // Surviving strands that lose their parent to the cut become free fragments —
+  // they keep living and can still grow. Returns the number of strands removed.
+  amputateAt(x, y, radius) {
+    const r2 = radius * radius;
+    const removed = new Set();
     for (const n of this.nodes) {
       const dx = n.x - x, dy = n.y - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bd2) { bd2 = d2; best = n; }
+      if (dx * dx + dy * dy <= r2) removed.add(n.id);
     }
-    return best;
+    return this._removeNodes(removed);
   }
 
-  amputateAt(x, y, maxDist) {
-    const target = this.nodeNear(x, y, maxDist);
-    if (!target) return 0;
-    return this.amputateNode(target.id);
-  }
-
-  // Amputate = SEVER the link, don't delete. The strand and everything beyond it
-  // are cut loose into a disconnected fragment (so an infected branch can no
-  // longer reach the colony, and the rot can't climb back across the cut) — but
-  // nothing is removed, so the healthy (white) mycelium survives. A visible
-  // "slice" is recorded across the cut. Returns 1 if a link was severed.
-  amputateNode(nodeId) {
-    const node = this.byId.get(nodeId);
-    if (!node || node.parentId == null) return 0;   // nothing to sever (it's the root)
-    const parent = this.byId.get(node.parentId);
-    if (parent) {
-      parent.children = parent.children.filter((id) => id !== node.id);
-      // a clean cut mark across the severed link (midpoint, perpendicular)
-      this.slices.push({
-        x: (node.x + parent.x) / 2,
-        y: (node.y + parent.y) / 2,
-        angle: Math.atan2(node.y - parent.y, node.x - parent.x),
-      });
-      if (this.slices.length > 60) this.slices.shift();
+  // Remove a set of node ids, orphaning any surviving children (they become
+  // free fragments that keep living/growing — we never cascade-delete).
+  _removeNodes(removed) {
+    if (removed.size === 0) return 0;
+    for (const n of this.nodes) {
+      if (removed.has(n.id)) continue;
+      if (n.parentId != null && removed.has(n.parentId)) n.parentId = null;
+      if (n.children.length) n.children = n.children.filter((id) => !removed.has(id));
     }
-    node.parentId = null;   // the subtree is now a free, disconnected fragment
+    for (const id of removed) this.byId.delete(id);
+    this.nodes = this.nodes.filter((n) => !removed.has(n.id));
+    if (this.nodes.length === 0) this.alive = false;
     this.recomputeVitality();
-    return 1;
+    return removed.size;
   }
 
   // --- Express (A2): raise a defence trait one level, organism-wide --------
@@ -294,13 +281,11 @@ export class Network {
     const step = this.config.substrate.colonizeRate;
     if (this.nodes.length >= g.maxNodes) return 0;
 
-    // Group the LIVING network's nodes by the (uncolonised) substrate cell they
-    // sit in. Infected strands — and healthy ones severed behind them — can't
-    // colonise.
-    const healthy = this.healthyFront();
+    // Group the network's nodes by the (uncolonised) substrate cell they sit in.
+    // Any uninfected strand colonises (including cut-loose healthy fragments).
     const byCell = new Map();
     for (const n of this.nodes) {
-      if (!healthy.has(n.id)) continue;         // dead or cut-off strands can't colonise
+      if (n.infected) continue;                 // infected strands can't colonise
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -366,23 +351,12 @@ export class Network {
     for (const n of this.nodes) n.health -= v.starvationDamage;
   }
 
-  // Remove dead nodes (and the now-disconnected subtree beneath them).
+  // Remove starved-out nodes; their healthy children survive as free fragments.
   pruneDead() {
     const dead = this.config.vitality.deadNodeHealth;
-    let removed = 0;
-    let again = true;
-    while (again) {
-      again = false;
-      for (const n of this.nodes) {
-        if (n.health <= dead) {
-          removed += this.amputateNode(n.id);
-          again = true;
-          break;
-        }
-      }
-    }
-    if (this.nodes.length === 0) this.alive = false;
-    return removed;
+    const removed = new Set();
+    for (const n of this.nodes) if (n.health <= dead) removed.add(n.id);
+    return this._removeNodes(removed);
   }
 
   // Healthy (uninfected) strand count.
@@ -390,24 +364,6 @@ export class Network {
     let c = 0;
     for (const n of this.nodes) if (!n.infected) c++;
     return c;
-  }
-
-  // The LIVING network: nodes reachable from the root through uninfected strands
-  // only. A strand stranded behind an infected (dead) section is NOT in here, so
-  // you can't grow from it — the infection truly severs that branch.
-  healthyFront() {
-    const ok = new Set();
-    const root = this.root;
-    if (!root || root.infected) return ok;
-    const stack = [root];
-    while (stack.length) {
-      const n = stack.pop();
-      if (!n || n.infected || ok.has(n.id)) continue;
-      ok.add(n.id);
-      if (n.parentId != null) stack.push(this.byId.get(n.parentId));
-      for (const cid of n.children) stack.push(this.byId.get(cid));
-    }
-    return ok;
   }
 
   // --- Vitality = fraction of the colony still healthy (uninfected) --------

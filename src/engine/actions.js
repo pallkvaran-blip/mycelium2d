@@ -46,12 +46,12 @@ export const ACTIONS = {
   amputate: {
     label: 'Amputate',
     target: 'node',
-    desc: 'Sever a link — cut an infected branch loose; the healthy mycelium survives.',
+    desc: 'Cut out every strand within a radius — excise an infected patch.',
     apply(state, ctx) {
       const a = state.config.actions.amputate;
-      const removed = state.active.amputateAt(ctx.x, ctx.y, a.pickRadius);
-      if (removed === 0) return { ok: false, message: 'No strand close enough to cut there.' };
-      return { ok: true, message: 'Severed the strand — the branch beyond it is cut loose.' };
+      const removed = state.active.amputateAt(ctx.x, ctx.y, a.radius);
+      if (removed === 0) return { ok: false, message: 'No strands within the cut radius there.' };
+      return { ok: true, message: `Cut out ${removed} strand${removed > 1 ? 's' : ''}.` };
     },
   },
 

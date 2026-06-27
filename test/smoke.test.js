@@ -72,13 +72,11 @@ ok(er.ok && state.active.traits.melanize === 1, 'Melanize expressed to level 1')
 const cost1 = state.active.expressCost('melanize');
 ok(cost1 > cfg.actions.express.energyCostBase, 'Express cost escalates with level');
 
-console.log('# Amputate severs a link (strands survive)');
+console.log('# Amputate cuts out strands within a radius');
 const countBefore = state.active.nodes.length;
 const tip = state.active.nodes[state.active.nodes.length - 1];
 const ar = performAction(state, 'amputate', { x: tip.x, y: tip.y });
-ok(ar.ok && state.active.nodes.length === countBefore, 'Amputate severs without deleting (strands survive)');
-ok(tip.parentId === null, 'the picked strand is cut loose from its parent');
-ok(state.active.slices.length > 0, 'a visible slice is recorded at the cut');
+ok(ar.ok && state.active.nodes.length < countBefore, 'Amputate removes the strands within its radius');
 
 console.log('# Trichoderma clouds roam, persist, devour, and fade after infecting');
 // Drop a cloud right on the network and run two turns — the world stays finite.
@@ -232,12 +230,12 @@ console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cu
   net.recomputeVitality();
   ok(net.vitality < 1, `vitality now means % healthy and dropped (${net.vitality.toFixed(2)})`);
 
-  // Amputate severs the infected branch loose WITHOUT deleting strands.
-  const inf = net.nodes.find((n) => n.infected && n.parentId != null);
+  // Amputate cuts out the infected patch within its radius.
+  const inf = net.nodes.find((n) => n.infected);
   const before = net.nodes.length;
-  const removed = net.amputateNode(inf.id);
-  ok(removed === 1 && net.nodes.length === before, 'Amputate severs the infected branch (no strands deleted)');
-  ok(inf.parentId === null, 'the infected branch is cut loose from the colony');
+  const removed = net.amputateAt(inf.x, inf.y, s.config.actions.amputate.radius);
+  ok(removed > 0 && net.nodes.length < before, `Amputate cuts out the infected patch (-${removed})`);
+  ok(!net.byId.has(inf.id), 'the targeted infected strand is gone');
 
   // Melanize gives a chance to resist the initial contact. Isolate the breach
   // (no chunk, no race), one cloud per node, and count breaches with/without it.
@@ -275,21 +273,9 @@ console.log('# Infection also advances on End Turn (no dodging the rot)');
   ok(after > before, `the rot advances on End Turn too (${before} -> ${after} infected)`);
 }
 
-console.log('# Cannot grow from infected or severed strands');
+console.log('# Growth: infected strands cannot grow; cut-loose healthy ones can');
 {
-  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 5);
-  const net = s.active;
-  const root = net.root;
-  const a = net.addNode(root.x, root.y + 20, root);
-  const b = net.addNode(a.x, a.y + 20, a);
-  const c = net.addNode(b.x, b.y + 20, b);
-  ok(net.healthyFront().has(c.id), 'a healthy tip is part of the living front');
-  a.infected = true;                                  // infect mid-chain
-  const front = net.healthyFront();
-  ok(!front.has(b.id) && !front.has(c.id), 'strands behind an infected node are severed from the front');
-  ok(front.has(root.id), 'the root side of the break stays alive');
-}
-{
+  // A fully infected colony cannot grow at all.
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 77);
   const net = s.active;
   s.clouds = [];
@@ -302,6 +288,19 @@ console.log('# Cannot grow from infected or severed strands');
   const before = net.nodes.length;
   net.grow(s.substrate, s.rng);
   ok(net.nodes.length === before, 'a fully infected colony cannot grow at all');
+}
+{
+  // A healthy strand cut loose from the root (no parent) keeps growing.
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 33);
+  const net = s.active;
+  s.clouds = [];
+  s.config.trichoderma.initialPatches = 0;
+  const lone = net.addNode(800, 800, null);           // disconnected fragment root
+  s.substrate.deposit(lone.x + 24, lone.y, 100, 3);   // food right next to it
+  const before = net.nodes.length;
+  for (let i = 0; i < 3; i++) net.grow(s.substrate, s.rng);
+  const grewFromLone = net.nodes.some((n) => n.parentId === lone.id);
+  ok(net.nodes.length > before && grewFromLone, 'a cut-loose healthy strand still grows');
 }
 
 console.log('# Fruit pays Spores and ends the cycle');

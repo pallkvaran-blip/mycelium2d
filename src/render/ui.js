@@ -199,7 +199,7 @@ export class UI {
     }
     const hints = {
       addSubstrate: 'Click underground to place a food patch and lure growth there.',
-      amputate: 'Click a strand to cut it (and everything downstream).',
+      amputate: 'Click to cut out every strand inside the red circle.',
     };
     if (name && hints[name]) this.setHint(hints[name]);
   }

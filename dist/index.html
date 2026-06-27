@@ -287,7 +287,7 @@ const CONFIG = {
     amputate: {
       moveCost: 1,
       energyCost: 4,
-      pickRadius: 28,            // click tolerance (world units) for picking a strand
+      radius: 60,                // cut radius (world units) — removes ALL strands inside it (SLIDER)
     },
     express: {
       moveCost: 1,
@@ -407,6 +407,7 @@ const SLIDERS = [
   { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },
   { path: 'trichoderma.sightRadius',     label: 'Mold Sight Range',    min: 100, max: 1500, step: 50 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
+  { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
@@ -700,7 +701,6 @@ class Network {
 
     this.occupiedIdx = new Set(); // substrate cell indices currently occupied
     this.fruitPoints = [];     // last computed fruiting points (for render)
-    this.slices = [];          // visible cut marks {x,y,angle} left by Amputate
   }
 
   // --- node helpers --------------------------------------------------------
@@ -783,14 +783,13 @@ class Network {
     if (attractors.length === 0) return 0;
 
     // 2) Spatial hash of nodes (bucketed by substrate cell) for nearest lookup.
-    //    Only the LIVING front grows — not infected strands, nor healthy strands
-    //    stranded behind an infected section (cut off from the root).
-    const healthy = this.healthyFront();
+    //    Any UNINFECTED strand can grow — including healthy mycelium that's been
+    //    cut loose from the root (a severed fragment keeps living and growing).
     const buckets = new Map();
     const key = (col, row) => col + ',' + row;
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
-      if (!healthy.has(n.id)) continue;         // can't grow from dead/severed strands
+      if (n.infected) continue;                 // infected (dead) strands can't grow
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -872,45 +871,34 @@ class Network {
     return false;
   }
 
-  // --- Amputate (A2): remove the node nearest a click + its whole subtree ---
-  nodeNear(x, y, maxDist) {
-    let best = null, bd2 = maxDist * maxDist;
+  // --- Amputate (A2): cut out every strand within a radius of the click -----
+  // Removes all nodes inside the circle (a clean excision of the infected blob).
+  // Surviving strands that lose their parent to the cut become free fragments —
+  // they keep living and can still grow. Returns the number of strands removed.
+  amputateAt(x, y, radius) {
+    const r2 = radius * radius;
+    const removed = new Set();
     for (const n of this.nodes) {
       const dx = n.x - x, dy = n.y - y;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bd2) { bd2 = d2; best = n; }
+      if (dx * dx + dy * dy <= r2) removed.add(n.id);
     }
-    return best;
+    return this._removeNodes(removed);
   }
 
-  amputateAt(x, y, maxDist) {
-    const target = this.nodeNear(x, y, maxDist);
-    if (!target) return 0;
-    return this.amputateNode(target.id);
-  }
-
-  // Amputate = SEVER the link, don't delete. The strand and everything beyond it
-  // are cut loose into a disconnected fragment (so an infected branch can no
-  // longer reach the colony, and the rot can't climb back across the cut) — but
-  // nothing is removed, so the healthy (white) mycelium survives. A visible
-  // "slice" is recorded across the cut. Returns 1 if a link was severed.
-  amputateNode(nodeId) {
-    const node = this.byId.get(nodeId);
-    if (!node || node.parentId == null) return 0;   // nothing to sever (it's the root)
-    const parent = this.byId.get(node.parentId);
-    if (parent) {
-      parent.children = parent.children.filter((id) => id !== node.id);
-      // a clean cut mark across the severed link (midpoint, perpendicular)
-      this.slices.push({
-        x: (node.x + parent.x) / 2,
-        y: (node.y + parent.y) / 2,
-        angle: Math.atan2(node.y - parent.y, node.x - parent.x),
-      });
-      if (this.slices.length > 60) this.slices.shift();
+  // Remove a set of node ids, orphaning any surviving children (they become
+  // free fragments that keep living/growing — we never cascade-delete).
+  _removeNodes(removed) {
+    if (removed.size === 0) return 0;
+    for (const n of this.nodes) {
+      if (removed.has(n.id)) continue;
+      if (n.parentId != null && removed.has(n.parentId)) n.parentId = null;
+      if (n.children.length) n.children = n.children.filter((id) => !removed.has(id));
     }
-    node.parentId = null;   // the subtree is now a free, disconnected fragment
+    for (const id of removed) this.byId.delete(id);
+    this.nodes = this.nodes.filter((n) => !removed.has(n.id));
+    if (this.nodes.length === 0) this.alive = false;
     this.recomputeVitality();
-    return 1;
+    return removed.size;
   }
 
   // --- Express (A2): raise a defence trait one level, organism-wide --------
@@ -961,13 +949,11 @@ class Network {
     const step = this.config.substrate.colonizeRate;
     if (this.nodes.length >= g.maxNodes) return 0;
 
-    // Group the LIVING network's nodes by the (uncolonised) substrate cell they
-    // sit in. Infected strands — and healthy ones severed behind them — can't
-    // colonise.
-    const healthy = this.healthyFront();
+    // Group the network's nodes by the (uncolonised) substrate cell they sit in.
+    // Any uninfected strand colonises (including cut-loose healthy fragments).
     const byCell = new Map();
     for (const n of this.nodes) {
-      if (!healthy.has(n.id)) continue;         // dead or cut-off strands can't colonise
+      if (n.infected) continue;                 // infected strands can't colonise
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
@@ -1033,23 +1019,12 @@ class Network {
     for (const n of this.nodes) n.health -= v.starvationDamage;
   }
 
-  // Remove dead nodes (and the now-disconnected subtree beneath them).
+  // Remove starved-out nodes; their healthy children survive as free fragments.
   pruneDead() {
     const dead = this.config.vitality.deadNodeHealth;
-    let removed = 0;
-    let again = true;
-    while (again) {
-      again = false;
-      for (const n of this.nodes) {
-        if (n.health <= dead) {
-          removed += this.amputateNode(n.id);
-          again = true;
-          break;
-        }
-      }
-    }
-    if (this.nodes.length === 0) this.alive = false;
-    return removed;
+    const removed = new Set();
+    for (const n of this.nodes) if (n.health <= dead) removed.add(n.id);
+    return this._removeNodes(removed);
   }
 
   // Healthy (uninfected) strand count.
@@ -1057,24 +1032,6 @@ class Network {
     let c = 0;
     for (const n of this.nodes) if (!n.infected) c++;
     return c;
-  }
-
-  // The LIVING network: nodes reachable from the root through uninfected strands
-  // only. A strand stranded behind an infected (dead) section is NOT in here, so
-  // you can't grow from it — the infection truly severs that branch.
-  healthyFront() {
-    const ok = new Set();
-    const root = this.root;
-    if (!root || root.infected) return ok;
-    const stack = [root];
-    while (stack.length) {
-      const n = stack.pop();
-      if (!n || n.infected || ok.has(n.id)) continue;
-      ok.add(n.id);
-      if (n.parentId != null) stack.push(this.byId.get(n.parentId));
-      for (const cid of n.children) stack.push(this.byId.get(cid));
-    }
-    return ok;
   }
 
   // --- Vitality = fraction of the colony still healthy (uninfected) --------
@@ -1560,12 +1517,12 @@ const ACTIONS = {
   amputate: {
     label: 'Amputate',
     target: 'node',
-    desc: 'Sever a link — cut an infected branch loose; the healthy mycelium survives.',
+    desc: 'Cut out every strand within a radius — excise an infected patch.',
     apply(state, ctx) {
       const a = state.config.actions.amputate;
-      const removed = state.active.amputateAt(ctx.x, ctx.y, a.pickRadius);
-      if (removed === 0) return { ok: false, message: 'No strand close enough to cut there.' };
-      return { ok: true, message: 'Severed the strand — the branch beyond it is cut loose.' };
+      const removed = state.active.amputateAt(ctx.x, ctx.y, a.radius);
+      if (removed === 0) return { ok: false, message: 'No strands within the cut radius there.' };
+      return { ok: true, message: `Cut out ${removed} strand${removed > 1 ? 's' : ''}.` };
     },
   },
 
@@ -2677,22 +2634,6 @@ class NetworkRenderer {
     }
     octx.globalAlpha = 1;
 
-    // Amputation slices — a clean perpendicular cut where a link was severed, so
-    // the separation between the colony and the cut-off fragment is visible.
-    for (const sl of network.slices) {
-      const px = -Math.sin(sl.angle), py = Math.cos(sl.angle); // perpendicular to the strand
-      const half = 8;
-      const ax = sl.x + px * half, ay = sl.y + py * half;
-      const bx = sl.x - px * half, by = sl.y - py * half;
-      octx.lineCap = 'round';
-      octx.strokeStyle = 'rgba(12,16,14,0.85)';   // dark gap of the cut
-      octx.lineWidth = 4;
-      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
-      octx.strokeStyle = 'rgba(225,245,230,0.9)'; // bright sliced edge
-      octx.lineWidth = 1.4;
-      octx.beginPath(); octx.moveTo(ax, ay); octx.lineTo(bx, by); octx.stroke();
-    }
-
     this.structureDirty = false;
   }
 
@@ -3145,7 +3086,7 @@ class UI {
     }
     const hints = {
       addSubstrate: 'Click underground to place a food patch and lure growth there.',
-      amputate: 'Click a strand to cut it (and everything downstream).',
+      amputate: 'Click to cut out every strand inside the red circle.',
     };
     if (name && hints[name]) this.setHint(hints[name]);
   }
@@ -3407,19 +3348,22 @@ function setupInput() {
     }
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size >= 2) {
-      // Pinch to zoom about the midpoint of the two fingers.
-      const d = pointerSpread();
-      if (pinchDist > 0 && d > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const mid = pointerMid();
-        camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+    if (pointers.has(e.pointerId)) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size >= 2) {
+        // Pinch to zoom about the midpoint of the two fingers.
+        const d = pointerSpread();
+        if (pinchDist > 0 && d > 0) {
+          const rect = canvas.getBoundingClientRect();
+          const mid = pointerMid();
+          camera.zoomAt(mid.x - rect.left, mid.y - rect.top, d / pinchDist);
+        }
+        pinchDist = d;
+        return;
       }
-      pinchDist = d;
-      return;
     }
+    // Always track the cursor (even on a plain hover with no button down) so the
+    // targeting preview — e.g. the Amputate cut radius — follows the mouse.
     const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y;
     mouse.x = e.clientX; mouse.y = e.clientY;
     if (mouse.down) {
@@ -3542,53 +3486,28 @@ function drawTargetingCursor(time) {
     ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   } else if (sel === 'amputate') {
-    const target = state.active.nodeNear(w.x, w.y, CONFIG.actions.amputate.pickRadius * 2);
-    if (target && target.parentId != null) {
-      const p = state.active.byId.get(target.parentId);
-      // Faintly outline the fragment that would be cut loose (it survives, just
-      // disconnected) so you can see exactly what you're severing off.
-      const toCut = collectSubtree(state.active, target.id);
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,170,90,0.45)';
-      ctx.lineWidth = 2;
-      for (const id of toCut) {
-        const n = state.active.byId.get(id);
-        if (!n || n.parentId == null) continue;
-        const pp = state.active.byId.get(n.parentId);
-        if (!pp) continue;
-        const a = camera.worldToScreen(pp.x, pp.y), b = camera.worldToScreen(n.x, n.y);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      }
-      // The cut itself — a bright slice across the link to be severed.
-      if (p) {
-        const mx = (target.x + p.x) / 2, my = (target.y + p.y) / 2;
-        const ang = Math.atan2(target.y - p.y, target.x - p.x);
-        const nx = -Math.sin(ang), ny = Math.cos(ang);
-        const c = camera.worldToScreen(mx, my);
-        const half = 13;
-        ctx.setLineDash([]);
-        ctx.strokeStyle = 'rgba(255,245,215,0.95)';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(c.x + nx * half, c.y + ny * half);
-        ctx.lineTo(c.x - nx * half, c.y - ny * half);
-        ctx.stroke();
-      }
-      ctx.restore();
+    const rad = CONFIG.actions.amputate.radius;
+    const r2 = rad * rad;
+    const s = camera.worldToScreen(w.x, w.y);
+    ctx.save();
+    // Highlight every strand that would be cut out within the radius.
+    ctx.strokeStyle = 'rgba(255,90,90,0.9)';
+    ctx.lineWidth = 2;
+    for (const n of state.active.nodes) {
+      const dx = n.x - w.x, dy = n.y - w.y;
+      if (dx * dx + dy * dy > r2 || n.parentId == null) continue;
+      const p = state.active.byId.get(n.parentId);
+      if (!p) continue;
+      const a = camera.worldToScreen(p.x, p.y), b = camera.worldToScreen(n.x, n.y);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
+    // The cut radius itself.
+    ctx.strokeStyle = 'rgba(255,120,120,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, rad * camera.zoom, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
-}
-
-function collectSubtree(net, nodeId) {
-  const set = new Set(); const stack = [nodeId];
-  while (stack.length) {
-    const id = stack.pop();
-    if (set.has(id)) continue;
-    set.add(id);
-    const n = net.byId.get(id);
-    if (n) for (const c of n.children) stack.push(c);
-  }
-  return set;
 }
 
 // --- boot -------------------------------------------------------------------

@@ -123,7 +123,7 @@ export const CONFIG = {
     amputate: {
       moveCost: 1,
       energyCost: 4,
-      pickRadius: 28,            // click tolerance (world units) for picking a strand
+      radius: 60,                // cut radius (world units) — removes ALL strands inside it (SLIDER)
     },
     express: {
       moveCost: 1,
@@ -243,6 +243,7 @@ export const SLIDERS = [
   { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },
   { path: 'trichoderma.sightRadius',     label: 'Mold Sight Range',    min: 100, max: 1500, step: 50 },
   { path: 'trichoderma.infectionSpreadChance', label: 'Infection Spread', min: 0, max: 1, step: 0.05 },
+  { path: 'actions.amputate.radius',     label: 'Amputate Radius',     min: 20,  max: 160, step: 5 },
   { path: 'actions.fruit.payoutPerBody', label: 'Fruit Payout / Body', min: 0,   max: 40,  step: 1 },
   { path: 'actions.digest.drainFraction', label: 'Digest Drain / Use',  min: 0.1, max: 1,   step: 0.05 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
