@@ -33,6 +33,8 @@ export class SubstrateRenderer {
     this.dynCtx = this.dyn.getContext('2d');
     this.dynamicDirty = true;
 
+    this.foodLightPoints = [];   // {x, y, i} emissive nutrient pockets (for lighting)
+    this.hazardLightPoints = []; // {x, y} glowing toxic pools (for lighting)
     this.particles = this._initParticles();
     this._bakeBase();
   }
@@ -48,7 +50,6 @@ export class SubstrateRenderer {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.base, 0, 0, this.base.width, this.base.height, tl.x, tl.y, W, H);
     ctx.drawImage(this.dyn, 0, 0, this.dyn.width, this.dyn.height, tl.x, tl.y, W, H);
-    this._drawAtmosphere(ctx, camera, time);
   }
 
   // =========================================================================
@@ -249,6 +250,7 @@ export class SubstrateRenderer {
     // Collect hazard cells; bail early if there are none.
     const cells = [];
     sub.forEachCell((cell, col, row) => { if (cell.hazard) cells.push([col, row]); });
+    this.hazardLightPoints = cells.map(([col, row]) => sub.cellCenter(col, row));
     if (!cells.length) return;
 
     // Build one path that is the UNION of soft circles over the hazard cells.
@@ -381,12 +383,14 @@ export class SubstrateRenderer {
     const sub = this.substrate;
     const cs = sub.cellSize, sy = sub.surfaceY;
     octx.clearRect(0, 0, this.dyn.width, this.dyn.height);
+    this.foodLightPoints = [];
 
     // Nutrient pockets — soft glowing blobs that blend into organic shapes.
     sub.forEachCell((cell, col, row) => {
       if (cell.hazard || cell.nutrient <= 0) return;
       const a = Math.min(1, cell.nutrient / this.nutrientRef);
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      if (a > 0.18) this.foodLightPoints.push({ x: cx, y: cy, i: a });
       const rad = cs * (0.7 + a * 0.85);
       const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rad);
       g.addColorStop(0, withAlpha(hexToRgb(r.foodCore), 0.55 * a));
@@ -460,7 +464,7 @@ export class SubstrateRenderer {
     return arr;
   }
 
-  _drawAtmosphere(ctx, camera, time) {
+  drawAtmosphere(ctx, camera, time) {
     const r = this.config.render;
     const vw = camera.viewW, vh = camera.viewH;
     for (const p of this.particles) {

@@ -195,6 +195,13 @@ export const CONFIG = {
     spore: 'rgba(202,255,216,0.75)',
     mote: 'rgba(226,196,142,0.5)',
     particleCount: 80,
+    // dynamic lighting: the network/food/hazards emit light into the dark earth
+    lighting: true,
+    ambientLight: 0.5,          // brightness of unlit areas (1 = lighting off)
+    networkLight: 'rgba(150,255,190,1)',
+    foodLight: 'rgba(255,196,120,1)',
+    hazardLight: 'rgba(90,220,200,1)',
+    lightRadius: 64,            // base light radius (world units)
   },
 
   dev: {
@@ -218,6 +225,7 @@ export const SLIDERS = [
   { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
   { path: 'actions.fruit.shadeMultiplier', label: 'Shade Multiplier',  min: 1,   max: 3,   step: 0.1 },
+  { path: 'render.ambientLight',          label: 'Ambient Light',       min: 0.1, max: 1,   step: 0.05 },
 ];
 
 // Read/write CONFIG by dotted path (used by the dev sliders).

@@ -331,6 +331,13 @@ const CONFIG = {
     spore: 'rgba(202,255,216,0.75)',
     mote: 'rgba(226,196,142,0.5)',
     particleCount: 80,
+    // dynamic lighting: the network/food/hazards emit light into the dark earth
+    lighting: true,
+    ambientLight: 0.5,          // brightness of unlit areas (1 = lighting off)
+    networkLight: 'rgba(150,255,190,1)',
+    foodLight: 'rgba(255,196,120,1)',
+    hazardLight: 'rgba(90,220,200,1)',
+    lightRadius: 64,            // base light radius (world units)
   },
 
   dev: {
@@ -354,6 +361,7 @@ const SLIDERS = [
   { path: 'actions.digest.burstSize',    label: 'Digest Burst Size',   min: 0,   max: 200, step: 5 },
   { path: 'actions.digest.energyCost',   label: 'Digest Energy Cost',  min: 0,   max: 40,  step: 1 },
   { path: 'actions.fruit.shadeMultiplier', label: 'Shade Multiplier',  min: 1,   max: 3,   step: 0.1 },
+  { path: 'render.ambientLight',          label: 'Ambient Light',       min: 0.1, max: 1,   step: 0.05 },
 ];
 
 // Read/write CONFIG by dotted path (used by the dev sliders).
@@ -1622,6 +1630,8 @@ class SubstrateRenderer {
     this.dynCtx = this.dyn.getContext('2d');
     this.dynamicDirty = true;
 
+    this.foodLightPoints = [];   // {x, y, i} emissive nutrient pockets (for lighting)
+    this.hazardLightPoints = []; // {x, y} glowing toxic pools (for lighting)
     this.particles = this._initParticles();
     this._bakeBase();
   }
@@ -1637,7 +1647,6 @@ class SubstrateRenderer {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.base, 0, 0, this.base.width, this.base.height, tl.x, tl.y, W, H);
     ctx.drawImage(this.dyn, 0, 0, this.dyn.width, this.dyn.height, tl.x, tl.y, W, H);
-    this._drawAtmosphere(ctx, camera, time);
   }
 
   // =========================================================================
@@ -1838,6 +1847,7 @@ class SubstrateRenderer {
     // Collect hazard cells; bail early if there are none.
     const cells = [];
     sub.forEachCell((cell, col, row) => { if (cell.hazard) cells.push([col, row]); });
+    this.hazardLightPoints = cells.map(([col, row]) => sub.cellCenter(col, row));
     if (!cells.length) return;
 
     // Build one path that is the UNION of soft circles over the hazard cells.
@@ -1970,12 +1980,14 @@ class SubstrateRenderer {
     const sub = this.substrate;
     const cs = sub.cellSize, sy = sub.surfaceY;
     octx.clearRect(0, 0, this.dyn.width, this.dyn.height);
+    this.foodLightPoints = [];
 
     // Nutrient pockets — soft glowing blobs that blend into organic shapes.
     sub.forEachCell((cell, col, row) => {
       if (cell.hazard || cell.nutrient <= 0) return;
       const a = Math.min(1, cell.nutrient / this.nutrientRef);
       const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
+      if (a > 0.18) this.foodLightPoints.push({ x: cx, y: cy, i: a });
       const rad = cs * (0.7 + a * 0.85);
       const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rad);
       g.addColorStop(0, withAlpha(hexToRgb(r.foodCore), 0.55 * a));
@@ -2049,7 +2061,7 @@ class SubstrateRenderer {
     return arr;
   }
 
-  _drawAtmosphere(ctx, camera, time) {
+  drawAtmosphere(ctx, camera, time) {
     const r = this.config.render;
     const vw = camera.viewW, vh = camera.viewH;
     for (const p of this.particles) {
@@ -2305,6 +2317,123 @@ function lerpColor(a, b, t) {
 }
 
   return { NetworkRenderer, drawFruitBodies };
+})();
+
+// ===================== src/render/lighting.js =====================
+const __m_render_lighting = (function () {
+// =============================================================================
+// Lighting — dynamic 2D lighting for the cross-section (render only).
+//
+// The underground is dimmed to an ambient darkness, then light is added back
+// where things glow: the living network (mint), nutrient pockets (warm) and
+// toxic pools (teal). Composited over the scene with a multiply pass, so areas
+// far from any light fall into shadow and the colony reads as a light source in
+// the dark — which also makes distant food/danger glow as points of interest.
+//
+// Performance: lights are drawn from a few pre-rendered radial "glow sprites"
+// (one drawImage each) instead of building a gradient per light per frame, so
+// it stays cheap even on phones.
+// =============================================================================
+
+class Lighting {
+  constructor(config) {
+    this.config = config;
+    this.canvas = document.createElement('canvas');
+    this.lctx = this.canvas.getContext('2d');
+    const r = config.render;
+    this.spriteNetwork = makeGlowSprite(r.networkLight);
+    this.spriteFood = makeGlowSprite(r.foodLight);
+    this.spriteHazard = makeGlowSprite(r.hazardLight);
+  }
+
+  // Dim the scene already drawn to `ctx` and add the colony's light back in.
+  compose(ctx, camera, state, networkRenderers, substrateRenderer) {
+    const r = this.config.render;
+    if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
+    const W = camera.viewW, H = camera.viewH;
+    if (this.canvas.width !== W || this.canvas.height !== H) {
+      this.canvas.width = W; this.canvas.height = H;
+    }
+    const lc = this.lctx;
+
+    // 1) Ambient darkness (cool), as the multiply base.
+    const a = r.ambientLight;
+    lc.globalCompositeOperation = 'source-over';
+    lc.fillStyle = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
+    lc.fillRect(0, 0, W, H);
+
+    // 2) Add light from every emitter (additive).
+    lc.globalCompositeOperation = 'lighter';
+    const baseR = r.lightRadius * camera.zoom;
+
+    // Nutrient pockets — warm glow.
+    if (substrateRenderer) {
+      for (const p of substrateRenderer.foodLightPoints) {
+        this._light(lc, camera, this.spriteFood, p.x, p.y, baseR * (0.7 + p.i * 0.6), 0.5 + p.i * 0.4, W, H);
+      }
+      // Toxic pools — teal glow.
+      const hp = substrateRenderer.hazardLightPoints;
+      const hs = Math.max(1, Math.ceil(hp.length / 60));
+      for (let i = 0; i < hp.length; i += hs) {
+        this._light(lc, camera, this.spriteHazard, hp[i].x, hp[i].y, baseR * 1.0, 0.6, W, H);
+      }
+    }
+
+    // The living network — mint glow following the filaments.
+    for (const net of state.networks) {
+      if (!net.alive && !net.fruited) continue;
+      const bright = 0.35 + 0.65 * net.vitality;
+      const nodes = net.nodes;
+      const stride = Math.max(1, Math.ceil(nodes.length / 160));
+      for (let i = 0; i < nodes.length; i += stride) {
+        const n = nodes[i];
+        const isTip = n.children.length === 0;
+        this._light(lc, camera, this.spriteNetwork,
+          n.x, n.y, baseR * (isTip ? 1.15 : 0.85), bright * (isTip ? 1 : 0.8) * n.health, W, H);
+      }
+    }
+
+    // 3) Multiply the light map over the scene.
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(this.canvas, 0, 0);
+    ctx.restore();
+
+    // 4) Gentle additive bloom from the same lights for a soft halo.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.18;
+    ctx.drawImage(this.canvas, 0, 0);
+    ctx.restore();
+  }
+
+  _light(lc, camera, sprite, wx, wy, rad, alpha, W, H) {
+    const s = camera.worldToScreen(wx, wy);
+    if (s.x < -rad || s.x > W + rad || s.y < -rad || s.y > H + rad) return;
+    lc.globalAlpha = Math.max(0, Math.min(1, alpha));
+    lc.drawImage(sprite, s.x - rad, s.y - rad, rad * 2, rad * 2);
+  }
+}
+
+// A radial glow sprite: solid colour at the centre fading to transparent.
+function makeGlowSprite(color) {
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  const rgb = color.replace(/rgba?\(/, '').replace(')', '').split(',').slice(0, 3).map((s) => s.trim());
+  grd.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`);
+  grd.addColorStop(0.5, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.35)`);
+  grd.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  return c;
+}
+
+function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
+
+  return { Lighting };
 })();
 
 // ===================== src/render/ui.js =====================
@@ -2616,6 +2745,7 @@ const __m_main = (function () {
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
+  const { Lighting } = __m_render_lighting;
   const { UI } = __m_render_ui;
 // =============================================================================
 // main.js — wiring (A9).
@@ -2630,6 +2760,7 @@ const __m_main = (function () {
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const camera = new Camera();
+const lighting = new Lighting(CONFIG);
 
 let state, ui, substrateRenderer;
 const networkRenderers = new Map();
@@ -2854,6 +2985,12 @@ function frame(time) {
   if (previewFruit && !state.runOver) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
+
+  // Dynamic lighting: dim the earth, then add the colony's glow back in.
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer);
+
+  // Atmosphere drifts on top of the lighting so spores read as bright motes.
+  substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawTargetingCursor(time);
 

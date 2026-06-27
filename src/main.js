@@ -14,11 +14,13 @@ import { endTurn } from './engine/turn.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
+import { Lighting } from './render/lighting.js';
 import { UI } from './render/ui.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const camera = new Camera();
+const lighting = new Lighting(CONFIG);
 
 let state, ui, substrateRenderer;
 const networkRenderers = new Map();
@@ -243,6 +245,12 @@ function frame(time) {
   if (previewFruit && !state.runOver) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
+
+  // Dynamic lighting: dim the earth, then add the colony's glow back in.
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer);
+
+  // Atmosphere drifts on top of the lighting so spores read as bright motes.
+  substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawTargetingCursor(time);
 

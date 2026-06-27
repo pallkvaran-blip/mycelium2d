@@ -1,0 +1,111 @@
+// =============================================================================
+// Lighting — dynamic 2D lighting for the cross-section (render only).
+//
+// The underground is dimmed to an ambient darkness, then light is added back
+// where things glow: the living network (mint), nutrient pockets (warm) and
+// toxic pools (teal). Composited over the scene with a multiply pass, so areas
+// far from any light fall into shadow and the colony reads as a light source in
+// the dark — which also makes distant food/danger glow as points of interest.
+//
+// Performance: lights are drawn from a few pre-rendered radial "glow sprites"
+// (one drawImage each) instead of building a gradient per light per frame, so
+// it stays cheap even on phones.
+// =============================================================================
+
+export class Lighting {
+  constructor(config) {
+    this.config = config;
+    this.canvas = document.createElement('canvas');
+    this.lctx = this.canvas.getContext('2d');
+    const r = config.render;
+    this.spriteNetwork = makeGlowSprite(r.networkLight);
+    this.spriteFood = makeGlowSprite(r.foodLight);
+    this.spriteHazard = makeGlowSprite(r.hazardLight);
+  }
+
+  // Dim the scene already drawn to `ctx` and add the colony's light back in.
+  compose(ctx, camera, state, networkRenderers, substrateRenderer) {
+    const r = this.config.render;
+    if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
+    const W = camera.viewW, H = camera.viewH;
+    if (this.canvas.width !== W || this.canvas.height !== H) {
+      this.canvas.width = W; this.canvas.height = H;
+    }
+    const lc = this.lctx;
+
+    // 1) Ambient darkness (cool), as the multiply base.
+    const a = r.ambientLight;
+    lc.globalCompositeOperation = 'source-over';
+    lc.fillStyle = `rgb(${clamp255(255 * a * 0.82)},${clamp255(255 * a * 0.92)},${clamp255(255 * a)})`;
+    lc.fillRect(0, 0, W, H);
+
+    // 2) Add light from every emitter (additive).
+    lc.globalCompositeOperation = 'lighter';
+    const baseR = r.lightRadius * camera.zoom;
+
+    // Nutrient pockets — warm glow.
+    if (substrateRenderer) {
+      for (const p of substrateRenderer.foodLightPoints) {
+        this._light(lc, camera, this.spriteFood, p.x, p.y, baseR * (0.7 + p.i * 0.6), 0.5 + p.i * 0.4, W, H);
+      }
+      // Toxic pools — teal glow.
+      const hp = substrateRenderer.hazardLightPoints;
+      const hs = Math.max(1, Math.ceil(hp.length / 60));
+      for (let i = 0; i < hp.length; i += hs) {
+        this._light(lc, camera, this.spriteHazard, hp[i].x, hp[i].y, baseR * 1.0, 0.6, W, H);
+      }
+    }
+
+    // The living network — mint glow following the filaments.
+    for (const net of state.networks) {
+      if (!net.alive && !net.fruited) continue;
+      const bright = 0.35 + 0.65 * net.vitality;
+      const nodes = net.nodes;
+      const stride = Math.max(1, Math.ceil(nodes.length / 160));
+      for (let i = 0; i < nodes.length; i += stride) {
+        const n = nodes[i];
+        const isTip = n.children.length === 0;
+        this._light(lc, camera, this.spriteNetwork,
+          n.x, n.y, baseR * (isTip ? 1.15 : 0.85), bright * (isTip ? 1 : 0.8) * n.health, W, H);
+      }
+    }
+
+    // 3) Multiply the light map over the scene.
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(this.canvas, 0, 0);
+    ctx.restore();
+
+    // 4) Gentle additive bloom from the same lights for a soft halo.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.18;
+    ctx.drawImage(this.canvas, 0, 0);
+    ctx.restore();
+  }
+
+  _light(lc, camera, sprite, wx, wy, rad, alpha, W, H) {
+    const s = camera.worldToScreen(wx, wy);
+    if (s.x < -rad || s.x > W + rad || s.y < -rad || s.y > H + rad) return;
+    lc.globalAlpha = Math.max(0, Math.min(1, alpha));
+    lc.drawImage(sprite, s.x - rad, s.y - rad, rad * 2, rad * 2);
+  }
+}
+
+// A radial glow sprite: solid colour at the centre fading to transparent.
+function makeGlowSprite(color) {
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  const rgb = color.replace(/rgba?\(/, '').replace(')', '').split(',').slice(0, 3).map((s) => s.trim());
+  grd.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`);
+  grd.addColorStop(0.5, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.35)`);
+  grd.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  return c;
+}
+
+function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
