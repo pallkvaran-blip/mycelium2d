@@ -4455,22 +4455,56 @@ function drawAnts(time) {
 // zoom-scaled so they sit on the earth; gated on the asset being present, so
 // with no assets the game keeps its procedural look.
 function drawTerrainAssets() {
-  if (!hasAsset('soil')) return;
-  const sub = state.substrate, z = camera.zoom;
-  const meta = assetMeta('soil') || {};
-  const p = pattern(ctx, 'soil');
+  const sub = state.substrate;
+  const undergroundTL = camera.worldToScreen(0, sub.surfaceY);
+  const undergroundBR = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  const cover = { x: undergroundTL.x, y: undergroundTL.y, w: undergroundBR.x - undergroundTL.x, h: undergroundBR.y - undergroundTL.y };
+
+  // Soil detail over the whole underground.
+  if (hasAsset('soil')) fillPatternWorld('soil', null, cover, 0.5);
+
+  // Rock face clipped to the impassable rock formations (matches their shape).
+  if (hasAsset('rockface')) {
+    const cells = rockCells();
+    if (cells.length) {
+      const rad = sub.cellSize * 0.78 * camera.zoom;
+      const clip = new Path2D();
+      for (const c of cells) {
+        const s = camera.worldToScreen(c.x, c.y);
+        clip.moveTo(s.x + rad, s.y);
+        clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
+      }
+      fillPatternWorld('rockface', clip, cover, 1);
+    }
+  }
+}
+
+// Fill `cover` (screen rect) with a world-anchored, zoom-scaled tiled texture,
+// optionally clipped to a screen-space Path2D.
+function fillPatternWorld(key, clipPath, cover, defaultOpacity) {
+  const p = pattern(ctx, key);
   if (!p) return;
-  const scale = (meta.scale || 1) * z;
-  const origin = camera.worldToScreen(0, 0);
-  if (p.setTransform) p.setTransform(new DOMMatrix([scale, 0, 0, scale, origin.x, origin.y]));
-  const tl = camera.worldToScreen(0, sub.surfaceY);
-  const br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  const meta = assetMeta(key) || {};
+  const scale = (meta.scale || 1) * camera.zoom;
+  const o = camera.worldToScreen(0, 0);
+  if (p.setTransform) p.setTransform(new DOMMatrix([scale, 0, 0, scale, o.x, o.y]));
   ctx.save();
-  ctx.globalAlpha = meta.opacity != null ? meta.opacity : 0.5;
+  if (clipPath) ctx.clip(clipPath);
+  ctx.globalAlpha = meta.opacity != null ? meta.opacity : defaultOpacity;
   if (meta.blend) ctx.globalCompositeOperation = meta.blend;
   ctx.fillStyle = p;
-  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.fillRect(cover.x, cover.y, cover.w, cover.h);
   ctx.restore();
+}
+
+// Rock-formation cell centres (world) — static per map, cached by state.
+let _rockState = null, _rockCells = null;
+function rockCells() {
+  if (_rockState === state) return _rockCells;
+  const cells = [];
+  state.substrate.forEachCell((c, col, row) => { if (c.rock) cells.push(state.substrate.cellCenter(col, row)); });
+  _rockState = state; _rockCells = cells;
+  return cells;
 }
 
 // Nematodes: small pale wriggling worms. They writhe in place, tint reddish
