@@ -206,7 +206,7 @@ export const CONFIG = {
     sensingRing: 'rgba(160,255,190,0.15)',
     pulseColor: '#eafff0',
     pulseSpeed: 70,              // pulse travel speed (units/sec)
-    minBrightness: 0.3,         // dimmest a fully-unhealthy network renders
+    minBrightness: 0.45,        // brightness floor so the network never washes out
     // atmosphere
     spore: 'rgba(202,255,216,0.75)',
     mote: 'rgba(226,196,142,0.5)',

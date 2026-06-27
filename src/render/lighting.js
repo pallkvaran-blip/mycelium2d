@@ -90,10 +90,12 @@ export class Lighting {
       if (!net.alive && !net.fruited) continue;
       const bright = (0.35 + 0.65 * net.vitality) * breath;
       const nodes = net.nodes;
-      const stride = Math.max(1, Math.ceil(nodes.length / 160));
+      // Keep glow DENSITY roughly constant as the colony grows (don't let a
+      // fixed light budget spread thin and make a big colony look faint).
+      const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
-        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 0.95, bright * 0.85 * n.health, W, H);
+        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9 * n.health, W, H);
       }
     }
 
