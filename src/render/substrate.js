@@ -96,33 +96,8 @@ export class SubstrateRenderer {
     octx.fillStyle = hg;
     octx.fillRect(0, sy - 160, W, 160);
 
-    // per-column light: warm over sunny soil, cool + canopy over shaded soil
-    const cs = sub.cellSize;
-    for (let c = 0; c < sub.cols; c++) {
-      const surf = sub.surface[c];
-      if (!surf.soil) continue;
-      const x = c * cs;
-      const wash = octx.createLinearGradient(0, sy - 150, 0, sy);
-      wash.addColorStop(0, 'rgba(0,0,0,0)');
-      wash.addColorStop(1, surf.shade ? r.shadeWash : r.sunWash);
-      octx.fillStyle = wash;
-      octx.fillRect(x, sy - 150, cs + 1, 150);
-    }
-
-    // soft foliage silhouettes above shaded runs
-    octx.fillStyle = r.canopy;
-    for (let c = 0; c < sub.cols; c++) {
-      if (!(sub.surface[c].soil && sub.surface[c].shade)) continue;
-      const x = c * cs + cs / 2;
-      for (let k = 0; k < 2; k++) {
-        const cy = 10 + this.rng() * 26;
-        octx.globalAlpha = 0.5;
-        octx.beginPath();
-        octx.arc(x + this.rng() * cs - cs / 2, cy, cs * (0.5 + this.rng() * 0.5), 0, Math.PI * 2);
-        octx.fill();
-      }
-    }
-    octx.globalAlpha = 1;
+    // (Per-column sky washes + canopy silhouettes removed — the washes read as
+    // vertical "light beams" rising from the ground.)
   }
 
   // Earth painted as a colour field: depth gradient modulated by fbm + strata.
@@ -394,8 +369,7 @@ export class SubstrateRenderer {
     for (let c = 0; c < sub.cols; c++) {
       const surf = sub.surface[c];
       const x = c * cs;
-      const jitter = this.noise.noise2(c * 0.32, 7) * 4;
-      const lineY = sy + jitter;
+      const lineY = sy;   // flat, continuous soil line (per-column jitter made jagged corners)
 
       if (surf.soil) {
         // topsoil crust + rim light
