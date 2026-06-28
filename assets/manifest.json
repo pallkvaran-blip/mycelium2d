@@ -1,7 +1,8 @@
 {
   "_comment": "Lists the image assets that actually exist. The game preloads these at boot; renderers fall back to the procedural look for anything not listed. kind: 'texture' (tileable pattern) or 'sprite' (transparent PNG). Optional per-texture: opacity (0-1), blend (canvas composite op e.g. 'screen','overlay','soft-light','multiply'), scale (image-px to world-units multiplier).",
   "assets": [
-    { "key": "substrate", "file": "substrate.png", "kind": "texture", "opacity": 0.92, "scale": 0.16 },
+    { "key": "leafOak", "file": "leafOak.png", "kind": "sprite" },
+    { "key": "leafMaple", "file": "leafMaple.png", "kind": "sprite" },
     { "key": "rockface", "file": "rockface.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },
     { "key": "rockface2", "file": "rockface2.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },
     { "key": "rockface3", "file": "rockface3.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },

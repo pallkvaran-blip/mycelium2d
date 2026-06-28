@@ -59,11 +59,10 @@ export class Lighting {
     lc.globalCompositeOperation = 'lighter';
     const baseR = r.lightRadius * camera.zoom;
 
-    // Nutrient pockets — warm glow.
+    // Nutrient pockets no longer emit a radial glow — that halo read like a
+    // "field of vision" around the substrate. Food is shown as heaped leaves
+    // (main.js), lit only by ambient + the colony, not its own light.
     if (substrateRenderer) {
-      for (const p of substrateRenderer.foodLightPoints) {
-        this._light(lc, camera, this.spriteFood, p.x, p.y, baseR * (0.7 + p.i * 0.6), 0.5 + p.i * 0.4, W, H);
-      }
       // Toxic pools — teal glow.
       const hp = substrateRenderer.hazardLightPoints;
       const hs = Math.max(1, Math.ceil(hp.length / 60));

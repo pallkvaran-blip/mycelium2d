@@ -3395,11 +3395,10 @@ class Lighting {
     lc.globalCompositeOperation = 'lighter';
     const baseR = r.lightRadius * camera.zoom;
 
-    // Nutrient pockets — warm glow.
+    // Nutrient pockets no longer emit a radial glow — that halo read like a
+    // "field of vision" around the substrate. Food is shown as heaped leaves
+    // (main.js), lit only by ambient + the colony, not its own light.
     if (substrateRenderer) {
-      for (const p of substrateRenderer.foodLightPoints) {
-        this._light(lc, camera, this.spriteFood, p.x, p.y, baseR * (0.7 + p.i * 0.6), 0.5 + p.i * 0.4, W, H);
-      }
       // Toxic pools — teal glow.
       const hp = substrateRenderer.hazardLightPoints;
       const hs = Math.max(1, Math.ceil(hp.length / 60));
@@ -4151,6 +4150,7 @@ function frame(time) {
 
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
+  drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
 
   for (const net of state.networks) {
@@ -4480,23 +4480,6 @@ function drawTerrainAssets() {
 
   if (hasAsset('soil')) fillPatternWorld('soil', null, cover, 0.5);
 
-  // Substrate (decaying organic matter) clipped to the current food cells.
-  // Rebuilt each frame since food is eaten/added during play.
-  if (hasAsset('substrate')) {
-    const rad = sub.cellSize * 0.72 * z;
-    const clip = new Path2D();
-    let any = false;
-    sub.forEachCell((cell, col, row) => {
-      if (cell.nutrient > 0 && !cell.rock) {
-        const c = sub.cellCenter(col, row);
-        const s = camera.worldToScreen(c.x, c.y);
-        clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
-        any = true;
-      }
-    });
-    if (any) fillPatternWorld('substrate', clip, cover, 0.9);
-  }
-
   // Rock formations — each connected formation gets ONE of the rock textures
   // (slate / iron / basalt) for variety, clipped to its shape.
   const rad = sub.cellSize * 0.78 * z;
@@ -4508,6 +4491,42 @@ function drawTerrainAssets() {
     }
     fillPatternWorld(g.key, clip, cover, 1);
   }
+}
+
+// Substrate = heaped leaves. Each food cell draws a small pile of oak/maple
+// leaves; the pile SHRINKS as the cell is digested (fewer leaves), and every
+// leaf's position/rotation/size/type is hashed from (col,row,k) so the heap is
+// stable across frames and digestion peels leaves off the top. No glow.
+function drawSubstrateLeaves() {
+  const oak = asset('leafOak'), maple = asset('leafMaple');
+  if (!oak && !maple) return;
+  const leaves = [oak || maple, maple || oak];
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const base = cs * 0.95;                       // base leaf height in world units
+  const MAXL = 7, margin = cs * 1.6 * z;
+  sub.forEachCell((cell, col, row) => {
+    if (cell.nutrient <= 0 || cell.rock) return;
+    const ctr = sub.cellCenter(col, row);
+    const s = camera.worldToScreen(ctr.x, ctr.y);
+    if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
+    const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
+    const count = Math.max(1, Math.round(MAXL * frac));
+    for (let k = 0; k < count; k++) {           // low k = bottom of the pile (eaten last)
+      const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
+      const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
+      const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
+      const img = leaves[h3 < 0.5 ? 0 : 1];
+      if (!img) continue;
+      const lh = base * (0.7 + h1 * 0.6) * z;
+      const lw = lh * (img.width / img.height);
+      const ox = (h1 * 2 - 1) * cs * 0.5 * z, oy = (h2 * 2 - 1) * cs * 0.45 * z;
+      ctx.save();
+      ctx.translate(s.x + ox, s.y + oy);
+      ctx.rotate(h3 * Math.PI * 2);
+      ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
+      ctx.restore();
+    }
+  });
 }
 
 // Fill `cover` (screen rect) with a world-anchored, zoom-scaled tiled texture,
