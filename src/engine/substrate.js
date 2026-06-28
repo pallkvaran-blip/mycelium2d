@@ -162,20 +162,61 @@ export function generateSubstrate(config, rng) {
 
   // 2b) Rock formations — impassable stone the mycelium routes around on its way
   //     across. Kept out of the start/goal columns so entry and exit are clear.
-  const rocks = [];
   for (let i = 0; i < (s.rockCount || 0); i++) {
     const rc = rng.int(startCols + 2, goalStart - 2);
     const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
     const radius = rng.int(s.rockRadiusMin, s.rockRadiusMax);
-    rocks.push({ col: rc, row: rr, radius });
     stamp(sub, rc, rr, radius, (cell, dist) => {
       // irregular edge so formations aren't perfect circles
       if (dist > radius - 0.5 && rng.chance(0.4)) return;
       cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
     });
   }
-  // Always clear a rock-free channel at the entry (so the colony can root) and
-  // under the goal (so it can reach the surface to fruit).
+
+  // 2c) WALL blockers — at least one wall of terrain spans the surface down to
+  //     depth, so the player MUST dig deeper to get under it. The surface above
+  //     reads as a mountain or a lake. Placed between (not in) the entry/goal.
+  const pathH = Math.max(1, s.pathRows || 2);
+  const wallW = Math.max(1, s.wallWidthCols || 3);
+  const wallCount = rng.int(Math.max(1, s.wallCountMin || 1), Math.max(1, s.wallCountMax || 3));
+  const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW;
+  const walls = [];
+  const dLoRows = s.wallDepthMinRows || 4;
+  const dHiRows = s.wallDepthMaxRows || 9;
+  for (let i = 0; i < wallCount && innerHi > innerLo; i++) {
+    const frac = (i + 1) / (wallCount + 1);
+    let wc = Math.round(innerLo + frac * (innerHi - innerLo) + rng.range(-2, 2));
+    wc = Math.max(innerLo, Math.min(innerHi, wc));
+    const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
+    walls.push({ c0: wc, c1: wc + wallW, depth });
+    const type = rng.chance(0.5) ? 'mountain' : 'lake';
+    for (let col = wc; col < wc + wallW; col++) {
+      sub.surface[col].barrier = type;
+      for (let row = 0; row <= depth; row++) {
+        const cell = sub.cellAt(col, row);
+        if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
+      }
+    }
+  }
+
+  // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
+  //     stays shallow but DIPS beneath every wall. Built as a row-profile that
+  //     changes by at most (pathH-1) rows per column — so the cleared windows
+  //     always overlap and connect — forced below each wall, then cleared. This
+  //     keeps every map winnable while the walls stay genuine "go under" gates.
+  const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
+  for (const w of walls) for (let col = w.c0; col < w.c1; col++) req[col] = Math.max(req[col], w.depth + 1);
+  const pr = req.slice();
+  for (let c = 1; c < sub.cols; c++) pr[c] = Math.max(pr[c], pr[c - 1] - 1);
+  for (let c = sub.cols - 2; c >= 0; c--) pr[c] = Math.max(pr[c], pr[c + 1] - 1);
+  const pathRow = pr.map((r) => Math.max(0, Math.min(sub.rows - pathH, r)));
+  for (let col = 0; col < sub.cols; col++)
+    for (let row = pathRow[col]; row < pathRow[col] + pathH; row++) {
+      const cell = sub.cellAt(col, row);
+      if (cell) cell.rock = false;
+    }
+
+  // Entry + goal channels always clear (root in, surface out).
   const clearChannel = (c0, c1) => {
     for (let col = c0; col < c1; col++)
       for (let row = 0; row < sub.rows; row++) {
@@ -185,41 +226,26 @@ export function generateSubstrate(config, rng) {
   };
   clearChannel(0, startCols + 1);
   clearChannel(goalStart - 1, sub.cols);
-  // Guarantee a rock-free corridor just under the surface for the WHOLE width,
-  // so there is always a route across (rocks below it still force you to dip
-  // and route around them to reach the lower food). Keeps every map winnable.
-  const corridor = Math.max(1, s.surfaceCorridorRows || 2);
-  for (let col = 0; col < sub.cols; col++)
-    for (let row = 0; row < corridor; row++) {
-      const cell = sub.cellAt(col, row);
-      if (cell) cell.rock = false;
-    }
 
-  // 3) Food trail. Every food cell holds the SAME nutrient (flat), so a pile's
-  //    energy value is purely its size.
+  // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
+  //    can't just grow freely) and steering with Add-Substrate matters. A reward
+  //    cache is tucked at the bottom of each wall dip, paying off the deep route.
   const N = s.foodCellNutrient;
   const drop = (cc, cr, radius) => stamp(sub, cc, cr, radius, (cell) => {
     if (cell.hazard || cell.rock) return;         // no food inside rock
     cell.nutrient = N; cell.maxNutrient = N;      // flat — same value every cell
   });
-  // 3a) The MAIN breadcrumb trail runs left→right through the guaranteed-clear
-  //     surface corridor, spaced within sensing range, so the colony can always
-  //     follow it across (with the odd Add-Substrate lure to round a rock).
   const count = Math.max(1, s.foodClusterCount);
-  const corridorTop = Math.max(0, (s.surfaceCorridorRows || 2) - 1);
-  const xLo = startCols + 1, xHi = goalStart;       // run right up to the goal
-  const span = Math.max(1, xHi - xLo);
+  const xLo = startCols + 1, xHi = goalStart;
   for (let i = 0; i < count; i++) {
     const t = (i + 0.5) / count;                                  // even left→right spread
-    let cc = Math.round(xLo + t * span + rng.range(-1, 1));
+    let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-1, 1));
     cc = Math.max(1, Math.min(sub.cols - 2, cc));
-    drop(cc, rng.int(0, corridorTop), rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
+    drop(cc, pathRow[cc], rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
   }
-  // 3b) A few deeper BONUS pockets — extra energy for routing down around rock.
-  const bonus = s.foodBonusClusters || 4;
-  const maxRow = Math.max(3, Math.min(s.foodBandRows || 6, sub.rows - 2));
-  for (let i = 0; i < bonus; i++) {
-    drop(rng.int(xLo, xHi - 1), rng.int(3, maxRow), rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
+  for (const w of walls) {
+    const cc = Math.min(sub.cols - 2, w.c1 + 1);     // just past the wall, down at the dip
+    drop(cc, Math.min(sub.rows - 1, w.depth + 1), s.foodClusterRadiusMax);
   }
 
   return sub;

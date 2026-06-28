@@ -27,16 +27,20 @@ export const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 20,        // breadcrumbs spread left→right to fuel the crossing
+    foodClusterCount: 7,         // SPARSE caches along the route — energy is a real constraint
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
-    foodClusterRadiusMax: 2,
-    foodBandRows: 6,             // deeper bonus food stays within this many rows of the surface
-    foodBonusClusters: 4,        // deeper pockets off the main trail (extra energy, route to reach)
-    surfaceCorridorRows: 2,      // rock-free rows under the surface — a guaranteed route across
-    foodCellNutrient: 100,       // every food cell is worth the same — a pile's value is its SIZE
-    rockCount: 7,                // impassable rock formations to route around
+    foodClusterRadiusMax: 1,
+    foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
+    rockCount: 6,                // impassable rock formations to route around
     rockRadiusMin: 2,
     rockRadiusMax: 5,
+    // Wall blockers: terrain spanning the surface down to depth — dig under them.
+    wallCountMin: 1,             // guarantee at least one path-blocking wall
+    wallCountMax: 3,
+    wallWidthCols: 3,            // how wide a wall is (cols)
+    wallDepthMinRows: 4,         // a wall reaches at least this many rows down…
+    wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
+    pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
