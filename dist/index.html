@@ -4179,6 +4179,9 @@ function antRand(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
+// Colony sprite width as a multiple of the substrate cell size (world units).
+const COLONY_W_CELLS = 0.85;
+
 // Pick which colony sprite a nest uses. Two hand-picked variants (A/B) are
 // distributed deterministically by column so a nest keeps the same art every
 // frame; falls back gracefully if only one (or neither) variant is present.
@@ -4194,7 +4197,7 @@ function colonyBounds(nest, sub) {
   const key = colonyKey(nest);
   if (!key) return null;
   const img = asset(key);
-  const w = sub.cellSize * 3.4 * camera.zoom;
+  const w = sub.cellSize * COLONY_W_CELLS * camera.zoom;
   const h = w * (img.height / img.width);
   const top = camera.worldToScreen(nest.x, nest.y);
   return { key, img, w, h, x: top.x - w / 2, y: top.y };
@@ -4746,7 +4749,7 @@ function drawTargetingCursor(time) {
       const colKey = colonyKey(best);
       if (colKey) {
         const img = asset(colKey);
-        const w = state.substrate.cellSize * 3.4, h = w * (img.height / img.width);
+        const w = state.substrate.cellSize * COLONY_W_CELLS, h = w * (img.height / img.width);
         minX = best.x - w / 2; maxX = best.x + w / 2; minY = best.y; maxY = best.y + h;
       } else {
         const lay = nestLayout(best, state.substrate);
