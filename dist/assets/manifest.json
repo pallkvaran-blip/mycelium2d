@@ -9,6 +9,8 @@
     { "key": "rockVeined", "file": "rockVeined.png", "kind": "sprite" },
     { "key": "rockMossy", "file": "rockMossy.png", "kind": "sprite" },
     { "key": "tree", "file": "tree.png", "kind": "sprite" },
-    { "key": "house", "file": "house.png", "kind": "sprite" }
+    { "key": "house", "file": "house.png", "kind": "sprite" },
+    { "key": "antColonyA", "file": "antColonyA.png", "kind": "sprite" },
+    { "key": "antColonyB", "file": "antColonyB.png", "kind": "sprite" }
   ]
 }

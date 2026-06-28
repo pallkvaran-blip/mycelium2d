@@ -426,6 +426,27 @@ function antRand(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
+// Pick which colony sprite a nest uses. Two hand-picked variants (A/B) are
+// distributed deterministically by column so a nest keeps the same art every
+// frame; falls back gracefully if only one (or neither) variant is present.
+function colonyKey(nest) {
+  const variants = ['antColonyA', 'antColonyB'].filter(hasAsset);
+  if (!variants.length) return null;
+  return variants[(nest.col >>> 0) % variants.length];
+}
+
+// Screen-space bounds of a nest's colony sprite (anchored at the surface
+// entrance, extending down). Returns null if no sprite variant is present.
+function colonyBounds(nest, sub) {
+  const key = colonyKey(nest);
+  if (!key) return null;
+  const img = asset(key);
+  const w = sub.cellSize * 3.4 * camera.zoom;
+  const h = w * (img.height / img.width);
+  const top = camera.worldToScreen(nest.x, nest.y);
+  return { key, img, w, h, x: top.x - w / 2, y: top.y };
+}
+
 // The underground colony layout (a formicarium cross-section): chambers strung
 // down from the surface entrance by tunnels. World coords, deterministic from
 // the nest's column so it's the same shape each frame.
@@ -561,14 +582,12 @@ function drawAnts(time) {
     }
 
     // === the underground colony ===
-    if (hasAsset('antColony')) {
+    const colony = colonyBounds(nest, sub);
+    if (colony) {
       // Image-based nest burrow, anchored at the surface and extending down.
-      const img = asset('antColony');
-      const w = sub.cellSize * 3.4 * z, h = w * (img.height / img.width);
-      const top = camera.worldToScreen(nest.x, nest.y);
       ctx.save();
       ctx.globalAlpha = dim;
-      ctx.drawImage(img, top.x - w / 2, top.y, w, h);
+      ctx.drawImage(colony.img, colony.x, colony.y, colony.w, colony.h);
       ctx.restore();
     } else {
       const lay = nestLayout(nest, sub);
@@ -971,8 +990,9 @@ function drawTargetingCursor(time) {
     if (best) {
       // Encircle the whole underground colony (entrance + every chamber).
       let minX, maxX, minY, maxY;
-      if (hasAsset('antColony')) {
-        const img = asset('antColony');
+      const colKey = colonyKey(best);
+      if (colKey) {
+        const img = asset(colKey);
         const w = state.substrate.cellSize * 3.4, h = w * (img.height / img.width);
         minX = best.x - w / 2; maxX = best.x + w / 2; minY = best.y; maxY = best.y + h;
       } else {

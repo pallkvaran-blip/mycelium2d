@@ -16,7 +16,8 @@ Status: 🟢 generated · ⚪ planned
 | `grassTuft` | sprite | ~530 | 🟢 | surface prop — small grass clump |
 | `house` | sprite | ~640 | 🟢 | surface prop — small cabin w/ lit window |
 | `soil` | texture | — | ✖ | dropped (came out blobby; brown palette + substrate suffice) |
-| `antColony` | — | — | ✖ | reverted to the procedural formicarium (reads better) |
+| `antColonyA` | sprite | ~440 | 🟢 | colony cross-section variant A (galleries) — picked per nest by column |
+| `antColonyB` | sprite | ~440 | 🟢 | colony cross-section variant B (tunnels + chambers) — picked per nest by column |
 | `boulder` | sprite | 1024² | ⚪ | discrete rock props (deferred — for the map editor) |
 
 Each connected rock formation is assigned one of the three rock textures for
