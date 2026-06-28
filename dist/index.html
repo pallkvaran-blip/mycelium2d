@@ -4181,6 +4181,10 @@ function antRand(seed) {
 
 // Colony sprite width as a multiple of the substrate cell size (world units).
 const COLONY_W_CELLS = 0.85;
+// The sprites are higher-res and brighter than the procedural environment, so
+// they pop out. Dim + slightly desaturate + soften them so they sit into the
+// earth instead of reading as pasted-on photos.
+const COLONY_FILTER = 'brightness(0.68) saturate(0.82) blur(0.7px)';
 
 // Pick which colony sprite a nest uses. Two hand-picked variants (A/B) are
 // distributed deterministically by column so a nest keeps the same art every
@@ -4343,6 +4347,7 @@ function drawAnts(time) {
       // Image-based nest burrow, anchored at the surface and extending down.
       ctx.save();
       ctx.globalAlpha = dim;
+      ctx.filter = COLONY_FILTER;   // dim + soften so it blends with the earth
       ctx.drawImage(colony.img, colony.x, colony.y, colony.w, colony.h);
       ctx.restore();
     } else {
