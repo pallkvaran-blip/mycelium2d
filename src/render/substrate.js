@@ -456,57 +456,9 @@ export class SubstrateRenderer {
     this.foodLightPoints = [];
     octx.lineCap = 'round';
 
-    // Substrate = decaying organic matter (rotting wood + leaf litter) that the
-    // mycelium colonises and overgrows. Per-cell detail is hashed from the
-    // cell coords so it stays put between re-bakes (no shimmer).
-    sub.forEachCell((cell, col, row) => {
-      if (cell.hazard || cell.maxNutrient <= 0) return;
-      const cx = col * cs + cs / 2, cy = sy + row * cs + cs / 2;
-      const rem = Math.min(1, cell.nutrient / this.nutrientRef);  // matter left
-
-      // --- the decaying matter itself (shrinks as it's digested) ---
-      if (rem > 0.02) {
-        if (rem > 0.2) this.foodLightPoints.push({ x: cx, y: cy, i: rem });
-        const base = cs * (0.45 + rem * 0.5);
-        // dark rotting mass (overlapping lumps — packed dense)
-        octx.fillStyle = withAlpha(hexToRgb(r.detritusBase), 0.62 + 0.35 * rem);
-        for (let k = 0; k < 6; k++) {
-          const ox = (h2(col + k * 4, row + k) * 2 - 1) * base * 0.5;
-          const oy = (h2(col + k, row + k * 4) * 2 - 1) * base * 0.5;
-          octx.beginPath();
-          octx.arc(cx + ox, cy + oy, base * (0.45 + 0.35 * h2(col + k, row - k)), 0, Math.PI * 2);
-          octx.fill();
-        }
-        // woody chips / twigs
-        octx.strokeStyle = r.detritusWood;
-        for (let k = 0; k < 5; k++) {
-          const a = h2(col * 2 + k, row + k * 5) * 6.283;
-          const len = cs * 0.26 * (0.6 + rem);
-          const px = cx + (h2(col + k * 7, row + k) * 2 - 1) * base * 0.6;
-          const py = cy + (h2(col + k, row + k * 7) * 2 - 1) * base * 0.6;
-          octx.lineWidth = 1.6 + h2(col + k, row * 2 + k) * 2;
-          octx.beginPath();
-          octx.moveTo(px - Math.cos(a) * len, py - Math.sin(a) * len);
-          octx.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len);
-          octx.stroke();
-        }
-        // leaf-litter flecks
-        octx.fillStyle = r.detritusLeaf;
-        for (let k = 0; k < 8; k++) {
-          const px = cx + (h2(col * 3 + k, row + k) * 2 - 1) * base;
-          const py = cy + (h2(col + k, row * 3 + k) * 2 - 1) * base;
-          octx.save();
-          octx.translate(px, py);
-          octx.rotate(h2(col + k, row + k) * 6.283);
-          octx.fillStyle = withAlpha(hexToRgb(r.detritusLeaf), 0.85);
-          octx.fillRect(-2.6, -1.1, 5.2, 2.2);
-          octx.restore();
-        }
-      }
-
-      // The colonising mycelium itself (the dense branched hyphae) is drawn by
-      // the network renderer — no decorative mat overlay here any more.
-    });
+    // Substrate (food) is now drawn as heaped LEAF SPRITES by main.js, so the
+    // old procedural detritus (the round lumps that showed through under the
+    // leaves) is no longer baked here.
 
     // Trichoderma — fuzzy speckled growth. Drawn boldly so it's easy to spot:
     // even faint mould reads clearly, and it holds opacity well across the cell.

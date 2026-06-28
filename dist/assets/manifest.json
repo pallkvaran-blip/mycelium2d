@@ -3,9 +3,11 @@
   "assets": [
     { "key": "leafOak", "file": "leafOak.png", "kind": "sprite" },
     { "key": "leafMaple", "file": "leafMaple.png", "kind": "sprite" },
-    { "key": "rockface", "file": "rockface.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },
-    { "key": "rockface2", "file": "rockface2.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },
-    { "key": "rockface3", "file": "rockface3.png", "kind": "texture", "opacity": 0.95, "scale": 0.32 },
+    { "key": "rockSlate", "file": "rockSlate.png", "kind": "sprite" },
+    { "key": "rockBasalt", "file": "rockBasalt.png", "kind": "sprite" },
+    { "key": "rockRiver", "file": "rockRiver.png", "kind": "sprite" },
+    { "key": "rockVeined", "file": "rockVeined.png", "kind": "sprite" },
+    { "key": "rockMossy", "file": "rockMossy.png", "kind": "sprite" },
     { "key": "tree", "file": "tree.png", "kind": "sprite" },
     { "key": "grassTuft", "file": "grassTuft.png", "kind": "sprite" },
     { "key": "house", "file": "house.png", "kind": "sprite" }

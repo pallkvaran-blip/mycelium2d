@@ -309,6 +309,7 @@ function frame(time) {
 
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
+  drawRockPiles();              // rock formations rendered as piled boulders (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
 
@@ -638,18 +639,6 @@ function drawTerrainAssets() {
   const cover = { x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y };
 
   if (hasAsset('soil')) fillPatternWorld('soil', null, cover, 0.5);
-
-  // Rock formations — each connected formation gets ONE of the rock textures
-  // (slate / iron / basalt) for variety, clipped to its shape.
-  const rad = sub.cellSize * 0.78 * z;
-  for (const g of rockGroups()) {
-    const clip = new Path2D();
-    for (const c of g.cells) {
-      const s = camera.worldToScreen(c.x, c.y);
-      clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
-    }
-    fillPatternWorld(g.key, clip, cover, 1);
-  }
 }
 
 // Substrate = heaped leaves. Each food cell draws a small pile of oak/maple
@@ -706,18 +695,30 @@ function fillPatternWorld(key, clipPath, cover, defaultOpacity) {
   ctx.restore();
 }
 
-// Rock formations grouped into connected clusters, each assigned one rock
-// texture variant for variety. Static per map, cached by state.
+// Rock formations grouped into connected clusters. Each cluster is assigned a
+// "recipe" — a small palette of rock-sprite types — so most formations are a
+// grey slate+basalt mix with occasional veined / mossy / river ones. Static per
+// map, cached by state.
+const ROCK_RECIPES = [
+  ['rockSlate', 'rockBasalt'],
+  ['rockSlate', 'rockBasalt'],
+  ['rockSlate', 'rockBasalt'],
+  ['rockVeined', 'rockSlate'],
+  ['rockMossy', 'rockBasalt'],
+  ['rockRiver', 'rockSlate'],
+];
+const ALL_ROCKS = ['rockSlate', 'rockBasalt', 'rockRiver', 'rockVeined', 'rockMossy'];
 let _rockState = null, _rockGroups = null;
 function rockGroups() {
   if (_rockState === state) return _rockGroups;
   const sub = state.substrate;
-  const variants = ['rockface', 'rockface2', 'rockface3'].filter(hasAsset);
+  const haveAny = ALL_ROCKS.some(hasAsset);
   const groups = [];
-  if (variants.length) {
+  if (haveAny) {
     const seen = new Set();
     const id = (c, r) => r * sub.cols + c;
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    let gi = 0;
     sub.forEachCell((cell, col, row) => {
       if (!cell.rock || seen.has(id(col, row))) return;
       const cells = [];
@@ -732,11 +733,63 @@ function rockGroups() {
           if (ncell && ncell.rock) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
-      groups.push({ key: variants[groups.length % variants.length], cells });
+      let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);
+      if (!pal.length) pal = ALL_ROCKS.filter(hasAsset);
+      groups.push({ palette: pal, cells });
+      gi++;
     });
   }
   _rockState = state; _rockGroups = groups;
   return groups;
+}
+
+// Draw each rock formation as a heap of boulder sprites: a dark base fill (so
+// no earth shows through gaps) + overlapping boulders drawn back-to-front, with
+// small rotations so the baked one-sided lighting stays consistent. Boulder
+// type / size / offset / rotation are hashed from the cell so it's stable.
+function drawRockPiles() {
+  const groups = rockGroups();
+  if (!groups.length) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const rad = cs * 0.82 * z;
+  for (const g of groups) {
+    if (!g.palette.length) continue;
+    const clip = new Path2D();
+    let onscreen = false;
+    for (const c of g.cells) {
+      const s = camera.worldToScreen(c.x, c.y);
+      clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
+      if (s.x > -rad && s.x < camera.viewW + rad && s.y > -rad && s.y < camera.viewH + rad) onscreen = true;
+    }
+    if (!onscreen) continue;
+    // dark base fill keeps the formation solid (no earth peeking through)
+    ctx.save(); ctx.clip(clip); ctx.fillStyle = 'rgba(26,28,34,0.96)';
+    ctx.fillRect(0, 0, camera.viewW, camera.viewH); ctx.restore();
+    // boulders, back-to-front (lower rows drawn on top)
+    const cells = g.cells.slice().sort((a, b) => a.y - b.y);
+    for (const c of cells) {
+      drawBoulder(c, g.palette, 0, 1.0, cs, z);
+      if (_hashf(c.x * 0.21, c.y * 0.27) > 0.45) drawBoulder(c, g.palette, 1, 0.7, cs, z);
+    }
+  }
+}
+
+function drawBoulder(c, palette, k, mult, cs, z) {
+  const h1 = _hashf(c.x * 0.13 + k * 7.7, c.y * 0.17 + k * 3.3);
+  const h2 = _hashf(c.x * 0.19 + k * 5.1, c.y * 0.11 + k * 9.2);
+  const h3 = _hashf(c.x * 0.23 + k * 2.7, c.y * 0.29 + k * 4.4);
+  const img = asset(palette[Math.floor(h3 * palette.length) % palette.length]);
+  if (!img) return;
+  const bh = cs * (1.5 + h1 * 0.5) * z * mult;
+  const bw = bh * (img.width / img.height);
+  const s = camera.worldToScreen(c.x, c.y);
+  if (s.x < -bw || s.x > camera.viewW + bw || s.y < -bh || s.y > camera.viewH + bh) return;
+  const ox = (h1 * 2 - 1) * cs * 0.3 * z, oy = (h2 * 2 - 1) * cs * 0.3 * z;
+  ctx.save();
+  ctx.translate(s.x + ox, s.y + oy);
+  ctx.rotate((h3 * 2 - 1) * 0.3);
+  ctx.drawImage(img, -bw / 2, -bh / 2, bw, bh);
+  ctx.restore();
 }
 
 // Above-ground props (trees / grass / houses) placed along the surface line.
@@ -962,7 +1015,10 @@ function drawTargetingCursor(time) {
 // (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
 // isolation. The matching buttons switch modes at any time.
 setupInput();
-loadAssets().then(() => { uiDirty = true; });   // preload art assets (if any); render hooks are gated
+// Preload art assets, then invalidate the per-map caches that gate on assets
+// (rock formations + surface props) — they may have been computed empty on the
+// first frame before the async load finished.
+loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; });
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);
