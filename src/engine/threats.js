@@ -24,8 +24,6 @@
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
-import { stepNematodes } from './nematodes.js';
-
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -249,23 +247,24 @@ export function infectNetwork(net, state) {
   const t = config.trichoderma;
   const cs = sub.cellSize;
 
-  // 1) Contact — a cloud that touches you infects (chunk) and then spends itself.
+  // 1) Contact — a cloud that touches you spends itself and fades out. It infects
+  //    a fresh strand if one is in reach; but EVEN IF every strand it reaches is
+  //    already rotten, reaching you still spends it (so it never sits there idle).
   for (const cloud of (state.clouds || [])) {
     if (cloud.dying) continue;                 // already spent — fading away
     const reach = cloud.r * cs;
-    let hit = null, best = Infinity;
+    let hit = null, best = Infinity, touched = false;
     for (const n of net.nodes) {
-      if (n.infected) continue;
       const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
-      if (d <= reach * reach && d < best) { best = d; hit = n; }
+      if (d > reach * reach) continue;
+      touched = true;                          // in contact with the colony
+      if (!n.infected && d < best) { best = d; hit = n; }
     }
-    if (hit) {
-      if (rng() < t.contactChance) {
-        hit.infected = true;
-        infectAround(net, hit, t.contactChunk, 1, rng);
-      }
-      cloud.dying = true;   // it spent itself breaching you — now it fades out
+    if (hit && rng() < t.contactChance) {
+      hit.infected = true;
+      infectAround(net, hit, t.contactChunk, 1, rng);
     }
+    if (touched) cloud.dying = true;           // reached you — now it fades out, infected or not
   }
 
   // 2) Internal spread — the rot races along the filaments from the whole front.
@@ -293,30 +292,6 @@ function infectAround(network, seed, depth, chance, rng) {
     }
     frontier = next;
   }
-}
-
-// --- Per-action threat tick (B6) --------------------------------------------
-// The mould reacts to the player's EVERY action (not just at end of turn): the
-// roaming clouds creep + eat, and any rot already inside races further along
-// the filaments. Called from performAction after each successful action.
-export function tickThreat(state) {
-  if (state.runOver) return;
-  spreadTrichoderma(state);
-  stepNematodes(state);                 // worms crawl, eat, and multiply on every action too
-  for (const net of state.networks) {
-    if (!net.alive) continue;
-    infectNetwork(net, state);
-    net.recomputeVitality();
-    if (net.nodes.length === 0 || net.healthyCount() === 0) {
-      net.alive = false;
-      if (net.active && !state.runOver) {
-        state.runOver = true;
-        state.runResult = { spores: net.spores, bodies: 0, died: true };
-        state.log('The colony has been consumed. Run over.', 'warn');
-      }
-    }
-  }
-  checkPuzzleGoal(state);
 }
 
 // Puzzle mode: reaching the treasure chest with a healthy strand wins the run.

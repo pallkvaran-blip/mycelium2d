@@ -11,7 +11,7 @@ import { CONFIG } from './config.js';
 import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
-import { endTurn } from './engine/turn.js';
+import { tickWorld } from './engine/turn.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -57,7 +57,7 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 function begin(newState) {
   state = newState;
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, endTurn };
+  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, tickWorld };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
@@ -114,13 +114,6 @@ const handlers = {
     }
     const res = performAction(state, name, ctx || {});
     afterAction(name, res);
-  },
-  onEndTurn() {
-    endTurn(state);
-    substrateRenderer.markDirty();
-    for (const net of state.networks) rendererFor(net).markStructureDirty();
-    if (state.runOver) ui.showOverlay(state.runResult);
-    uiDirty = true;
   },
   onRestart() {
     noTrich = false;                  // "New Map" returns to a normal (mould) map
@@ -195,7 +188,7 @@ function onCanvasClick(worldX, worldY) {
   if (a.target === 'point' || a.target === 'node') {
     const res = performAction(state, sel, { x: worldX, y: worldY });
     afterAction(sel, res);
-    if (state.movesLeft <= 0 || state.active.energy < 0) ui.setSelectedAction(null);
+    if (state.runOver || state.active.energy < 0) ui.setSelectedAction(null);
   }
 }
 
@@ -285,8 +278,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') { e.preventDefault(); handlers.onEndTurn(); }
-    else if (e.code === 'Escape') { ui.setSelectedAction(null); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 

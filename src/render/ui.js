@@ -12,7 +12,7 @@ import { SLIDERS, getByPath, setByPath } from '../config.js';
 
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
-  'Does 3-moves + Energy make each turn a real prioritisation?',
+  'Does crossing left→right — dig under walls, manage sparse energy — make a satisfying journey?',
   'Is the grow-toward-rich-food-but-it\'s-dangerous (Trichoderma) tension fun?',
   'Ants: is "go around / race them to the food / bomb the nest" a meaningful three-way choice?',
   'Nematodes: does the spot-you → swarm-in → Excrete loop create real pressure on your frontier?',
@@ -46,8 +46,7 @@ export class UI {
       <div class="stats">
         <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
         <div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>
-        <div class="stat"><span class="k">Turn</span><span class="v" id="hud-turn">1</span></div>
-        <div class="stat"><span class="k">Moves</span><span class="v" id="hud-moves">3</span></div>
+        <div class="stat"><span class="k">Step</span><span class="v" id="hud-turn">1</span></div>
       </div>
       <div class="vitality"><span class="k">Healthy</span>
         <div class="bar"><div class="fill" id="hud-vitality"></div></div>
@@ -81,16 +80,12 @@ export class UI {
     const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
     for (const name of order) bar.appendChild(this._actionButton(name));
 
-    // End turn + restart
+    // New map + puzzle (no End Turn — there are no turns; you just keep acting)
     const ctrl = div('ctrl');
-    const endBtn = button('btn end', 'End Turn ⏭');
-    endBtn.onclick = () => this.handlers.onEndTurn();
-    this.el.endBtn = endBtn;
     const restartBtn = button('btn restart', 'New Map ↻');
     restartBtn.onclick = () => this.handlers.onRestart();
     const puzzleBtn = button('btn restart', 'Puzzle 🧩');
     puzzleBtn.onclick = () => this.handlers.onPuzzle();
-    ctrl.appendChild(endBtn);
     ctrl.appendChild(restartBtn);
     ctrl.appendChild(puzzleBtn);
     bar.appendChild(ctrl);
@@ -243,7 +238,6 @@ export class UI {
     text('hud-energy', Math.floor(net.energy));
     text('hud-spores', Math.floor(s.spores));
     text('hud-turn', s.turn);
-    text('hud-moves', `${s.movesLeft}/${s.config.turn.movesPerTurn}`);
     const vfill = document.getElementById('hud-vitality');
     if (vfill) {
       vfill.style.width = `${Math.round(net.vitality * 100)}%`;
@@ -254,17 +248,16 @@ export class UI {
     for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
-      const { moves, energy } = actionCost(s, name);
-      btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡ ${moves}◆</span>`;
+      const { energy } = actionCost(s, name);
+      btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡</span>`;
       // Hide threat-specific actions when that threat isn't present (e.g. puzzle):
       // the ant-bomb when there are no nests, Excrete when there are no worms.
       const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
       const noWorms = name === 'excrete' && !(s.nematodes && s.nematodes.length);
       const hidden = noAnts || noWorms;
       btn.style.display = hidden ? 'none' : '';
-      btn.disabled = s.runOver || s.movesLeft < moves || net.energy < energy || !net.alive || hidden;
+      btn.disabled = s.runOver || net.energy < energy || !net.alive || hidden;
     }
-    this.el.endBtn.disabled = s.runOver;
 
     this._renderLog();
   }

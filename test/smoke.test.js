@@ -5,7 +5,7 @@
 import { CONFIG } from '../src/config.js';
 import { createState, createPuzzleState } from '../src/engine/state.js';
 import { performAction } from '../src/engine/actions.js';
-import { endTurn } from '../src/engine/turn.js';
+import { tickWorld } from '../src/engine/turn.js';
 import { totalTrichoderma, spawnTrichodermaAt, infectNetwork, spreadTrichoderma } from '../src/engine/threats.js';
 import { stepAnts, attackNest } from '../src/engine/ants.js';
 import { stepNematodes, excrete, spawnNematodeAt } from '../src/engine/nematodes.js';
@@ -46,21 +46,21 @@ const nodesBefore = state.active.nodes.length;
 const seedNode = state.active.nodes[state.active.nodes.length - 1];
 performAction(state, 'addSubstrate', { x: seedNode.x + 40, y: seedNode.y + 40 });
 let grew = false;
-for (let i = 0; i < 3 && state.movesLeft > 0; i++) {
+for (let i = 0; i < 3; i++) {
   const r = performAction(state, 'grow');
   if (r.ok) grew = true;
 }
 ok(grew, 'Grow produced new filaments toward lured food');
 ok(state.active.nodes.length > nodesBefore, 'network grew');
 
-console.log('# Turn loop: moves + passive income');
+console.log('# No turns: every action advances the world one step');
+const turnBefore = state.turn;
+performAction(state, 'grow');
+ok(state.turn > turnBefore, 'the step counter advances on each action (the world ticks)');
 const energyBefore = state.active.energy;
-state.movesLeft = 0;
-endTurn(state);
-ok(state.turn === 2, 'turn advanced');
-ok(state.movesLeft === cfg.turn.movesPerTurn, 'moves refilled');
-ok(state.active.energy >= energyBefore - 0.001 + cfg.energy.baselineTrickle - 50,
-  'energy changed via passive income/trickle');
+tickWorld(state);
+ok(typeof state.active.energy === 'number' && state.active.energy <= energyBefore + 1000,
+  'passive income/trickle resolves on a world tick');
 
 console.log('# Digest burst');
 const eBeforeDigest = state.active.energy;
@@ -78,9 +78,8 @@ ok(ar.ok && state.active.nodes.length < countBefore, 'Amputate removes the stran
 console.log('# Trichoderma clouds roam, persist, devour, and fade after infecting');
 // Drop a cloud right on the network and run two turns — the world stays finite.
 spawnTrichodermaAt(state, state.active.root.x, state.active.root.y + 30);
-state.movesLeft = 0;
-endTurn(state);
-endTurn(state);
+tickWorld(state);
+tickWorld(state);
 ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
 
 // Seeding: clouds start in OPEN ground (not sitting on food) so they travel.
@@ -112,6 +111,21 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   for (let i = 0; i < 20; i++) spreadTrichoderma(s);
   ok(s.clouds.length > 0 && totalTrichoderma(s.substrate) > 0,
     'a healthy cloud persists for many turns (does not die out)');
+}
+
+// Spends itself on contact even when you're ALREADY infected: a cloud that
+// reaches a colony whose nearby strands are all rotten must still fade out
+// (it must not sit there forever doing nothing).
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 321);
+  const net = s.active;
+  for (const n of net.nodes) n.infected = true;     // whole colony already rotten
+  s.clouds = [];
+  spawnTrichodermaAt(s, net.root.x, net.root.y + 20); // drop a cloud right on it
+  infectNetwork(net, s);                              // contact resolves
+  ok(s.clouds[0].dying === true, 'a cloud that reaches an already-infected colony spends itself');
+  for (let i = 0; i < CONFIG.trichoderma.fadeTurns + 1; i++) spreadTrichoderma(s);
+  ok(s.clouds.length === 0, 'and then fades away completely (does not linger forever)');
 }
 
 // Bounded size: a small cloud that eats a giant pile stays small (never giant).
@@ -223,10 +237,9 @@ console.log('# Infection also advances on End Turn (no dodging the rot)');
   const hub = net.nodes.find((n) => n.parentId != null && n.children.length > 0) || net.nodes[1];
   hub.infected = true;
   const before = net.nodes.filter((n) => n.infected).length;
-  s.movesLeft = 0;
-  endTurn(s);
+  tickWorld(s);
   const after = net.nodes.filter((n) => n.infected).length;
-  ok(after > before, `the rot advances on End Turn too (${before} -> ${after} infected)`);
+  ok(after > before, `the rot advances on a world tick (${before} -> ${after} infected)`);
 }
 
 console.log('# Growth: infected strands cannot grow; cut-loose healthy ones can');
@@ -482,12 +495,12 @@ console.log('# Nematodes: feed on every action AND on End Turn (wiring)');
   s.clouds = []; s.config.trichoderma.initialPatches = 0;
   const net = s.active;
   const onNode = net.nodes[0];
-  net.energy = 999; s.movesLeft = 3;
+  net.energy = 999;
   s.nematodes = [];
   for (let i = 0; i < 4; i++) spawnNematodeAt(s, onNode.x, onNode.y);
   const beforeAction = net.nodes.length;
   performAction(s, 'addSubstrate', { x: onNode.x, y: onNode.y + 40 });
-  ok(net.nodes.length < beforeAction, 'worms feed on every action (per-action threat tick)');
+  ok(net.nodes.length < beforeAction, 'worms feed on every action (per-action world tick)');
 
   const s2 = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
   s2.clouds = []; s2.config.trichoderma.initialPatches = 0;
@@ -495,8 +508,8 @@ console.log('# Nematodes: feed on every action AND on End Turn (wiring)');
   s2.nematodes = [];
   for (let i = 0; i < 4; i++) spawnNematodeAt(s2, on2.x, on2.y);
   const beforeTurn = net2.nodes.length;
-  s2.movesLeft = 0; endTurn(s2);
-  ok(net2.nodes.length < beforeTurn || s2.runOver, 'worms feed on End Turn too');
+  tickWorld(s2);
+  ok(net2.nodes.length < beforeTurn || s2.runOver, 'worms feed on a world tick too');
 }
 
 console.log('# Puzzle mode: builds a fixed level and is navigable to the chest');
@@ -519,9 +532,9 @@ console.log('# Puzzle mode: builds a fixed level and is navigable to the chest')
     [67, 9], [70, 9], [73, 9]];
   for (const [c, r] of path) {
     const ctr = s.substrate.cellCenter(c, r);
-    s.active.energy = 9999; s.movesLeft = 9;
+    s.active.energy = 9999;
     performAction(s, 'addSubstrate', { x: ctr.x, y: ctr.y });
-    for (let g = 0; g < 6 && !s.won; g++) { s.active.energy = 9999; s.movesLeft = 9; performAction(s, 'grow'); }
+    for (let g = 0; g < 6 && !s.won; g++) { s.active.energy = 9999; performAction(s, 'grow'); }
     if (s.won) break;
   }
   const reach = Math.max(...s.active.nodes.map((n) => s.substrate.colAtX(n.x)));

@@ -55,7 +55,7 @@ export const CONFIG = {
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
     start: 120,                  // starting Energy (SLIDER)
-    baselineTrickle: 2,          // small free trickle (you depend on colonising food)
+    baselineTrickle: 1,          // tiny per-action free trickle (you depend on colonising food)
     passiveIncomeRate: 34,       // nutrient pulled from each colonised cell/turn — ~3 turns to empty a cell (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },
@@ -165,7 +165,7 @@ export const CONFIG = {
   ants: {
     nestCount: 2,                // nests seeded per (sandbox) map
     maxHp: 100,
-    harvestRate: 60,             // nutrient an active nest carries off its target food per turn (SLIDER)
+    harvestRate: 20,             // nutrient an active nest carries off its target food per action (SLIDER)
   },
 
   // ---- Nematodes (A2, B6) — fungivorous worms that graze your frontier ----
@@ -276,7 +276,6 @@ export const CONFIG = {
 // -----------------------------------------------------------------------------
 export const SLIDERS = [
   { path: 'energy.start',                label: 'Starting Energy',     min: 0,   max: 400, step: 5 },
-  { path: 'turn.movesPerTurn',           label: 'Moves / Turn',        min: 1,   max: 8,   step: 1 },
   { path: 'energy.passiveIncomeRate',    label: 'Passive Income Rate', min: 0,   max: 60,  step: 1 },
   { path: 'actions.grow.energyCost',     label: 'Grow Energy Cost',    min: 0,   max: 40,  step: 1 },
   { path: 'trichoderma.moveSpeed',       label: 'Mold Creep (speed)',  min: 0,   max: 5,   step: 0.5 },

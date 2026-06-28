@@ -1,48 +1,41 @@
 // =============================================================================
-// Turn loop (A2, B4).
+// World tick (A2, B4).
 //
-// Each turn the player has movesPerTurn moves. Actions spend moves + Energy
-// during the turn (actions.js). End-turn resolves the world: passive income,
-// Trichoderma spread + damage, hazard damage, starvation, node pruning and
-// vitality.
+// This game mode has no turn/move budget — the player just performs actions one
+// after another, and the WHOLE world advances one step after each. tickWorld()
+// is that single step: the threats act (Trichoderma creep + eat, ants harvest +
+// reroute, nematodes crawl + feed), then each network draws passive income from
+// the substrate it has colonised, ages, the rot spreads, starvation bites, and
+// the death check runs. Called from performAction() after every successful action.
 //
-// Phase 1 plays a single active network, but end-turn iterates the whole
-// network list so the generational/autonomous-tick system (A5) drops in later.
+// Phase 1 plays a single active network, but the tick iterates the whole network
+// list so the generational/autonomous-tick system (A5) drops in later.
 // =============================================================================
 
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
 import { stepAnts } from './ants.js';
 import { stepNematodes } from './nematodes.js';
 
-export function endTurn(state) {
+export function tickWorld(state) {
   if (state.runOver) return;
 
   const { config, substrate } = state;
-  let totalIncome = 0;
 
-  // The mould also acts on end-turn: the clouds creep/eat once more, and the
-  // infection keeps spreading — so ending your turn never freezes the threat.
-  spreadTrichoderma(state);
-
-  // Ants harvest their target food once per turn, retargeting when it runs out,
-  // and re-stamp their impassable trails (chewing any strand now under them).
-  stepAnts(state);
-
-  // Nematodes also crawl / feed / multiply on end-turn (they act per action too).
-  stepNematodes(state);
+  // The threats all act on every step.
+  spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
+  stepAnts(state);            // ants harvest their target food, RETARGET when it empties, re-stamp trails
+  stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
 
   for (const net of state.networks) {
     if (!net.alive) continue;
 
     // 1) Passive income from occupied substrate (depletes those patches).
-    const income = resolveIncome(net, substrate, config);
-    if (net.active) totalIncome = income;
+    resolveIncome(net, substrate, config);
 
     // 1b) Age the strands so the colony visibly thickens over time.
-    //     (Colonisation itself now happens per Grow cycle, not per turn.)
     net.agePass();
 
-    // 1c) The rot races further along the filaments (also runs per action).
+    // 1c) The rot races further along the filaments.
     infectNetwork(net, state);
 
     // 2) Starvation if the colony is out of Energy (prunes strands).
@@ -53,7 +46,7 @@ export function endTurn(state) {
     }
 
     // 3) Recompute % healthy. Dead when no healthy strands remain (fully
-    //    overrun by mould) or nothing is left (e.g. starved out this turn).
+    //    overrun by mould) or nothing is left (e.g. starved out this step).
     net.recomputeVitality();
     if (net.nodes.length === 0 || net.healthyCount() === 0) {
       net.alive = false;
@@ -66,18 +59,7 @@ export function endTurn(state) {
   }
 
   checkPuzzleGoal(state);
-
-  // Advance the clock and refill moves.
-  state.turn += 1;
-  state.movesLeft = config.turn.movesPerTurn;
-
-  if (!state.runOver) {
-    const trickle = config.energy.baselineTrickle;
-    state.log(
-      `Turn ${state.turn}. Passive income +${Math.round(totalIncome)} Energy (incl. +${trickle} trickle).`,
-      'turn',
-    );
-  }
+  state.turn += 1;   // a step counter (each action advances the world one step)
 }
 
 // Draw nutrient from every occupied cell, plus the baseline trickle.

@@ -72,7 +72,6 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     active: networks[0],
     spores: 0,             // run-wide Spore total (summed across networks later)
     turn: 1,
-    movesLeft: config.turn.movesPerTurn,
     runOver: false,
     runResult: null,
     logEntries: [],

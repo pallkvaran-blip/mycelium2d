@@ -13,7 +13,8 @@
 //   - null    : no target (Grow, Digest, Fruit)
 // =============================================================================
 
-import { spawnTrichodermaAt, tickThreat } from './threats.js';
+import { spawnTrichodermaAt } from './threats.js';
+import { tickWorld } from './turn.js';
 import { attackNest } from './ants.js';
 import { excrete } from './nematodes.js';
 
@@ -152,8 +153,7 @@ export function actionBlockedReason(state, name, ctx = {}) {
   if (state.runOver) return 'The run is over — restart to play again.';
   const net = state.active;
   if (!net || !net.alive) return 'The network is no longer alive.';
-  const { moves, energy } = actionCost(state, name, ctx);
-  if (state.movesLeft < moves) return 'No moves left this turn.';
+  const { energy } = actionCost(state, name, ctx);
   if (net.energy < energy) return `Not enough Energy (need ${Math.ceil(energy)}).`;
   return null;
 }
@@ -176,15 +176,14 @@ export function performAction(state, name, ctx = {}) {
     return result;
   }
 
-  state.movesLeft -= moves;
   state.active.energy -= energy;
   state.active.recomputeVitality();
   state.log(result.message, 'action');
 
-  // The mould reacts to your every move: clouds creep + eat, and the rot races
-  // a little further along any infected filaments. (Fruit ends the run, so the
-  // guard inside tickThreat makes this a no-op in that case.)
-  tickThreat(state);
+  // There are no turns — every action advances the whole world one step: threats
+  // act, passive income flows, the rot races. (Fruit ends the run, so the guard
+  // inside tickWorld makes this a no-op in that case.)
+  tickWorld(state);
 
   return { ok: true, message: result.message, moves, energy };
 }
