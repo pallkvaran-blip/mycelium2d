@@ -650,7 +650,7 @@ function drawSubstrateLeaves() {
   if (!oak && !maple) return;
   const leaves = [oak || maple, maple || oak];
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const base = cs * 0.95;                       // base leaf height in world units
+  const base = cs * 0.72;                       // base leaf height in world units
   const MAXL = 7, margin = cs * 1.6 * z;
   sub.forEachCell((cell, col, row) => {
     if (cell.nutrient <= 0 || cell.rock) return;
@@ -780,7 +780,7 @@ function drawBoulder(c, palette, k, mult, cs, z) {
   const h3 = _hashf(c.x * 0.23 + k * 2.7, c.y * 0.29 + k * 4.4);
   const img = asset(palette[Math.floor(h3 * palette.length) % palette.length]);
   if (!img) return;
-  const bh = cs * (1.5 + h1 * 0.5) * z * mult;
+  const bh = cs * (1.95 + h1 * 0.55) * z * mult;
   const bw = bh * (img.width / img.height);
   const s = camera.worldToScreen(c.x, c.y);
   if (s.x < -bw || s.x > camera.viewW + bw || s.y < -bh || s.y > camera.viewH + bh) return;
