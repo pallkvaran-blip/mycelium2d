@@ -440,7 +440,18 @@ console.log('# Nematodes: breeding is exponential, not throttled by strand count
   const seed = net.nodes[net.nodes.length - 1];
   s.substrate.deposit(seed.x, seed.y + 30, 100, 3);
   for (let i = 0; i < 8; i++) net.grow(s.substrate, s.rng);   // a bigger colony to sit on
-  const onNode = net.nodes[0];
+  // Drop the worms in the THICK of the colony body (the densest node, safely
+  // below the worm movement floor) — as in real play worms crawl into the body,
+  // not onto the surface root. This isolates breeding from incidental geometry.
+  const cs = s.substrate.cellSize, floor = s.substrate.surfaceY + cs * 2;
+  const reach2 = (s.config.nematodes.reach * cs) ** 2;
+  let onNode = net.nodes[0], bestN = -1;
+  for (const a of net.nodes) {
+    if (a.y < floor) continue;
+    let k = 0;
+    for (const b of net.nodes) { const dx = a.x - b.x, dy = a.y - b.y; if (dx * dx + dy * dy <= reach2) k++; }
+    if (k > bestN) { bestN = k; onNode = a; }
+  }
   s.nematodes = [];
   for (let i = 0; i < 2; i++) spawnNematodeAt(s, onNode.x, onNode.y);
   const p0 = s.nematodes.length;

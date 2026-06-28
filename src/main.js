@@ -71,7 +71,10 @@ function begin(newState) {
     camera.fitBounds({ minX: -160, minY: state.substrate.surfaceY - 30,
       maxX: state.substrate.worldWidth + 160, maxY: state.substrate.worldHeight }, 30);
   } else {
-    camera.fitBounds(expandedBounds(), 120);
+    // Traversal level: frame the whole width so the left→right journey (entry,
+    // barriers, goal) reads at a glance — the player zooms in to work.
+    camera.fitBounds({ minX: -120, minY: state.substrate.surfaceY - 80,
+      maxX: state.substrate.worldWidth + 120, maxY: state.substrate.worldHeight }, 30);
   }
   uiDirty = true;
 }

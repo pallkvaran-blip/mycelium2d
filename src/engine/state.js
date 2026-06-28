@@ -21,7 +21,9 @@ export function createState(config, seed) {
   const substrate = generateSubstrate(config, rng);
 
   const network = new Network(config);
-  network.seed(substrate, rng);
+  // Root the colony at the far-left entry zone — it must cross to the goal.
+  const startCol = Math.max(1, Math.floor((config.substrate.startCols || 2) / 2));
+  network.seed(substrate, rng, startCol);
 
   // Seed the mould AFTER the colony so clouds can start in open ground, away
   // from both food and you, and visibly creep in toward their nearest target.
@@ -85,7 +87,7 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
   if (state.mode === 'puzzle') {
     state.log('A fixed puzzle: steer the colony to the treasure chest.', 'good');
   } else {
-    state.log('Generation 1 begins. The colony stirs beneath the soil.', 'good');
+    state.log('The colony stirs at the western edge. Cross underground to the far side and fruit at the surface.', 'good');
   }
   return state;
 }

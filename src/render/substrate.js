@@ -372,19 +372,67 @@ export class SubstrateRenderer {
       const lineY = sy;   // flat, continuous soil line (per-column jitter made jagged corners)
 
       if (surf.soil) {
-        // topsoil crust + rim light
-        const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
-        cg.addColorStop(0, r.crust);
-        cg.addColorStop(1, r.soilTop);
-        octx.fillStyle = cg;
-        octx.fillRect(x, lineY, cs + 1, 18);
-        octx.fillStyle = r.crustLip;
-        octx.globalAlpha = 0.6;
-        octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+        // Fruitable ground (the goal zone). Sunlit + a soft glow so it reads as
+        // the way out; ordinary soil crust otherwise.
+        if (surf.goal) {
+          const gg = octx.createLinearGradient(0, lineY - 18, 0, lineY + 16);
+          gg.addColorStop(0, r.goalGlow);
+          gg.addColorStop(0.5, 'rgba(0,0,0,0)');
+          octx.fillStyle = gg;
+          octx.fillRect(x, lineY - 18, cs + 1, 18);
+          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+          cg.addColorStop(0, r.goalSoil);
+          cg.addColorStop(1, r.soilTop);
+          octx.fillStyle = cg;
+          octx.fillRect(x, lineY, cs + 1, 18);
+          octx.fillStyle = r.goalSoil;
+          octx.globalAlpha = 0.7;
+          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+          octx.globalAlpha = 1;
+        } else {
+          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+          cg.addColorStop(0, r.crust);
+          cg.addColorStop(1, r.soilTop);
+          octx.fillStyle = cg;
+          octx.fillRect(x, lineY, cs + 1, 18);
+          octx.fillStyle = r.crustLip;
+          octx.globalAlpha = 0.6;
+          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+          octx.globalAlpha = 1;
+        }
+      } else if (surf.barrier === 'lake') {
+        // Lake — a band of cool water with a reflective surface line + ripples.
+        octx.fillStyle = r.water;
+        octx.fillRect(x, lineY - 6, cs + 1, 22);
+        octx.fillStyle = r.waterLip;
+        octx.fillRect(x, lineY - 6, cs + 1, 2);
+        octx.fillStyle = r.waterGlint;
+        for (let k = 0; k < 2; k++) {
+          octx.globalAlpha = 0.5;
+          octx.fillRect(x + this.rng() * cs, lineY - 3 + this.rng() * 6, this.rng() * 5 + 2, 1);
+        }
         octx.globalAlpha = 1;
-        // (procedural green grass blades removed — disliked)
+      } else if (surf.barrier === 'mountain') {
+        // Mountain — a raised rocky ridge rising above the soil line.
+        const rise = 10 + this.rng() * 22;
+        octx.fillStyle = r.mountainRock;
+        octx.fillRect(x, lineY - rise, cs + 1, rise + 16);
+        octx.fillStyle = r.mountainFacet;
+        octx.beginPath();
+        octx.moveTo(x, lineY - rise * 0.6);
+        octx.lineTo(x + cs * 0.5, lineY - rise);
+        octx.lineTo(x + cs * 0.5, lineY + 14);
+        octx.lineTo(x, lineY + 14);
+        octx.closePath();
+        octx.fill();
+        octx.strokeStyle = 'rgba(0,0,0,0.45)';
+        octx.lineWidth = 1;
+        octx.beginPath();
+        octx.moveTo(x + this.rng() * cs, lineY - rise * 0.5);
+        octx.lineTo(x + this.rng() * cs, lineY + 12);
+        octx.stroke();
       } else {
-        // non-soil: a hard concrete/rock cap — no fruiting here
+        // Concrete — a hard flat cap.
         octx.fillStyle = r.concrete;
         octx.fillRect(x, lineY - 4, cs + 1, 20);
         octx.fillStyle = 'rgba(255,255,255,0.06)';

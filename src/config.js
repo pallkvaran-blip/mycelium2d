@@ -21,9 +21,18 @@ export const CONFIG = {
 
   // ---- Substrate field + surface terrain generation (A4, B1) -------------
   substrate: {
-    foodClusterCount: 9,         // fewer, rarer pockets — reaching them is the game
-    foodClusterRadiusMin: 1,     // small, concentrated pockets
-    foodClusterRadiusMax: 3,
+    // Traversal level: enter at the far left, cross underground to the goal soil
+    // on the far right, surface there and fruit. The middle is un-surfaceable.
+    goalCols: 6,                 // width of the right-hand fruitable GOAL zone (cols)
+    startCols: 2,                // width of the left entry zone (cols)
+    barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
+    barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
+    foodClusterCount: 20,        // breadcrumbs spread left→right to fuel the crossing
+    foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
+    foodClusterRadiusMax: 2,
+    foodBandRows: 6,             // deeper bonus food stays within this many rows of the surface
+    foodBonusClusters: 4,        // deeper pockets off the main trail (extra energy, route to reach)
+    surfaceCorridorRows: 2,      // rock-free rows under the surface — a guaranteed route across
     foodCellNutrient: 100,       // every food cell is worth the same — a pile's value is its SIZE
     rockCount: 7,                // impassable rock formations to route around
     rockRadiusMin: 2,
@@ -31,16 +40,7 @@ export const CONFIG = {
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
-    // Surface line: alternating segments of soil (fruitable) / non-soil.
-    surfaceSegmentMinCols: 3,    // min width of a surface segment, in grid columns
-    surfaceSegmentMaxCols: 11,
-    soilFraction: 0.6,           // ~fraction of surface segments that are soil
-    shadeFraction: 0.45,         // ~fraction of soil columns that are shaded
-    // Deliberate tension: tuck some rich food against rock / under non-soil so
-    // reaching it means routing around obstacles (B1).
-    richNearHazardChance: 0,     // (no hazards now)
-    richNearRockChance: 0.4,
-    richUnderNonSoilChance: 0.4,
+    shadeFraction: 0.45,         // ~fraction of GOAL soil columns that are shaded
     // Colonisation advances per GROW cycle: each Grow, the mycelium branches
     // within occupied substrate and makes this much progress, so ~1/this grow
     // cycles are needed to fully colonise (and densely branch) a pocket.
@@ -67,7 +67,7 @@ export const CONFIG = {
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
-    maxNodes: 1500,              // safety cap on network size
+    maxNodes: 2500,              // safety cap on network size (a colony now spans the whole level)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     startDepth: 130,             // initial seed depth below the surface line
@@ -226,6 +226,14 @@ export const CONFIG = {
     grassShade: '#2f5a66',
     concrete: '#1e2228',
     concreteCrack: 'rgba(0,0,0,0.5)',
+    // un-surfaceable terrain (the impassable middle of a level)
+    water: '#16313f',                      // lake — deep cool water
+    waterLip: 'rgba(120,185,210,0.55)',    // reflective surface line
+    waterGlint: 'rgba(190,230,245,0.5)',   // ripple highlights
+    mountainRock: '#2c2a26',               // raised rocky ridge (warm dark stone)
+    mountainFacet: 'rgba(120,120,130,0.18)',// lit facet on the ridge
+    goalSoil: '#5a7a44',                   // the goal reads as sunlit, living ground
+    goalGlow: 'rgba(150,225,150,0.30)',    // soft warm glow marking the exit
     // Trichoderma
     trich: '#8aa23e',
     trichSpore: '#d2e074',
