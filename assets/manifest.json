@@ -9,7 +9,6 @@
     { "key": "rockVeined", "file": "rockVeined.png", "kind": "sprite" },
     { "key": "rockMossy", "file": "rockMossy.png", "kind": "sprite" },
     { "key": "tree", "file": "tree.png", "kind": "sprite" },
-    { "key": "grassTuft", "file": "grassTuft.png", "kind": "sprite" },
     { "key": "house", "file": "house.png", "kind": "sprite" }
   ]
 }

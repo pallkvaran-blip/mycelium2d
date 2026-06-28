@@ -408,21 +408,7 @@ export class SubstrateRenderer {
         octx.globalAlpha = 0.6;
         octx.fillRect(x, lineY - 1, cs + 1, 1.5);
         octx.globalAlpha = 1;
-        // grass blades
-        const blades = 3 + Math.floor(this.rng() * 3);
-        for (let b = 0; b < blades; b++) {
-          const bx = x + this.rng() * cs;
-          const h = 6 + this.rng() * 9;
-          const sway = (this.rng() - 0.5) * 7;
-          octx.strokeStyle = surf.shade ? r.grassShade : r.grassSun;
-          octx.globalAlpha = 0.85;
-          octx.lineWidth = 1.4;
-          octx.beginPath();
-          octx.moveTo(bx, lineY);
-          octx.quadraticCurveTo(bx + sway * 0.5, lineY - h * 0.6, bx + sway, lineY - h);
-          octx.stroke();
-        }
-        octx.globalAlpha = 1;
+        // (procedural green grass blades removed — disliked)
       } else {
         // non-soil: a hard concrete/rock cap — no fruiting here
         octx.fillStyle = r.concrete;

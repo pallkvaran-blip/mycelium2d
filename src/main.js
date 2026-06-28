@@ -805,10 +805,9 @@ function surfaceProps() {
     const surf = sub.surface[c];
     const r = _hashf(c + 0.5, seed);
     if (surf.soil) {
-      if (r < 0.06 && c - lastTree > 3 && hasAsset('tree')) { props.push({ key: 'tree', col: c, h: 124, flip: _hashf(c, 7) < 0.5 }); lastTree = c; }
-      else if (r < 0.42 && hasAsset('grassTuft')) props.push({ key: 'grassTuft', col: c, h: 34, flip: _hashf(c, 3) < 0.5 });
+      if (r < 0.07 && c - lastTree > 3 && hasAsset('tree')) { props.push({ key: 'tree', col: c, h: 124, embed: 24, flip: _hashf(c, 7) < 0.5 }); lastTree = c; }
     } else if (r < 0.10 && c - lastHouse > 4 && hasAsset('house')) {
-      props.push({ key: 'house', col: c, h: 86, flip: _hashf(c, 9) < 0.5 }); lastHouse = c;
+      props.push({ key: 'house', col: c, h: 86, embed: 12, flip: _hashf(c, 9) < 0.5 }); lastHouse = c;
     }
   }
   _propState = state; _props = props;
@@ -825,10 +824,11 @@ function drawSurfaceProps() {
     const h = pr.h * z, w = h * (img.width / img.height);
     const cx = pr.col * sub.cellSize + sub.cellSize / 2;
     const s = camera.worldToScreen(cx, sub.surfaceY);
-    if (s.x < -w || s.x > camera.viewW + w || s.y < -h || s.y > camera.viewH + h) continue;
+    const by = s.y + (pr.embed || 0) * z;       // base embedded into the ground (not floating on the soil line)
+    if (s.x < -w || s.x > camera.viewW + w || by < -h || by - h > camera.viewH) continue;
     ctx.save();
-    if (pr.flip) { ctx.translate(s.x, s.y); ctx.scale(-1, 1); ctx.drawImage(img, -w / 2, -h, w, h); }
-    else ctx.drawImage(img, s.x - w / 2, s.y - h, w, h);
+    if (pr.flip) { ctx.translate(s.x, by); ctx.scale(-1, 1); ctx.drawImage(img, -w / 2, -h, w, h); }
+    else ctx.drawImage(img, s.x - w / 2, by - h, w, h);
     ctx.restore();
   }
 }
