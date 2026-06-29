@@ -390,9 +390,11 @@ const CONFIG = {
     concrete: '#1e2228',
     concreteCrack: 'rgba(0,0,0,0.5)',
     // un-surfaceable terrain (the impassable middle of a level)
-    water: '#16313f',                      // lake — deep cool water
-    waterLip: 'rgba(120,185,210,0.55)',    // reflective surface line
-    waterGlint: 'rgba(190,230,245,0.5)',   // ripple highlights
+    waterSurface: '#3f8197',               // lake — bright sky-reflecting waterline
+    water: '#1d4254',                      // lake — mid cool water
+    waterDeep: '#112c39',                  // lake — darker with depth
+    waterLip: 'rgba(150,205,228,0.7)',     // reflective surface line
+    waterGlint: 'rgba(200,235,248,0.6)',   // ripple highlights
     mountainRock: '#2c2a26',               // raised rocky ridge (warm dark stone)
     mountainFacet: 'rgba(120,120,130,0.18)',// lit facet on the ridge
     goalSoil: '#5a7a44',                   // the goal reads as sunlit, living ground
@@ -2956,15 +2958,21 @@ class SubstrateRenderer {
           octx.globalAlpha = 1;
         }
       } else if (surf.barrier === 'lake') {
-        // Lake — a band of cool water with a reflective surface line + ripples.
-        octx.fillStyle = r.water;
-        octx.fillRect(x, lineY - 6, cs + 1, 22);
+        // Lake — cool water with a bright sky-reflecting waterline that deepens
+        // with depth, plus a crisp surface line and ripple glints, so it reads
+        // clearly as WATER (a flat dark fill looks like a grey concrete slab).
+        const wg = octx.createLinearGradient(0, lineY - 7, 0, lineY + 16);
+        wg.addColorStop(0, r.waterSurface);
+        wg.addColorStop(0.35, r.water);
+        wg.addColorStop(1, r.waterDeep);
+        octx.fillStyle = wg;
+        octx.fillRect(x, lineY - 7, cs + 1, 23);
         octx.fillStyle = r.waterLip;
-        octx.fillRect(x, lineY - 6, cs + 1, 2);
+        octx.fillRect(x, lineY - 7, cs + 1, 2);
         octx.fillStyle = r.waterGlint;
-        for (let k = 0; k < 2; k++) {
-          octx.globalAlpha = 0.5;
-          octx.fillRect(x + this.rng() * cs, lineY - 3 + this.rng() * 6, this.rng() * 5 + 2, 1);
+        for (let k = 0; k < 3; k++) {
+          octx.globalAlpha = 0.4 + this.rng() * 0.4;
+          octx.fillRect(x + this.rng() * cs, lineY - 4 + this.rng() * 12, this.rng() * 6 + 2, 1);
         }
         octx.globalAlpha = 1;
       } else if (surf.barrier === 'mountain') {
@@ -4667,6 +4675,7 @@ function surfaceProps() {
 // rises from the ground rather than floating. Sized large; the base spans wider
 // than the impassable wall so the slopes reach the ground on both sides.
 let _mtnState = null, _mtns = null;
+let _rangeBuf = null;   // offscreen buffer for the faded range backdrop
 function mountainRuns() {
   if (_mtnState === state) return _mtns;
   const sub = state.substrate, runs = [];
@@ -4710,12 +4719,32 @@ function drawMountains() {
     const s = camera.worldToScreen(sub.worldWidth / 2, sub.surfaceY);
     const sw = w * z, sh = h * z;
     const by = s.y + sh * RANGE_EMBED_FRAC;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY); ctx.clip();  // sky band only
-    ctx.globalAlpha = 0.4;                                    // distant haze
-    ctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)'; // atmospheric — push it far back
-    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
-    ctx.restore();
+    const bandW = Math.max(1, Math.ceil(camera.viewW));
+    const bandH = Math.max(1, Math.ceil(surfY - skyTopY));
+    if (bandH > 1) {
+      // Render to an offscreen buffer and FADE the lower edge into the horizon:
+      // drawn straight, the solid base of the range silhouette reads as a flat
+      // grey slab hugging the surface (looks like a concrete strip). The buffer
+      // also clips to the sky band (its own bounds), like the old clip rect.
+      if (!_rangeBuf) _rangeBuf = document.createElement('canvas');
+      if (_rangeBuf.width !== bandW || _rangeBuf.height !== bandH) { _rangeBuf.width = bandW; _rangeBuf.height = bandH; }
+      const bctx = _rangeBuf.getContext('2d');
+      bctx.clearRect(0, 0, bandW, bandH);
+      bctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)';  // atmospheric — push it far back
+      bctx.drawImage(img, s.x - sw / 2, (by - sh) - skyTopY, sw, sh);
+      bctx.filter = 'none';
+      const fade = bctx.createLinearGradient(0, bandH * 0.42, 0, bandH);
+      fade.addColorStop(0, 'rgba(0,0,0,0)');                  // keep the peaks up high
+      fade.addColorStop(1, 'rgba(0,0,0,1)');                  // dissolve into the horizon at the surface
+      bctx.globalCompositeOperation = 'destination-out';
+      bctx.fillStyle = fade;
+      bctx.fillRect(0, 0, bandW, bandH);
+      bctx.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.globalAlpha = 0.4;                                  // distant haze
+      ctx.drawImage(_rangeBuf, 0, skyTopY);
+      ctx.restore();
+    }
   }
 
   // --- foreground: single peaks at the wall runs, distinct + varied per map ---
@@ -4756,7 +4785,7 @@ function drawMountains() {
 // pool is exhausted. Drawn dimmed + opaque (backdrop feel, no see-through).
 const CITY_KEYS = ['skyline1', 'skyline2', 'skyline3', 'skyline4', 'skyline5', 'skyline6'];
 const CITY_W_MIN = 7, CITY_W_MAX = 12;    // city width in tiles — small, varied (capped at run width)
-const CITY_MIN_RUN = 6;                   // skip barrier runs narrower than this (plain ground there)
+const CITY_MIN_RUN = 5;                   // skip barrier runs narrower than this (plain ground there)
 const CITY_EMBED_FRAC = 0.04;             // flat base sits just on the soil line
 let _cityState = null, _cities = null;
 function cityRuns() {

@@ -402,15 +402,21 @@ export class SubstrateRenderer {
           octx.globalAlpha = 1;
         }
       } else if (surf.barrier === 'lake') {
-        // Lake — a band of cool water with a reflective surface line + ripples.
-        octx.fillStyle = r.water;
-        octx.fillRect(x, lineY - 6, cs + 1, 22);
+        // Lake — cool water with a bright sky-reflecting waterline that deepens
+        // with depth, plus a crisp surface line and ripple glints, so it reads
+        // clearly as WATER (a flat dark fill looks like a grey concrete slab).
+        const wg = octx.createLinearGradient(0, lineY - 7, 0, lineY + 16);
+        wg.addColorStop(0, r.waterSurface);
+        wg.addColorStop(0.35, r.water);
+        wg.addColorStop(1, r.waterDeep);
+        octx.fillStyle = wg;
+        octx.fillRect(x, lineY - 7, cs + 1, 23);
         octx.fillStyle = r.waterLip;
-        octx.fillRect(x, lineY - 6, cs + 1, 2);
+        octx.fillRect(x, lineY - 7, cs + 1, 2);
         octx.fillStyle = r.waterGlint;
-        for (let k = 0; k < 2; k++) {
-          octx.globalAlpha = 0.5;
-          octx.fillRect(x + this.rng() * cs, lineY - 3 + this.rng() * 6, this.rng() * 5 + 2, 1);
+        for (let k = 0; k < 3; k++) {
+          octx.globalAlpha = 0.4 + this.rng() * 0.4;
+          octx.fillRect(x + this.rng() * cs, lineY - 4 + this.rng() * 12, this.rng() * 6 + 2, 1);
         }
         octx.globalAlpha = 1;
       } else if (surf.barrier === 'mountain') {

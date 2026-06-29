@@ -232,9 +232,11 @@ export const CONFIG = {
     concrete: '#1e2228',
     concreteCrack: 'rgba(0,0,0,0.5)',
     // un-surfaceable terrain (the impassable middle of a level)
-    water: '#16313f',                      // lake — deep cool water
-    waterLip: 'rgba(120,185,210,0.55)',    // reflective surface line
-    waterGlint: 'rgba(190,230,245,0.5)',   // ripple highlights
+    waterSurface: '#3f8197',               // lake — bright sky-reflecting waterline
+    water: '#1d4254',                      // lake — mid cool water
+    waterDeep: '#112c39',                  // lake — darker with depth
+    waterLip: 'rgba(150,205,228,0.7)',     // reflective surface line
+    waterGlint: 'rgba(200,235,248,0.6)',   // ripple highlights
     mountainRock: '#2c2a26',               // raised rocky ridge (warm dark stone)
     mountainFacet: 'rgba(120,120,130,0.18)',// lit facet on the ridge
     goalSoil: '#5a7a44',                   // the goal reads as sunlit, living ground

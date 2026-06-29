@@ -843,6 +843,7 @@ function surfaceProps() {
 // rises from the ground rather than floating. Sized large; the base spans wider
 // than the impassable wall so the slopes reach the ground on both sides.
 let _mtnState = null, _mtns = null;
+let _rangeBuf = null;   // offscreen buffer for the faded range backdrop
 function mountainRuns() {
   if (_mtnState === state) return _mtns;
   const sub = state.substrate, runs = [];
@@ -886,12 +887,32 @@ function drawMountains() {
     const s = camera.worldToScreen(sub.worldWidth / 2, sub.surfaceY);
     const sw = w * z, sh = h * z;
     const by = s.y + sh * RANGE_EMBED_FRAC;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY); ctx.clip();  // sky band only
-    ctx.globalAlpha = 0.4;                                    // distant haze
-    ctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)'; // atmospheric — push it far back
-    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
-    ctx.restore();
+    const bandW = Math.max(1, Math.ceil(camera.viewW));
+    const bandH = Math.max(1, Math.ceil(surfY - skyTopY));
+    if (bandH > 1) {
+      // Render to an offscreen buffer and FADE the lower edge into the horizon:
+      // drawn straight, the solid base of the range silhouette reads as a flat
+      // grey slab hugging the surface (looks like a concrete strip). The buffer
+      // also clips to the sky band (its own bounds), like the old clip rect.
+      if (!_rangeBuf) _rangeBuf = document.createElement('canvas');
+      if (_rangeBuf.width !== bandW || _rangeBuf.height !== bandH) { _rangeBuf.width = bandW; _rangeBuf.height = bandH; }
+      const bctx = _rangeBuf.getContext('2d');
+      bctx.clearRect(0, 0, bandW, bandH);
+      bctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)';  // atmospheric — push it far back
+      bctx.drawImage(img, s.x - sw / 2, (by - sh) - skyTopY, sw, sh);
+      bctx.filter = 'none';
+      const fade = bctx.createLinearGradient(0, bandH * 0.42, 0, bandH);
+      fade.addColorStop(0, 'rgba(0,0,0,0)');                  // keep the peaks up high
+      fade.addColorStop(1, 'rgba(0,0,0,1)');                  // dissolve into the horizon at the surface
+      bctx.globalCompositeOperation = 'destination-out';
+      bctx.fillStyle = fade;
+      bctx.fillRect(0, 0, bandW, bandH);
+      bctx.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.globalAlpha = 0.4;                                  // distant haze
+      ctx.drawImage(_rangeBuf, 0, skyTopY);
+      ctx.restore();
+    }
   }
 
   // --- foreground: single peaks at the wall runs, distinct + varied per map ---
