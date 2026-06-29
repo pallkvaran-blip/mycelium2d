@@ -12,6 +12,8 @@
     { "key": "house", "file": "house.png", "kind": "sprite" },
     { "key": "antColonyA", "file": "antColonyA.png", "kind": "sprite" },
     { "key": "antColonyB", "file": "antColonyB.png", "kind": "sprite" },
-    { "key": "mountain", "file": "mountain.png", "kind": "sprite" }
+    { "key": "mountain1", "file": "mountain1.png", "kind": "sprite" },
+    { "key": "mountain2", "file": "mountain2.png", "kind": "sprite" },
+    { "key": "mountain3", "file": "mountain3.png", "kind": "sprite" }
   ]
 }

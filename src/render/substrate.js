@@ -414,7 +414,7 @@ export class SubstrateRenderer {
         }
         octx.globalAlpha = 1;
       } else if (surf.barrier === 'mountain') {
-        if (hasAsset('mountain')) {
+        if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
           // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
           // dark base so nothing bright shows through behind/below the sprite.
           octx.fillStyle = r.soilDeep;

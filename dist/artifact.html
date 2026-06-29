@@ -193,13 +193,13 @@ const CONFIG = {
     rockRadiusMin: 2,
     rockRadiusMax: 5,
     // Wall blockers: terrain spanning the surface down to depth — dig under them.
-    wallCountMin: 1,             // guarantee at least one path-blocking wall
+    wallCountMin: 3,             // walls per map (each topped with a distinct mountain for now)
     wallCountMax: 3,
     wallWidthCols: 3,            // how wide a wall is (cols)
     wallDepthMinRows: 4,         // a wall reaches at least this many rows down…
     wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
     pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
-    mountainCount: 1,            // mountain landmarks per map (one distinct sprite each; bump as variants are added)
+    mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
@@ -2968,7 +2968,7 @@ class SubstrateRenderer {
         }
         octx.globalAlpha = 1;
       } else if (surf.barrier === 'mountain') {
-        if (hasAsset('mountain')) {
+        if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
           // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
           // dark base so nothing bright shows through behind/below the sprite.
           octx.fillStyle = r.soilDeep;
@@ -4686,34 +4686,35 @@ function mountainRuns() {
   return runs;
 }
 
+const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3'];  // distinct variants, assigned one per run
 const MOUNTAIN_W_CELLS = 15;       // sprite width in cells (~1/5 of the map width ≈ "3 units" wide)
 const MOUNTAIN_EMBED_FRAC = 0.34;  // bury the full-width base; clip to the soil line so the peak emerges with tapering sides
-// One mountain per run (and one mountain run per map, by generation). The sprite's
-// full-width base is buried below the surface and the draw is clipped to above the
+// Each mountain run gets a DISTINCT variant (one of each across a map), drawn with
+// its full-width base buried below the surface and the draw clipped to above the
 // soil line, so only the naturally-tapering upper mountain shows — it emerges from
 // the ground at its feet rather than dropping in abrupt vertical sides.
 function drawMountains() {
-  if (!hasAsset('mountain')) return;
+  const variants = MOUNTAIN_KEYS.filter(hasAsset);
+  if (!variants.length) return;
   const runs = mountainRuns();
   if (!runs.length) return;
-  const img = asset('mountain');
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const aspect = img.height / img.width;
-  const w = cs * MOUNTAIN_W_CELLS, h = w * aspect;
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
-  for (const run of runs) {
+  runs.forEach((run, i) => {
+    const img = asset(variants[i % variants.length]);   // distinct per run, never repeats within the cycle
+    const w = cs * MOUNTAIN_W_CELLS, h = w * (img.height / img.width);
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);
     const sw = w * z, sh = h * z;
     const by = s.y + sh * MOUNTAIN_EMBED_FRAC;     // bury the base below the soil line
-    if (s.x < -sw || s.x > camera.viewW + sw) continue;
+    if (s.x < -sw || s.x > camera.viewW + sw) return;
     ctx.save();
     ctx.beginPath();                               // clip to ABOVE the surface — hide the buried base
     ctx.rect(0, 0, camera.viewW, surfY);
     ctx.clip();
     ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
-  }
+  });
 }
 
 function drawSurfaceProps() {
