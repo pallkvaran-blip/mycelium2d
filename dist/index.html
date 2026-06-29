@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1kfqae4";
+window.__ASSET_VER = "1ke7gx3";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -4722,8 +4722,8 @@ function drawSubstrateLeaves() {
   if (!oak && !maple) return;
   const leaves = [oak || maple, maple || oak];
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const base = cs * 0.6;                        // base leaf height in world units (kept tight to the cell)
-  const MAXL = 7, margin = cs * 1.6 * z;
+  const base = cs * 0.64;                       // base leaf height in world units (kept tight to the cell)
+  const MAXL = 11, margin = cs * 1.6 * z;       // more leaves per cell → a fuller heap once bundled
   sub.forEachCell((cell, col, row) => {
     if (cell.nutrient <= 0 || cell.rock) return;
     const ctr = sub.cellCenter(col, row);
@@ -4731,6 +4731,17 @@ function drawSubstrateLeaves() {
     if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
     const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
     const count = Math.max(1, Math.round(MAXL * frac));
+    // Pull this cell's leaves toward the local food centroid so a cluster reads
+    // as ONE heaped pile (not a cross of separate cells). This also bundles
+    // leaves inward — away from any nearby rock.
+    let bx = 0, by = 0;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nb = sub.cellAt(col + dc, row + dr);
+      if (nb && nb.nutrient > 0) { bx += dc; by += dr; }
+    }
+    const bl = Math.hypot(bx, by);
+    const biasX = bl ? (bx / bl) * cs * 0.55 * z : 0;
+    const biasY = bl ? (by / bl) * cs * 0.55 * z : 0;
     for (let k = 0; k < count; k++) {           // low k = bottom of the pile (eaten last)
       const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
       const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
@@ -4739,7 +4750,7 @@ function drawSubstrateLeaves() {
       if (!img) continue;
       const lh = base * (0.7 + h1 * 0.6) * z;
       const lw = lh * (img.width / img.height);
-      const ox = (h1 * 2 - 1) * cs * 0.26 * z, oy = (h2 * 2 - 1) * cs * 0.24 * z;
+      const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
       ctx.save();
       ctx.translate(s.x + ox, s.y + oy);
       ctx.rotate(h3 * Math.PI * 2);
