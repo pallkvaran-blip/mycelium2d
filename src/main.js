@@ -303,10 +303,10 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
-  drawLakes();                  // lake basins rendered as a water cross-section sprite (gated)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
-  drawRockPiles();              // rock formations rendered as piled boulders (gated)
-  drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
+  drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
+  drawRockPiles();              // rock formations rendered as piled boulders (gated) — over food/earth
+  drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
