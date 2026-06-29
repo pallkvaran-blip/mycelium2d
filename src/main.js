@@ -306,6 +306,7 @@ function frame(time) {
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawRockPiles();              // rock formations rendered as piled boulders (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
+  drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
 
   for (const net of state.networks) {
@@ -836,6 +837,59 @@ function surfaceProps() {
   return props;
 }
 
+// Mountain barriers: one sprite per contiguous run of 'mountain' surface, its
+// solid base anchored at (and slightly embedded into) the surface line so it
+// rises from the ground rather than floating. Sized large; the base spans wider
+// than the impassable wall so the slopes reach the ground on both sides.
+let _mtnState = null, _mtns = null;
+function mountainRuns() {
+  if (_mtnState === state) return _mtns;
+  const sub = state.substrate, runs = [];
+  let c = 0;
+  while (c < sub.cols) {
+    if (sub.surface[c] && sub.surface[c].barrier === 'mountain') {
+      let end = c;
+      while (end < sub.cols && sub.surface[end].barrier === 'mountain') end++;
+      runs.push({ c0: c, c1: end - 1 });
+      c = end;
+    } else c++;
+  }
+  _mtnState = state; _mtns = runs;
+  return runs;
+}
+
+const MOUNTAIN_W_CELLS = 6;    // one mountain's base width (cells) — large
+function drawMountains() {
+  if (!hasAsset('mountain')) return;
+  const runs = mountainRuns();
+  if (!runs.length) return;
+  const img = asset('mountain');
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const aspect = img.height / img.width;
+  const baseW = cs * MOUNTAIN_W_CELLS;
+  for (const run of runs) {
+    const x0 = run.c0 * cs, x1 = (run.c1 + 1) * cs, runW = x1 - x0;
+    // Wide runs become a small RANGE of overlapping peaks; a narrow wall, one peak.
+    const count = Math.max(1, Math.round(runW / (cs * 4.2)));
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0.5 : i / (count - 1);
+      const midX = x0 + t * runW;
+      const j = _hashf(run.c0 + i * 3, 3.7);
+      const w = baseW * (0.82 + j * 0.5);          // size jitter so peaks aren't identical
+      const h = w * aspect;
+      const flip = _hashf(run.c0 + i * 3, 9.1) < 0.5;
+      const s = camera.worldToScreen(midX, sub.surfaceY);
+      const by = s.y + cs * 0.25 * z;              // base slightly embedded into the ground
+      const sw = w * z, sh = h * z;
+      if (s.x < -sw || s.x > camera.viewW + sw) continue;
+      ctx.save();
+      if (flip) { ctx.translate(s.x, by); ctx.scale(-1, 1); ctx.drawImage(img, -sw / 2, -sh, sw, sh); }
+      else ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+      ctx.restore();
+    }
+  }
+}
+
 function drawSurfaceProps() {
   const props = surfaceProps();
   if (!props || !props.length) return;
@@ -1041,7 +1095,7 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; });
+loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; if (substrateRenderer) substrateRenderer.markDirty(); });
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

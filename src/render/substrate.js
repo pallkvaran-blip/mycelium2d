@@ -16,6 +16,7 @@
 
 import { makeNoise } from './noise.js';
 import { makeRng } from '../engine/rng.js';
+import { hasAsset } from './assets.js';
 
 export class SubstrateRenderer {
   constructor(substrate, config, seed = 1) {
@@ -413,24 +414,31 @@ export class SubstrateRenderer {
         }
         octx.globalAlpha = 1;
       } else if (surf.barrier === 'mountain') {
-        // Mountain — a raised rocky ridge rising above the soil line.
-        const rise = 10 + this.rng() * 22;
-        octx.fillStyle = r.mountainRock;
-        octx.fillRect(x, lineY - rise, cs + 1, rise + 16);
-        octx.fillStyle = r.mountainFacet;
-        octx.beginPath();
-        octx.moveTo(x, lineY - rise * 0.6);
-        octx.lineTo(x + cs * 0.5, lineY - rise);
-        octx.lineTo(x + cs * 0.5, lineY + 14);
-        octx.lineTo(x, lineY + 14);
-        octx.closePath();
-        octx.fill();
-        octx.strokeStyle = 'rgba(0,0,0,0.45)';
-        octx.lineWidth = 1;
-        octx.beginPath();
-        octx.moveTo(x + this.rng() * cs, lineY - rise * 0.5);
-        octx.lineTo(x + this.rng() * cs, lineY + 12);
-        octx.stroke();
+        if (hasAsset('mountain')) {
+          // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
+          // dark base so nothing bright shows through behind/below the sprite.
+          octx.fillStyle = r.soilDeep;
+          octx.fillRect(x, lineY - 2, cs + 1, 16);
+        } else {
+          // Procedural fallback — a raised rocky ridge rising above the soil line.
+          const rise = 10 + this.rng() * 22;
+          octx.fillStyle = r.mountainRock;
+          octx.fillRect(x, lineY - rise, cs + 1, rise + 16);
+          octx.fillStyle = r.mountainFacet;
+          octx.beginPath();
+          octx.moveTo(x, lineY - rise * 0.6);
+          octx.lineTo(x + cs * 0.5, lineY - rise);
+          octx.lineTo(x + cs * 0.5, lineY + 14);
+          octx.lineTo(x, lineY + 14);
+          octx.closePath();
+          octx.fill();
+          octx.strokeStyle = 'rgba(0,0,0,0.45)';
+          octx.lineWidth = 1;
+          octx.beginPath();
+          octx.moveTo(x + this.rng() * cs, lineY - rise * 0.5);
+          octx.lineTo(x + this.rng() * cs, lineY + 12);
+          octx.stroke();
+        }
       } else {
         // Concrete — a hard flat cap.
         octx.fillStyle = r.concrete;

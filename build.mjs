@@ -34,10 +34,10 @@ const MODULES = [
   'src/engine/actions.js',
   'src/render/camera.js',
   'src/render/noise.js',
+  'src/render/assets.js',
   'src/render/substrate.js',
   'src/render/network.js',
   'src/render/lighting.js',
-  'src/render/assets.js',
   'src/render/ui.js',
   'src/main.js',
 ];
