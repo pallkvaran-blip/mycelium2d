@@ -845,7 +845,6 @@ function surfaceProps() {
 // than the impassable wall so the slopes reach the ground on both sides.
 let _mtnState = null, _mtns = null;
 let _rangeBuf = null;   // offscreen buffer for the faded range backdrop
-let _peakBuf = null;    // offscreen buffer for the foreground peaks (faded over lakes)
 function mountainRuns() {
   if (_mtnState === state) return _mtns;
   const sub = state.substrate, runs = [];
@@ -921,17 +920,16 @@ function drawMountains() {
   const peaks = MOUNTAIN_PEAK_KEYS.filter(hasAsset);
   const runs = mountainRuns();
   if (!peaks.length || !runs.length) return;
-  const bandW = Math.max(1, Math.ceil(camera.viewW));
-  const bandH = Math.max(1, Math.ceil(surfY - skyTopY));
-  if (bandH <= 1) return;
-  // Render the peaks to an offscreen layer (so overlapping peaks occlude each
-  // other), then FADE them out over the lake's column band — keeps foreground
-  // peaks off the lake WITHOUT a hard vertical chop. The distant range backdrop
-  // still spans the lake (background mountains over a lake are fine).
-  if (!_peakBuf) _peakBuf = document.createElement('canvas');
-  if (_peakBuf.width !== bandW || _peakBuf.height !== bandH) { _peakBuf.width = bandW; _peakBuf.height = bandH; }
-  const pctx = _peakBuf.getContext('2d');
-  pctx.clearRect(0, 0, bandW, bandH);
+  // Lake screen x-band: a foreground peak that would reach into it is SHRUNK
+  // (whole image, uniformly) so its edge stops just before the lake — the
+  // mountain sits next to the lake with no overlap, no cut, and no fade.
+  let lakeL = Infinity, lakeR = -Infinity;
+  for (const lk of lakeRuns()) {
+    lakeL = Math.min(lakeL, camera.worldToScreen(lk.c0 * cs, sub.surfaceY).x);
+    lakeR = Math.max(lakeR, camera.worldToScreen((lk.c1 + 1) * cs, sub.surfaceY).x);
+  }
+  const hasLake = lakeR > lakeL;
+  const GAP = 2;                                   // tiny gap so they're adjacent, not touching
   // Seeded shuffle so each map shows a different distinct subset of the peak pool.
   const order = peaks
     .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.013) }))
@@ -939,44 +937,36 @@ function drawMountains() {
     .map((o) => o.k);
   runs.forEach((run, i) => {
     const img = asset(order[i % order.length]);
-    const w = cs * run.wCells, h = w * (img.height / img.width);
+    const aspect = img.height / img.width;
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);
-    const sw = w * z, sh = h * z;
-    const by = s.y + sh * MOUNTAIN_EMBED_FRAC;     // bury the base below the soil line
+    let sw = cs * run.wCells * z;
+    if (hasLake) {
+      if (s.x <= lakeL) {                          // peak left of the lake: end at its left edge
+        sw = Math.min(sw, Math.max(0, 2 * (lakeL - GAP - s.x)));
+      } else if (s.x >= lakeR) {                   // peak right of the lake: end at its right edge
+        sw = Math.min(sw, Math.max(0, 2 * (s.x - (lakeR + GAP))));
+      } else {
+        return;                                    // centred over the lake (shouldn't happen) — skip
+      }
+    }
+    if (sw < 4) return;
+    const sh = sw * aspect;
+    const by = s.y + sh * MOUNTAIN_EMBED_FRAC;      // bury the base below the soil line
     if (s.x < -sw || s.x > camera.viewW + sw) return;
     // Fainter/backdrop-like via DIMMING (darkened toward the night sky), NOT
     // transparency — so overlapping peaks occlude each other instead of showing
     // through. Larger peaks stay a touch brighter (a bit more present).
     const t = Math.max(0, Math.min(1, (run.wCells - MOUNTAIN_W_MIN) / (MOUNTAIN_W_MAX - MOUNTAIN_W_MIN)));
     const bright = 0.6 + 0.22 * t;
-    pctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
-    pctx.drawImage(img, s.x - sw / 2, (by - sh) - skyTopY, sw, sh);
+    ctx.save();
+    ctx.beginPath();                                // clip to the sky band — cut tops at the sky top, hide the buried base
+    ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
+    ctx.clip();
+    ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
+    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.restore();
   });
-  pctx.filter = 'none';
-  // Feathered erase across the lake band so peaks taper away over the lake.
-  let lakeL = Infinity, lakeR = -Infinity;
-  for (const lk of lakeRuns()) {
-    lakeL = Math.min(lakeL, camera.worldToScreen(lk.c0 * cs, sub.surfaceY).x);
-    lakeR = Math.max(lakeR, camera.worldToScreen((lk.c1 + 1) * cs, sub.surfaceY).x);
-  }
-  if (lakeR > lakeL) {
-    const fe = Math.max(10, cs * z * 1.4);         // feather width on each side
-    const x0 = lakeL - fe, x1 = lakeR + fe, tot = Math.max(1, x1 - x0);
-    const g = pctx.createLinearGradient(x0, 0, x1, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(Math.min(0.49, fe / tot), 'rgba(0,0,0,1)');
-    g.addColorStop(Math.max(0.51, 1 - fe / tot), 'rgba(0,0,0,1)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    pctx.globalCompositeOperation = 'destination-out';
-    pctx.fillStyle = g;
-    pctx.fillRect(x0, 0, tot, bandH);
-    pctx.globalCompositeOperation = 'source-over';
-  }
-  ctx.save();
-  ctx.beginPath(); ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY); ctx.clip();
-  ctx.drawImage(_peakBuf, 0, skyTopY);
-  ctx.restore();
 }
 
 // Lake basins: each 'lake' run is a water-filled cross-section. When the lake
