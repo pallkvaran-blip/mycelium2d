@@ -4692,8 +4692,8 @@ function mountainRuns() {
   return runs;
 }
 
-const MOUNTAIN_W_CELLS = 6;        // sprite width (cells); ~5 cells show above ground
-const MOUNTAIN_EMBED_FRAC = 0.34;  // fraction of the sprite buried below the surface
+const MOUNTAIN_W_CELLS = 5;        // sprite width in cells (the sprite tapers to feet, so it reads ~4-5 tiles wide)
+const MOUNTAIN_EMBED_FRAC = 0.07;  // just tuck the feet under the soil line (sprite already tapers, no buried base to hide)
 // One mountain per run (and one mountain run per map, by generation). The sprite's
 // full-width base is buried below the surface and the draw is clipped to above the
 // soil line, so only the naturally-tapering upper mountain shows — it emerges from
