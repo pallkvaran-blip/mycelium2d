@@ -12,7 +12,7 @@
 // would do). Imports are rewired to read from the registry; exports are
 // collected from each closure's return value. No runtime module loading.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync, readdirSync, statSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, posix } from 'path';
 
@@ -92,10 +92,23 @@ const js = MODULES
 const indexHtml = readFileSync(R('index.html'), 'utf8');
 const css = indexHtml.match(/<style>([\s\S]*?)<\/style>/)[1].trim();
 
-// Content-based asset version: changes only when the bundle changes, so a new
-// deploy always busts the cached manifest.json + image fetches (GitHub Pages
-// serves everything with max-age=600, which otherwise hides freshly-added art).
-const ver = (() => { let h = 5381; const s = js + css; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); })();
+// Content-based asset version: changes when the bundle OR any asset file
+// changes, so a new deploy always busts the cached manifest.json + image
+// fetches (GitHub Pages serves everything with max-age=600, which otherwise
+// hides freshly-changed art).
+const ver = (() => {
+  let h = 5381;
+  const mix = (s) => { for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; };
+  mix(js); mix(css);
+  // fold in each asset's name + size + mtime so changed art bumps the version
+  try {
+    for (const f of readdirSync(R('assets')).sort()) {
+      const st = statSync(R('assets/' + f));
+      if (st.isFile()) mix(f + ':' + st.size + ':' + Math.floor(st.mtimeMs));
+    }
+  } catch {}
+  return (h >>> 0).toString(36);
+})();
 
 const body = `<title>Mycelium — Phase 1</title>
 <meta name="description" content="A 2D roguelike engine-builder themed on the life of a fungal colony — steer, defend, and fruit a living mycelial network." />
