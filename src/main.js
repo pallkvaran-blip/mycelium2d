@@ -850,7 +850,10 @@ function mountainRuns() {
     if (sub.surface[c] && sub.surface[c].barrier === 'mountain') {
       let end = c;
       while (end < sub.cols && sub.surface[end].barrier === 'mountain') end++;
-      runs.push({ c0: c, c1: end - 1 });
+      // Per-mountain width varies in [MIN,MAX] tiles — deterministic from the map
+      // seed + column, so it's stable across frames but different per mountain/map.
+      const wCells = MOUNTAIN_W_MIN + _hashf(c + 0.5, (state.seed || 1) * 0.071) * (MOUNTAIN_W_MAX - MOUNTAIN_W_MIN);
+      runs.push({ c0: c, c1: end - 1, wCells });
       c = end;
     } else c++;
   }
@@ -859,7 +862,8 @@ function mountainRuns() {
 }
 
 const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3'];  // distinct variants, assigned one per run
-const MOUNTAIN_W_CELLS = 15;       // sprite width in cells (~1/5 of the map width ≈ "3 units" wide)
+const MOUNTAIN_W_MIN = 10;         // narrowest mountain (tiles)
+const MOUNTAIN_W_MAX = 40;         // widest mountain (tiles) — each mountain's width varies in [MIN,MAX] for variety
 const MOUNTAIN_EMBED_FRAC = 0.34;  // bury the full-width base; clip to the soil line so the peak emerges with tapering sides
 // Each mountain run gets a DISTINCT variant (one of each across a map), drawn with
 // its full-width base buried below the surface and the draw clipped to above the
@@ -874,7 +878,7 @@ function drawMountains() {
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   runs.forEach((run, i) => {
     const img = asset(variants[i % variants.length]);   // distinct per run, never repeats within the cycle
-    const w = cs * MOUNTAIN_W_CELLS, h = w * (img.height / img.width);
+    const w = cs * run.wCells, h = w * (img.height / img.width);
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);
     const sw = w * z, sh = h * z;
