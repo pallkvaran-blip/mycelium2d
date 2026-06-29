@@ -440,22 +440,18 @@ export class SubstrateRenderer {
           octx.stroke();
         }
       } else {
-        // Concrete — a hard flat cap.
-        octx.fillStyle = r.concrete;
-        octx.fillRect(x, lineY - 4, cs + 1, 20);
-        octx.fillStyle = 'rgba(255,255,255,0.06)';
-        octx.fillRect(x, lineY - 4, cs + 1, 2);
-        octx.strokeStyle = r.concreteCrack;
-        octx.lineWidth = 1;
-        for (let k = 0; k < 2; k++) {
-          const cxs = x + this.rng() * cs;
-          octx.beginPath();
-          octx.moveTo(cxs, lineY - 4);
-          octx.lineTo(cxs + (this.rng() - 0.5) * 6, lineY + 12);
-          octx.stroke();
-        }
-        octx.fillStyle = 'rgba(0,0,0,0.25)';
-        for (let k = 0; k < 3; k++) octx.fillRect(x + this.rng() * cs, lineY + this.rng() * 12, 1, 1);
+        // Man-made / impassable middle ground — rendered as ordinary dark dirt so
+        // it reads as plain non-fruitable ground. (The old grey 'concrete' cap is
+        // gone; cities, lakes and mountains are the surface landmarks now.)
+        const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+        cg.addColorStop(0, r.crust);
+        cg.addColorStop(1, r.soilTop);
+        octx.fillStyle = cg;
+        octx.fillRect(x, lineY, cs + 1, 18);
+        octx.fillStyle = r.crustLip;
+        octx.globalAlpha = 0.6;
+        octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+        octx.globalAlpha = 1;
       }
     }
   }

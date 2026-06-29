@@ -2994,22 +2994,18 @@ class SubstrateRenderer {
           octx.stroke();
         }
       } else {
-        // Concrete — a hard flat cap.
-        octx.fillStyle = r.concrete;
-        octx.fillRect(x, lineY - 4, cs + 1, 20);
-        octx.fillStyle = 'rgba(255,255,255,0.06)';
-        octx.fillRect(x, lineY - 4, cs + 1, 2);
-        octx.strokeStyle = r.concreteCrack;
-        octx.lineWidth = 1;
-        for (let k = 0; k < 2; k++) {
-          const cxs = x + this.rng() * cs;
-          octx.beginPath();
-          octx.moveTo(cxs, lineY - 4);
-          octx.lineTo(cxs + (this.rng() - 0.5) * 6, lineY + 12);
-          octx.stroke();
-        }
-        octx.fillStyle = 'rgba(0,0,0,0.25)';
-        for (let k = 0; k < 3; k++) octx.fillRect(x + this.rng() * cs, lineY + this.rng() * 12, 1, 1);
+        // Man-made / impassable middle ground — rendered as ordinary dark dirt so
+        // it reads as plain non-fruitable ground. (The old grey 'concrete' cap is
+        // gone; cities, lakes and mountains are the surface landmarks now.)
+        const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+        cg.addColorStop(0, r.crust);
+        cg.addColorStop(1, r.soilTop);
+        octx.fillStyle = cg;
+        octx.fillRect(x, lineY, cs + 1, 18);
+        octx.fillStyle = r.crustLip;
+        octx.globalAlpha = 0.6;
+        octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+        octx.globalAlpha = 1;
       }
     }
   }
@@ -4652,14 +4648,14 @@ let _propState = null, _props = null;
 function surfaceProps() {
   if (_propState === state) return _props;
   const sub = state.substrate, seed = (state.seed || 1) * 0.013, props = [];
-  let lastTree = -99, lastHouse = -99;
+  let lastTree = -99;
   for (let c = 2; c < sub.cols - 2; c++) {
     const surf = sub.surface[c];
     const r = _hashf(c + 0.5, seed);
-    if (surf.soil) {
-      if (r < 0.07 && c - lastTree > 3 && hasAsset('tree')) { props.push({ key: 'tree', col: c, h: 124, embed: 24, flip: _hashf(c, 7) < 0.5 }); lastTree = c; }
-    } else if (r < 0.10 && c - lastHouse > 4 && hasAsset('house')) {
-      props.push({ key: 'house', col: c, h: 86, embed: 12, flip: _hashf(c, 9) < 0.5 }); lastHouse = c;
+    // Trees scatter over fruitable soil. (The lone 'house' prop was removed — the
+    // city skylines are the man-made surface now.)
+    if (surf.soil && r < 0.07 && c - lastTree > 3 && hasAsset('tree')) {
+      props.push({ key: 'tree', col: c, h: 124, embed: 24, flip: _hashf(c, 7) < 0.5 }); lastTree = c;
     }
   }
   _propState = state; _props = props;
@@ -4759,7 +4755,8 @@ function drawMountains() {
 // per map (no repeats): a seeded shuffle assigns one per run, stopping when the
 // pool is exhausted. Drawn dimmed + opaque (backdrop feel, no see-through).
 const CITY_KEYS = ['skyline1', 'skyline2', 'skyline3', 'skyline4', 'skyline5', 'skyline6'];
-const CITY_W_MIN = 16, CITY_W_MAX = 26;   // city width in tiles (~20), slight per-city variation
+const CITY_W_MIN = 7, CITY_W_MAX = 12;    // city width in tiles — small, varied (capped at run width)
+const CITY_MIN_RUN = 6;                   // skip barrier runs narrower than this (plain ground there)
 const CITY_EMBED_FRAC = 0.04;             // flat base sits just on the soil line
 let _cityState = null, _cities = null;
 function cityRuns() {
@@ -4770,8 +4767,14 @@ function cityRuns() {
     if (sub.surface[c] && sub.surface[c].barrier === 'concrete') {
       let end = c;
       while (end < sub.cols && sub.surface[end].barrier === 'concrete') end++;
-      const wCells = CITY_W_MIN + _hashf(c + 0.3, (state.seed || 1) * 0.029) * (CITY_W_MAX - CITY_W_MIN);
-      runs.push({ c0: c, c1: end - 1, wCells });
+      const runCells = end - c;
+      if (runCells >= CITY_MIN_RUN) {
+        // Each city fits WITHIN its run (centred) — runs are always separated by a
+        // lake/mountain gap, so cities can never overlap. Width varies but is
+        // capped at the run width.
+        const want = CITY_W_MIN + _hashf(c + 0.3, (state.seed || 1) * 0.029) * (CITY_W_MAX - CITY_W_MIN);
+        runs.push({ c0: c, c1: end - 1, wCells: Math.min(want, runCells) });
+      }
       c = end;
     } else c++;
   }
@@ -4787,6 +4790,10 @@ function drawCities() {
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   const skyTopY = camera.worldToScreen(0, 0).y;
+  // Horizontal map edges — clip so a skyline never spills off the map.
+  const leftX = Math.max(0, camera.worldToScreen(0, sub.surfaceY).x);
+  const rightX = Math.min(camera.viewW, camera.worldToScreen(sub.worldWidth, sub.surfaceY).x);
+  if (rightX <= leftX) return;
   const seed = (state.seed || 1) >>> 0;
   // Seeded shuffle of the pool → distinct skyline per run, none repeated.
   const order = keys.map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.017) })).sort((a, b) => a.r - b.r).map((o) => o.k);
@@ -4798,9 +4805,9 @@ function drawCities() {
     const s = camera.worldToScreen(midX, sub.surfaceY);
     const sw = w * z, sh = h * z;
     const by = s.y + sh * CITY_EMBED_FRAC;
-    if (s.x < -sw || s.x > camera.viewW + sw) return;
+    if (s.x < leftX - sw || s.x > rightX + sw) return;
     ctx.save();
-    ctx.beginPath(); ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY); ctx.clip();
+    ctx.beginPath(); ctx.rect(leftX, skyTopY, rightX - leftX, surfY - skyTopY); ctx.clip();
     ctx.filter = 'brightness(0.85) saturate(0.92)';  // dimmed backdrop, opaque (no see-through)
     ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
