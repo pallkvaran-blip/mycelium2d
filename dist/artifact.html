@@ -4738,13 +4738,16 @@ function drawMountains() {
     const sw = w * z, sh = h * z;
     const by = s.y + sh * MOUNTAIN_EMBED_FRAC;     // bury the base below the soil line
     if (s.x < -sw || s.x > camera.viewW + sw) return;
-    // Fainter overall (backdrop-like); larger peaks stay a touch more present.
-    const t = (run.wCells - MOUNTAIN_W_MIN) / (MOUNTAIN_W_MAX - MOUNTAIN_W_MIN);
+    // Fainter/backdrop-like via DIMMING (darkened toward the night sky), NOT
+    // transparency — so overlapping peaks occlude each other instead of showing
+    // through. Larger peaks stay a touch brighter (a bit more present).
+    const t = Math.max(0, Math.min(1, (run.wCells - MOUNTAIN_W_MIN) / (MOUNTAIN_W_MAX - MOUNTAIN_W_MIN)));
+    const bright = 0.6 + 0.22 * t;
     ctx.save();
     ctx.beginPath();                               // clip to the sky band — hide the buried base AND cut tops at the sky top
     ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
     ctx.clip();
-    ctx.globalAlpha = 0.5 + 0.3 * Math.max(0, Math.min(1, t));
+    ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
     ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
   });
