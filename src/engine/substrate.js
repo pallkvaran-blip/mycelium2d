@@ -279,10 +279,41 @@ export function generateSubstrate(config, rng) {
   //    can't just grow freely) and steering with Add-Substrate matters. A reward
   //    cache is tucked at the bottom of each wall dip, paying off the deep route.
   const N = s.foodCellNutrient;
-  const drop = (cc, cr, radius) => stamp(sub, cc, cr, radius, (cell) => {
-    if (cell.hazard || cell.rock) return;         // no food inside rock
-    cell.nutrient = N; cell.maxNutrient = N;      // flat — same value every cell
-  });
+  // Keep food clear of rock formations: rocks render as big piled boulders that
+  // spill well beyond their cells, so food placed near rock reads as sitting on
+  // (or under) the rock. BUF is the min clearance (cells) from any rock cell.
+  const BUF = s.foodRockBuffer || 2.2;
+  const rockNear = (col, row, r) => {
+    const ri = Math.ceil(r);
+    for (let dr = -ri; dr <= ri; dr++)
+      for (let dc = -ri; dc <= ri; dc++) {
+        if (dc * dc + dr * dr > r * r) continue;
+        const cell = sub.cellAt(col + dc, row + dr);
+        if (cell && cell.rock) return true;
+      }
+    return false;
+  };
+  // Find the nearest cell to (cc,cr) that's open and clear of rock (spiral out).
+  const findClear = (cc, cr) => {
+    for (let r = 0; r <= 6; r++)
+      for (let dr = -r; dr <= r; dr++)
+        for (let dc = -r; dc <= r; dc++) {
+          if (r > 0 && Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue; // ring only
+          const col = cc + dc, row = cr + dr;
+          const cell = sub.cellAt(col, row);
+          if (cell && !cell.rock && !cell.hazard && !rockNear(col, row, BUF)) return { col, row };
+        }
+    return null;
+  };
+  const drop = (cc, cr, radius) => {
+    const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
+    if (!c0) return;
+    stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
+      if (cell.hazard || cell.rock) return;        // no food inside rock
+      if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
+      cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
+    });
+  };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
   for (let i = 0; i < count; i++) {
@@ -303,14 +334,14 @@ export function generateSubstrate(config, rng) {
   return sub;
 }
 
-// Stamp a circular footprint, invoking cb(cell, distInCells) for each cell.
+// Stamp a circular footprint, invoking cb(cell, distInCells, col, row) per cell.
 function stamp(sub, cc, cr, radius, cb) {
   for (let row = cr - radius; row <= cr + radius; row++) {
     for (let col = cc - radius; col <= cc + radius; col++) {
       if (!sub.inBounds(col, row)) continue;
       const dist = Math.hypot(col - cc, row - cr);
       if (dist > radius) continue;
-      cb(sub.cells[sub.index(col, row)], dist);
+      cb(sub.cells[sub.index(col, row)], dist, col, row);
     }
   }
 }

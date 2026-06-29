@@ -675,7 +675,7 @@ function drawSubstrateLeaves() {
   if (!oak && !maple) return;
   const leaves = [oak || maple, maple || oak];
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const base = cs * 0.72;                       // base leaf height in world units
+  const base = cs * 0.6;                        // base leaf height in world units (kept tight to the cell)
   const MAXL = 7, margin = cs * 1.6 * z;
   sub.forEachCell((cell, col, row) => {
     if (cell.nutrient <= 0 || cell.rock) return;
@@ -692,7 +692,7 @@ function drawSubstrateLeaves() {
       if (!img) continue;
       const lh = base * (0.7 + h1 * 0.6) * z;
       const lw = lh * (img.width / img.height);
-      const ox = (h1 * 2 - 1) * cs * 0.5 * z, oy = (h2 * 2 - 1) * cs * 0.45 * z;
+      const ox = (h1 * 2 - 1) * cs * 0.26 * z, oy = (h2 * 2 - 1) * cs * 0.24 * z;
       ctx.save();
       ctx.translate(s.x + ox, s.y + oy);
       ctx.rotate(h3 * Math.PI * 2);

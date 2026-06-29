@@ -27,10 +27,11 @@ export const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 7,         // SPARSE caches along the route — energy is a real constraint
+    foodClusterCount: 9,         // SPARSE caches along the route — energy is a real constraint (a couple extra to offset rock-clearance trimming)
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
+    foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
     rockCount: 6,                // impassable rock formations to route around
     rockRadiusMin: 2,
     rockRadiusMax: 5,
