@@ -744,7 +744,7 @@ function rockGroups() {
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let gi = 0;
     sub.forEachCell((cell, col, row) => {
-      if (!cell.rock || seen.has(id(col, row))) return;
+      if (!cell.rock || cell.water || seen.has(id(col, row))) return;   // lakes (water) draw as water, not boulders
       const cells = [];
       const q = [[col, row]]; seen.add(id(col, row));
       while (q.length) {
@@ -754,7 +754,7 @@ function rockGroups() {
           const nc = c + dc, nr = r + dr;
           if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
           const ncell = sub.cellAt(nc, nr);
-          if (ncell && ncell.rock) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+          if (ncell && ncell.rock && !ncell.water) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
       let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);

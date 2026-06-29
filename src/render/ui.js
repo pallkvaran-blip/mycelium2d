@@ -61,6 +61,7 @@ export class UI {
       ['#8aa23e', 'Trichoderma — infects your net'],
       ['radial-gradient(circle,rgba(150,190,70,0) 55%,rgba(150,190,70,0.5))', 'Mould sight range (soft ring)'],
       ['#5d574e', 'Rock — impassable'],
+      ['linear-gradient(180deg,#3f8197,#0e2935)', 'Lake — impassable water'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
       ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],

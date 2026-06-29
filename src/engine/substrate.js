@@ -22,7 +22,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -141,16 +141,9 @@ export function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
-  // …and the middle is broken into runs of distinct barrier terrain. Mountains
-  // are NOT a generic flavour — they are placed as rare landmarks over the walls
-  // (below), one per available sprite — so the cosmetic runs are concrete/lake.
-  const TYPES = ['concrete', 'lake'];
-  let bcol = startCols;
-  while (bcol < goalStart) {
-    const width = rng.int(s.barrierSegMinCols || 4, s.barrierSegMaxCols || 10);
-    const type = rng.pick(TYPES);
-    for (let i = 0; i < width && bcol < goalStart; i++, bcol++) sub.surface[bcol].barrier = type;
-  }
+  // …and the middle stays 'concrete' (rendered as plain ground; city skylines are
+  // drawn over it). The distinctive barriers — mountains and lakes — are placed
+  // as features below, so the rest of the surface is just impassable ground.
 
   // 2) Hazards (toxic pools) — disabled (hazardCount 0), kept for compatibility.
   const hazards = [];
@@ -191,16 +184,60 @@ export function generateSubstrate(config, rng) {
     wc = Math.max(innerLo, Math.min(innerHi, wc));
     const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
     walls.push({ c0: wc, c1: wc + wallW, depth });
-    // The first few walls (up to mountainCount) are mountains — a distinct sprite
-    // landmark each — the rest are lakes. Mountains never repeat on a map.
-    const type = i < (s.mountainCount || 1) ? 'mountain' : 'lake';
+    // Each wall is topped with a mountain — a distinct sprite landmark. (Lakes are
+    // a separate wide water feature, placed below.)
     for (let col = wc; col < wc + wallW; col++) {
-      sub.surface[col].barrier = type;
+      sub.surface[col].barrier = 'mountain';
       for (let row = 0; row <= depth; row++) {
         const cell = sub.cellAt(col, row);
         if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
       }
     }
+  }
+
+  // 2c-ii) LAKE basins — large water-filled cross-sections carved into the earth.
+  //   A bowl (semi-ellipse) of WATER cells: impassable (rock+water), deepest at
+  //   the centre, tapering to the edges. The mycelium routes UNDER each basin
+  //   (its depth feeds the path profile below). Placed in the middle, clear of
+  //   the mountains and the entry/goal channels.
+  const occupied = new Array(sub.cols).fill(false);
+  for (const w of walls) for (let c = w.c0 - 2; c <= w.c1 + 1; c++) if (c >= 0 && c < sub.cols) occupied[c] = true;
+  const lakes = [];
+  const lakeCount = rng.int(Math.max(0, s.lakeCountMin || 0), Math.max(0, s.lakeCountMax || 0));
+  const lwMin = s.lakeWidthMinCols || 8, lwMax = s.lakeWidthMaxCols || 14;
+  const ldMin = s.lakeDepthMinRows || 5, ldMax = s.lakeDepthMaxRows || 8;
+  const lakeLo = startCols + 3, lakeHi = goalStart - 3;
+  // Find the free spans between the mountains, then drop lakes into the widest
+  // ones — so a basin reliably appears (random probing often found no room).
+  const spans = [];
+  let sc = -1;
+  for (let c = lakeLo; c <= lakeHi; c++) {
+    if (!occupied[c]) { if (sc < 0) sc = c; }
+    else if (sc >= 0) { spans.push([sc, c - 1]); sc = -1; }
+  }
+  if (sc >= 0) spans.push([sc, lakeHi]);
+  spans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));   // widest first
+  for (const [s0, s1] of spans) {
+    if (lakes.length >= lakeCount) break;
+    const spanW = s1 - s0 + 1;
+    if (spanW < lwMin + 1) continue;                     // no room for even a min lake (+margin)
+    const lw = Math.min(rng.int(lwMin, lwMax), spanW - 1);
+    const c0 = s0 + Math.floor((spanW - lw) / 2);        // centre the basin in the span
+    const maxDepth = Math.max(2, Math.min(sub.rows - pathH - 2, rng.int(ldMin, ldMax)));
+    const center = c0 + lw / 2;
+    for (let col = c0; col < c0 + lw; col++) {
+      const t = (col + 0.5 - center) / (lw / 2);         // -1..1 across the bowl
+      const d = Math.max(1, Math.round(maxDepth * Math.sqrt(Math.max(0, 1 - t * t))));
+      sub.surface[col].barrier = 'lake';
+      sub.surface[col].soil = false;
+      sub.surface[col].goal = false;
+      for (let row = 0; row < d; row++) {
+        const cell = sub.cellAt(col, row);
+        if (cell) { cell.rock = true; cell.water = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false; }
+      }
+      occupied[col] = true;
+    }
+    lakes.push({ c0, c1: c0 + lw - 1, maxDepth });
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
@@ -210,6 +247,11 @@ export function generateSubstrate(config, rng) {
   //     keeps every map winnable while the walls stay genuine "go under" gates.
   const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
   for (const w of walls) for (let col = w.c0; col < w.c1; col++) req[col] = Math.max(req[col], w.depth + 1);
+  // Lakes: the tunnel must pass beneath the deepest water in each column.
+  for (const lk of lakes) for (let col = lk.c0; col <= lk.c1; col++) {
+    let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+    req[col] = Math.max(req[col], d + 1);
+  }
   const pr = req.slice();
   for (let c = 1; c < sub.cols; c++) pr[c] = Math.max(pr[c], pr[c - 1] - 1);
   for (let c = sub.cols - 2; c >= 0; c--) pr[c] = Math.max(pr[c], pr[c + 1] - 1);
@@ -217,7 +259,7 @@ export function generateSubstrate(config, rng) {
   for (let col = 0; col < sub.cols; col++)
     for (let row = pathRow[col]; row < pathRow[col] + pathH; row++) {
       const cell = sub.cellAt(col, row);
-      if (cell) cell.rock = false;
+      if (cell && !cell.water) cell.rock = false;          // never carve through a lake
     }
 
   // Entry + goal channels always clear (root in, surface out).
@@ -225,7 +267,7 @@ export function generateSubstrate(config, rng) {
     for (let col = c0; col < c1; col++)
       for (let row = 0; row < sub.rows; row++) {
         const cell = sub.cellAt(col, row);
-        if (cell) cell.rock = false;
+        if (cell && !cell.water) cell.rock = false;
       }
   };
   clearChannel(0, startCols + 1);
@@ -250,6 +292,10 @@ export function generateSubstrate(config, rng) {
   for (const w of walls) {
     const cc = Math.min(sub.cols - 2, w.c1 + 1);     // just past the wall, down at the dip
     drop(cc, Math.min(sub.rows - 1, w.depth + 1), s.foodClusterRadiusMax);
+  }
+  for (const lk of lakes) {
+    const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
+    drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
   }
 
   return sub;

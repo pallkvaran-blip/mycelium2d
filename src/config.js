@@ -42,6 +42,14 @@ export const CONFIG = {
     wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
     pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
+    // Lake basins: large water-filled cross-sections carved into the earth. The
+    // water is IMPASSABLE — the mycelium must route UNDER each basin.
+    lakeCountMin: 1,             // lakes per map (min)
+    lakeCountMax: 2,             // lakes per map (max)
+    lakeWidthMinCols: 8,         // basin width (cols) — wide enough to read as a cross-section
+    lakeWidthMaxCols: 14,
+    lakeDepthMinRows: 5,         // bowl depth at the centre (rows) — gives it real depth
+    lakeDepthMaxRows: 8,
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
@@ -234,9 +242,13 @@ export const CONFIG = {
     // un-surfaceable terrain (the impassable middle of a level)
     waterSurface: '#3f8197',               // lake — bright sky-reflecting waterline
     water: '#1d4254',                      // lake — mid cool water
-    waterDeep: '#112c39',                  // lake — darker with depth
+    waterDeep: '#0e2935',                  // lake — dark deep water at the bowl bottom
     waterLip: 'rgba(150,205,228,0.7)',     // reflective surface line
     waterGlint: 'rgba(200,235,248,0.6)',   // ripple highlights
+    lakeBed: '#6f5d3c',                     // silt lakebed along the bowl curve
+    waterPlantStalk: '#2c6f5a',             // bioluminescent aquatic plant stalk
+    waterPlantGlow: 'rgba(130,240,205,0.9)',// glowing bulb at the plant tip
+    waterFish: 'rgba(190,225,238,0.5)',     // pale drifting fish
     mountainRock: '#2c2a26',               // raised rocky ridge (warm dark stone)
     mountainFacet: 'rgba(120,120,130,0.18)',// lit facet on the ridge
     goalSoil: '#5a7a44',                   // the goal reads as sunlit, living ground

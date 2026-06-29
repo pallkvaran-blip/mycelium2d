@@ -66,6 +66,7 @@ export class SubstrateRenderer {
     this._bakeFlecks();
     this._bakeRockFormations();
     this._bakeHazards();
+    this._bakeWater();
     this._bakeSurface();
   }
 
@@ -223,7 +224,7 @@ export class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
 
     const cells = [];
-    sub.forEachCell((cell, col, row) => { if (cell.rock) cells.push([col, row]); });
+    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
     if (!cells.length) return;
 
     const unionPath = () => {
@@ -361,6 +362,123 @@ export class SubstrateRenderer {
     octx.restore();
   }
 
+  // Lake basins — large water-filled cross-sections carved into the earth. Each
+  // contiguous run of 'lake' surface columns is drawn as one bowl: a smooth
+  // semi-elliptical basin with a reflective waterline, water deepening with
+  // depth, a silt bed, bioluminescent plants, and a few pale drifting fish.
+  _bakeWater() {
+    const octx = this.baseCtx;
+    const r = this.config.render;
+    const sub = this.substrate;
+    const cs = sub.cellSize, sy = sub.surfaceY;
+
+    const runs = [];
+    let c = 0;
+    while (c < sub.cols) {
+      if (sub.surface[c] && sub.surface[c].barrier === 'lake') {
+        let e = c; while (e < sub.cols && sub.surface[e].barrier === 'lake') e++;
+        runs.push([c, e - 1]); c = e;
+      } else c++;
+    }
+    if (!runs.length) return;
+
+    for (const [c0, c1] of runs) {
+      const nCols = c1 - c0 + 1;
+      const xL = c0 * cs, xR = (c1 + 1) * cs;
+      // deepest water row in the run sets the bowl depth
+      let maxD = 0;
+      for (let col = c0; col <= c1; col++) {
+        let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+        if (d > maxD) maxD = d;
+      }
+      if (maxD <= 0) continue;
+      const cx = (xL + xR) / 2, rX = (xR - xL) / 2, rY = maxD * cs;
+      const maxBot = sy + rY;
+
+      // ---- water body, clipped to the smooth bowl --------------------------
+      octx.save();
+      octx.beginPath();
+      octx.ellipse(cx, sy, rX, rY, 0, 0, Math.PI, false);   // bottom arc (xR,sy)->bowl->(xL,sy)
+      octx.closePath();                                      // straight waterline across the top
+      octx.clip();
+
+      const wg = octx.createLinearGradient(0, sy - 4, 0, maxBot);
+      wg.addColorStop(0, r.waterSurface);
+      wg.addColorStop(0.32, r.water);
+      wg.addColorStop(1, r.waterDeep);
+      octx.fillStyle = wg;
+      octx.fillRect(xL - 2, sy - 6, (xR - xL) + 4, rY + 12);
+
+      // bioluminescent plants rising from the bed (cluster toward the deep middle)
+      const plants = Math.max(2, Math.round(nCols / 3));
+      for (let p = 0; p < plants; p++) {
+        const px = xL + ((p + 0.5) / plants) * (xR - xL);
+        const tt = (px - cx) / rX;                            // -1..1
+        const bedY = sy + rY * Math.sqrt(Math.max(0, 1 - tt * tt));
+        const hgt = (bedY - sy) * (0.45 + this.rng() * 0.4);
+        if (hgt < cs * 0.8) continue;
+        const sway = (this.rng() - 0.5) * cs;
+        octx.strokeStyle = r.waterPlantStalk;
+        octx.lineWidth = 2;
+        octx.lineCap = 'round';
+        octx.globalAlpha = 0.85;
+        octx.beginPath();
+        octx.moveTo(px, bedY);
+        octx.quadraticCurveTo(px + sway, bedY - hgt * 0.55, px + sway * 0.5, bedY - hgt);
+        octx.stroke();
+        octx.globalAlpha = 1;
+        octx.fillStyle = r.waterPlantGlow;
+        octx.shadowColor = r.waterPlantGlow;
+        octx.shadowBlur = 9;
+        octx.beginPath();
+        octx.arc(px + sway * 0.5, bedY - hgt, 2.4 + this.rng() * 1.6, 0, Math.PI * 2);
+        octx.fill();
+        octx.shadowBlur = 0;
+      }
+
+      // a few small pale fish drifting in the mid-water
+      const fish = Math.max(1, Math.round(nCols / 6));
+      octx.fillStyle = r.waterFish;
+      for (let f = 0; f < fish; f++) {
+        const fx = xL + (0.2 + this.rng() * 0.6) * (xR - xL);
+        const fy = sy + cs * 0.7 + this.rng() * Math.max(cs, rY * 0.45);
+        const fs = cs * (0.16 + this.rng() * 0.08);
+        octx.save();
+        octx.translate(fx, fy);
+        if (this.rng() < 0.5) octx.scale(-1, 1);
+        octx.beginPath();
+        octx.ellipse(0, 0, fs, fs * 0.42, 0, 0, Math.PI * 2);   // body
+        octx.moveTo(-fs * 0.9, 0);
+        octx.lineTo(-fs * 1.6, -fs * 0.45);                     // tail
+        octx.lineTo(-fs * 1.6, fs * 0.45);
+        octx.closePath();
+        octx.fill();
+        octx.restore();
+      }
+
+      // ripple glints just under the waterline
+      octx.fillStyle = r.waterGlint;
+      for (let k = 0; k < nCols; k++) {
+        octx.globalAlpha = 0.3 + this.rng() * 0.4;
+        octx.fillRect(xL + this.rng() * (xR - xL), sy - 2 + this.rng() * 6, this.rng() * 7 + 2, 1);
+      }
+      octx.globalAlpha = 1;
+      octx.restore();   // end bowl clip
+
+      // ---- silt bed along the bowl curve -----------------------------------
+      octx.strokeStyle = r.lakeBed;
+      octx.lineWidth = 4;
+      octx.lineCap = 'round';
+      octx.beginPath();
+      octx.ellipse(cx, sy, rX, rY, 0, 0, Math.PI, false);
+      octx.stroke();
+
+      // ---- reflective waterline across the top -----------------------------
+      octx.fillStyle = r.waterLip;
+      octx.fillRect(xL, sy - 2, xR - xL, 2.5);
+    }
+  }
+
   _bakeSurface() {
     const octx = this.baseCtx;
     const r = this.config.render;
@@ -402,23 +520,7 @@ export class SubstrateRenderer {
           octx.globalAlpha = 1;
         }
       } else if (surf.barrier === 'lake') {
-        // Lake — cool water with a bright sky-reflecting waterline that deepens
-        // with depth, plus a crisp surface line and ripple glints, so it reads
-        // clearly as WATER (a flat dark fill looks like a grey concrete slab).
-        const wg = octx.createLinearGradient(0, lineY - 7, 0, lineY + 16);
-        wg.addColorStop(0, r.waterSurface);
-        wg.addColorStop(0.35, r.water);
-        wg.addColorStop(1, r.waterDeep);
-        octx.fillStyle = wg;
-        octx.fillRect(x, lineY - 7, cs + 1, 23);
-        octx.fillStyle = r.waterLip;
-        octx.fillRect(x, lineY - 7, cs + 1, 2);
-        octx.fillStyle = r.waterGlint;
-        for (let k = 0; k < 3; k++) {
-          octx.globalAlpha = 0.4 + this.rng() * 0.4;
-          octx.fillRect(x + this.rng() * cs, lineY - 4 + this.rng() * 12, this.rng() * 6 + 2, 1);
-        }
-        octx.globalAlpha = 1;
+        // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
         if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
           // A mountain SPRITE is drawn over this run (main.js). Bake only a thin

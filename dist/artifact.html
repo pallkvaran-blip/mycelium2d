@@ -200,6 +200,14 @@ const CONFIG = {
     wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
     pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
+    // Lake basins: large water-filled cross-sections carved into the earth. The
+    // water is IMPASSABLE — the mycelium must route UNDER each basin.
+    lakeCountMin: 1,             // lakes per map (min)
+    lakeCountMax: 2,             // lakes per map (max)
+    lakeWidthMinCols: 8,         // basin width (cols) — wide enough to read as a cross-section
+    lakeWidthMaxCols: 14,
+    lakeDepthMinRows: 5,         // bowl depth at the centre (rows) — gives it real depth
+    lakeDepthMaxRows: 8,
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
@@ -392,9 +400,13 @@ const CONFIG = {
     // un-surfaceable terrain (the impassable middle of a level)
     waterSurface: '#3f8197',               // lake — bright sky-reflecting waterline
     water: '#1d4254',                      // lake — mid cool water
-    waterDeep: '#112c39',                  // lake — darker with depth
+    waterDeep: '#0e2935',                  // lake — dark deep water at the bowl bottom
     waterLip: 'rgba(150,205,228,0.7)',     // reflective surface line
     waterGlint: 'rgba(200,235,248,0.6)',   // ripple highlights
+    lakeBed: '#6f5d3c',                     // silt lakebed along the bowl curve
+    waterPlantStalk: '#2c6f5a',             // bioluminescent aquatic plant stalk
+    waterPlantGlow: 'rgba(130,240,205,0.9)',// glowing bulb at the plant tip
+    waterFish: 'rgba(190,225,238,0.5)',     // pale drifting fish
     mountainRock: '#2c2a26',               // raised rocky ridge (warm dark stone)
     mountainFacet: 'rgba(120,120,130,0.18)',// lit facet on the ridge
     goalSoil: '#5a7a44',                   // the goal reads as sunlit, living ground
@@ -522,7 +534,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -641,16 +653,9 @@ function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
-  // …and the middle is broken into runs of distinct barrier terrain. Mountains
-  // are NOT a generic flavour — they are placed as rare landmarks over the walls
-  // (below), one per available sprite — so the cosmetic runs are concrete/lake.
-  const TYPES = ['concrete', 'lake'];
-  let bcol = startCols;
-  while (bcol < goalStart) {
-    const width = rng.int(s.barrierSegMinCols || 4, s.barrierSegMaxCols || 10);
-    const type = rng.pick(TYPES);
-    for (let i = 0; i < width && bcol < goalStart; i++, bcol++) sub.surface[bcol].barrier = type;
-  }
+  // …and the middle stays 'concrete' (rendered as plain ground; city skylines are
+  // drawn over it). The distinctive barriers — mountains and lakes — are placed
+  // as features below, so the rest of the surface is just impassable ground.
 
   // 2) Hazards (toxic pools) — disabled (hazardCount 0), kept for compatibility.
   const hazards = [];
@@ -691,16 +696,60 @@ function generateSubstrate(config, rng) {
     wc = Math.max(innerLo, Math.min(innerHi, wc));
     const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
     walls.push({ c0: wc, c1: wc + wallW, depth });
-    // The first few walls (up to mountainCount) are mountains — a distinct sprite
-    // landmark each — the rest are lakes. Mountains never repeat on a map.
-    const type = i < (s.mountainCount || 1) ? 'mountain' : 'lake';
+    // Each wall is topped with a mountain — a distinct sprite landmark. (Lakes are
+    // a separate wide water feature, placed below.)
     for (let col = wc; col < wc + wallW; col++) {
-      sub.surface[col].barrier = type;
+      sub.surface[col].barrier = 'mountain';
       for (let row = 0; row <= depth; row++) {
         const cell = sub.cellAt(col, row);
         if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
       }
     }
+  }
+
+  // 2c-ii) LAKE basins — large water-filled cross-sections carved into the earth.
+  //   A bowl (semi-ellipse) of WATER cells: impassable (rock+water), deepest at
+  //   the centre, tapering to the edges. The mycelium routes UNDER each basin
+  //   (its depth feeds the path profile below). Placed in the middle, clear of
+  //   the mountains and the entry/goal channels.
+  const occupied = new Array(sub.cols).fill(false);
+  for (const w of walls) for (let c = w.c0 - 2; c <= w.c1 + 1; c++) if (c >= 0 && c < sub.cols) occupied[c] = true;
+  const lakes = [];
+  const lakeCount = rng.int(Math.max(0, s.lakeCountMin || 0), Math.max(0, s.lakeCountMax || 0));
+  const lwMin = s.lakeWidthMinCols || 8, lwMax = s.lakeWidthMaxCols || 14;
+  const ldMin = s.lakeDepthMinRows || 5, ldMax = s.lakeDepthMaxRows || 8;
+  const lakeLo = startCols + 3, lakeHi = goalStart - 3;
+  // Find the free spans between the mountains, then drop lakes into the widest
+  // ones — so a basin reliably appears (random probing often found no room).
+  const spans = [];
+  let sc = -1;
+  for (let c = lakeLo; c <= lakeHi; c++) {
+    if (!occupied[c]) { if (sc < 0) sc = c; }
+    else if (sc >= 0) { spans.push([sc, c - 1]); sc = -1; }
+  }
+  if (sc >= 0) spans.push([sc, lakeHi]);
+  spans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));   // widest first
+  for (const [s0, s1] of spans) {
+    if (lakes.length >= lakeCount) break;
+    const spanW = s1 - s0 + 1;
+    if (spanW < lwMin + 1) continue;                     // no room for even a min lake (+margin)
+    const lw = Math.min(rng.int(lwMin, lwMax), spanW - 1);
+    const c0 = s0 + Math.floor((spanW - lw) / 2);        // centre the basin in the span
+    const maxDepth = Math.max(2, Math.min(sub.rows - pathH - 2, rng.int(ldMin, ldMax)));
+    const center = c0 + lw / 2;
+    for (let col = c0; col < c0 + lw; col++) {
+      const t = (col + 0.5 - center) / (lw / 2);         // -1..1 across the bowl
+      const d = Math.max(1, Math.round(maxDepth * Math.sqrt(Math.max(0, 1 - t * t))));
+      sub.surface[col].barrier = 'lake';
+      sub.surface[col].soil = false;
+      sub.surface[col].goal = false;
+      for (let row = 0; row < d; row++) {
+        const cell = sub.cellAt(col, row);
+        if (cell) { cell.rock = true; cell.water = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false; }
+      }
+      occupied[col] = true;
+    }
+    lakes.push({ c0, c1: c0 + lw - 1, maxDepth });
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
@@ -710,6 +759,11 @@ function generateSubstrate(config, rng) {
   //     keeps every map winnable while the walls stay genuine "go under" gates.
   const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
   for (const w of walls) for (let col = w.c0; col < w.c1; col++) req[col] = Math.max(req[col], w.depth + 1);
+  // Lakes: the tunnel must pass beneath the deepest water in each column.
+  for (const lk of lakes) for (let col = lk.c0; col <= lk.c1; col++) {
+    let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+    req[col] = Math.max(req[col], d + 1);
+  }
   const pr = req.slice();
   for (let c = 1; c < sub.cols; c++) pr[c] = Math.max(pr[c], pr[c - 1] - 1);
   for (let c = sub.cols - 2; c >= 0; c--) pr[c] = Math.max(pr[c], pr[c + 1] - 1);
@@ -717,7 +771,7 @@ function generateSubstrate(config, rng) {
   for (let col = 0; col < sub.cols; col++)
     for (let row = pathRow[col]; row < pathRow[col] + pathH; row++) {
       const cell = sub.cellAt(col, row);
-      if (cell) cell.rock = false;
+      if (cell && !cell.water) cell.rock = false;          // never carve through a lake
     }
 
   // Entry + goal channels always clear (root in, surface out).
@@ -725,7 +779,7 @@ function generateSubstrate(config, rng) {
     for (let col = c0; col < c1; col++)
       for (let row = 0; row < sub.rows; row++) {
         const cell = sub.cellAt(col, row);
-        if (cell) cell.rock = false;
+        if (cell && !cell.water) cell.rock = false;
       }
   };
   clearChannel(0, startCols + 1);
@@ -750,6 +804,10 @@ function generateSubstrate(config, rng) {
   for (const w of walls) {
     const cc = Math.min(sub.cols - 2, w.c1 + 1);     // just past the wall, down at the dip
     drop(cc, Math.min(sub.rows - 1, w.depth + 1), s.foodClusterRadiusMax);
+  }
+  for (const lk of lakes) {
+    const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
+    drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
   }
 
   return sub;
@@ -2622,6 +2680,7 @@ class SubstrateRenderer {
     this._bakeFlecks();
     this._bakeRockFormations();
     this._bakeHazards();
+    this._bakeWater();
     this._bakeSurface();
   }
 
@@ -2779,7 +2838,7 @@ class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
 
     const cells = [];
-    sub.forEachCell((cell, col, row) => { if (cell.rock) cells.push([col, row]); });
+    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
     if (!cells.length) return;
 
     const unionPath = () => {
@@ -2917,6 +2976,123 @@ class SubstrateRenderer {
     octx.restore();
   }
 
+  // Lake basins — large water-filled cross-sections carved into the earth. Each
+  // contiguous run of 'lake' surface columns is drawn as one bowl: a smooth
+  // semi-elliptical basin with a reflective waterline, water deepening with
+  // depth, a silt bed, bioluminescent plants, and a few pale drifting fish.
+  _bakeWater() {
+    const octx = this.baseCtx;
+    const r = this.config.render;
+    const sub = this.substrate;
+    const cs = sub.cellSize, sy = sub.surfaceY;
+
+    const runs = [];
+    let c = 0;
+    while (c < sub.cols) {
+      if (sub.surface[c] && sub.surface[c].barrier === 'lake') {
+        let e = c; while (e < sub.cols && sub.surface[e].barrier === 'lake') e++;
+        runs.push([c, e - 1]); c = e;
+      } else c++;
+    }
+    if (!runs.length) return;
+
+    for (const [c0, c1] of runs) {
+      const nCols = c1 - c0 + 1;
+      const xL = c0 * cs, xR = (c1 + 1) * cs;
+      // deepest water row in the run sets the bowl depth
+      let maxD = 0;
+      for (let col = c0; col <= c1; col++) {
+        let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+        if (d > maxD) maxD = d;
+      }
+      if (maxD <= 0) continue;
+      const cx = (xL + xR) / 2, rX = (xR - xL) / 2, rY = maxD * cs;
+      const maxBot = sy + rY;
+
+      // ---- water body, clipped to the smooth bowl --------------------------
+      octx.save();
+      octx.beginPath();
+      octx.ellipse(cx, sy, rX, rY, 0, 0, Math.PI, false);   // bottom arc (xR,sy)->bowl->(xL,sy)
+      octx.closePath();                                      // straight waterline across the top
+      octx.clip();
+
+      const wg = octx.createLinearGradient(0, sy - 4, 0, maxBot);
+      wg.addColorStop(0, r.waterSurface);
+      wg.addColorStop(0.32, r.water);
+      wg.addColorStop(1, r.waterDeep);
+      octx.fillStyle = wg;
+      octx.fillRect(xL - 2, sy - 6, (xR - xL) + 4, rY + 12);
+
+      // bioluminescent plants rising from the bed (cluster toward the deep middle)
+      const plants = Math.max(2, Math.round(nCols / 3));
+      for (let p = 0; p < plants; p++) {
+        const px = xL + ((p + 0.5) / plants) * (xR - xL);
+        const tt = (px - cx) / rX;                            // -1..1
+        const bedY = sy + rY * Math.sqrt(Math.max(0, 1 - tt * tt));
+        const hgt = (bedY - sy) * (0.45 + this.rng() * 0.4);
+        if (hgt < cs * 0.8) continue;
+        const sway = (this.rng() - 0.5) * cs;
+        octx.strokeStyle = r.waterPlantStalk;
+        octx.lineWidth = 2;
+        octx.lineCap = 'round';
+        octx.globalAlpha = 0.85;
+        octx.beginPath();
+        octx.moveTo(px, bedY);
+        octx.quadraticCurveTo(px + sway, bedY - hgt * 0.55, px + sway * 0.5, bedY - hgt);
+        octx.stroke();
+        octx.globalAlpha = 1;
+        octx.fillStyle = r.waterPlantGlow;
+        octx.shadowColor = r.waterPlantGlow;
+        octx.shadowBlur = 9;
+        octx.beginPath();
+        octx.arc(px + sway * 0.5, bedY - hgt, 2.4 + this.rng() * 1.6, 0, Math.PI * 2);
+        octx.fill();
+        octx.shadowBlur = 0;
+      }
+
+      // a few small pale fish drifting in the mid-water
+      const fish = Math.max(1, Math.round(nCols / 6));
+      octx.fillStyle = r.waterFish;
+      for (let f = 0; f < fish; f++) {
+        const fx = xL + (0.2 + this.rng() * 0.6) * (xR - xL);
+        const fy = sy + cs * 0.7 + this.rng() * Math.max(cs, rY * 0.45);
+        const fs = cs * (0.16 + this.rng() * 0.08);
+        octx.save();
+        octx.translate(fx, fy);
+        if (this.rng() < 0.5) octx.scale(-1, 1);
+        octx.beginPath();
+        octx.ellipse(0, 0, fs, fs * 0.42, 0, 0, Math.PI * 2);   // body
+        octx.moveTo(-fs * 0.9, 0);
+        octx.lineTo(-fs * 1.6, -fs * 0.45);                     // tail
+        octx.lineTo(-fs * 1.6, fs * 0.45);
+        octx.closePath();
+        octx.fill();
+        octx.restore();
+      }
+
+      // ripple glints just under the waterline
+      octx.fillStyle = r.waterGlint;
+      for (let k = 0; k < nCols; k++) {
+        octx.globalAlpha = 0.3 + this.rng() * 0.4;
+        octx.fillRect(xL + this.rng() * (xR - xL), sy - 2 + this.rng() * 6, this.rng() * 7 + 2, 1);
+      }
+      octx.globalAlpha = 1;
+      octx.restore();   // end bowl clip
+
+      // ---- silt bed along the bowl curve -----------------------------------
+      octx.strokeStyle = r.lakeBed;
+      octx.lineWidth = 4;
+      octx.lineCap = 'round';
+      octx.beginPath();
+      octx.ellipse(cx, sy, rX, rY, 0, 0, Math.PI, false);
+      octx.stroke();
+
+      // ---- reflective waterline across the top -----------------------------
+      octx.fillStyle = r.waterLip;
+      octx.fillRect(xL, sy - 2, xR - xL, 2.5);
+    }
+  }
+
   _bakeSurface() {
     const octx = this.baseCtx;
     const r = this.config.render;
@@ -2958,23 +3134,7 @@ class SubstrateRenderer {
           octx.globalAlpha = 1;
         }
       } else if (surf.barrier === 'lake') {
-        // Lake — cool water with a bright sky-reflecting waterline that deepens
-        // with depth, plus a crisp surface line and ripple glints, so it reads
-        // clearly as WATER (a flat dark fill looks like a grey concrete slab).
-        const wg = octx.createLinearGradient(0, lineY - 7, 0, lineY + 16);
-        wg.addColorStop(0, r.waterSurface);
-        wg.addColorStop(0.35, r.water);
-        wg.addColorStop(1, r.waterDeep);
-        octx.fillStyle = wg;
-        octx.fillRect(x, lineY - 7, cs + 1, 23);
-        octx.fillStyle = r.waterLip;
-        octx.fillRect(x, lineY - 7, cs + 1, 2);
-        octx.fillStyle = r.waterGlint;
-        for (let k = 0; k < 3; k++) {
-          octx.globalAlpha = 0.4 + this.rng() * 0.4;
-          octx.fillRect(x + this.rng() * cs, lineY - 4 + this.rng() * 12, this.rng() * 6 + 2, 1);
-        }
-        octx.globalAlpha = 1;
+        // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
         if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
           // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
@@ -3602,6 +3762,7 @@ class UI {
       ['#8aa23e', 'Trichoderma — infects your net'],
       ['radial-gradient(circle,rgba(150,190,70,0) 55%,rgba(150,190,70,0.5))', 'Mould sight range (soft ring)'],
       ['#5d574e', 'Rock — impassable'],
+      ['linear-gradient(180deg,#3f8197,#0e2935)', 'Lake — impassable water'],
       ['#7a5d3c', 'Soil — fruitable'],
       ['#3a3d45', 'Non-soil — no fruiting'],
       ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],
@@ -4576,7 +4737,7 @@ function rockGroups() {
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let gi = 0;
     sub.forEachCell((cell, col, row) => {
-      if (!cell.rock || seen.has(id(col, row))) return;
+      if (!cell.rock || cell.water || seen.has(id(col, row))) return;   // lakes (water) draw as water, not boulders
       const cells = [];
       const q = [[col, row]]; seen.add(id(col, row));
       while (q.length) {
@@ -4586,7 +4747,7 @@ function rockGroups() {
           const nc = c + dc, nr = r + dr;
           if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
           const ncell = sub.cellAt(nc, nr);
-          if (ncell && ncell.rock) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+          if (ncell && ncell.rock && !ncell.water) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
       let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);
