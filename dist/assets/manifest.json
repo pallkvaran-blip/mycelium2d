@@ -14,6 +14,10 @@
     { "key": "antColonyB", "file": "antColonyB.png", "kind": "sprite" },
     { "key": "mountain1", "file": "mountain1.png", "kind": "sprite" },
     { "key": "mountain2", "file": "mountain2.png", "kind": "sprite" },
-    { "key": "mountain3", "file": "mountain3.png", "kind": "sprite" }
+    { "key": "mountain3", "file": "mountain3.png", "kind": "sprite" },
+    { "key": "mountain4", "file": "mountain4.png", "kind": "sprite" },
+    { "key": "mountain5", "file": "mountain5.png", "kind": "sprite" },
+    { "key": "range1", "file": "range1.png", "kind": "sprite" },
+    { "key": "range2", "file": "range2.png", "kind": "sprite" }
   ]
 }

@@ -861,23 +861,48 @@ function mountainRuns() {
   return runs;
 }
 
-const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3'];  // distinct variants, assigned one per run
-const MOUNTAIN_W_MIN = 10;         // narrowest mountain (tiles)
-const MOUNTAIN_W_MAX = 40;         // widest mountain (tiles) — each mountain's width varies in [MIN,MAX] for variety
-const MOUNTAIN_EMBED_FRAC = 0.34;  // bury the full-width base; clip to the soil line so the peak emerges with tapering sides
-// Each mountain run gets a DISTINCT variant (one of each across a map), drawn with
-// its full-width base buried below the surface and the draw clipped to above the
-// soil line, so only the naturally-tapering upper mountain shows — it emerges from
-// the ground at its feet rather than dropping in abrupt vertical sides.
+const MOUNTAIN_PEAK_KEYS = ['mountain1', 'mountain2', 'mountain3', 'mountain4', 'mountain5']; // foreground single peaks
+const MOUNTAIN_RANGE_KEYS = ['range1', 'range2'];   // wide ranges used as a distant backdrop
+const MOUNTAIN_W_MIN = 10;         // narrowest foreground mountain (tiles)
+const MOUNTAIN_W_MAX = 40;         // widest foreground mountain (tiles)
+const MOUNTAIN_EMBED_FRAC = 0.34;  // foreground: bury the base, clip to soil line so the peak emerges
+const RANGE_EMBED_FRAC = 0.76;     // background range: bury most of it so only a low distant skyline shows
+
+// Mountains are drawn in two layers: a single wide RANGE spanning the whole map
+// as a distant, dimmed backdrop, then the foreground single PEAKS overlaid at the
+// wall runs (a distinct variant + varied width each) — giving depth and variety.
 function drawMountains() {
-  const variants = MOUNTAIN_KEYS.filter(hasAsset);
-  if (!variants.length) return;
-  const runs = mountainRuns();
-  if (!runs.length) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
+  const seed = (state.seed || 1) >>> 0;
+
+  // --- background: one map-wide range, low on the horizon, faded back ---
+  const ranges = MOUNTAIN_RANGE_KEYS.filter(hasAsset);
+  if (ranges.length) {
+    const img = asset(ranges[seed % ranges.length]);
+    const w = sub.worldWidth + cs * 4, h = w * (img.height / img.width);
+    const s = camera.worldToScreen(sub.worldWidth / 2, sub.surfaceY);
+    const sw = w * z, sh = h * z;
+    const by = s.y + sh * RANGE_EMBED_FRAC;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, camera.viewW, surfY); ctx.clip();
+    ctx.globalAlpha = 0.4;                                    // distant haze
+    ctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)'; // atmospheric — push it far back
+    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.restore();
+  }
+
+  // --- foreground: single peaks at the wall runs, distinct + varied per map ---
+  const peaks = MOUNTAIN_PEAK_KEYS.filter(hasAsset);
+  const runs = mountainRuns();
+  if (!peaks.length || !runs.length) return;
+  // Seeded shuffle so each map shows a different distinct subset of the peak pool.
+  const order = peaks
+    .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.013) }))
+    .sort((a, b) => a.r - b.r)
+    .map((o) => o.k);
   runs.forEach((run, i) => {
-    const img = asset(variants[i % variants.length]);   // distinct per run, never repeats within the cycle
+    const img = asset(order[i % order.length]);
     const w = cs * run.wCells, h = w * (img.height / img.width);
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);
