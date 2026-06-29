@@ -367,7 +367,9 @@ console.log('# Ants: bombing a nest removes 40% max HP; a kill clears its trail'
   const before = nest.hp;
   const r1 = attackNest(s, nest.x, nest.y, a.pickRadius, a.damageFrac);
   ok(r1 && approx(nest.hp, before - a.damageFrac * nest.maxHp), `a bomb removes ${(a.damageFrac * 100) | 0}% of max HP`);
-  const miss = attackNest(s, nest.x + a.pickRadius * 6, nest.y, a.pickRadius, a.damageFrac);
+  // Bomb somewhere provably far from EVERY nest (robust to map/ant layout).
+  const far = Math.max(...s.ants.map((n) => n.x)) + a.pickRadius * 20;
+  const miss = attackNest(s, far, nest.y + 5000, a.pickRadius, a.damageFrac);
   ok(miss === null, 'a bomb far from any nest misses');
 
   // Isolate one nest with a real trail, then bomb it to death and confirm its

@@ -42,6 +42,10 @@ export class SubstrateRenderer {
 
   markDirty() { this.dynamicDirty = true; }
 
+  // Re-bake the static base layer (e.g. once art assets finish loading, so the
+  // asset-gated passes like _bakeWater pick them up). Also refreshes dynamic.
+  rebake() { this._bakeBase(); this.dynamicDirty = true; }
+
   // --- draw (per frame) ----------------------------------------------------
   draw(ctx, camera, time) {
     if (this.dynamicDirty) this._bakeDynamic();
@@ -366,7 +370,10 @@ export class SubstrateRenderer {
   // contiguous run of 'lake' surface columns is drawn as one bowl: a smooth
   // semi-elliptical basin with a reflective waterline, water deepening with
   // depth, a silt bed, bioluminescent plants, and a few pale drifting fish.
+  // PROCEDURAL FALLBACK ONLY — when the lake art sprites are loaded, main.js
+  // draws them over the basin instead, so skip the procedural bake.
   _bakeWater() {
+    if (hasAsset('lake1') || hasAsset('lake2') || hasAsset('lake3')) return;
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;

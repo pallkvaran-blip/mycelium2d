@@ -24,6 +24,9 @@
     { "key": "skyline3", "file": "skyline3.png", "kind": "sprite" },
     { "key": "skyline4", "file": "skyline4.png", "kind": "sprite" },
     { "key": "skyline5", "file": "skyline5.png", "kind": "sprite" },
-    { "key": "skyline6", "file": "skyline6.png", "kind": "sprite" }
+    { "key": "skyline6", "file": "skyline6.png", "kind": "sprite" },
+    { "key": "lake1", "file": "lake1.png", "kind": "sprite" },
+    { "key": "lake2", "file": "lake2.png", "kind": "sprite" },
+    { "key": "lake3", "file": "lake3.png", "kind": "sprite" }
   ]
 }

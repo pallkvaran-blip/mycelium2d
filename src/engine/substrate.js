@@ -223,7 +223,9 @@ export function generateSubstrate(config, rng) {
     if (spanW < lwMin + 1) continue;                     // no room for even a min lake (+margin)
     const lw = Math.min(rng.int(lwMin, lwMax), spanW - 1);
     const c0 = s0 + Math.floor((spanW - lw) / 2);        // centre the basin in the span
-    const maxDepth = Math.max(2, Math.min(sub.rows - pathH - 2, rng.int(ldMin, ldMax)));
+    // Depth follows the lake-art aspect (width:depth) so the sprite draws undistorted.
+    const aspect = s.lakeAspect || 2.8;
+    const maxDepth = Math.max(ldMin, Math.min(ldMax, Math.min(sub.rows - pathH - 2, Math.round(lw / aspect))));
     const center = c0 + lw / 2;
     for (let col = c0; col < c0 + lw; col++) {
       const t = (col + 0.5 - center) / (lw / 2);         // -1..1 across the bowl

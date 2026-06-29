@@ -303,6 +303,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawLakes();                  // lake basins rendered as a water cross-section sprite (gated)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawRockPiles();              // rock formations rendered as piled boulders (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
@@ -919,6 +920,25 @@ function drawMountains() {
   const peaks = MOUNTAIN_PEAK_KEYS.filter(hasAsset);
   const runs = mountainRuns();
   if (!peaks.length || !runs.length) return;
+  // Keep FOREGROUND peaks off the lake: build the lake's screen x-band and clip
+  // it out of the peaks' sky band, so no peak sits above a lake (the distant
+  // range backdrop still spans it — background mountains over a lake are fine).
+  let lakeL = Infinity, lakeR = -Infinity;
+  for (const lk of lakeRuns()) {
+    lakeL = Math.min(lakeL, camera.worldToScreen(lk.c0 * cs, sub.surfaceY).x - 6);
+    lakeR = Math.max(lakeR, camera.worldToScreen((lk.c1 + 1) * cs, sub.surfaceY).x + 6);
+  }
+  const hasLakeBand = lakeR > lakeL;
+  const clipSkyBand = () => {
+    ctx.beginPath();
+    if (hasLakeBand) {                             // sky band MINUS the lake column band
+      ctx.rect(0, skyTopY, Math.max(0, lakeL), surfY - skyTopY);
+      ctx.rect(Math.max(0, lakeR), skyTopY, camera.viewW - Math.max(0, lakeR), surfY - skyTopY);
+    } else {
+      ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
+    }
+    ctx.clip();
+  };
   // Seeded shuffle so each map shows a different distinct subset of the peak pool.
   const order = peaks
     .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.013) }))
@@ -938,13 +958,58 @@ function drawMountains() {
     const t = Math.max(0, Math.min(1, (run.wCells - MOUNTAIN_W_MIN) / (MOUNTAIN_W_MAX - MOUNTAIN_W_MIN)));
     const bright = 0.6 + 0.22 * t;
     ctx.save();
-    ctx.beginPath();                               // clip to the sky band — hide the buried base AND cut tops at the sky top
-    ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
-    ctx.clip();
+    clipSkyBand();                                 // sky band (minus any lake band)
     ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
     ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
   });
+}
+
+// Lake basins: each 'lake' run is a water-filled cross-section. When the lake
+// art is loaded we draw the chosen sprite over the basin (waterline on the soil
+// line, sized to the carved bowl — depth follows the art aspect so it isn't
+// distorted; the sprite's feathered edges blend into the earth). The procedural
+// bowl in render/substrate.js is the fallback when the art is absent.
+const LAKE_KEYS = ['lake1', 'lake2', 'lake3'];
+let _lakeState = null, _lakes = null;
+function lakeRuns() {
+  if (_lakeState === state) return _lakes;
+  const sub = state.substrate, runs = [];
+  let c = 0;
+  while (c < sub.cols) {
+    if (sub.surface[c] && sub.surface[c].barrier === 'lake') {
+      let end = c;
+      while (end < sub.cols && sub.surface[end].barrier === 'lake') end++;
+      let maxD = 0;                                   // deepest water row in the run
+      for (let col = c; col < end; col++) {
+        let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+        if (d > maxD) maxD = d;
+      }
+      runs.push({ c0: c, c1: end - 1, maxD });
+      c = end;
+    } else c++;
+  }
+  _lakeState = state; _lakes = runs;
+  return runs;
+}
+
+function drawLakes() {
+  const keys = LAKE_KEYS.filter(hasAsset);
+  if (!keys.length) return;
+  const runs = lakeRuns();
+  if (!runs.length) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const seed = (state.seed || 1) >>> 0;
+  for (const run of runs) {
+    if (run.maxD <= 0) continue;
+    const img = asset(keys[(seed + run.c0) % keys.length]);
+    if (!img) continue;
+    const tl = camera.worldToScreen(run.c0 * cs, sub.surfaceY);   // top-left at the waterline
+    const sw = (run.c1 - run.c0 + 1) * cs * z;
+    const sh = run.maxD * cs * z;
+    if (tl.x > camera.viewW || tl.x + sw < 0) continue;
+    ctx.drawImage(img, tl.x, tl.y, sw, sh);
+  }
 }
 
 // City skylines sit on the CONCRETE barrier (the man-made middle). Each concrete
@@ -1216,7 +1281,7 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; _cityState = null; if (substrateRenderer) substrateRenderer.markDirty(); });
+loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null; if (substrateRenderer) substrateRenderer.rebake(); });
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

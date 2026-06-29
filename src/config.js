@@ -44,11 +44,12 @@ export const CONFIG = {
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
     // Lake basins: large water-filled cross-sections carved into the earth. The
     // water is IMPASSABLE — the mycelium must route UNDER each basin.
-    lakeCountMin: 1,             // lakes per map (min)
-    lakeCountMax: 2,             // lakes per map (max)
+    lakeCountMin: 1,             // exactly one lake per map
+    lakeCountMax: 1,
     lakeWidthMinCols: 8,         // basin width (cols) — wide enough to read as a cross-section
     lakeWidthMaxCols: 14,
-    lakeDepthMinRows: 5,         // bowl depth at the centre (rows) — gives it real depth
+    lakeAspect: 2.8,             // basin width:depth — matches the lake art so it draws undistorted
+    lakeDepthMinRows: 3,         // clamp: bowl depth at the centre (rows)
     lakeDepthMaxRows: 8,
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
