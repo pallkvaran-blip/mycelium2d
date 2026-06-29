@@ -92,6 +92,11 @@ const js = MODULES
 const indexHtml = readFileSync(R('index.html'), 'utf8');
 const css = indexHtml.match(/<style>([\s\S]*?)<\/style>/)[1].trim();
 
+// Content-based asset version: changes only when the bundle changes, so a new
+// deploy always busts the cached manifest.json + image fetches (GitHub Pages
+// serves everything with max-age=600, which otherwise hides freshly-added art).
+const ver = (() => { let h = 5381; const s = js + css; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); })();
+
 const body = `<title>Mycelium — Phase 1</title>
 <meta name="description" content="A 2D roguelike engine-builder themed on the life of a fungal colony — steer, defend, and fruit a living mycelial network." />
 <style>
@@ -101,6 +106,7 @@ ${css}
 <div id="ui"></div>
 <script>
 'use strict';
+window.__ASSET_VER = ${JSON.stringify(ver)};
 ${js}
 </script>`;
 

@@ -18,10 +18,15 @@
 const REG = {};              // key -> { img, ready, meta }
 const _patterns = new Map(); // key -> CanvasPattern (cached)
 
+// Cache-bust query (build-time content hash, injected by build.mjs). Ensures a
+// new deploy refetches manifest.json + images instead of serving stale cached
+// copies (GitHub Pages sends max-age=600 on everything).
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+
 // Fetch the manifest and preload every listed image. Resolves once all images
 // have settled (loaded OR failed) so a missing file never blocks boot.
 export function loadAssets(basePath = 'assets/') {
-  return fetch(basePath + 'manifest.json')
+  return fetch(basePath + 'manifest.json' + VER)
     .then((r) => (r.ok ? r.json() : { assets: [] }))
     .catch(() => ({ assets: [] }))
     .then((m) => {
@@ -37,7 +42,7 @@ function loadOne(basePath, a) {
     const img = new Image();
     img.onload = () => { REG[a.key] = { img, ready: true, meta: a }; resolve(); };
     img.onerror = () => { REG[a.key] = { img: null, ready: false, meta: a }; resolve(); };
-    img.src = basePath + a.file;
+    img.src = basePath + a.file + VER;
   });
 }
 
