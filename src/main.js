@@ -858,7 +858,12 @@ function mountainRuns() {
   return runs;
 }
 
-const MOUNTAIN_W_CELLS = 6;    // one mountain's base width (cells) — large
+const MOUNTAIN_W_CELLS = 6;        // sprite width (cells); ~5 cells show above ground
+const MOUNTAIN_EMBED_FRAC = 0.34;  // fraction of the sprite buried below the surface
+// One mountain per run (and one mountain run per map, by generation). The sprite's
+// full-width base is buried below the surface and the draw is clipped to above the
+// soil line, so only the naturally-tapering upper mountain shows — it emerges from
+// the ground at its feet rather than dropping in abrupt vertical sides.
 function drawMountains() {
   if (!hasAsset('mountain')) return;
   const runs = mountainRuns();
@@ -866,27 +871,20 @@ function drawMountains() {
   const img = asset('mountain');
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const aspect = img.height / img.width;
-  const baseW = cs * MOUNTAIN_W_CELLS;
+  const w = cs * MOUNTAIN_W_CELLS, h = w * aspect;
+  const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   for (const run of runs) {
-    const x0 = run.c0 * cs, x1 = (run.c1 + 1) * cs, runW = x1 - x0;
-    // Wide runs become a small RANGE of overlapping peaks; a narrow wall, one peak.
-    const count = Math.max(1, Math.round(runW / (cs * 4.2)));
-    for (let i = 0; i < count; i++) {
-      const t = count === 1 ? 0.5 : i / (count - 1);
-      const midX = x0 + t * runW;
-      const j = _hashf(run.c0 + i * 3, 3.7);
-      const w = baseW * (0.82 + j * 0.5);          // size jitter so peaks aren't identical
-      const h = w * aspect;
-      const flip = _hashf(run.c0 + i * 3, 9.1) < 0.5;
-      const s = camera.worldToScreen(midX, sub.surfaceY);
-      const by = s.y + cs * 0.25 * z;              // base slightly embedded into the ground
-      const sw = w * z, sh = h * z;
-      if (s.x < -sw || s.x > camera.viewW + sw) continue;
-      ctx.save();
-      if (flip) { ctx.translate(s.x, by); ctx.scale(-1, 1); ctx.drawImage(img, -sw / 2, -sh, sw, sh); }
-      else ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
-      ctx.restore();
-    }
+    const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
+    const s = camera.worldToScreen(midX, sub.surfaceY);
+    const sw = w * z, sh = h * z;
+    const by = s.y + sh * MOUNTAIN_EMBED_FRAC;     // bury the base below the soil line
+    if (s.x < -sw || s.x > camera.viewW + sw) continue;
+    ctx.save();
+    ctx.beginPath();                               // clip to ABOVE the surface — hide the buried base
+    ctx.rect(0, 0, camera.viewW, surfY);
+    ctx.clip();
+    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.restore();
   }
 }
 

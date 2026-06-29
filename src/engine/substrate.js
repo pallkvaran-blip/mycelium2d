@@ -141,8 +141,10 @@ export function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
-  // …and the middle is broken into runs of distinct barrier terrain.
-  const TYPES = ['concrete', 'mountain', 'lake'];
+  // …and the middle is broken into runs of distinct barrier terrain. Mountains
+  // are NOT a generic flavour — they are placed as rare landmarks over the walls
+  // (below), one per available sprite — so the cosmetic runs are concrete/lake.
+  const TYPES = ['concrete', 'lake'];
   let bcol = startCols;
   while (bcol < goalStart) {
     const width = rng.int(s.barrierSegMinCols || 4, s.barrierSegMaxCols || 10);
@@ -189,7 +191,9 @@ export function generateSubstrate(config, rng) {
     wc = Math.max(innerLo, Math.min(innerHi, wc));
     const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
     walls.push({ c0: wc, c1: wc + wallW, depth });
-    const type = rng.chance(0.5) ? 'mountain' : 'lake';
+    // The first few walls (up to mountainCount) are mountains — a distinct sprite
+    // landmark each — the rest are lakes. Mountains never repeat on a map.
+    const type = i < (s.mountainCount || 1) ? 'mountain' : 'lake';
     for (let col = wc; col < wc + wallW; col++) {
       sub.surface[col].barrier = type;
       for (let row = 0; row <= depth; row++) {

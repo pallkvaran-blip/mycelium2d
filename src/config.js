@@ -41,6 +41,7 @@ export const CONFIG = {
     wallDepthMinRows: 4,         // a wall reaches at least this many rows down…
     wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
     pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
+    mountainCount: 1,            // mountain landmarks per map (one distinct sprite each; bump as variants are added)
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
