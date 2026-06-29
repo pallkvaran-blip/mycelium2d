@@ -4135,6 +4135,7 @@ function frame(time) {
   drawRockPiles();              // rock formations rendered as piled boulders (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated)
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
+  drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
 
   for (const net of state.networks) {
@@ -4753,6 +4754,59 @@ function drawMountains() {
   });
 }
 
+// City skylines sit on the CONCRETE barrier (the man-made middle). Each concrete
+// run gets a distinct skyline from the pool, and a skyline appears AT MOST ONCE
+// per map (no repeats): a seeded shuffle assigns one per run, stopping when the
+// pool is exhausted. Drawn dimmed + opaque (backdrop feel, no see-through).
+const CITY_KEYS = ['skyline1', 'skyline2', 'skyline3', 'skyline4', 'skyline5', 'skyline6'];
+const CITY_W_MIN = 16, CITY_W_MAX = 26;   // city width in tiles (~20), slight per-city variation
+const CITY_EMBED_FRAC = 0.04;             // flat base sits just on the soil line
+let _cityState = null, _cities = null;
+function cityRuns() {
+  if (_cityState === state) return _cities;
+  const sub = state.substrate, runs = [];
+  let c = 0;
+  while (c < sub.cols) {
+    if (sub.surface[c] && sub.surface[c].barrier === 'concrete') {
+      let end = c;
+      while (end < sub.cols && sub.surface[end].barrier === 'concrete') end++;
+      const wCells = CITY_W_MIN + _hashf(c + 0.3, (state.seed || 1) * 0.029) * (CITY_W_MAX - CITY_W_MIN);
+      runs.push({ c0: c, c1: end - 1, wCells });
+      c = end;
+    } else c++;
+  }
+  _cityState = state; _cities = runs;
+  return runs;
+}
+
+function drawCities() {
+  const keys = CITY_KEYS.filter(hasAsset);
+  if (!keys.length) return;
+  const runs = cityRuns();
+  if (!runs.length) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const surfY = camera.worldToScreen(0, sub.surfaceY).y;
+  const skyTopY = camera.worldToScreen(0, 0).y;
+  const seed = (state.seed || 1) >>> 0;
+  // Seeded shuffle of the pool → distinct skyline per run, none repeated.
+  const order = keys.map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.017) })).sort((a, b) => a.r - b.r).map((o) => o.k);
+  runs.forEach((run, i) => {
+    if (i >= order.length) return;                 // no repeats: only as many cities as distinct skylines
+    const img = asset(order[i]);
+    const w = cs * run.wCells, h = w * (img.height / img.width);
+    const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
+    const s = camera.worldToScreen(midX, sub.surfaceY);
+    const sw = w * z, sh = h * z;
+    const by = s.y + sh * CITY_EMBED_FRAC;
+    if (s.x < -sw || s.x > camera.viewW + sw) return;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY); ctx.clip();
+    ctx.filter = 'brightness(0.85) saturate(0.92)';  // dimmed backdrop, opaque (no see-through)
+    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.restore();
+  });
+}
+
 function drawSurfaceProps() {
   const props = surfaceProps();
   if (!props || !props.length) return;
@@ -4958,7 +5012,7 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; if (substrateRenderer) substrateRenderer.markDirty(); });
+loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; _cityState = null; if (substrateRenderer) substrateRenderer.markDirty(); });
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

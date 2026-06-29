@@ -18,6 +18,12 @@
     { "key": "mountain4", "file": "mountain4.png", "kind": "sprite" },
     { "key": "mountain5", "file": "mountain5.png", "kind": "sprite" },
     { "key": "range1", "file": "range1.png", "kind": "sprite" },
-    { "key": "range2", "file": "range2.png", "kind": "sprite" }
+    { "key": "range2", "file": "range2.png", "kind": "sprite" },
+    { "key": "skyline1", "file": "skyline1.png", "kind": "sprite" },
+    { "key": "skyline2", "file": "skyline2.png", "kind": "sprite" },
+    { "key": "skyline3", "file": "skyline3.png", "kind": "sprite" },
+    { "key": "skyline4", "file": "skyline4.png", "kind": "sprite" },
+    { "key": "skyline5", "file": "skyline5.png", "kind": "sprite" },
+    { "key": "skyline6", "file": "skyline6.png", "kind": "sprite" }
   ]
 }
