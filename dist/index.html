@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "znh568";
+window.__ASSET_VER = "1igkcm8";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -3264,34 +3264,17 @@ class SubstrateRenderer {
       const lineY = sy;   // flat, continuous soil line (per-column jitter made jagged corners)
 
       if (surf.soil) {
-        // Fruitable ground (the goal zone). Sunlit + a soft glow so it reads as
-        // the way out; ordinary soil crust otherwise.
-        if (surf.goal) {
-          const gg = octx.createLinearGradient(0, lineY - 18, 0, lineY + 16);
-          gg.addColorStop(0, r.goalGlow);
-          gg.addColorStop(0.5, 'rgba(0,0,0,0)');
-          octx.fillStyle = gg;
-          octx.fillRect(x, lineY - 18, cs + 1, 18);
-          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
-          cg.addColorStop(0, r.goalSoil);
-          cg.addColorStop(1, r.soilTop);
-          octx.fillStyle = cg;
-          octx.fillRect(x, lineY, cs + 1, 18);
-          octx.fillStyle = r.goalSoil;
-          octx.globalAlpha = 0.7;
-          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
-          octx.globalAlpha = 1;
-        } else {
-          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
-          cg.addColorStop(0, r.crust);
-          cg.addColorStop(1, r.soilTop);
-          octx.fillStyle = cg;
-          octx.fillRect(x, lineY, cs + 1, 18);
-          octx.fillStyle = r.crustLip;
-          octx.globalAlpha = 0.6;
-          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
-          octx.globalAlpha = 1;
-        }
+        // Fruitable ground — ordinary soil crust. (The old green goal glow/tint
+        // was removed: the summery hill and trees mark the fruitable goal now.)
+        const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+        cg.addColorStop(0, r.crust);
+        cg.addColorStop(1, r.soilTop);
+        octx.fillStyle = cg;
+        octx.fillRect(x, lineY, cs + 1, 18);
+        octx.fillStyle = r.crustLip;
+        octx.globalAlpha = 0.6;
+        octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+        octx.globalAlpha = 1;
       } else if (surf.barrier === 'lake') {
         // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
