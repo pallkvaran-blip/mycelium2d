@@ -256,8 +256,9 @@ function setupInput() {
       return;
     }
     if (!ui.selectedAction) {
-      // Tap a worm / mould cloud to toggle its sight ring.
+      // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
+      clearSightRings();
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
       if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
@@ -434,6 +435,12 @@ function inspectVisionAt(sx, sy) {
   if (!best) return false;
   best.showSight = !best.showSight;
   return true;
+}
+
+// Hide every sight ring — used when the player taps empty map.
+function clearSightRings() {
+  for (const w of (state.nematodes || [])) w.showSight = false;
+  for (const c of (state.clouds || [])) c.showSight = false;
 }
 
 // --- Ant rendering helpers --------------------------------------------------
