@@ -50,9 +50,9 @@ export const CONFIG = {
     columnCountMin: 2,
     columnCountMax: 6,
     columnWidthCols: 2,          // impassable footprint width (cols)
-    columnDepthMinRows: 5,       // reaches at least this deep…
-    columnDepthMaxRows: 9,       // …up to this — the deeper, the longer the dip under
-                                 //   (kept modest so 2–4 chunky, undistorted rocks tile it)
+    columnDepthMinRows: 7,       // reaches at least this deep…
+    columnDepthMaxRows: 12,      // …up to this — the deeper, the longer the dip under
+                                 //   (rocks stand vertically, so 2–4 reach well down)
     columnTiltMaxDeg: 30,        // whole-column lean from vertical (±)
     pathRows: 2,                 // height of the guaranteed clear route carved beneath barriers
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)

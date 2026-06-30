@@ -154,7 +154,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "14z3wrr";
+window.__ASSET_VER = "aoub09";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -209,9 +209,9 @@ const CONFIG = {
     columnCountMin: 2,
     columnCountMax: 6,
     columnWidthCols: 2,          // impassable footprint width (cols)
-    columnDepthMinRows: 5,       // reaches at least this deep…
-    columnDepthMaxRows: 9,       // …up to this — the deeper, the longer the dip under
-                                 //   (kept modest so 2–4 chunky, undistorted rocks tile it)
+    columnDepthMinRows: 7,       // reaches at least this deep…
+    columnDepthMaxRows: 12,      // …up to this — the deeper, the longer the dip under
+                                 //   (rocks stand vertically, so 2–4 reach well down)
     columnTiltMaxDeg: 30,        // whole-column lean from vertical (±)
     pathRows: 2,                 // height of the guaranteed clear route carved beneath barriers
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
@@ -5109,14 +5109,24 @@ function drawRockColumns() {
   const colW = state.config.substrate.columnWidthCols || 2;
   const seed = (state.seed || 1);
   const overlap = 0.16;                                    // barely overlap the stacked edges
+  const cdMin = state.config.substrate.columnDepthMinRows || 6;
+  const cdMax = state.config.substrate.columnDepthMaxRows || 11;
+  const dspan = Math.max(1, cdMax - cdMin);
   cols.forEach((col, ci) => {
     const tanT = Math.tan(col.tilt);                       // whole-column lean (±30°)
-    const cxw = (col.cx + colW / 2) * cs;                  // world X of the column centre at the surface
+    // Column axis: from just above the soil line straight DOWN to the column depth,
+    // drifting sideways by the tilt. Each rock is stood VERTICALLY along this axis.
+    const topX = (col.cx + colW / 2) * cs, topY = sub.surfaceY;
+    const botX = topX + col.depth * tanT * cs, botY = sub.surfaceY + col.depth * cs;
+    const dx = botX - topX, dy = botY - topY;
+    const axLen0 = Math.max(1, Math.hypot(dx, dy));
+    const ux = dx / axLen0, uy = dy / axLen0;
     const poke = cs * 0.45;                                // top rock just breaks the soil line
-    const vSpan = col.depth * cs + poke;                   // vertical drop the stack must cover
-    // Rock count scales with depth so each rock stays a CHUNKY, undistorted boulder
-    // rather than being stretched to fill a deep column. 2–4 rocks, no repeats.
-    let N = Math.max(2, Math.min(4, Math.round(col.depth / 2.4)));
+    const startX = topX - ux * poke, startY = topY - uy * poke;
+    const axLen = axLen0 + poke;
+    const axisAngle = Math.atan2(dy, dx);                  // world angle of the downward axis
+    // Rock count grows with depth (2 at the shallowest … 4 at the deepest). No repeats.
+    let N = Math.max(2, Math.min(4, 2 + Math.round((col.depth - cdMin) / dspan * 2)));
     const styleNames = Object.keys(COLUMN_STYLES).filter((k) => COLUMN_STYLES[k].filter(hasAsset).length >= N);
     const pool = (styleNames.length
       ? COLUMN_STYLES[styleNames[Math.floor(_hashf(ci + 2, seed * 0.017) * styleNames.length) % styleNames.length]]
@@ -5126,19 +5136,20 @@ function drawRockColumns() {
     const chosen = pool
       .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.019 + ci * 1.7) }))
       .sort((a, b) => a.r - b.r).map((o) => o.k).slice(0, N);   // distinct, no repeats
-    const vh = vSpan / (1 + (N - 1) * (1 - overlap));      // vertical extent per rock
-    const step = vh * (1 - overlap);                       // centre-to-centre drop down the column
+    const ell = axLen / (1 + (N - 1) * (1 - overlap));     // along-axis length per rock
     for (let i = 0; i < N; i++) {
       const img = asset(chosen[i]); if (!img) continue;
-      const aspect = img.width / img.height;               // native (wide) — drawn UNDISTORTED
-      const dh = vh, dw = vh * aspect;                     // chunky boulder at its natural proportions
-      const ceY = sub.surfaceY - poke + vh / 2 + i * step; // world Y of this rock's centre
-      const ceX = cxw + (ceY - sub.surfaceY) * tanT;       // drift sideways so the stack leans with the tilt
-      const wob = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * 0.18;   // ±~10° upright wobble for variety
-      const sw = dw * z, sh = dh * z;
+      const aspect = img.width / img.height;               // native (wide) sprite
+      const longW = ell;                                   // along the axis — the rock stood on end
+      const crossW = ell / aspect;                         // NATURAL proportions across — no distortion
+      const t = ell / 2 + i * ell * (1 - overlap);
+      const ceX = startX + ux * t, ceY = startY + uy * t;
+      const jitter = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * 0.22;   // ±~13° per-rock wobble
+      const rot = axisAngle + jitter;                      // stand the rock vertically along the column
+      const sw = longW * z, sh = crossW * z;
       const sc = camera.worldToScreen(ceX, ceY);
       if (sc.x < -sw - sh || sc.x > camera.viewW + sw + sh) continue;
-      _blitFormation(img, sw, sh, sc.x - sw / 2, sc.y - sh / 2, z, cs, soil, i === N - 1, wob);
+      _blitFormation(img, sw, sh, sc.x - sw / 2, sc.y - sh / 2, z, cs, soil, i === N - 1, rot);
     }
   });
 }
