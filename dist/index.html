@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1b6kwuc";
+window.__ASSET_VER = "1hh02lw";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -3255,7 +3255,13 @@ class SubstrateRenderer {
       } else if (surf.barrier === 'lake') {
         // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
-        if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
+        let haveForm = false;
+        for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
+        if (haveForm) {
+          // The wall is drawn per-frame as stacked rock-formation sprites and the
+          // mountain sprite caps the surface — no baked base. A dark strip here
+          // would peek out from behind the tilted wall pieces near the surface.
+        } else if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
           // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
           // dark base so nothing bright shows through behind/below the sprite.
           octx.fillStyle = r.soilDeep;
