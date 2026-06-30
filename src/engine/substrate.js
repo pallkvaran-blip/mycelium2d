@@ -160,7 +160,7 @@ export function generateSubstrate(config, rng) {
   //     reserves its span) so the lake always fits. Kept out of start/goal.
   for (let i = 0; i < (s.rockCount || 0); i++) {
     const rc = rng.int(startCols + 2, goalStart - 2);
-    const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
+    const rr = rng.int(3, Math.max(3, sub.rows - 2)); // keep off the top rows (big boulders mustn't poke above ground)
     const radius = rng.int(s.rockRadiusMin || 0, s.rockRadiusMax || 0);
     stamp(sub, rc, rr, radius, (cell, dist) => {
       if (dist > radius - 0.5 && rng.chance(0.4)) return;  // irregular edge

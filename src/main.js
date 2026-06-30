@@ -526,7 +526,11 @@ function weaveTrail(path, sub, amp, wavelen, phase) {
       const ss = cum[i] + segLen * f;
       const taper = Math.max(0, Math.min(1, ss / (cs * 1.3), (total - ss) / (cs * 1.3)));
       const off = Math.sin(ss / wavelen + phase) * amp * taper;
-      pts.push({ x: a.x + (b.x - a.x) * f + px * off, y: a.y + (b.y - a.y) * f + py * off, s: ss });
+      const baseX = a.x + (b.x - a.x) * f, baseY = a.y + (b.y - a.y) * f;
+      let wx = baseX + px * off, wy = baseY + py * off;
+      const wc = sub.cellAtWorld(wx, wy);              // never weave the trail onto a rock cell
+      if (wc && wc.rock) { wx = baseX; wy = baseY; }   // fall back to the (rock-free) path centreline
+      pts.push({ x: wx, y: wy, s: ss });
     }
   }
   pts.push({ x: base[base.length - 1].x, y: base[base.length - 1].y, s: total });
@@ -582,7 +586,10 @@ function drawAnts(time) {
           const u = lane > 0 ? (j + flow) % 1 : ((j - flow) % 1 + 1) % 1;
           const sa = sampleTrail(weave.pts, u * weave.len);
           const off = laneGap * lane;
-          const sp = camera.worldToScreen(sa.x - Math.sin(sa.ang) * off, sa.y + Math.cos(sa.ang) * off);
+          let ax = sa.x - Math.sin(sa.ang) * off, ay = sa.y + Math.cos(sa.ang) * off;
+          const ac = sub.cellAtWorld(ax, ay);              // keep the ant off rock cells
+          if (ac && ac.rock) { ax = sa.x; ay = sa.y; }      // drop the lane offset rather than walk onto rock
+          const sp = camera.worldToScreen(ax, ay);
           drawAnt(ctx, sp.x, sp.y, lane > 0 ? sa.ang : sa.ang + Math.PI, Math.max(1.6, 2.3 * z), 1);
         }
       }
@@ -808,7 +815,7 @@ function drawBoulder(c, palette, k, mult, cs, z) {
   const h3 = _hashf(c.x * 0.23 + k * 2.7, c.y * 0.29 + k * 4.4);
   const img = asset(palette[Math.floor(h3 * palette.length) % palette.length]);
   if (!img) return;
-  const bh = cs * (1.95 + h1 * 0.55) * z * mult;
+  const bh = cs * (1.35 + h1 * h1 * 2.0) * z * mult;   // spread of small (~1.35 cells) to large (~3.3 cells) boulders
   const bw = bh * (img.width / img.height);
   const s = camera.worldToScreen(c.x, c.y);
   if (s.x < -bw || s.x > camera.viewW + bw || s.y < -bh || s.y > camera.viewH + bh) return;
@@ -933,7 +940,10 @@ function drawRockFormations() {
     if (dh < bh * 1.02) { dh = bh * 1.02; dw = dh * aspect; }
     const embed = cs * 0.55;                         // bury the jagged base into the soil
     const sw = dw * z, sh = dh * z;
-    const tl = camera.worldToScreen(cx - dw / 2, (b.y1 + embed) - dh);
+    // Anchor the base, but never let the (taller-than-footprint) sprite jut above
+    // the soil line — clamp its top down to the surface for shallow formations.
+    const topW = Math.max(sub.surfaceY, (b.y1 + embed) - dh);
+    const tl = camera.worldToScreen(cx - dw / 2, topW);
     if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
     _blitFormation(img, sw, sh, tl.x, tl.y, z, cs, soil, true);
   }
@@ -971,9 +981,9 @@ function drawRockColumns() {
     const dx = botX - topX, dy = botY - topY;
     const axLen0 = Math.max(1, Math.hypot(dx, dy));
     const ux = dx / axLen0, uy = dy / axLen0;
-    const poke = cs * 0.45;                                // top rock just breaks the soil line
-    const startX = topX - ux * poke, startY = topY - uy * poke;
-    const axLen = axLen0 + poke;
+    const bury = cs * 0.4;                                 // sink the top rock so it sits AT the soil line, not above it
+    const startX = topX + ux * bury, startY = topY + uy * bury;
+    const axLen = Math.max(cs, axLen0 - bury);
     const axisAngle = Math.atan2(dy, dx);                  // world angle of the downward axis
     // Rock count grows with depth (2 at the shallowest … 4 at the deepest). No repeats.
     let N = Math.max(2, Math.min(4, 2 + Math.round((col.depth - cdMin) / dspan * 2)));
@@ -994,7 +1004,8 @@ function drawRockColumns() {
       const crossW = ell / aspect;                         // NATURAL proportions across — no distortion
       const t = ell / 2 + i * ell * (1 - overlap);
       const ceX = startX + ux * t, ceY = startY + uy * t;
-      const jitter = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * 0.22;   // ±~13° per-rock wobble
+      // top rock barely tilts (so a corner can't swing up above the soil line); the rest wobble for variety
+      const jitter = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * (i === 0 ? 0.05 : 0.22);
       const rot = axisAngle + jitter;                      // stand the rock vertically along the column
       const sw = longW * z, sh = crossW * z;
       const sc = camera.worldToScreen(ceX, ceY);
