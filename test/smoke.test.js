@@ -123,9 +123,12 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   s.clouds = [];
   spawnTrichodermaAt(s, net.root.x, net.root.y + 20); // drop a cloud right on it
   infectNetwork(net, s);                              // contact resolves
-  ok(s.clouds[0].dying === true, 'a cloud that reaches an already-infected colony spends itself');
+  const cloud = s.clouds[0];
+  ok(cloud.dying === true, 'a cloud that reaches an already-infected colony spends itself');
   for (let i = 0; i < CONFIG.trichoderma.fadeTurns + 1; i++) spreadTrichoderma(s);
-  ok(s.clouds.length === 0, 'and then fades away completely (does not linger forever)');
+  // THIS cloud must be gone — track it specifically (the global sim may spawn other,
+  // unrelated clouds from infected substrate, which is a separate mechanic).
+  ok(!s.clouds.includes(cloud), 'and then fades away completely (does not linger forever)');
 }
 
 // Bounded size: a small cloud that eats a giant pile stays small (never giant).

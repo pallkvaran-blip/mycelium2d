@@ -271,52 +271,54 @@ export function generateSubstrate(config, rng) {
     sub.rockColumns.push({ cx, depth, tilt, lo, hi });
   }
 
-  // 2c-iii) Large rock FORMATIONS — a few wide, impassable masses, each drawn as
-  //   ONE unique AI rock-formation sprite (crystal / ember / fungal / glow).
-  //   Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art's aspect.
-  //   Placed in the free columns LEFT between the walls and the lake — the lake
-  //   has already reserved its span, so it always fits — and spaced apart so each
-  //   is its own connected patch. Marked formation=true for the renderer.
+  // 2c-iii) Large rock FORMATIONS — wide, impassable masses, each drawn as ONE
+  //   AI rock-formation sprite (crystal / ember / fungal / glow). SCATTERED across
+  //   the whole inner band (not packed into the few free spans), kept off the
+  //   lakes/columns and spaced apart so each stays its own connected patch (one
+  //   sprite). Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art.
   const fCount = Math.max(0, s.formationCount || 0);
-  const fwMin = s.formationWidthMinCols || 6, fwMax = s.formationWidthMaxCols || 11;
+  const fwMin = s.formationWidthMinCols || 5, fwMax = s.formationWidthMaxCols || 11;
   const fLo = startCols + 3, fHi = goalStart - 3;
-  const fSpans = [];
-  let fsc = -1;
-  for (let c = fLo; c <= fHi; c++) {
-    if (!occupied[c]) { if (fsc < 0) fsc = c; }
-    else if (fsc >= 0) { fSpans.push([fsc, c - 1]); fsc = -1; }
-  }
-  if (fsc >= 0) fSpans.push([fsc, fHi]);
-  fSpans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));   // widest spans first
-  let fPlaced = 0;
-  for (const [s0, s1] of fSpans) {
-    if (fPlaced >= fCount) break;
-    let cur0 = s0;
-    while (fPlaced < fCount) {
-      const avail = s1 - cur0 + 1;
-      if (avail < fwMin) break;
-      const wCols = Math.min(rng.int(fwMin, fwMax), avail);
-      const rx = Math.max(2, wCols / 2);
-      const ry = Math.max(1, rx / 2.4);                    // wide & low
-      const cc = cur0 + (wCols - 1) / 2;
-      // Bias depth to the upper-middle play area (not the deep dead zone) so the
-      // formations sit where the mycelium routes and read as real obstacles.
-      const rrMax = Math.max(3, Math.min(sub.rows - Math.ceil(ry) - 1, Math.round(sub.rows * 0.5)));
-      const rr = rng.int(2, rrMax);                        // off the top row
-      for (let row = Math.floor(rr - ry); row <= Math.ceil(rr + ry); row++)
-        for (let col = Math.floor(cc - rx); col <= Math.ceil(cc + rx); col++) {
-          const nx = (col - cc) / rx, ny = (row - rr) / ry;
-          const dd = nx * nx + ny * ny;
-          if (dd > 1) continue;
-          if (dd > 0.78 && rng.chance(0.35)) continue;     // irregular edge
-          const cell = sub.cellAt(col, row);
-          if (!cell || cell.water) continue;
-          cell.rock = true; cell.formation = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
-        }
-      for (let c = cur0; c < cur0 + wCols && c < sub.cols; c++) occupied[c] = true;
-      fPlaced++;
-      cur0 += wCols + 2;                                   // gap → next formation stays a distinct patch
-    }
+  // Formations draw from their OWN deterministic sub-stream (seeded from a single
+  // main draw). Their count/placement consumes thousands of rolls, so keeping them
+  // OFF the main stream means tuning rock density never perturbs the gameplay RNG
+  // (colony growth, ants, nematodes) — the sim stays reproducible as terrain changes.
+  let _fa = ((rng() * 4294967296) >>> 0) || 1;
+  const frng = () => { _fa |= 0; _fa = (_fa + 0x6d2b79f5) | 0; let t = Math.imul(_fa ^ (_fa >>> 15), 1 | _fa); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  frng.int = (min, max) => Math.floor(frng() * (max - min + 1)) + min;
+  frng.range = (min, max) => min + frng() * (max - min);
+  frng.chance = (p) => frng() < p;
+  const placedF = [];
+  let fAttempts = 0;
+  while (placedF.length < fCount && fAttempts++ < 600 && fHi - fLo > fwMin) {
+    const wCols = frng.int(fwMin, fwMax);
+    const rx = Math.max(2, wCols / 2);
+    const ry = Math.max(1, rx / 2.4);                      // wide & low
+    const cc = frng.range(fLo + rx, fHi - rx);
+    // Spread across most of the depth (not just the surface, not the dead-deep floor).
+    const rrMax = Math.max(3, Math.min(sub.rows - Math.ceil(ry) - 1, Math.round(sub.rows * 0.62)));
+    if (rrMax <= 2 + ry) continue;
+    const rr = frng.range(2 + ry, rrMax);
+    let ok = true;
+    for (let row = Math.floor(rr - ry); row <= Math.ceil(rr + ry) && ok; row++)   // keep off lake water + path-blocking columns
+      for (let col = Math.floor(cc - rx); col <= Math.ceil(cc + rx); col++) {
+        const cell = sub.cellAt(col, row);
+        if (cell && (cell.water || cell.column)) { ok = false; break; }
+      }
+    if (ok) for (const p of placedF)                                       // spaced from other formations
+      if (Math.abs(cc - p.cc) < rx + p.rx + 1 && Math.abs(rr - p.rr) < ry + p.ry + 1) { ok = false; break; }
+    if (!ok) continue;
+    for (let row = Math.floor(rr - ry); row <= Math.ceil(rr + ry); row++)
+      for (let col = Math.floor(cc - rx); col <= Math.ceil(cc + rx); col++) {
+        const nx = (col - cc) / rx, ny = (row - rr) / ry;
+        const dd = nx * nx + ny * ny;
+        if (dd > 1) continue;
+        if (dd > 0.78 && frng.chance(0.35)) continue;       // irregular edge
+        const cell = sub.cellAt(col, row);
+        if (!cell || cell.water) continue;
+        cell.rock = true; cell.formation = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+      }
+    placedF.push({ cc, rr, rx, ry });
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a shallow tunnel

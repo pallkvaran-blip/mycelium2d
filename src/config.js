@@ -38,7 +38,7 @@ export const CONFIG = {
     //     draws at its native aspect. The mycelium routes around them.
     //   • lone BOULDERS — scattered single old-style rocks, one sprite each,
     //     never piled.
-    formationCount: 7,           // big single-image rock formations scattered per map
+    formationCount: 14,          // big single-image rock formations scattered per map (the larger, colourful type)
     formationWidthMinCols: 5,    // footprint width (cols) — wide & low to match the art
     formationWidthMaxCols: 11,
     rockCount: 34,               // scattered lone boulders (1 cell each, drawn as a single rock — varied large/small)

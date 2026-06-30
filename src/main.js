@@ -981,10 +981,9 @@ function drawRockColumns() {
     const dx = botX - topX, dy = botY - topY;
     const axLen0 = Math.max(1, Math.hypot(dx, dy));
     const ux = dx / axLen0, uy = dy / axLen0;
-    const bury = cs * 0.4;                                 // sink the top rock so it sits AT the soil line, not above it
-    const startX = topX + ux * bury, startY = topY + uy * bury;
-    const axLen = Math.max(cs, axLen0 - bury);
-    const axisAngle = Math.atan2(dy, dx);                  // world angle of the downward axis
+    const poke = cs * 0.3;                                 // lift the top rock so the column clearly MEETS the surface line (a sliver above is fine)
+    const startX = topX - ux * poke, startY = topY - uy * poke;
+    const axLen = axLen0 + poke;
     // Rock count grows with depth (2 at the shallowest … 4 at the deepest). No repeats.
     let N = Math.max(2, Math.min(4, 2 + Math.round((col.depth - cdMin) / dspan * 2)));
     const styleNames = Object.keys(COLUMN_STYLES).filter((k) => COLUMN_STYLES[k].filter(hasAsset).length >= N);
@@ -1004,9 +1003,8 @@ function drawRockColumns() {
       const crossW = ell / aspect;                         // NATURAL proportions across — no distortion
       const t = ell / 2 + i * ell * (1 - overlap);
       const ceX = startX + ux * t, ceY = startY + uy * t;
-      // top rock barely tilts (so a corner can't swing up above the soil line); the rest wobble for variety
-      const jitter = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * (i === 0 ? 0.05 : 0.22);
-      const rot = axisAngle + jitter;                      // stand the rock vertically along the column
+      // each rock stands VERTICAL ±30°, varied per rock — far more natural than a uniform stack
+      const rot = Math.PI / 2 + (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * (Math.PI / 6);
       const sw = longW * z, sh = crossW * z;
       const sc = camera.worldToScreen(ceX, ceY);
       if (sc.x < -sw - sh || sc.x > camera.viewW + sw + sh) continue;
