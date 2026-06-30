@@ -154,7 +154,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "lj69kl";
+window.__ASSET_VER = "67b13e";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -4516,16 +4516,15 @@ function drawCloudSight() {
   if (!clouds || !clouds.length) return;
   const sight = state.config.trichoderma.sightRadius * camera.zoom;
   ctx.save();
-  // A THIN faint outline marks the range. It used to be a wide soft radial rim,
-  // but the sight radius is large (≈500 world units), so on screen that rim was a
-  // big smooth gradient band that read as an out-of-place "smooth brown" blob over
-  // the earth — most obvious under cities, where no rock covers it. A constant
-  // thin line gives the same range cue without the gradient.
-  ctx.lineWidth = 1.25;
   for (const c of clouds) {
     const s = camera.worldToScreen(c.cx, c.cy);
-    ctx.strokeStyle = `rgba(150,190,70,${c.dying ? 0.10 : 0.16})`;
-    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.stroke();
+    const a = c.dying ? 0.05 : 0.10;
+    // a soft rim just inside the edge marks the range (no hard line needed)
+    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
+    g.addColorStop(0, 'rgba(150,190,70,0)');
+    g.addColorStop(1, `rgba(150,190,70,${a})`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
