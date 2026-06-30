@@ -130,7 +130,7 @@ export class UI {
       c4.onclick = () => this.handlers.onNoTrichMap();
       const c5 = button('btn dev-btn', 'Spawn Nematode');
       c5.onclick = () => this.handlers.onCheat('nematode');
-      const c6 = button('btn dev-btn', 'Worm Vision: ON');
+      const c6 = button('btn dev-btn', 'Worm Vision: OFF');
       c6.onclick = () => { const on = this.handlers.onToggleWormVision(); c6.textContent = 'Worm Vision: ' + (on ? 'ON' : 'OFF'); };
       const c7 = button('btn dev-btn', 'Place Worm: OFF');
       c7.onclick = () => { const on = this.handlers.onPlaceWorm(); c7.textContent = 'Place Worm: ' + (on ? 'ON' : 'OFF'); };

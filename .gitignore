@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 /_verify*.mjs
 /_*.mjs
+
+# debug screenshots written by scratchpad harnesses
+dist/_*.png

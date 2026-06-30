@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1hh02lw";
+window.__ASSET_VER = "67b13e";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -3956,7 +3956,7 @@ class UI {
       c4.onclick = () => this.handlers.onNoTrichMap();
       const c5 = button('btn dev-btn', 'Spawn Nematode');
       c5.onclick = () => this.handlers.onCheat('nematode');
-      const c6 = button('btn dev-btn', 'Worm Vision: ON');
+      const c6 = button('btn dev-btn', 'Worm Vision: OFF');
       c6.onclick = () => { const on = this.handlers.onToggleWormVision(); c6.textContent = 'Worm Vision: ' + (on ? 'ON' : 'OFF'); };
       const c7 = button('btn dev-btn', 'Place Worm: OFF');
       c7.onclick = () => { const on = this.handlers.onPlaceWorm(); c7.textContent = 'Place Worm: ' + (on ? 'ON' : 'OFF'); };
@@ -4151,7 +4151,7 @@ let previewFruit = false;
 let previewFruitPoints = [];
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
-let showNematodeVision = true;        // dev overlay: nematode sight range + line of sight
+let showNematodeVision = false;       // dev overlay: nematode sight range + line of sight (off by default — the rings cluttered the map)
 let placingWorm = false;              // dev: click the map to drop a nematode
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
