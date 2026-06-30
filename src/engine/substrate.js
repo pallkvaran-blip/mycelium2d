@@ -22,7 +22,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -232,6 +232,45 @@ export function generateSubstrate(config, rng) {
     lakes.push({ c0, c1: c0 + lw - 1, maxDepth });
   }
 
+  // 2c-i2) ROCK COLUMNS — the path-blocking barriers. Each is a near-vertical
+  //   (±tilt) strip of impassable rock running from the SURFACE down to depth, so
+  //   the mycelium must dig UNDER it. 2–6 per map, placed in free inner columns
+  //   (clear of mountains and lakes). The renderer draws each as a vertical stack
+  //   of large rock-formation sprites. Marked column=true (and rock=true).
+  sub.rockColumns = [];
+  const colCount = rng.int(Math.max(0, s.columnCountMin || 2), Math.max(0, s.columnCountMax || 6));
+  const colW = Math.max(1, s.columnWidthCols || 2);
+  const cdMin = s.columnDepthMinRows || 6, cdMax = s.columnDepthMaxRows || 11;
+  const tiltMax = (s.columnTiltMaxDeg || 30) * Math.PI / 180;
+  const colLo = startCols + 2, colHi = goalStart - 2 - colW;
+  const placedCols = [];
+  let colAttempts = 0;
+  while (sub.rockColumns.length < colCount && colAttempts++ < 300 && colHi > colLo) {
+    const cx = rng.int(colLo, colHi);
+    const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(cdMin, cdMax)));
+    const tilt = rng.range(-tiltMax, tiltMax);
+    const shift = Math.round(depth * Math.tan(tilt));   // horizontal drift at the bottom
+    // span of columns this tilted strip touches (for spacing + clearance checks)
+    const lo = Math.min(cx, cx + shift) - 1, hi = Math.max(cx + colW - 1, cx + colW - 1 + shift) + 1;
+    let ok = lo >= 0 && hi < sub.cols;
+    if (ok) for (let c = lo; c <= hi; c++) if (occupied[c]) { ok = false; break; }   // clear of mountains/lakes
+    if (ok) for (const p of placedCols) if (Math.abs(p - cx) < colW + 5) { ok = false; break; } // spaced apart
+    if (!ok) continue;
+    placedCols.push(cx);
+    for (let r = 0; r <= depth; r++) {
+      const center = cx + Math.round(r * Math.tan(tilt));
+      for (let w = 0; w < colW; w++) {
+        const col = center + w;
+        const cell = sub.cellAt(col, r);
+        if (cell) { cell.rock = true; cell.column = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false; }
+      }
+    }
+    // surface: un-surfaceable rock at the top of the column (so cities/mountains avoid it)
+    for (let w = 0; w < colW; w++) { const col = cx + w; if (col >= 0 && col < sub.cols) { sub.surface[col].soil = false; sub.surface[col].goal = false; sub.surface[col].barrier = 'rock'; } }
+    for (let c = lo; c <= hi; c++) if (c >= 0 && c < sub.cols) occupied[c] = true;   // reserve so formations avoid
+    sub.rockColumns.push({ cx, depth, tilt, lo, hi });
+  }
+
   // 2c-iii) Large rock FORMATIONS — a few wide, impassable masses, each drawn as
   //   ONE unique AI rock-formation sprite (crystal / ember / fungal / glow).
   //   Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art's aspect.
@@ -281,11 +320,14 @@ export function generateSubstrate(config, rng) {
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a shallow tunnel
-  //     that still DIPS beneath every lake. (The wall "go under" dips were removed
-  //     with the path-blocking columns — to be redesigned.) Built as a row-profile
-  //     that changes by at most (pathH-1) rows per column, so the cleared windows
-  //     always overlap and connect.
+  //     that DIPS beneath every barrier (rock columns and lakes). Built as a
+  //     row-profile that changes by at most (pathH-1) rows per column, so the
+  //     cleared windows always overlap and connect.
   const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
+  // Rock columns: the tunnel must pass beneath the column's deepest rock.
+  for (const rc of sub.rockColumns) for (let col = rc.lo; col <= rc.hi; col++) {
+    if (col >= 0 && col < sub.cols) req[col] = Math.max(req[col], rc.depth + 1);
+  }
   // Lakes: the tunnel must pass beneath the deepest water in each column.
   for (const lk of lakes) for (let col = lk.c0; col <= lk.c1; col++) {
     let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
@@ -358,6 +400,10 @@ export function generateSubstrate(config, rng) {
     let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-1, 1));
     cc = Math.max(1, Math.min(sub.cols - 2, cc));
     drop(cc, pathRow[cc], rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
+  }
+  for (const rc of sub.rockColumns) {
+    const cc = Math.min(sub.cols - 2, rc.hi + 1);    // just past the column, down at the dip
+    drop(cc, Math.min(sub.rows - 1, rc.depth + 1), s.foodClusterRadiusMax);
   }
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water

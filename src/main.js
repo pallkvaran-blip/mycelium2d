@@ -307,6 +307,7 @@ function frame(time) {
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
   drawRockPiles();              // lone boulders (gated) — over food/earth
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
+  drawRockColumns();            // path-blocking vertical rock columns (gated) — barriers from the surface down
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
@@ -757,8 +758,8 @@ function rockGroups() {
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let gi = 0;
     sub.forEachCell((cell, col, row) => {
-      // lakes (water) draw as water; formation cells draw as large AI sprites
-      if (!cell.rock || cell.water || cell.formation || seen.has(id(col, row))) return;
+      // lakes (water) draw as water; formation + column cells draw as AI sprites
+      if (!cell.rock || cell.water || cell.formation || cell.column || seen.has(id(col, row))) return;
       const cells = [];
       const q = [[col, row]]; seen.add(id(col, row));
       while (q.length) {
@@ -768,7 +769,7 @@ function rockGroups() {
           const nc = c + dc, nr = r + dr;
           if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
           const ncell = sub.cellAt(nc, nr);
-          if (ncell && ncell.rock && !ncell.water && !ncell.formation) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+          if (ncell && ncell.rock && !ncell.water && !ncell.formation && !ncell.column) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
       let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);
@@ -936,6 +937,60 @@ function drawRockFormations() {
     if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
     _blitFormation(img, sw, sh, tl.x, tl.y, z, cs, soil, true);
   }
+}
+
+// Path-blocking ROCK COLUMNS — each is a near-vertical stack of 2–4 DISTINCT
+// large rock sprites (no repeated type), barely overlapping, each rotated to
+// follow the column's axis with a little per-rock jitter, running from the soil
+// line down to the column's depth so the mycelium must dig UNDER it. Crystal /
+// ember / glow styles only (fungal mushrooms would sit sideways). Geometry comes
+// from sub.rockColumns; the sprite picks are seeded so they're stable per map.
+// Only sprites whose native aspect is chunky (≲2.2:1) — the ultra-wide ones
+// (rockform5/10/13) would become pancakes when sized to a column's width.
+const COLUMN_STYLES = {
+  ember:   ['rockform2', 'rockform6', 'rockform9', 'rockform12'],
+  crystal: ['rockform3', 'rockform7', 'rockform14'],
+};
+function drawRockColumns() {
+  const cols = state.substrate.rockColumns;
+  if (!cols || !cols.length || !ROCKFORM_KEYS.some(hasAsset)) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
+  const colW = state.config.substrate.columnWidthCols || 2;
+  const seed = (state.seed || 1);
+  const overlap = 0.16;                                    // barely overlap the stacked edges
+  cols.forEach((col, ci) => {
+    const tanT = Math.tan(col.tilt);                       // whole-column lean (±30°)
+    const cxw = (col.cx + colW / 2) * cs;                  // world X of the column centre at the surface
+    const poke = cs * 0.45;                                // top rock just breaks the soil line
+    const vSpan = col.depth * cs + poke;                   // vertical drop the stack must cover
+    // Rock count scales with depth so each rock stays a CHUNKY, undistorted boulder
+    // rather than being stretched to fill a deep column. 2–4 rocks, no repeats.
+    let N = Math.max(2, Math.min(4, Math.round(col.depth / 2.4)));
+    const styleNames = Object.keys(COLUMN_STYLES).filter((k) => COLUMN_STYLES[k].filter(hasAsset).length >= N);
+    const pool = (styleNames.length
+      ? COLUMN_STYLES[styleNames[Math.floor(_hashf(ci + 2, seed * 0.017) * styleNames.length) % styleNames.length]]
+      : ROCKFORM_KEYS).filter(hasAsset);
+    N = Math.min(N, pool.length);
+    if (!N) return;
+    const chosen = pool
+      .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.019 + ci * 1.7) }))
+      .sort((a, b) => a.r - b.r).map((o) => o.k).slice(0, N);   // distinct, no repeats
+    const vh = vSpan / (1 + (N - 1) * (1 - overlap));      // vertical extent per rock
+    const step = vh * (1 - overlap);                       // centre-to-centre drop down the column
+    for (let i = 0; i < N; i++) {
+      const img = asset(chosen[i]); if (!img) continue;
+      const aspect = img.width / img.height;               // native (wide) — drawn UNDISTORTED
+      const dh = vh, dw = vh * aspect;                     // chunky boulder at its natural proportions
+      const ceY = sub.surfaceY - poke + vh / 2 + i * step; // world Y of this rock's centre
+      const ceX = cxw + (ceY - sub.surfaceY) * tanT;       // drift sideways so the stack leans with the tilt
+      const wob = (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * 0.18;   // ±~10° upright wobble for variety
+      const sw = dw * z, sh = dh * z;
+      const sc = camera.worldToScreen(ceX, ceY);
+      if (sc.x < -sw - sh || sc.x > camera.viewW + sw + sh) continue;
+      _blitFormation(img, sw, sh, sc.x - sw / 2, sc.y - sh / 2, z, cs, soil, i === N - 1, wob);
+    }
+  });
 }
 
 // Above-ground props (trees / grass / houses) placed along the surface line.

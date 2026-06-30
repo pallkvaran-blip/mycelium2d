@@ -44,13 +44,17 @@ export const CONFIG = {
     rockCount: 5,                // scattered lone boulders (1 cell each, drawn as a single rock)
     rockRadiusMin: 0,
     rockRadiusMax: 0,
-    // Wall blockers: terrain spanning the surface down to depth — dig under them.
-    wallCountMin: 3,             // walls per map (each topped with a distinct mountain for now)
-    wallCountMax: 3,
-    wallWidthCols: 3,            // how wide a wall is (cols)
-    wallDepthMinRows: 4,         // a wall reaches at least this many rows down…
-    wallDepthMaxRows: 9,         // …up to this — the deeper it goes, the longer the dip under
-    pathRows: 2,                 // height of the guaranteed clear route carved beneath the walls
+    // Rock COLUMNS — the path-blocking barriers. Each is a near-vertical (±30°)
+    // stack of 2–4 distinct, large rock-formation sprites running from the
+    // surface down to depth; the mycelium must dig UNDER them. 2–6 per map.
+    columnCountMin: 2,
+    columnCountMax: 6,
+    columnWidthCols: 2,          // impassable footprint width (cols)
+    columnDepthMinRows: 5,       // reaches at least this deep…
+    columnDepthMaxRows: 9,       // …up to this — the deeper, the longer the dip under
+                                 //   (kept modest so 2–4 chunky, undistorted rocks tile it)
+    columnTiltMaxDeg: 30,        // whole-column lean from vertical (±)
+    pathRows: 2,                 // height of the guaranteed clear route carved beneath barriers
     mountainCount: 3,            // mountain landmarks per map — one of each variant (distinct sprites)
     // Lake basins: large water-filled cross-sections carved into the earth. The
     // water is IMPASSABLE — the mycelium must route UNDER each basin.
