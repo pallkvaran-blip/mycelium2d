@@ -75,9 +75,10 @@ export function stepNematodes(state) {
         w.feeding = true;
         // Breed EVERY tick while in contact — this is the exponential growth.
         if (state.nematodes.length + newborns.length < n.maxPopulation && rng.chance(n.breedChance)) {
-          newborns.push(makeWorm(
-            w.x + rng.range(-cs * 0.3, cs * 0.3), w.y + rng.range(-cs * 0.3, cs * 0.3),
-            rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
+          let bx = w.x + rng.range(-cs * 0.3, cs * 0.3), by = w.y + rng.range(-cs * 0.3, cs * 0.3);
+          const bc = sub.cellAtWorld(bx, by);
+          if (!bc || bc.rock) { bx = w.x; by = w.y; }   // never spawn a newborn inside rock — fall back to the parent's clear cell
+          newborns.push(makeWorm(bx, by, rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
         }
         // Eat a DISTINCT strand whole on a cooldown (one worm per strand/tick).
         if (w.feedCd <= 0) {

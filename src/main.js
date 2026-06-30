@@ -256,6 +256,8 @@ function setupInput() {
       return;
     }
     if (!ui.selectedAction) {
+      // Tap a worm / mould cloud to toggle its sight ring.
+      if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
       if (now - lastTapTime < 320 && Math.hypot(e.clientX - lastTapX, e.clientY - lastTapY) < 30) {
@@ -405,6 +407,7 @@ function drawCloudSight() {
   const sight = state.config.trichoderma.sightRadius * camera.zoom;
   ctx.save();
   for (const c of clouds) {
+    if (!c.showSight) continue;                       // only when the player has tapped this cloud
     const s = camera.worldToScreen(c.cx, c.cy);
     const a = c.dying ? 0.05 : 0.10;
     // a soft rim just inside the edge marks the range (no hard line needed)
@@ -415,6 +418,22 @@ function drawCloudSight() {
     ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
+}
+
+// Tap a worm or mould cloud to TOGGLE its sight-range ring (so the player can
+// check how far it can see); tap it again to hide. Returns true if one was hit.
+function inspectVisionAt(sx, sy) {
+  let best = null, bestD = 28 * 28;                   // tap tolerance², px
+  const consider = (obj, wx, wy) => {
+    const s = camera.worldToScreen(wx, wy);
+    const d = (s.x - sx) * (s.x - sx) + (s.y - sy) * (s.y - sy);
+    if (d < bestD) { bestD = d; best = obj; }
+  };
+  for (const w of (state.nematodes || [])) consider(w, w.x, w.y);
+  for (const c of (state.clouds || [])) consider(c, c.cx, c.cy);
+  if (!best) return false;
+  best.showSight = !best.showSight;
+  return true;
 }
 
 // --- Ant rendering helpers --------------------------------------------------
@@ -1326,11 +1345,12 @@ function drawNematodes(time) {
   // --- sight-range overlay: a soft glow rim (same style as the mould's),
   // shown for SEARCHING worms (a worm that's already locked on is coming
   // regardless, so its range adds nothing but clutter). ---
-  if (showNematodeVision) {
+  {
     const sight = state.config.nematodes.sightRadius * z;
     ctx.save();
     for (const w of worms) {
-      if (w.sees) continue;
+      // Shown for any worm the player has TAPPED, plus the dev "Worm Vision" overlay.
+      if (!(w.showSight || (showNematodeVision && !w.sees))) continue;
       const sp = camera.worldToScreen(w.x, w.y);
       const g = ctx.createRadialGradient(sp.x, sp.y, sight * 0.78, sp.x, sp.y, sight);
       g.addColorStop(0, 'rgba(165,205,115,0)');
@@ -1354,7 +1374,7 @@ function drawNematodes(time) {
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
       const along = (f - 0.5) * len;
-      const off = Math.sin(time * 0.013 + (w.phase || 0) + f * 6) * wig;
+      const off = Math.sin(time * 0.007 + (w.phase || 0) + f * 6) * wig;   // gentle wriggle (slower = less frantic)
       const x = sp.x + dx * along + px * off, y = sp.y + dy * along + py * off;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
