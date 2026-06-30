@@ -154,7 +154,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "67b13e";
+window.__ASSET_VER = "acaum1";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -692,31 +692,21 @@ function generateSubstrate(config, rng) {
     });
   }
 
-  // 2c) WALL blockers — at least one wall of terrain spans the surface down to
-  //     depth, so the player MUST dig deeper to get under it. The surface above
-  //     reads as a mountain or a lake. Placed between (not in) the entry/goal.
+  // 2c) MOUNTAIN surface landmarks. (The old impassable "wall" rock column that
+  //     rose from the surface to depth — the path-blocking mechanic — has been
+  //     REMOVED; it's being redesigned. For now these just place mountain
+  //     sprites on the surface and reserve their columns so lakes avoid them.)
   const pathH = Math.max(1, s.pathRows || 2);
   const wallW = Math.max(1, s.wallWidthCols || 3);
   const wallCount = rng.int(Math.max(1, s.wallCountMin || 1), Math.max(1, s.wallCountMax || 3));
   const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW;
   const walls = [];
-  const dLoRows = s.wallDepthMinRows || 4;
-  const dHiRows = s.wallDepthMaxRows || 9;
   for (let i = 0; i < wallCount && innerHi > innerLo; i++) {
     const frac = (i + 1) / (wallCount + 1);
     let wc = Math.round(innerLo + frac * (innerHi - innerLo) + rng.range(-2, 2));
     wc = Math.max(innerLo, Math.min(innerHi, wc));
-    const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
-    walls.push({ c0: wc, c1: wc + wallW, depth });
-    // Each wall is topped with a mountain — a distinct sprite landmark. (Lakes are
-    // a separate wide water feature, placed below.)
-    for (let col = wc; col < wc + wallW; col++) {
-      sub.surface[col].barrier = 'mountain';
-      for (let row = 0; row <= depth; row++) {
-        const cell = sub.cellAt(col, row);
-        if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
-      }
-    }
+    walls.push({ c0: wc, c1: wc + wallW });
+    for (let col = wc; col < wc + wallW; col++) sub.surface[col].barrier = 'mountain';
   }
 
   // 2c-ii) LAKE basins — large water-filled cross-sections carved into the earth.
@@ -814,13 +804,12 @@ function generateSubstrate(config, rng) {
     }
   }
 
-  // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
-  //     stays shallow but DIPS beneath every wall. Built as a row-profile that
-  //     changes by at most (pathH-1) rows per column — so the cleared windows
-  //     always overlap and connect — forced below each wall, then cleared. This
-  //     keeps every map winnable while the walls stay genuine "go under" gates.
+  // 2d) Carve a guaranteed connected route from entry to goal: a shallow tunnel
+  //     that still DIPS beneath every lake. (The wall "go under" dips were removed
+  //     with the path-blocking columns — to be redesigned.) Built as a row-profile
+  //     that changes by at most (pathH-1) rows per column, so the cleared windows
+  //     always overlap and connect.
   const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
-  for (const w of walls) for (let col = w.c0; col < w.c1; col++) req[col] = Math.max(req[col], w.depth + 1);
   // Lakes: the tunnel must pass beneath the deepest water in each column.
   for (const lk of lakes) for (let col = lk.c0; col <= lk.c1; col++) {
     let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
@@ -849,7 +838,7 @@ function generateSubstrate(config, rng) {
 
   // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
   //    can't just grow freely) and steering with Add-Substrate matters. A reward
-  //    cache is tucked at the bottom of each wall dip, paying off the deep route.
+  //    cache sits beneath each lake's deep dip.
   const N = s.foodCellNutrient;
   // Keep food clear of rock formations: rocks render as big piled boulders that
   // spill well beyond their cells, so food placed near rock reads as sitting on
@@ -893,10 +882,6 @@ function generateSubstrate(config, rng) {
     let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-1, 1));
     cc = Math.max(1, Math.min(sub.cols - 2, cc));
     drop(cc, pathRow[cc], rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
-  }
-  for (const w of walls) {
-    const cc = Math.min(sub.cols - 2, w.c1 + 1);     // just past the wall, down at the dip
-    drop(cc, Math.min(sub.rows - 1, w.depth + 1), s.foodClusterRadiusMax);
   }
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
@@ -3249,17 +3234,20 @@ class SubstrateRenderer {
       } else if (surf.barrier === 'lake') {
         // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
-        let haveForm = false;
-        for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
-        if (haveForm) {
-          // The wall is drawn per-frame as stacked rock-formation sprites and the
-          // mountain sprite caps the surface — no baked base. A dark strip here
-          // would peek out from behind the tilted wall pieces near the surface.
-        } else if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
-          // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
-          // dark base so nothing bright shows through behind/below the sprite.
-          octx.fillStyle = r.soilDeep;
-          octx.fillRect(x, lineY - 2, cs + 1, 16);
+        if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
+          // A mountain SPRITE caps this run (main.js). The ground beneath is now
+          // plain earth (the path-blocking rock column was removed), so bake the
+          // normal soil crust here too — the surface band reads continuous across
+          // the mountain instead of breaking at it.
+          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+          cg.addColorStop(0, r.crust);
+          cg.addColorStop(1, r.soilTop);
+          octx.fillStyle = cg;
+          octx.fillRect(x, lineY, cs + 1, 18);
+          octx.fillStyle = r.crustLip;
+          octx.globalAlpha = 0.6;
+          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+          octx.globalAlpha = 1;
         } else {
           // Procedural fallback — a raised rocky ridge rising above the soil line.
           const rise = 10 + this.rng() * 22;
@@ -4417,8 +4405,7 @@ function frame(time) {
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
-  drawRockPiles();              // lone boulders (gated) — over food/earth; walls handled below
-  drawWallFormations();         // mountain walls as stacked large rock sprites (gated)
+  drawRockPiles();              // lone boulders (gated) — over food/earth
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
@@ -4902,38 +4889,14 @@ function drawRockPiles() {
   const groups = rockGroups();
   if (!groups.length) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const rad = cs * 0.82 * z;
+  // Lone scattered boulders — one rock sprite each, never piled. (The large
+  // piled masses were the path-blocking walls, now removed.)
   for (const g of groups) {
     if (!g.palette.length) continue;
-    // Lone boulders (tiny groups) draw as a SINGLE rock sprite — never piled.
-    if (g.cells.length <= 2) {
-      for (const c of g.cells) {
-        const s = camera.worldToScreen(c.x, c.y);
-        if (s.x > -cs * 3 && s.x < camera.viewW + cs * 3 && s.y > -cs * 3 && s.y < camera.viewH + cs * 3)
-          drawBoulder(c, g.palette, 0, 1.0, cs, z);
-      }
-      continue;
-    }
-    // Larger masses are the mountain WALLS. When formation sprites exist they're
-    // drawn as stacked large rocks (drawWallFormations); only fall back to the
-    // piled-boulder look when the sprites are absent.
-    if (ROCKFORM_KEYS.some(hasAsset)) continue;
-    const clip = new Path2D();
-    let onscreen = false;
     for (const c of g.cells) {
       const s = camera.worldToScreen(c.x, c.y);
-      clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
-      if (s.x > -rad && s.x < camera.viewW + rad && s.y > -rad && s.y < camera.viewH + rad) onscreen = true;
-    }
-    if (!onscreen) continue;
-    // dark base fill keeps the formation solid (no earth peeking through)
-    ctx.save(); ctx.clip(clip); ctx.fillStyle = 'rgba(26,28,34,0.96)';
-    ctx.fillRect(0, 0, camera.viewW, camera.viewH); ctx.restore();
-    // boulders, back-to-front (lower rows drawn on top)
-    const cells = g.cells.slice().sort((a, b) => a.y - b.y);
-    for (const c of cells) {
-      drawBoulder(c, g.palette, 0, 1.0, cs, z);
-      if (_hashf(c.x * 0.21, c.y * 0.27) > 0.45) drawBoulder(c, g.palette, 1, 0.7, cs, z);
+      if (s.x > -cs * 3 && s.x < camera.viewW + cs * 3 && s.y > -cs * 3 && s.y < camera.viewH + cs * 3)
+        drawBoulder(c, g.palette, 0, 1.0, cs, z);
     }
   }
 }
@@ -5002,14 +4965,6 @@ function formationGroups() {
   _formState = state; _formGroups = groups;
   return groups;
 }
-
-// Style groups so a structure is built from coherent rocks, not a chaotic mix.
-const ROCKFORM_STYLES = {
-  glow:    ['rockform1', 'rockform5'],
-  ember:   ['rockform2', 'rockform6', 'rockform9', 'rockform12'],
-  crystal: ['rockform3', 'rockform7', 'rockform10', 'rockform13', 'rockform14'],
-  fungal:  ['rockform4', 'rockform8', 'rockform11'],
-};
 
 // Blit one formation sprite, anchored by its screen top-left (tlx,tly) at size
 // (sw,sh). Composited through an offscreen buffer so the cool-stone lift and the
@@ -5081,61 +5036,6 @@ function drawRockFormations() {
     if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
     _blitFormation(img, sw, sh, tl.x, tl.y, z, cs, soil, true);
   }
-}
-
-// Mountain WALLS rendered as a vertical STACK of large rock-formation sprites
-// (one coherent style per wall) descending from the surface to the wall's depth
-// — a layered cliff "root" beneath the mountain, replacing the heap of small
-// boulders. The impassable core is filled dark behind the stack so the barrier
-// never shows earth through a seam. Fungal sprites are skipped here (their
-// mushrooms would face sideways when stacked); crystal/ember/glow read upright.
-function drawWallFormations() {
-  if (!ROCKFORM_KEYS.some(hasAsset)) return;
-  const walls = rockGroups().filter((g) => g.cells.length > 2);
-  if (!walls.length) return;
-  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
-  const styleNames = ['crystal', 'ember', 'glow'].filter((s) => ROCKFORM_STYLES[s].some(hasAsset));
-  walls.forEach((g, wi) => {
-    let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const c of g.cells) { minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); maxY = Math.max(maxY, c.y); }
-    const topY = sub.surfaceY;
-    const botY = maxY + cs / 2;                       // bottom of the deepest wall cell
-    const cxW = (minX + maxX) / 2;
-    const colSpan = Math.round((maxX - minX) / cs) + 1;
-    const dwW = (colSpan + 2) * cs;                   // a touch wider than the core (cliff base)
-    const swPx = dwW * z;
-    // horizontal cull
-    const sCenter = camera.worldToScreen(cxW, topY);
-    if (sCenter.x + swPx < 0 || sCenter.x - swPx > camera.viewW) return;
-    // coherent style + stable sprite sequence for this wall
-    const pool = (styleNames.length
-      ? ROCKFORM_STYLES[styleNames[Math.floor(_hashf(wi + 1, (state.seed || 1) * 0.041) * styleNames.length) % styleNames.length]]
-      : ROCKFORM_KEYS).filter(hasAsset);
-    if (!pool.length) return;
-    // (No rectangular backing: the heavily-overlapping tilted pieces form the
-    // barrier themselves, and the mountain sprite covers the top near the surface.
-    // A hard dark rect would peek out from behind the tilted rocks as black gaps.)
-    // stack top→down (lower sprite overlaps the seam of the one above). Each
-    // piece is tilted at a varied angle so the wall reads as a natural jumble of
-    // rock rather than neat horizontal slabs.
-    const sd = (state.seed || 1);
-    let yW = topY, i = 0, guard = 0;
-    while (yW < botY && guard++ < 28) {
-      const img = asset(pool[i % pool.length]); i++;
-      if (!img) break;
-      const aspect = img.width / img.height;
-      const pieceW = dwW * (0.78 + _hashf(wi * 4.3 + i, sd * 0.05) * 0.42); // width jitter
-      const dhW = pieceW / aspect;
-      const bottomMost = yW + dhW * 0.6 >= botY;
-      const jx = (_hashf(wi * 3.1 + i, sd * 0.07) * 2 - 1) * cs * 0.75;
-      // tilt: strong & chaotic (±~52°), reduced on the buried bottom piece so it embeds
-      const rot = (_hashf(wi * 5.7 + i, sd * 0.09) * 2 - 1) * 0.92 * (bottomMost ? 0.45 : 1);
-      const tl = camera.worldToScreen(cxW + jx - pieceW / 2, yW);
-      _blitFormation(img, pieceW * z, dhW * z, tl.x, tl.y, z, cs, soil, bottomMost, rot);
-      yW += dhW * 0.44;                               // ~56% overlap → solid through the steeper tilts
-    }
-  });
 }
 
 // Above-ground props (trees / grass / houses) placed along the surface line.

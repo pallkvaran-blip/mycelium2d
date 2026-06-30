@@ -537,17 +537,20 @@ export class SubstrateRenderer {
       } else if (surf.barrier === 'lake') {
         // Lake basins are drawn as full water-filled bowls by _bakeWater().
       } else if (surf.barrier === 'mountain') {
-        let haveForm = false;
-        for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
-        if (haveForm) {
-          // The wall is drawn per-frame as stacked rock-formation sprites and the
-          // mountain sprite caps the surface — no baked base. A dark strip here
-          // would peek out from behind the tilted wall pieces near the surface.
-        } else if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
-          // A mountain SPRITE is drawn over this run (main.js). Bake only a thin
-          // dark base so nothing bright shows through behind/below the sprite.
-          octx.fillStyle = r.soilDeep;
-          octx.fillRect(x, lineY - 2, cs + 1, 16);
+        if (hasAsset('mountain1') || hasAsset('mountain2') || hasAsset('mountain3')) {
+          // A mountain SPRITE caps this run (main.js). The ground beneath is now
+          // plain earth (the path-blocking rock column was removed), so bake the
+          // normal soil crust here too — the surface band reads continuous across
+          // the mountain instead of breaking at it.
+          const cg = octx.createLinearGradient(0, lineY - 2, 0, lineY + 16);
+          cg.addColorStop(0, r.crust);
+          cg.addColorStop(1, r.soilTop);
+          octx.fillStyle = cg;
+          octx.fillRect(x, lineY, cs + 1, 18);
+          octx.fillStyle = r.crustLip;
+          octx.globalAlpha = 0.6;
+          octx.fillRect(x, lineY - 1, cs + 1, 1.5);
+          octx.globalAlpha = 1;
         } else {
           // Procedural fallback — a raised rocky ridge rising above the soil line.
           const rise = 10 + this.rng() * 22;

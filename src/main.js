@@ -305,8 +305,7 @@ function frame(time) {
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
-  drawRockPiles();              // lone boulders (gated) — over food/earth; walls handled below
-  drawWallFormations();         // mountain walls as stacked large rock sprites (gated)
+  drawRockPiles();              // lone boulders (gated) — over food/earth
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
@@ -790,38 +789,14 @@ function drawRockPiles() {
   const groups = rockGroups();
   if (!groups.length) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const rad = cs * 0.82 * z;
+  // Lone scattered boulders — one rock sprite each, never piled. (The large
+  // piled masses were the path-blocking walls, now removed.)
   for (const g of groups) {
     if (!g.palette.length) continue;
-    // Lone boulders (tiny groups) draw as a SINGLE rock sprite — never piled.
-    if (g.cells.length <= 2) {
-      for (const c of g.cells) {
-        const s = camera.worldToScreen(c.x, c.y);
-        if (s.x > -cs * 3 && s.x < camera.viewW + cs * 3 && s.y > -cs * 3 && s.y < camera.viewH + cs * 3)
-          drawBoulder(c, g.palette, 0, 1.0, cs, z);
-      }
-      continue;
-    }
-    // Larger masses are the mountain WALLS. When formation sprites exist they're
-    // drawn as stacked large rocks (drawWallFormations); only fall back to the
-    // piled-boulder look when the sprites are absent.
-    if (ROCKFORM_KEYS.some(hasAsset)) continue;
-    const clip = new Path2D();
-    let onscreen = false;
     for (const c of g.cells) {
       const s = camera.worldToScreen(c.x, c.y);
-      clip.moveTo(s.x + rad, s.y); clip.arc(s.x, s.y, rad, 0, Math.PI * 2);
-      if (s.x > -rad && s.x < camera.viewW + rad && s.y > -rad && s.y < camera.viewH + rad) onscreen = true;
-    }
-    if (!onscreen) continue;
-    // dark base fill keeps the formation solid (no earth peeking through)
-    ctx.save(); ctx.clip(clip); ctx.fillStyle = 'rgba(26,28,34,0.96)';
-    ctx.fillRect(0, 0, camera.viewW, camera.viewH); ctx.restore();
-    // boulders, back-to-front (lower rows drawn on top)
-    const cells = g.cells.slice().sort((a, b) => a.y - b.y);
-    for (const c of cells) {
-      drawBoulder(c, g.palette, 0, 1.0, cs, z);
-      if (_hashf(c.x * 0.21, c.y * 0.27) > 0.45) drawBoulder(c, g.palette, 1, 0.7, cs, z);
+      if (s.x > -cs * 3 && s.x < camera.viewW + cs * 3 && s.y > -cs * 3 && s.y < camera.viewH + cs * 3)
+        drawBoulder(c, g.palette, 0, 1.0, cs, z);
     }
   }
 }
@@ -890,14 +865,6 @@ function formationGroups() {
   _formState = state; _formGroups = groups;
   return groups;
 }
-
-// Style groups so a structure is built from coherent rocks, not a chaotic mix.
-const ROCKFORM_STYLES = {
-  glow:    ['rockform1', 'rockform5'],
-  ember:   ['rockform2', 'rockform6', 'rockform9', 'rockform12'],
-  crystal: ['rockform3', 'rockform7', 'rockform10', 'rockform13', 'rockform14'],
-  fungal:  ['rockform4', 'rockform8', 'rockform11'],
-};
 
 // Blit one formation sprite, anchored by its screen top-left (tlx,tly) at size
 // (sw,sh). Composited through an offscreen buffer so the cool-stone lift and the
@@ -969,61 +936,6 @@ function drawRockFormations() {
     if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
     _blitFormation(img, sw, sh, tl.x, tl.y, z, cs, soil, true);
   }
-}
-
-// Mountain WALLS rendered as a vertical STACK of large rock-formation sprites
-// (one coherent style per wall) descending from the surface to the wall's depth
-// — a layered cliff "root" beneath the mountain, replacing the heap of small
-// boulders. The impassable core is filled dark behind the stack so the barrier
-// never shows earth through a seam. Fungal sprites are skipped here (their
-// mushrooms would face sideways when stacked); crystal/ember/glow read upright.
-function drawWallFormations() {
-  if (!ROCKFORM_KEYS.some(hasAsset)) return;
-  const walls = rockGroups().filter((g) => g.cells.length > 2);
-  if (!walls.length) return;
-  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
-  const styleNames = ['crystal', 'ember', 'glow'].filter((s) => ROCKFORM_STYLES[s].some(hasAsset));
-  walls.forEach((g, wi) => {
-    let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const c of g.cells) { minX = Math.min(minX, c.x); maxX = Math.max(maxX, c.x); maxY = Math.max(maxY, c.y); }
-    const topY = sub.surfaceY;
-    const botY = maxY + cs / 2;                       // bottom of the deepest wall cell
-    const cxW = (minX + maxX) / 2;
-    const colSpan = Math.round((maxX - minX) / cs) + 1;
-    const dwW = (colSpan + 2) * cs;                   // a touch wider than the core (cliff base)
-    const swPx = dwW * z;
-    // horizontal cull
-    const sCenter = camera.worldToScreen(cxW, topY);
-    if (sCenter.x + swPx < 0 || sCenter.x - swPx > camera.viewW) return;
-    // coherent style + stable sprite sequence for this wall
-    const pool = (styleNames.length
-      ? ROCKFORM_STYLES[styleNames[Math.floor(_hashf(wi + 1, (state.seed || 1) * 0.041) * styleNames.length) % styleNames.length]]
-      : ROCKFORM_KEYS).filter(hasAsset);
-    if (!pool.length) return;
-    // (No rectangular backing: the heavily-overlapping tilted pieces form the
-    // barrier themselves, and the mountain sprite covers the top near the surface.
-    // A hard dark rect would peek out from behind the tilted rocks as black gaps.)
-    // stack top→down (lower sprite overlaps the seam of the one above). Each
-    // piece is tilted at a varied angle so the wall reads as a natural jumble of
-    // rock rather than neat horizontal slabs.
-    const sd = (state.seed || 1);
-    let yW = topY, i = 0, guard = 0;
-    while (yW < botY && guard++ < 28) {
-      const img = asset(pool[i % pool.length]); i++;
-      if (!img) break;
-      const aspect = img.width / img.height;
-      const pieceW = dwW * (0.78 + _hashf(wi * 4.3 + i, sd * 0.05) * 0.42); // width jitter
-      const dhW = pieceW / aspect;
-      const bottomMost = yW + dhW * 0.6 >= botY;
-      const jx = (_hashf(wi * 3.1 + i, sd * 0.07) * 2 - 1) * cs * 0.75;
-      // tilt: strong & chaotic (±~52°), reduced on the buried bottom piece so it embeds
-      const rot = (_hashf(wi * 5.7 + i, sd * 0.09) * 2 - 1) * 0.92 * (bottomMost ? 0.45 : 1);
-      const tl = camera.worldToScreen(cxW + jx - pieceW / 2, yW);
-      _blitFormation(img, pieceW * z, dhW * z, tl.x, tl.y, z, cs, soil, bottomMost, rot);
-      yW += dhW * 0.44;                               // ~56% overlap → solid through the steeper tilts
-    }
-  });
 }
 
 // Above-ground props (trees / grass / houses) placed along the surface line.

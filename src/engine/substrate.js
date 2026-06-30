@@ -168,31 +168,21 @@ export function generateSubstrate(config, rng) {
     });
   }
 
-  // 2c) WALL blockers — at least one wall of terrain spans the surface down to
-  //     depth, so the player MUST dig deeper to get under it. The surface above
-  //     reads as a mountain or a lake. Placed between (not in) the entry/goal.
+  // 2c) MOUNTAIN surface landmarks. (The old impassable "wall" rock column that
+  //     rose from the surface to depth — the path-blocking mechanic — has been
+  //     REMOVED; it's being redesigned. For now these just place mountain
+  //     sprites on the surface and reserve their columns so lakes avoid them.)
   const pathH = Math.max(1, s.pathRows || 2);
   const wallW = Math.max(1, s.wallWidthCols || 3);
   const wallCount = rng.int(Math.max(1, s.wallCountMin || 1), Math.max(1, s.wallCountMax || 3));
   const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW;
   const walls = [];
-  const dLoRows = s.wallDepthMinRows || 4;
-  const dHiRows = s.wallDepthMaxRows || 9;
   for (let i = 0; i < wallCount && innerHi > innerLo; i++) {
     const frac = (i + 1) / (wallCount + 1);
     let wc = Math.round(innerLo + frac * (innerHi - innerLo) + rng.range(-2, 2));
     wc = Math.max(innerLo, Math.min(innerHi, wc));
-    const depth = Math.max(3, Math.min(sub.rows - pathH - 1, rng.int(dLoRows, dHiRows)));
-    walls.push({ c0: wc, c1: wc + wallW, depth });
-    // Each wall is topped with a mountain — a distinct sprite landmark. (Lakes are
-    // a separate wide water feature, placed below.)
-    for (let col = wc; col < wc + wallW; col++) {
-      sub.surface[col].barrier = 'mountain';
-      for (let row = 0; row <= depth; row++) {
-        const cell = sub.cellAt(col, row);
-        if (cell) { cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; }
-      }
-    }
+    walls.push({ c0: wc, c1: wc + wallW });
+    for (let col = wc; col < wc + wallW; col++) sub.surface[col].barrier = 'mountain';
   }
 
   // 2c-ii) LAKE basins — large water-filled cross-sections carved into the earth.
@@ -290,13 +280,12 @@ export function generateSubstrate(config, rng) {
     }
   }
 
-  // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
-  //     stays shallow but DIPS beneath every wall. Built as a row-profile that
-  //     changes by at most (pathH-1) rows per column — so the cleared windows
-  //     always overlap and connect — forced below each wall, then cleared. This
-  //     keeps every map winnable while the walls stay genuine "go under" gates.
+  // 2d) Carve a guaranteed connected route from entry to goal: a shallow tunnel
+  //     that still DIPS beneath every lake. (The wall "go under" dips were removed
+  //     with the path-blocking columns — to be redesigned.) Built as a row-profile
+  //     that changes by at most (pathH-1) rows per column, so the cleared windows
+  //     always overlap and connect.
   const req = new Array(sub.cols).fill(1);                 // baseline: near the surface
-  for (const w of walls) for (let col = w.c0; col < w.c1; col++) req[col] = Math.max(req[col], w.depth + 1);
   // Lakes: the tunnel must pass beneath the deepest water in each column.
   for (const lk of lakes) for (let col = lk.c0; col <= lk.c1; col++) {
     let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
@@ -325,7 +314,7 @@ export function generateSubstrate(config, rng) {
 
   // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
   //    can't just grow freely) and steering with Add-Substrate matters. A reward
-  //    cache is tucked at the bottom of each wall dip, paying off the deep route.
+  //    cache sits beneath each lake's deep dip.
   const N = s.foodCellNutrient;
   // Keep food clear of rock formations: rocks render as big piled boulders that
   // spill well beyond their cells, so food placed near rock reads as sitting on
@@ -369,10 +358,6 @@ export function generateSubstrate(config, rng) {
     let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-1, 1));
     cc = Math.max(1, Math.min(sub.cols - 2, cc));
     drop(cc, pathRow[cc], rng.int(s.foodClusterRadiusMin, s.foodClusterRadiusMax));
-  }
-  for (const w of walls) {
-    const cc = Math.min(sub.cols - 2, w.c1 + 1);     // just past the wall, down at the dip
-    drop(cc, Math.min(sub.rows - 1, w.depth + 1), s.foodClusterRadiusMax);
   }
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
