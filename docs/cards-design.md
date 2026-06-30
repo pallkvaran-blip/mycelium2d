@@ -285,3 +285,44 @@ Per-card verdicts live in `docs/cards-review.md`.
 **Cut mechanics**
 - **R10 — Drop skip-cost reduction entirely** (uninteresting; also removes the invariant-5 exploit).
 - **R11 — Remove all "does not stack with itself" clauses** (every card is a single unique copy).
+
+---
+
+## 11. v2 framework (CURRENT — supersedes §3 buy-cost tiers)
+
+v2 = 164 cards, fully R1–R12 compliant (0 flat-cost / play-energy / percentage / node-target violations).
+Data: `docs/cards.csv` / `docs/cards.json`. Verdict ledger: `docs/cards-review.md`.
+
+**Locked economy**
+- **Flat buy cost = 14 energy for EVERY premium card** (engine/action/event/extender), basics = 0.
+  Power lives in the W/P/N play-gate + effect + timing, never in buy cost. (TM-style.)
+- `CONFIG.economy = { startEnergy:110, energyCarryCap:160, drawCostEnergy:8, skipCostEnergy:12, buyCostFlat:14, basicBuyCost:0 }`.
+- **Piles** (`CONFIG.pile`): small `25 energy · see3/keep1` · med `40 · see4/keep2` · large `55 · see5/keep2`.
+  Energy scales linearly with leaves consumed; the **draft unlocks only at full harvest** (ants stealing
+  part of a pile = less energy AND no draft). ~9 piles/map; route 4–6.
+
+**Engine energy ceiling (the death-clock linchpin)** — enforce GLOBALLY at runtime: each end-turn pay out
+`min(Σ installed energy-engine output, skipCost−1) = capped at 11`; excess is wasted (surface "income
+capped" in UI). Per-engine ≤ 4. Only ENERGY engines count toward the cap; resource/growth/defense engines
+are exempt (they don't print the master currency) but keep their repay clocks.
+
+**Terrain ladder for dig/clear cards** (R6) — freeze in `CONFIG.terrain`: `boulder < formation <
+rock-column < lake-basin`. Each dig clears ONE whole rock within a contiguous capability band, is
+unplayable if no eligible rock is in range, and carries a heavier (usually phosphorus) gate the higher
+the band. No distance counting, ever.
+
+**Targeting model** (R7/R9) — exactly three legal modes, each card declares one:
+1. **GLOBAL** (digest = all substrate, network buffs, fruiting),
+2. **RADIUS-around-a-tap** (the Amputate model; all cleanse/heal/protect/repair; differentiate by radius size),
+3. **DIRECTIONAL** (substrate drops at the sensing-range edge in a chosen direction; growth is player-aimed
+   or toward the nearest sensed attractor). No single node/strand selection anywhere.
+
+**Residual watch-items for the next review round**
+- **Burst-energy auto-includes**: with flat-14 buy, several un-gated bursts are strict +ROI in one play
+  (Sclerotial Cache +18, Autophagic Sprint +24, Autolytic Cash-Out +30, Shade-or-Sun SUN +28). Stiffen
+  their gates/downsides or they violate "no auto-includes".
+- **Ant lane is thin** — add an unconditional anti-ant defensive ENGINE (parallel to Nematophagous Mat).
+- A few unconditional no-gate engines (Trickle Mat, Aquifer Tap, Apatite Vein Engine…) may dominate the
+  conditional/threat engines that idle on quiet maps — give conditional engines a small guaranteed floor.
+- **Saprophytic Reclaim** (whole-network rot clear + 3N) is the most generous R9 edge case → make it radius.
+- **Count: 164 is high** (gap-fill bloat in the `gapfill` family) — consolidate near-duplicates to ~110–120.
