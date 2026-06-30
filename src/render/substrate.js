@@ -228,13 +228,15 @@ export class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
 
     const cells = [];
-    // Formation cells are drawn per-frame as large AI rock-formation sprites, so
-    // they're excluded here when those sprites exist — only wall rock and lone
-    // boulders bake into the base. Without the sprites, formations fall back to
-    // the procedural faceted-rock bake so they're never invisible.
+    // When the rock-formation sprites exist, ALL rock (formations, mountain walls
+    // and lone boulders) is drawn per-frame by sprites over plain earth, so NONE
+    // of it bakes here — otherwise the procedural faceted rock peeks out from
+    // behind the tilted sprites as stray dark slabs. Without the sprites we bake
+    // the procedural rock as the fallback so it's never invisible.
     let haveForm = false;
     for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
-    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water && !(cell.formation && haveForm)) cells.push([col, row]); });
+    if (haveForm) return;
+    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
     if (!cells.length) return;
 
     const unionPath = () => {
