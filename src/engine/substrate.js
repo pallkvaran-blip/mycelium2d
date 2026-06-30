@@ -141,6 +141,12 @@ export function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
+  // …the cols just LEFT of the goal are the SUMMERY approach: still un-surfaceable
+  // (you can only fruit at the goal), but marked 'meadow' so no city/concrete draws
+  // there — it's reserved for the bright summer hill backdrop, a stark contrast.
+  const summerCols = Math.max(0, Math.min(goalStart - startCols - 2, s.goalSummerCols || 0));
+  for (let c = goalStart - summerCols; c < goalStart; c++)
+    if (c >= 0) { sub.surface[c].barrier = 'meadow'; sub.surface[c].soil = false; sub.surface[c].goal = false; sub.surface[c].shade = false; }
   // …and the middle stays 'concrete' (rendered as plain ground; city skylines are
   // drawn over it). The distinctive barriers — mountains and lakes — are placed
   // as features below, so the rest of the surface is just impassable ground.
@@ -175,7 +181,7 @@ export function generateSubstrate(config, rng) {
   const pathH = Math.max(1, s.pathRows || 2);
   const wallW = Math.max(1, s.wallWidthCols || 3);
   const wallCount = rng.int(Math.max(1, s.wallCountMin || 1), Math.max(1, s.wallCountMax || 3));
-  const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW;
+  const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW - summerCols;
   const walls = [];
   for (let i = 0; i < wallCount && innerHi > innerLo; i++) {
     const frac = (i + 1) / (wallCount + 1);
@@ -196,7 +202,7 @@ export function generateSubstrate(config, rng) {
   const lakeCount = rng.int(Math.max(0, s.lakeCountMin || 0), Math.max(0, s.lakeCountMax || 0));
   const lwMin = s.lakeWidthMinCols || 8, lwMax = s.lakeWidthMaxCols || 14;
   const ldMin = s.lakeDepthMinRows || 5, ldMax = s.lakeDepthMaxRows || 8;
-  const lakeLo = startCols + 3, lakeHi = goalStart - 3;
+  const lakeLo = startCols + 3, lakeHi = goalStart - 3 - summerCols;
   // Find the free spans between the mountains, then drop lakes into the widest
   // ones — so a basin reliably appears (random probing often found no room).
   const spans = [];
@@ -242,7 +248,7 @@ export function generateSubstrate(config, rng) {
   const colW = Math.max(1, s.columnWidthCols || 2);
   const cdMin = s.columnDepthMinRows || 6, cdMax = s.columnDepthMaxRows || 11;
   const tiltMax = (s.columnTiltMaxDeg || 30) * Math.PI / 180;
-  const colLo = startCols + 2, colHi = goalStart - 2 - colW;
+  const colLo = startCols + 2, colHi = goalStart - 2 - colW - summerCols;
   const placedCols = [];
   let colAttempts = 0;
   while (sub.rockColumns.length < colCount && colAttempts++ < 300 && colHi > colLo) {
@@ -278,7 +284,7 @@ export function generateSubstrate(config, rng) {
   //   sprite). Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art.
   const fCount = Math.max(0, s.formationCount || 0);
   const fwMin = s.formationWidthMinCols || 5, fwMax = s.formationWidthMaxCols || 11;
-  const fLo = startCols + 3, fHi = goalStart - 3;
+  const fLo = startCols + 3, fHi = goalStart - 3 - summerCols;
   // Formations draw from their OWN deterministic sub-stream (seeded from a single
   // main draw). Their count/placement consumes thousands of rolls, so keeping them
   // OFF the main stream means tuning rock density never perturbs the gameplay RNG

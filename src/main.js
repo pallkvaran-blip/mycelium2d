@@ -306,6 +306,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawGoalBackdrop();           // summery green hill band behind the goal (far backdrop)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
   drawRockPiles();              // lone boulders (gated) — over food/earth
@@ -315,6 +316,7 @@ function frame(time) {
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
+  drawGoalProps();              // summery bush clusters on the goal soil (over the hill backdrop)
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
@@ -1054,8 +1056,9 @@ function surfaceProps() {
     const surf = sub.surface[c];
     const r = _hashf(c + 0.5, seed);
     // Trees scatter over fruitable soil. (The lone 'house' prop was removed — the
-    // city skylines are the man-made surface now.)
-    if (surf.soil && r < 0.07 && c - lastTree > 3 && hasAsset('tree')) {
+    // city skylines are the man-made surface now.) Skip the goal zone — that's the
+    // summery landscape, with its own bush props.
+    if (surf.soil && !surf.goal && r < 0.07 && c - lastTree > 3 && hasAsset('tree')) {
       props.push({ key: 'tree', col: c, h: 124, embed: 24, flip: _hashf(c, 7) < 0.5 }); lastTree = c;
     }
   }
@@ -1320,6 +1323,43 @@ function drawSurfaceProps() {
     if (pr.flip) { ctx.translate(s.x, by); ctx.scale(-1, 1); ctx.drawImage(img, -w / 2, -h, w, h); }
     else ctx.drawImage(img, s.x - w / 2, by - h, w, h);
     ctx.restore();
+  }
+}
+
+// The GOAL (right) side is a bright SUMMERY landscape — a stark contrast to the
+// dark deep-earth world. Two layers: a low sunlit green hill band along the
+// horizon (drawn as a far backdrop, behind everything) and a couple of leafy
+// bush clusters sitting on the fruiting soil (drawn with the surface props).
+function goalCol0() {
+  const sub = state.substrate;
+  for (let c = 0; c < sub.cols; c++) if (sub.surface[c] && sub.surface[c].goal) return c;
+  return -1;
+}
+function drawGoalBackdrop() {
+  const hill = asset('goalhill'); if (!hill) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const g0 = goalCol0(); if (g0 < 0) return;
+  const summerCols = Math.max(0, state.config.substrate.goalSummerCols || 0);
+  const x0 = Math.max(0, g0 - summerCols) * cs, x1 = sub.worldWidth + cs;   // span the cleared summer zone → off the right edge
+  const wWorld = x1 - x0, hWorld = wWorld * (hill.height / hill.width);
+  const embed = cs * 0.3;                                          // flat base tucked just under the soil line
+  const sw = wWorld * z, sh = hWorld * z;
+  const tl = camera.worldToScreen(x0, sub.surfaceY + embed - hWorld);
+  if (tl.x > camera.viewW || tl.x + sw < 0) return;
+  ctx.drawImage(hill, tl.x, tl.y, sw, sh);
+}
+function drawGoalProps() {
+  const bush = asset('goalbush'); if (!bush) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const g0 = goalCol0(); if (g0 < 0) return;
+  const aspect = bush.width / bush.height;
+  for (const [col, hCells] of [[g0 + 1, 3.0], [g0 + 4, 2.2]]) {    // a big cluster + a smaller one
+    if (col < 0 || col >= sub.cols) continue;
+    const hWorld = cs * hCells, wWorld = hWorld * aspect;
+    const s = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY + cs * 0.18);
+    const sw = wWorld * z, sh = hWorld * z;
+    if (s.x < -sw || s.x > camera.viewW + sw) continue;
+    ctx.drawImage(bush, s.x - sw / 2, s.y - sh, sw, sh);
   }
 }
 

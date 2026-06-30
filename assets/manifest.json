@@ -1,46 +1,220 @@
 {
-  "_comment": "Lists the image assets that actually exist. The game preloads these at boot; renderers fall back to the procedural look for anything not listed. kind: 'texture' (tileable pattern) or 'sprite' (transparent PNG). Optional per-texture: opacity (0-1), blend (canvas composite op e.g. 'screen','overlay','soft-light','multiply'), scale (image-px to world-units multiplier).",
-  "assets": [
-    { "key": "leafOak", "file": "leafOak.png", "kind": "sprite" },
-    { "key": "leafMaple", "file": "leafMaple.png", "kind": "sprite" },
-    { "key": "rockSlate", "file": "rockSlate.png", "kind": "sprite" },
-    { "key": "rockBasalt", "file": "rockBasalt.png", "kind": "sprite" },
-    { "key": "rockRiver", "file": "rockRiver.png", "kind": "sprite" },
-    { "key": "rockVeined", "file": "rockVeined.png", "kind": "sprite" },
-    { "key": "rockMossy", "file": "rockMossy.png", "kind": "sprite" },
-    { "key": "tree", "file": "tree.png", "kind": "sprite" },
-    { "key": "house", "file": "house.png", "kind": "sprite" },
-    { "key": "antColonyA", "file": "antColonyA.png", "kind": "sprite" },
-    { "key": "antColonyB", "file": "antColonyB.png", "kind": "sprite" },
-    { "key": "mountain1", "file": "mountain1.png", "kind": "sprite" },
-    { "key": "mountain2", "file": "mountain2.png", "kind": "sprite" },
-    { "key": "mountain3", "file": "mountain3.png", "kind": "sprite" },
-    { "key": "mountain4", "file": "mountain4.png", "kind": "sprite" },
-    { "key": "mountain5", "file": "mountain5.png", "kind": "sprite" },
-    { "key": "range1", "file": "range1.png", "kind": "sprite" },
-    { "key": "range2", "file": "range2.png", "kind": "sprite" },
-    { "key": "skyline1", "file": "skyline1.png", "kind": "sprite" },
-    { "key": "skyline2", "file": "skyline2.png", "kind": "sprite" },
-    { "key": "skyline3", "file": "skyline3.png", "kind": "sprite" },
-    { "key": "skyline4", "file": "skyline4.png", "kind": "sprite" },
-    { "key": "skyline5", "file": "skyline5.png", "kind": "sprite" },
-    { "key": "skyline6", "file": "skyline6.png", "kind": "sprite" },
-    { "key": "lake1", "file": "lake1.png", "kind": "sprite" },
-    { "key": "lake2", "file": "lake2.png", "kind": "sprite" },
-    { "key": "lake3", "file": "lake3.png", "kind": "sprite" },
-    { "key": "rockform1", "file": "rockform1.png", "kind": "sprite" },
-    { "key": "rockform2", "file": "rockform2.png", "kind": "sprite" },
-    { "key": "rockform3", "file": "rockform3.png", "kind": "sprite" },
-    { "key": "rockform4", "file": "rockform4.png", "kind": "sprite" },
-    { "key": "rockform5", "file": "rockform5.png", "kind": "sprite" },
-    { "key": "rockform6", "file": "rockform6.png", "kind": "sprite" },
-    { "key": "rockform7", "file": "rockform7.png", "kind": "sprite" },
-    { "key": "rockform8", "file": "rockform8.png", "kind": "sprite" },
-    { "key": "rockform9", "file": "rockform9.png", "kind": "sprite" },
-    { "key": "rockform10", "file": "rockform10.png", "kind": "sprite" },
-    { "key": "rockform11", "file": "rockform11.png", "kind": "sprite" },
-    { "key": "rockform12", "file": "rockform12.png", "kind": "sprite" },
-    { "key": "rockform13", "file": "rockform13.png", "kind": "sprite" },
-    { "key": "rockform14", "file": "rockform14.png", "kind": "sprite" }
-  ]
+ "_comment": "Lists the image assets that actually exist. The game preloads these at boot; renderers fall back to the procedural look for anything not listed. kind: 'texture' (tileable pattern) or 'sprite' (transparent PNG). Optional per-texture: opacity (0-1), blend (canvas composite op e.g. 'screen','overlay','soft-light','multiply'), scale (image-px to world-units multiplier).",
+ "assets": [
+  {
+   "key": "leafOak",
+   "file": "leafOak.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafMaple",
+   "file": "leafMaple.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockSlate",
+   "file": "rockSlate.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockBasalt",
+   "file": "rockBasalt.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockRiver",
+   "file": "rockRiver.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockVeined",
+   "file": "rockVeined.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockMossy",
+   "file": "rockMossy.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "tree",
+   "file": "tree.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "house",
+   "file": "house.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "antColonyA",
+   "file": "antColonyA.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "antColonyB",
+   "file": "antColonyB.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "mountain1",
+   "file": "mountain1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "mountain2",
+   "file": "mountain2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "mountain3",
+   "file": "mountain3.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "mountain4",
+   "file": "mountain4.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "mountain5",
+   "file": "mountain5.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "range1",
+   "file": "range1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "range2",
+   "file": "range2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline1",
+   "file": "skyline1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline2",
+   "file": "skyline2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline3",
+   "file": "skyline3.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline4",
+   "file": "skyline4.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline5",
+   "file": "skyline5.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "skyline6",
+   "file": "skyline6.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "lake1",
+   "file": "lake1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "lake2",
+   "file": "lake2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "lake3",
+   "file": "lake3.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform1",
+   "file": "rockform1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform2",
+   "file": "rockform2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform3",
+   "file": "rockform3.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform4",
+   "file": "rockform4.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform5",
+   "file": "rockform5.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform6",
+   "file": "rockform6.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform7",
+   "file": "rockform7.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform8",
+   "file": "rockform8.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform9",
+   "file": "rockform9.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform10",
+   "file": "rockform10.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform11",
+   "file": "rockform11.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform12",
+   "file": "rockform12.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform13",
+   "file": "rockform13.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "rockform14",
+   "file": "rockform14.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "goalhill",
+   "file": "goalhill.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "goalbush",
+   "file": "goalbush.png",
+   "kind": "sprite"
+  }
+ ]
 }

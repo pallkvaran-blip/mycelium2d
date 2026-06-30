@@ -24,6 +24,7 @@ export const CONFIG = {
     // Traversal level: enter at the far left, cross underground to the goal soil
     // on the far right, surface there and fruit. The middle is un-surfaceable.
     goalCols: 6,                 // width of the right-hand fruitable GOAL zone (cols)
+    goalSummerCols: 7,           // cols just LEFT of the goal kept clear of dark-world features — the summery landscape approach
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
