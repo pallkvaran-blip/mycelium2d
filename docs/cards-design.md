@@ -4,8 +4,9 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **design draft v1** — ~119 cards generated and adversarially reviewed; NOT yet
-> balanced-final and NOT implemented. See "Known issues to fix" before coding anything.
+> Status: **design draft v3** — **134 cards** (v1 119 → v2 164 → v3 134, consolidated for redundancy);
+> R1–R12 compliant; NOT yet balanced-final and NOT implemented. See **§12** for the current state and
+> **§7** for older known issues. CURRENT rules live in §10 (rulings) → §11 (economy) → §12 (consolidation).
 
 ---
 
@@ -317,12 +318,83 @@ the band. No distance counting, ever.
 3. **DIRECTIONAL** (substrate drops at the sensing-range edge in a chosen direction; growth is player-aimed
    or toward the nearest sensed attractor). No single node/strand selection anywhere.
 
-**Residual watch-items for the next review round**
-- **Burst-energy auto-includes**: with flat-14 buy, several un-gated bursts are strict +ROI in one play
-  (Sclerotial Cache +18, Autophagic Sprint +24, Autolytic Cash-Out +30, Shade-or-Sun SUN +28). Stiffen
-  their gates/downsides or they violate "no auto-includes".
-- **Ant lane is thin** — add an unconditional anti-ant defensive ENGINE (parallel to Nematophagous Mat).
-- A few unconditional no-gate engines (Trickle Mat, Aquifer Tap, Apatite Vein Engine…) may dominate the
-  conditional/threat engines that idle on quiet maps — give conditional engines a small guaranteed floor.
-- **Saprophytic Reclaim** (whole-network rot clear + 3N) is the most generous R9 edge case → make it radius.
-- **Count: 164 is high** (gap-fill bloat in the `gapfill` family) — consolidate near-duplicates to ~110–120.
+**Residual watch-items for the next review round** — *all addressed in §12 (v3).*
+
+---
+
+## 12. v3 consolidation (CURRENT — supersedes §11 counts & watch-items)
+
+v3 = **134 cards** (was 164: **31 cut**, **1 added**). Still fully R1–R12 compliant
+(0 flat-cost / play-energy / percentage / node-target violations; verified by the consolidation script).
+The `gapfill` family is **gone** — every kept card now lives in a real lane.
+
+> Mandate was *"consolidate redundance only, no forced number, + add the ant stuff."*
+> Every cut below is a genuine duplicate, a strictly-dominated card, or a redundant member of an
+> over-served cluster. Nothing unique was removed for the sake of a target count.
+
+**Composition** — type: basic 16 · engine 47 · event 50 · action 14 · extender 7.
+Family: basics 10 · energy 16 · water 17 · phosphorus 15 · nitrogen 14 · defense 21 · growth 13 ·
+fruiting 12 · extenders 9 · events 7.
+
+### 12.1 Cuts (31), by redundancy cluster
+- **Duplicate free grow basics** — there were three "aimed grow" basics and two "radial grow" basics
+  across the basics/growth/gapfill families. Kept the basics-family copies; cut **Apical Extension**,
+  **Hyphal Branching** (= Foraging Fan), **Apical Spearhead** (= Apical Drive), **Radial Flush**
+  (buy-14 reusable Foraging Fan), **Long-Range Chemotaxis** (N-parity of Riptide Reach; reach is
+  covered by free Tropic Lunge + W-gated Riptide Reach).
+- **Duplicate resource floors** — **Ammonifying Mantle** (= Mineralizing Saprobe, the uncond +1 N
+  engine), **Mineral Etch** (= Phosphate Tap, the basic P contact-harvest), **Decay Foray**
+  (= Decay Forage Front, the N runway extender).
+- **W/P engine glut** — **Aquifer Tap** (dominated Aquaporin Channels; durable uncond W faucet is now
+  Osmotic Lure), **Aquaporin Conduit** (= Riparian Mycelium niche), **Apatite Vein Engine** (dominated
+  Phosphatase Cushion; durable uncond P faucet is Mineral Foraging Hyphae), **Mycorrhizal Bridge**
+  (P-engine glut). Each lane keeps a clean curve: capped-early → conditional → rare-ceiling.
+- **Energy income / storage glut** — **Trickle Mat** (+1/round strictly dominated by Trunkline's +4 at
+  the same flat buy = a dud), **Saprotrophic Quicksprout** (= Trunkline tagged "late"),
+  **Chlamydospore Bank** & **Sealed Sclerotium** (storage covered by Sclerotium Reserve +
+  Polyphosphate Granule).
+- **Energy-burst auto-includes** — **Sclerotial Cache** (ungated instant +18 strictly dominated
+  Hyphal Investment) and **Autolytic Cash-Out** (= Necrotic Tithe's spatial-sacrifice axis, and the
+  worst auto-include at +30) cut outright; see §12.2 for the two survivors that were re-costed.
+- **Dig ladder duplicates** — **Oxalate Exudate** (event) (= Enzymatic Deep Bore, 2P boulder+formation),
+  **Pebble Crack** (Tier-1 boulder covered by Appressorial Punch + Acidic Exudate), **Karst Dissolution**
+  (= Hydraulic Deluge Bore, 3W+1P column+lake-basin).
+- **Mould cleanse / heal glut** — six radius cleanses collapsed to a clean set: cut **Antibiotic Flush**
+  (= Antibiosis Bloom), **Rot Cleanse Bloom** (= Hydrophobin Cleanse), **Cytokinin Salve**
+  (= Rehydration Pulse, r60/1W all-threat repair), **Mycoparasitic Coil** (= Mycoparasitic Reversal),
+  **Laccase Curtain** (= Melanized Sheath).
+- **Converter glut** — **Translocation Cord** & **Nutrient Shunt** (the design always intended ONE
+  generic W↔P↔N converter; kept **Nutrient Transmutation**).
+- **Substrate / water-burst glut** — **Spore Speck Patch** (= Leaf Litter Cache), **Humus Apron**
+  (size-glut between Litter Drift and Forest-Floor Mantle), **Tide Surge** (W-burst+grow covered by
+  Imbibition Surge + the grow events).
+
+### 12.2 Re-costs & fixes (watch-items from §11)
+- **Autophagic Sprint** +24 → **+16** (the permanent skip-raise downside now actually bites early).
+- **Shade-or-Sun Cap** SUN +28 → **+18** (the energy↔spore FORK is the point, not a pile-rivaling spike).
+- **Saprophytic Reclaim** whole-network → **RADIUS-around-a-tap (r75)** — R9 compliance.
+- **Vesicle Supply Line** now seeds **Apical Drive** basics (Apical Extension was cut).
+- The burst cluster is now fully axis-differentiated — every one-shot energy spike carries a distinct
+  gate or downside: Osmotic Cashout (1W, instant), Hyphal Investment (ungated drip), Hyphal Autolysis
+  (deck sacrifice), Necrotic Tithe (frontier sacrifice), Autophagic Sprint (skip-raise), Spore Salvo
+  (2N, hands back N), Shade-or-Sun (fork), Trail Hijack (ant-trail gated). No ungated-no-downside
+  instant spike survives.
+
+### 12.3 Ant lane (the "add the ant stuff" ask)
+Ants now have a complete lane parallel to the worm lane — **8 cards** in the `defense` family:
+- **NEW · Fungus-Garden Mat** (rare engine) — the **unconditional anti-ant defensive ENGINE** the lane
+  lacked, the direct parallel of Nematophagous Mat (worms): guaranteed **+1 N/round floor** on any map,
+  doubling to **+2 N + turning back ant columns** that touch the network while a raid is on. Distinct
+  from Picket Hyphae (reduces pile-theft) and Aphid Ranch (ant→energy): this **removes ant pressure +
+  pays a resource floor**, so it is never a dead draft on an ant-light map.
+- Engines: Fungus-Garden Mat (uncond), Trophallaxis Hijack (skim ant food→nutrient), Picket Hyphae
+  (−2 leaves stolen/pile), Aphid Ranch (ant→energy, +1 floor).
+- Reactive/offensive: Chemorepellent Trail (repel piles), Pheromone Scramble (re-path ants),
+  Trail Hijack (trail→energy + free route), Formic Vanguard (collapse nests).
+
+### 12.4 Family refold
+Every surviving `gapfill` card was moved to its real lane: Cordyceps Vault / Autophagic Sprint /
+Necrotic Tithe / Spent Mat Combustion → **energy**; Imbibition Surge / Condense → **water**;
+Ammonify → **nitrogen**; Picket Hyphae / Trail Hijack / Aphid Ranch / Pheromone Scramble /
+Mycoparasite Harvest / Demarcation Line / Saprophytic Reclaim / Fungus-Garden Mat → **defense**;
+Foxfire Glow / Litter Drift / Forest-Floor Mantle / Sensory Sheath → **growth**.

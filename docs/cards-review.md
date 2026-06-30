@@ -41,3 +41,17 @@ design rules they established live in `cards-design.md` §10 (R1–R12).
 - Grow 3 toward the nearest substrate, even if out of range.
 - A family of sensing-distance / growth-mechanic manipulator cards.
 - Substrate cards across a range of patch sizes (small → large).
+
+## v3 consolidation (between review rounds)
+
+After the v2 set (164) the human asked to *"consolidate redundance only — no forced number — and add the
+ant stuff."* Result: **134 cards** (31 cut, 1 added). Full log in `cards-design.md` §12. Highlights:
+- Cut 31 genuine duplicates / dominated cards / over-served-cluster members (the whole `gapfill` family
+  was refolded into real lanes; duplicate grow basics, digs, mould-cleanses, converters, W/P engine glut,
+  and energy-burst auto-includes removed).
+- Re-costed the burst auto-includes the human flagged: Autophagic Sprint +24→+16, Shade-or-Sun SUN
+  +28→+18; made Saprophytic Reclaim radius-based (R9).
+- **Ant lane** rounded out to 8 cards incl. the **NEW Fungus-Garden Mat** — the unconditional anti-ant
+  defensive engine (parallel to Nematophagous Mat) the lane was missing.
+
+→ Awaiting **review round 2** on the v3 set (human will rate cards in the phone tool).
