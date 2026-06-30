@@ -154,7 +154,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "185wrgq";
+window.__ASSET_VER = "1t3u1cv";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -5105,13 +5105,9 @@ function drawWallFormations() {
       ? ROCKFORM_STYLES[styleNames[Math.floor(_hashf(wi + 1, (state.seed || 1) * 0.041) * styleNames.length) % styleNames.length]]
       : ROCKFORM_KEYS).filter(hasAsset);
     if (!pool.length) return;
-    // dark core fill behind the stack — the impassable core never shows earth
-    const t0 = camera.worldToScreen(minX - cs / 2, topY);
-    const t1 = camera.worldToScreen(maxX + cs / 2, botY);
-    ctx.save();
-    ctx.fillStyle = 'rgba(22,24,30,0.96)';
-    ctx.fillRect(t0.x, t0.y, t1.x - t0.x, t1.y - t0.y);
-    ctx.restore();
+    // (No rectangular backing: the heavily-overlapping tilted pieces form the
+    // barrier themselves, and the mountain sprite covers the top near the surface.
+    // A hard dark rect would peek out from behind the tilted rocks as black gaps.)
     // stack top→down (lower sprite overlaps the seam of the one above). Each
     // piece is tilted at a varied angle so the wall reads as a natural jumble of
     // rock rather than neat horizontal slabs.
