@@ -86,14 +86,8 @@ export class SubstrateRenderer {
     octx.fillStyle = grad;
     octx.fillRect(0, 0, W, sy);
 
-    // the sun — a soft daylight disc high in the sky
-    const sunX = W * 0.72, sunY = sy * 0.32, sunR = sy * 0.42;
-    const sg = octx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-    sg.addColorStop(0, r.sun);
-    sg.addColorStop(0.07, r.sun);
-    sg.addColorStop(1, 'rgba(255,250,232,0)');
-    octx.fillStyle = sg;
-    octx.fillRect(0, 0, W, sy);
+    // (The sun disc was removed — the MOON is drawn per-frame in main.js, a
+    // luminous body in the twilight sky to suit the night scene.)
 
     // warm daylight haze hugging the horizon
     const hg = octx.createLinearGradient(0, sy - 160, 0, sy);

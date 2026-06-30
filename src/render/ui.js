@@ -54,25 +54,7 @@ export class UI {
     `;
     root.appendChild(hud);
 
-    // ---- Map legend (keeps the cross-section legible) ----
-    const legend = div('panel legend' + maybeCollapsed);
-    const items = [
-      ['#7c5326', 'Substrate (organic matter)'],
-      ['#8aa23e', 'Trichoderma — infects your net'],
-      ['radial-gradient(circle,rgba(150,190,70,0) 55%,rgba(150,190,70,0.5))', 'Mould sight range (soft ring)'],
-      ['#5d574e', 'Rock — impassable'],
-      ['linear-gradient(180deg,#3f8197,#0e2935)', 'Lake — impassable water'],
-      ['#7a5d3c', 'Soil — fruitable'],
-      ['#3a3d45', 'Non-soil — no fruiting'],
-      ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],
-    ];
-    legend.innerHTML = `<div class="title clickable">Map legend <span class="chev">▾</span></div>` +
-      `<div class="legend-body">` +
-      items.map(([c, t]) => `<div class="li"><span class="sw" style="background:${c}"></span>${t}</div>`).join('') +
-      `<div class="li note">Drag to pan · scroll to zoom · F to refit</div>` +
-      `</div>`;
-    legend.querySelector('.title').onclick = () => legend.classList.toggle('collapsed');
-    root.appendChild(legend);
+    // (Map legend panel removed.)
 
     // ---- Bottom action bar ----
     const bar = div('panel actionbar');
@@ -104,14 +86,7 @@ export class UI {
     root.appendChild(logPanel);
     this.el.loglist = logPanel.querySelector('#loglist');
 
-    // ---- "What we're testing" (pinned, collapsible) ----
-    const testing = div('panel testing' + maybeCollapsed);
-    testing.innerHTML = `<div class="title clickable">What we're testing <span class="chev">▾</span></div>`;
-    const list = div('testing-list');
-    list.innerHTML = TESTING_QUESTIONS.map((q, i) => `<div class="q"><b>${i + 1}.</b> ${q}</div>`).join('');
-    testing.appendChild(list);
-    testing.querySelector('.title').onclick = () => testing.classList.toggle('collapsed');
-    root.appendChild(testing);
+    // ("What we're testing" panel removed.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
     if (this.state.config.dev.enabled) {

@@ -306,6 +306,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawMoon();                   // luminous moon high in the twilight sky
   drawGoalBackdrop();           // summery green hill band behind the goal (far backdrop)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
@@ -1335,6 +1336,24 @@ function goalCol0() {
   for (let c = 0; c < sub.cols; c++) if (sub.surface[c] && sub.surface[c].goal) return c;
   return -1;
 }
+// The MOON — a luminous body high in the twilight sky (replaces the old sun
+// disc). World-anchored so it sits with the sky; rendered on black, composited
+// with 'screen' so its cyan glow adds over the sky and the black drops out.
+function drawMoon() {
+  const img = asset('moon'); if (!img) return;
+  const sub = state.substrate, z = camera.zoom;
+  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.30;   // high in the sky (the old sun spot)
+  const hWorld = sub.surfaceY * 0.78;
+  const wWorld = hWorld * (img.width / img.height);
+  const s = camera.worldToScreen(cx, cy);
+  const sw = wWorld * z, sh = hWorld * z;
+  if (s.x + sw / 2 < 0 || s.x - sw / 2 > camera.viewW || s.y - sh / 2 > camera.viewH) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(img, s.x - sw / 2, s.y - sh / 2, sw, sh);
+  ctx.restore();
+}
+
 // Clip whatever's drawn in `fn` to the world's horizontal extent so the goal
 // scene never bleeds past the map edges into the off-map dark.
 function withWorldClip(fn) {

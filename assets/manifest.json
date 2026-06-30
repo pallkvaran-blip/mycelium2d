@@ -215,6 +215,11 @@
    "key": "goalbush",
    "file": "goalbush.png",
    "kind": "sprite"
+  },
+  {
+   "key": "moon",
+   "file": "moon.png",
+   "kind": "sprite"
   }
  ]
 }

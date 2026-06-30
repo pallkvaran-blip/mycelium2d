@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "zmylun";
+window.__ASSET_VER = "lj8708";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -2849,14 +2849,8 @@ class SubstrateRenderer {
     octx.fillStyle = grad;
     octx.fillRect(0, 0, W, sy);
 
-    // the sun — a soft daylight disc high in the sky
-    const sunX = W * 0.72, sunY = sy * 0.32, sunR = sy * 0.42;
-    const sg = octx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-    sg.addColorStop(0, r.sun);
-    sg.addColorStop(0.07, r.sun);
-    sg.addColorStop(1, 'rgba(255,250,232,0)');
-    octx.fillStyle = sg;
-    octx.fillRect(0, 0, W, sy);
+    // (The sun disc was removed — the MOON is drawn per-frame in main.js, a
+    // luminous body in the twilight sky to suit the night scene.)
 
     // warm daylight haze hugging the horizon
     const hg = octx.createLinearGradient(0, sy - 160, 0, sy);
@@ -3928,25 +3922,7 @@ class UI {
     `;
     root.appendChild(hud);
 
-    // ---- Map legend (keeps the cross-section legible) ----
-    const legend = div('panel legend' + maybeCollapsed);
-    const items = [
-      ['#7c5326', 'Substrate (organic matter)'],
-      ['#8aa23e', 'Trichoderma — infects your net'],
-      ['radial-gradient(circle,rgba(150,190,70,0) 55%,rgba(150,190,70,0.5))', 'Mould sight range (soft ring)'],
-      ['#5d574e', 'Rock — impassable'],
-      ['linear-gradient(180deg,#3f8197,#0e2935)', 'Lake — impassable water'],
-      ['#7a5d3c', 'Soil — fruitable'],
-      ['#3a3d45', 'Non-soil — no fruiting'],
-      ['linear-gradient(180deg,rgba(40,90,140,0),rgba(40,90,140,0.6))', 'Shade — more spores'],
-    ];
-    legend.innerHTML = `<div class="title clickable">Map legend <span class="chev">▾</span></div>` +
-      `<div class="legend-body">` +
-      items.map(([c, t]) => `<div class="li"><span class="sw" style="background:${c}"></span>${t}</div>`).join('') +
-      `<div class="li note">Drag to pan · scroll to zoom · F to refit</div>` +
-      `</div>`;
-    legend.querySelector('.title').onclick = () => legend.classList.toggle('collapsed');
-    root.appendChild(legend);
+    // (Map legend panel removed.)
 
     // ---- Bottom action bar ----
     const bar = div('panel actionbar');
@@ -3978,14 +3954,7 @@ class UI {
     root.appendChild(logPanel);
     this.el.loglist = logPanel.querySelector('#loglist');
 
-    // ---- "What we're testing" (pinned, collapsible) ----
-    const testing = div('panel testing' + maybeCollapsed);
-    testing.innerHTML = `<div class="title clickable">What we're testing <span class="chev">▾</span></div>`;
-    const list = div('testing-list');
-    list.innerHTML = TESTING_QUESTIONS.map((q, i) => `<div class="q"><b>${i + 1}.</b> ${q}</div>`).join('');
-    testing.appendChild(list);
-    testing.querySelector('.title').onclick = () => testing.classList.toggle('collapsed');
-    root.appendChild(testing);
+    // ("What we're testing" panel removed.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
     if (this.state.config.dev.enabled) {
@@ -4472,6 +4441,7 @@ function frame(time) {
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
   substrateRenderer.draw(ctx, camera, time);
+  drawMoon();                   // luminous moon high in the twilight sky
   drawGoalBackdrop();           // summery green hill band behind the goal (far backdrop)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
@@ -5501,6 +5471,24 @@ function goalCol0() {
   for (let c = 0; c < sub.cols; c++) if (sub.surface[c] && sub.surface[c].goal) return c;
   return -1;
 }
+// The MOON — a luminous body high in the twilight sky (replaces the old sun
+// disc). World-anchored so it sits with the sky; rendered on black, composited
+// with 'screen' so its cyan glow adds over the sky and the black drops out.
+function drawMoon() {
+  const img = asset('moon'); if (!img) return;
+  const sub = state.substrate, z = camera.zoom;
+  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.30;   // high in the sky (the old sun spot)
+  const hWorld = sub.surfaceY * 0.78;
+  const wWorld = hWorld * (img.width / img.height);
+  const s = camera.worldToScreen(cx, cy);
+  const sw = wWorld * z, sh = hWorld * z;
+  if (s.x + sw / 2 < 0 || s.x - sw / 2 > camera.viewW || s.y - sh / 2 > camera.viewH) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(img, s.x - sw / 2, s.y - sh / 2, sw, sh);
+  ctx.restore();
+}
+
 // Clip whatever's drawn in `fn` to the world's horizontal extent so the goal
 // scene never bleeds past the map edges into the off-map dark.
 function withWorldClip(fn) {
