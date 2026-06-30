@@ -240,3 +240,48 @@ From the adversarial review. **Do these first in the balance pass.**
   (play = free; you paid to DRAW).
 - Write `scripts/cardlint.mjs` asserting invariants 1–8 over `cards.json` before any card ships.
 - Card data is canonical in `docs/cards.csv` / `docs/cards.json`; the game should load from it.
+
+---
+
+## 10. Playtest rulings — round 1 (SUPERSEDE §2–§4 where they conflict)
+
+Firm design rules from the first review pass. Apply set-wide in the revision pass.
+Per-card verdicts live in `docs/cards-review.md`.
+
+**Costing / rarity**
+- **R1 — Rarity is not a frequency or cost lever.** Every card is unique, single-copy, equally
+  likely in any draft. Drop the "rarity" framing; never balance a card on being "rare/rarely drawn".
+- **R2 — Flat buy cost (PENDING CONFIRM).** Every premium card costs the SAME flat energy to buy
+  at a pile (Terraforming-Mars style). Power is balanced by the resource (W/P/N) play-gate + effect
+  strength + timing — not by buy cost. Basics stay free deck-floor. If confirmed, this replaces the
+  §3 buy-cost tiers.
+- **R12 — Re-cost energy engines** (Brown-Rot Mat was too cheap/OP). Balance via effect magnitude +
+  the engine-energy ceiling, not buy price.
+
+**Substrate & growth**
+- **R3 — Substrate = fixed distance, direction only.** Substrate cards drop their patch at the EDGE
+  of current sensing range, in a player-chosen DIRECTION. Player controls direction, not distance.
+  Differentiate cards by PATCH SIZE.
+- **R3b — Add sensing/growth-trick cards**, e.g. "grow 1 in every direction (no substrate needed)",
+  "grow 3 toward the nearest substrate even if out of range".
+- **R8 — No "grow toward the goal" / obstacle-pathing growth.** Directional growth is player-aimed
+  or toward the nearest sensed attractor. (Goal-direction is fine ONLY for a single-target rock clear.)
+
+**Digest / production**
+- **R4 — Digest affects ALL occupied substrate**, never specific cells.
+- **R5 — Flat numbers, never percentages.** Digest starts very low (1); digest/production boosts add
+  +1/+X flat. No % modifiers anywhere in the set.
+
+**Rock / dig**
+- **R6 — Rock clearing removes one WHOLE rock of any size; no distance counting.** Card is unplayable
+  if no rock is in range (no do-nothing fallback). Differentiate dig cards by which TERRAIN they can
+  clear (boulder / formation / column / lake-basin), not by distance.
+
+**Targeting (phone-first)**
+- **R7 — No single-node / single-strand targeting.** All targeting is GLOBAL, RADIUS-around-a-tap
+  (like the Amputate action), or DIRECTIONAL. Cleanse / heal / protect / repair → radius.
+- **R9 — Cleanse/heal is radius-limited**, never whole-map (e.g. Monsoon Bloom).
+
+**Cut mechanics**
+- **R10 — Drop skip-cost reduction entirely** (uninteresting; also removes the invariant-5 exploit).
+- **R11 — Remove all "does not stack with itself" clauses** (every card is a single unique copy).
