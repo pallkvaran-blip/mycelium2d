@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "pd9ern";
+window.__ASSET_VER = "67b13e";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -4444,9 +4444,6 @@ function frame(time) {
   // Dynamic lighting: dim the earth, then add the colony's glow back in.
   lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
 
-  // Continuous warm band along the soil line (so rock piles don't break it).
-  drawSurfaceHaze();
-
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
@@ -5410,31 +5407,6 @@ function drawCities() {
     ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
   });
-}
-
-// Surface haze: a warm horizontal band of light hugging the soil line. The
-// dynamic lighting already brightens the earth just under the surface, but the
-// rock-pile walls rise into that zone and replace the warm earth with cool
-// stone, breaking the band. This draws a continuous warm strip across the whole
-// surface, in front of everything, with a soft-light blend so it LIFTS the cool
-// rock tops toward the warm band (filling the gap) while barely touching the
-// earth that's already lit. Runs map-wide so the band reads unbroken.
-function drawSurfaceHaze() {
-  const sub = state.substrate;
-  const s0 = camera.worldToScreen(0, sub.surfaceY);
-  const surfY = s0.y;
-  const x0 = Math.max(0, s0.x);
-  const x1 = Math.min(camera.viewW, camera.worldToScreen(sub.worldWidth, sub.surfaceY).x);
-  const depth = 56; // screen px below the soil line — matches the lighting's surface band
-  if (x1 <= x0 || surfY > camera.viewH || surfY + depth < 0) return;
-  const g = ctx.createLinearGradient(0, surfY, 0, surfY + depth);
-  g.addColorStop(0, 'rgba(198,164,114,0.45)');   // warm light at the soil line…
-  g.addColorStop(1, 'rgba(198,164,114,0)');       // …fading out with depth
-  ctx.save();
-  ctx.globalCompositeOperation = 'soft-light';
-  ctx.fillStyle = g;
-  ctx.fillRect(x0, surfY, x1 - x0, depth);
-  ctx.restore();
 }
 
 function drawSurfaceProps() {
