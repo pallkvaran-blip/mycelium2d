@@ -141,12 +141,13 @@ export function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
-  // …the cols just LEFT of the goal are the SUMMERY approach: still un-surfaceable
-  // (you can only fruit at the goal), but marked 'meadow' so no city/concrete draws
-  // there — it's reserved for the bright summer hill backdrop, a stark contrast.
+  // …the cols just LEFT of the goal are the SUMMERY approach under the hill, and
+  // they are ALL fruitable too (sunlit, no shade) — so the whole landscape under
+  // the hill can be fruited, not just the goal half. Dark-world features (cities,
+  // mountains, columns, formations, lakes) are kept out of this zone below.
   const summerCols = Math.max(0, Math.min(goalStart - startCols - 2, s.goalSummerCols || 0));
   for (let c = goalStart - summerCols; c < goalStart; c++)
-    if (c >= 0) { sub.surface[c].barrier = 'meadow'; sub.surface[c].soil = false; sub.surface[c].goal = false; sub.surface[c].shade = false; }
+    if (c >= 0) { sub.surface[c].barrier = null; sub.surface[c].soil = true; sub.surface[c].goal = true; sub.surface[c].shade = false; }
   // …and the middle stays 'concrete' (rendered as plain ground; city skylines are
   // drawn over it). The distinctive barriers — mountains and lakes — are placed
   // as features below, so the rest of the surface is just impassable ground.

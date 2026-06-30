@@ -1342,14 +1342,17 @@ function goalCol0() {
 function drawMoon() {
   const img = asset('moon'); if (!img) return;
   const sub = state.substrate, z = camera.zoom;
-  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.30;   // high in the sky (the old sun spot)
-  const hWorld = sub.surfaceY * 0.78;
+  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.32;   // high in the sky (the old sun spot)
+  const hWorld = sub.surfaceY * 0.55;
   const wWorld = hWorld * (img.width / img.height);
   const s = camera.worldToScreen(cx, cy);
   const sw = wWorld * z, sh = hWorld * z;
-  if (s.x + sw / 2 < 0 || s.x - sw / 2 > camera.viewW || s.y - sh / 2 > camera.viewH) return;
+  // Clip to the world frame so the moon is cut off cleanly at the edges, never
+  // floating over the off-map dark beyond the sky.
+  const tl = camera.worldToScreen(0, 0), br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  if (s.x + sw / 2 < tl.x || s.x - sw / 2 > br.x || s.y - sh / 2 > br.y) return;
   ctx.save();
-  ctx.globalCompositeOperation = 'screen';
+  ctx.beginPath(); ctx.rect(tl.x, tl.y, br.x - tl.x, br.y - tl.y); ctx.clip();
   ctx.drawImage(img, s.x - sw / 2, s.y - sh / 2, sw, sh);
   ctx.restore();
 }
@@ -1369,8 +1372,7 @@ function drawGoalBackdrop() {
   const hill = asset('goalhill'); if (!hill) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const g0 = goalCol0(); if (g0 < 0) return;
-  const summerCols = Math.max(0, state.config.substrate.goalSummerCols || 0);
-  const x0 = Math.max(0, g0 - summerCols) * cs, x1 = sub.worldWidth;   // span the cleared summer zone, ending AT the map edge
+  const x0 = g0 * cs, x1 = sub.worldWidth;   // span the whole fruitable summery zone, ending AT the map edge
   const wWorld = x1 - x0, hWorld = wWorld * (hill.height / hill.width);
   const sw = wWorld * z, sh = hWorld * z;
   const left = camera.worldToScreen(x0, sub.surfaceY);
@@ -1384,7 +1386,7 @@ function drawGoalProps() {
   const g0 = goalCol0(); if (g0 < 0) return;
   const aspect = bush.width / bush.height;
   withWorldClip(() => {
-    for (const [col, hCells] of [[g0 + 1, 3.0], [g0 + 4, 2.2]]) {    // a big cluster + a smaller one
+    for (const [col, hCells] of [[g0 + 4, 3.0], [g0 + 9, 2.2]]) {    // a big cluster + a smaller one, spread across the hill
       if (col < 0 || col >= sub.cols) continue;
       const hWorld = cs * hCells, wWorld = hWorld * aspect;
       const s = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY);

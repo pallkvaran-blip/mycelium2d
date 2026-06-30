@@ -160,7 +160,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "lj8708";
+window.__ASSET_VER = "znh568";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -676,12 +676,13 @@ function generateSubstrate(config, rng) {
     sub.surface[c].barrier = null;
     sub.surface[c].shade = rng.chance(s.shadeFraction);
   }
-  // …the cols just LEFT of the goal are the SUMMERY approach: still un-surfaceable
-  // (you can only fruit at the goal), but marked 'meadow' so no city/concrete draws
-  // there — it's reserved for the bright summer hill backdrop, a stark contrast.
+  // …the cols just LEFT of the goal are the SUMMERY approach under the hill, and
+  // they are ALL fruitable too (sunlit, no shade) — so the whole landscape under
+  // the hill can be fruited, not just the goal half. Dark-world features (cities,
+  // mountains, columns, formations, lakes) are kept out of this zone below.
   const summerCols = Math.max(0, Math.min(goalStart - startCols - 2, s.goalSummerCols || 0));
   for (let c = goalStart - summerCols; c < goalStart; c++)
-    if (c >= 0) { sub.surface[c].barrier = 'meadow'; sub.surface[c].soil = false; sub.surface[c].goal = false; sub.surface[c].shade = false; }
+    if (c >= 0) { sub.surface[c].barrier = null; sub.surface[c].soil = true; sub.surface[c].goal = true; sub.surface[c].shade = false; }
   // …and the middle stays 'concrete' (rendered as plain ground; city skylines are
   // drawn over it). The distinctive barriers — mountains and lakes — are placed
   // as features below, so the rest of the surface is just impassable ground.
@@ -5477,14 +5478,17 @@ function goalCol0() {
 function drawMoon() {
   const img = asset('moon'); if (!img) return;
   const sub = state.substrate, z = camera.zoom;
-  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.30;   // high in the sky (the old sun spot)
-  const hWorld = sub.surfaceY * 0.78;
+  const cx = sub.worldWidth * 0.72, cy = sub.surfaceY * 0.32;   // high in the sky (the old sun spot)
+  const hWorld = sub.surfaceY * 0.55;
   const wWorld = hWorld * (img.width / img.height);
   const s = camera.worldToScreen(cx, cy);
   const sw = wWorld * z, sh = hWorld * z;
-  if (s.x + sw / 2 < 0 || s.x - sw / 2 > camera.viewW || s.y - sh / 2 > camera.viewH) return;
+  // Clip to the world frame so the moon is cut off cleanly at the edges, never
+  // floating over the off-map dark beyond the sky.
+  const tl = camera.worldToScreen(0, 0), br = camera.worldToScreen(sub.worldWidth, sub.worldHeight);
+  if (s.x + sw / 2 < tl.x || s.x - sw / 2 > br.x || s.y - sh / 2 > br.y) return;
   ctx.save();
-  ctx.globalCompositeOperation = 'screen';
+  ctx.beginPath(); ctx.rect(tl.x, tl.y, br.x - tl.x, br.y - tl.y); ctx.clip();
   ctx.drawImage(img, s.x - sw / 2, s.y - sh / 2, sw, sh);
   ctx.restore();
 }
@@ -5504,8 +5508,7 @@ function drawGoalBackdrop() {
   const hill = asset('goalhill'); if (!hill) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const g0 = goalCol0(); if (g0 < 0) return;
-  const summerCols = Math.max(0, state.config.substrate.goalSummerCols || 0);
-  const x0 = Math.max(0, g0 - summerCols) * cs, x1 = sub.worldWidth;   // span the cleared summer zone, ending AT the map edge
+  const x0 = g0 * cs, x1 = sub.worldWidth;   // span the whole fruitable summery zone, ending AT the map edge
   const wWorld = x1 - x0, hWorld = wWorld * (hill.height / hill.width);
   const sw = wWorld * z, sh = hWorld * z;
   const left = camera.worldToScreen(x0, sub.surfaceY);
@@ -5519,7 +5522,7 @@ function drawGoalProps() {
   const g0 = goalCol0(); if (g0 < 0) return;
   const aspect = bush.width / bush.height;
   withWorldClip(() => {
-    for (const [col, hCells] of [[g0 + 1, 3.0], [g0 + 4, 2.2]]) {    // a big cluster + a smaller one
+    for (const [col, hCells] of [[g0 + 4, 3.0], [g0 + 9, 2.2]]) {    // a big cluster + a smaller one, spread across the hill
       if (col < 0 || col >= sub.cols) continue;
       const hWorld = cs * hCells, wWorld = hWorld * aspect;
       const s = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY);
