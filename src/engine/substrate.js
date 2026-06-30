@@ -22,7 +22,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -155,15 +155,15 @@ export function generateSubstrate(config, rng) {
     stamp(sub, hc, hr, radius, (cell) => { cell.hazard = true; cell.nutrient = 0; cell.maxNutrient = 0; });
   }
 
-  // 2b) Rock formations — impassable stone the mycelium routes around on its way
-  //     across. Kept out of the start/goal columns so entry and exit are clear.
+  // 2b) lone BOULDERS — scattered single rocks (one old-style sprite each, never
+  //     piled). The large rock FORMATIONS are placed later (after the lake basin
+  //     reserves its span) so the lake always fits. Kept out of start/goal.
   for (let i = 0; i < (s.rockCount || 0); i++) {
     const rc = rng.int(startCols + 2, goalStart - 2);
     const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
-    const radius = rng.int(s.rockRadiusMin, s.rockRadiusMax);
+    const radius = rng.int(s.rockRadiusMin || 0, s.rockRadiusMax || 0);
     stamp(sub, rc, rr, radius, (cell, dist) => {
-      // irregular edge so formations aren't perfect circles
-      if (dist > radius - 0.5 && rng.chance(0.4)) return;
+      if (dist > radius - 0.5 && rng.chance(0.4)) return;  // irregular edge
       cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
     });
   }
@@ -240,6 +240,54 @@ export function generateSubstrate(config, rng) {
       occupied[col] = true;
     }
     lakes.push({ c0, c1: c0 + lw - 1, maxDepth });
+  }
+
+  // 2c-iii) Large rock FORMATIONS — a few wide, impassable masses, each drawn as
+  //   ONE unique AI rock-formation sprite (crystal / ember / fungal / glow).
+  //   Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art's aspect.
+  //   Placed in the free columns LEFT between the walls and the lake — the lake
+  //   has already reserved its span, so it always fits — and spaced apart so each
+  //   is its own connected patch. Marked formation=true for the renderer.
+  const fCount = Math.max(0, s.formationCount || 0);
+  const fwMin = s.formationWidthMinCols || 6, fwMax = s.formationWidthMaxCols || 11;
+  const fLo = startCols + 3, fHi = goalStart - 3;
+  const fSpans = [];
+  let fsc = -1;
+  for (let c = fLo; c <= fHi; c++) {
+    if (!occupied[c]) { if (fsc < 0) fsc = c; }
+    else if (fsc >= 0) { fSpans.push([fsc, c - 1]); fsc = -1; }
+  }
+  if (fsc >= 0) fSpans.push([fsc, fHi]);
+  fSpans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));   // widest spans first
+  let fPlaced = 0;
+  for (const [s0, s1] of fSpans) {
+    if (fPlaced >= fCount) break;
+    let cur0 = s0;
+    while (fPlaced < fCount) {
+      const avail = s1 - cur0 + 1;
+      if (avail < fwMin) break;
+      const wCols = Math.min(rng.int(fwMin, fwMax), avail);
+      const rx = Math.max(2, wCols / 2);
+      const ry = Math.max(1, rx / 2.4);                    // wide & low
+      const cc = cur0 + (wCols - 1) / 2;
+      // Bias depth to the upper-middle play area (not the deep dead zone) so the
+      // formations sit where the mycelium routes and read as real obstacles.
+      const rrMax = Math.max(3, Math.min(sub.rows - Math.ceil(ry) - 1, Math.round(sub.rows * 0.5)));
+      const rr = rng.int(2, rrMax);                        // off the top row
+      for (let row = Math.floor(rr - ry); row <= Math.ceil(rr + ry); row++)
+        for (let col = Math.floor(cc - rx); col <= Math.ceil(cc + rx); col++) {
+          const nx = (col - cc) / rx, ny = (row - rr) / ry;
+          const dd = nx * nx + ny * ny;
+          if (dd > 1) continue;
+          if (dd > 0.78 && rng.chance(0.35)) continue;     // irregular edge
+          const cell = sub.cellAt(col, row);
+          if (!cell || cell.water) continue;
+          cell.rock = true; cell.formation = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+        }
+      for (let c = cur0; c < cur0 + wCols && c < sub.cols; c++) occupied[c] = true;
+      fPlaced++;
+      cur0 += wCols + 2;                                   // gap → next formation stays a distinct patch
+    }
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that

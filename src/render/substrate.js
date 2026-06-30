@@ -228,7 +228,13 @@ export class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
 
     const cells = [];
-    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
+    // Formation cells are drawn per-frame as large AI rock-formation sprites, so
+    // they're excluded here when those sprites exist — only wall rock and lone
+    // boulders bake into the base. Without the sprites, formations fall back to
+    // the procedural faceted-rock bake so they're never invisible.
+    let haveForm = false;
+    for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
+    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water && !(cell.formation && haveForm)) cells.push([col, row]); });
     if (!cells.length) return;
 
     const unionPath = () => {

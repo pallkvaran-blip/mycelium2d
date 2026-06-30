@@ -27,6 +27,20 @@
     { "key": "skyline6", "file": "skyline6.png", "kind": "sprite" },
     { "key": "lake1", "file": "lake1.png", "kind": "sprite" },
     { "key": "lake2", "file": "lake2.png", "kind": "sprite" },
-    { "key": "lake3", "file": "lake3.png", "kind": "sprite" }
+    { "key": "lake3", "file": "lake3.png", "kind": "sprite" },
+    { "key": "rockform1", "file": "rockform1.png", "kind": "sprite" },
+    { "key": "rockform2", "file": "rockform2.png", "kind": "sprite" },
+    { "key": "rockform3", "file": "rockform3.png", "kind": "sprite" },
+    { "key": "rockform4", "file": "rockform4.png", "kind": "sprite" },
+    { "key": "rockform5", "file": "rockform5.png", "kind": "sprite" },
+    { "key": "rockform6", "file": "rockform6.png", "kind": "sprite" },
+    { "key": "rockform7", "file": "rockform7.png", "kind": "sprite" },
+    { "key": "rockform8", "file": "rockform8.png", "kind": "sprite" },
+    { "key": "rockform9", "file": "rockform9.png", "kind": "sprite" },
+    { "key": "rockform10", "file": "rockform10.png", "kind": "sprite" },
+    { "key": "rockform11", "file": "rockform11.png", "kind": "sprite" },
+    { "key": "rockform12", "file": "rockform12.png", "kind": "sprite" },
+    { "key": "rockform13", "file": "rockform13.png", "kind": "sprite" },
+    { "key": "rockform14", "file": "rockform14.png", "kind": "sprite" }
   ]
 }

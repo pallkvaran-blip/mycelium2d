@@ -154,7 +154,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1ke7gx3";
+window.__ASSET_VER = "1qlklf5";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -191,9 +191,18 @@ const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
-    rockCount: 6,                // impassable rock formations to route around
-    rockRadiusMin: 2,
-    rockRadiusMax: 5,
+    // Rock landmarks come in two kinds:
+    //   • FORMATIONS — a few large, unique AI-rendered rock-formation sprites
+    //     (crystal / ember / fungal / glow). Wide-and-low footprints so the art
+    //     draws at its native aspect. The mycelium routes around them.
+    //   • lone BOULDERS — scattered single old-style rocks, one sprite each,
+    //     never piled.
+    formationCount: 3,           // big single-image rock formations per map
+    formationWidthMinCols: 6,    // footprint width (cols) — wide & low to match the art
+    formationWidthMaxCols: 11,
+    rockCount: 5,                // scattered lone boulders (1 cell each, drawn as a single rock)
+    rockRadiusMin: 0,
+    rockRadiusMax: 0,
     // Wall blockers: terrain spanning the surface down to depth — dig under them.
     wallCountMin: 3,             // walls per map (each topped with a distinct mountain for now)
     wallCountMax: 3,
@@ -537,7 +546,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -670,15 +679,15 @@ function generateSubstrate(config, rng) {
     stamp(sub, hc, hr, radius, (cell) => { cell.hazard = true; cell.nutrient = 0; cell.maxNutrient = 0; });
   }
 
-  // 2b) Rock formations — impassable stone the mycelium routes around on its way
-  //     across. Kept out of the start/goal columns so entry and exit are clear.
+  // 2b) lone BOULDERS — scattered single rocks (one old-style sprite each, never
+  //     piled). The large rock FORMATIONS are placed later (after the lake basin
+  //     reserves its span) so the lake always fits. Kept out of start/goal.
   for (let i = 0; i < (s.rockCount || 0); i++) {
     const rc = rng.int(startCols + 2, goalStart - 2);
     const rr = rng.int(2, Math.max(2, sub.rows - 2)); // keep off the very top row
-    const radius = rng.int(s.rockRadiusMin, s.rockRadiusMax);
+    const radius = rng.int(s.rockRadiusMin || 0, s.rockRadiusMax || 0);
     stamp(sub, rc, rr, radius, (cell, dist) => {
-      // irregular edge so formations aren't perfect circles
-      if (dist > radius - 0.5 && rng.chance(0.4)) return;
+      if (dist > radius - 0.5 && rng.chance(0.4)) return;  // irregular edge
       cell.rock = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
     });
   }
@@ -755,6 +764,54 @@ function generateSubstrate(config, rng) {
       occupied[col] = true;
     }
     lakes.push({ c0, c1: c0 + lw - 1, maxDepth });
+  }
+
+  // 2c-iii) Large rock FORMATIONS — a few wide, impassable masses, each drawn as
+  //   ONE unique AI rock-formation sprite (crystal / ember / fungal / glow).
+  //   Footprints are WIDE and LOW (ellipse, ≈2.4:1) to match the art's aspect.
+  //   Placed in the free columns LEFT between the walls and the lake — the lake
+  //   has already reserved its span, so it always fits — and spaced apart so each
+  //   is its own connected patch. Marked formation=true for the renderer.
+  const fCount = Math.max(0, s.formationCount || 0);
+  const fwMin = s.formationWidthMinCols || 6, fwMax = s.formationWidthMaxCols || 11;
+  const fLo = startCols + 3, fHi = goalStart - 3;
+  const fSpans = [];
+  let fsc = -1;
+  for (let c = fLo; c <= fHi; c++) {
+    if (!occupied[c]) { if (fsc < 0) fsc = c; }
+    else if (fsc >= 0) { fSpans.push([fsc, c - 1]); fsc = -1; }
+  }
+  if (fsc >= 0) fSpans.push([fsc, fHi]);
+  fSpans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));   // widest spans first
+  let fPlaced = 0;
+  for (const [s0, s1] of fSpans) {
+    if (fPlaced >= fCount) break;
+    let cur0 = s0;
+    while (fPlaced < fCount) {
+      const avail = s1 - cur0 + 1;
+      if (avail < fwMin) break;
+      const wCols = Math.min(rng.int(fwMin, fwMax), avail);
+      const rx = Math.max(2, wCols / 2);
+      const ry = Math.max(1, rx / 2.4);                    // wide & low
+      const cc = cur0 + (wCols - 1) / 2;
+      // Bias depth to the upper-middle play area (not the deep dead zone) so the
+      // formations sit where the mycelium routes and read as real obstacles.
+      const rrMax = Math.max(3, Math.min(sub.rows - Math.ceil(ry) - 1, Math.round(sub.rows * 0.5)));
+      const rr = rng.int(2, rrMax);                        // off the top row
+      for (let row = Math.floor(rr - ry); row <= Math.ceil(rr + ry); row++)
+        for (let col = Math.floor(cc - rx); col <= Math.ceil(cc + rx); col++) {
+          const nx = (col - cc) / rx, ny = (row - rr) / ry;
+          const dd = nx * nx + ny * ny;
+          if (dd > 1) continue;
+          if (dd > 0.78 && rng.chance(0.35)) continue;     // irregular edge
+          const cell = sub.cellAt(col, row);
+          if (!cell || cell.water) continue;
+          cell.rock = true; cell.formation = true; cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+        }
+      for (let c = cur0; c < cur0 + wCols && c < sub.cols; c++) occupied[c] = true;
+      fPlaced++;
+      cur0 += wCols + 2;                                   // gap → next formation stays a distinct patch
+    }
   }
 
   // 2d) Carve a guaranteed connected route from entry to goal: a tunnel that
@@ -2883,7 +2940,13 @@ class SubstrateRenderer {
     const cs = sub.cellSize, sy = sub.surfaceY;
 
     const cells = [];
-    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
+    // Formation cells are drawn per-frame as large AI rock-formation sprites, so
+    // they're excluded here when those sprites exist — only wall rock and lone
+    // boulders bake into the base. Without the sprites, formations fall back to
+    // the procedural faceted-rock bake so they're never invisible.
+    let haveForm = false;
+    for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
+    sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water && !(cell.formation && haveForm)) cells.push([col, row]); });
     if (!cells.length) return;
 
     const unionPath = () => {
@@ -4346,7 +4409,8 @@ function frame(time) {
   substrateRenderer.draw(ctx, camera, time);
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
-  drawRockPiles();              // rock formations rendered as piled boulders (gated) — over food/earth
+  drawRockPiles();              // wall rock + lone boulders rendered as sprites (gated) — over food/earth
+  drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
@@ -4797,7 +4861,8 @@ function rockGroups() {
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let gi = 0;
     sub.forEachCell((cell, col, row) => {
-      if (!cell.rock || cell.water || seen.has(id(col, row))) return;   // lakes (water) draw as water, not boulders
+      // lakes (water) draw as water; formation cells draw as large AI sprites
+      if (!cell.rock || cell.water || cell.formation || seen.has(id(col, row))) return;
       const cells = [];
       const q = [[col, row]]; seen.add(id(col, row));
       while (q.length) {
@@ -4807,7 +4872,7 @@ function rockGroups() {
           const nc = c + dc, nr = r + dr;
           if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
           const ncell = sub.cellAt(nc, nr);
-          if (ncell && ncell.rock && !ncell.water) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+          if (ncell && ncell.rock && !ncell.water && !ncell.formation) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
       let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);
@@ -4831,6 +4896,16 @@ function drawRockPiles() {
   const rad = cs * 0.82 * z;
   for (const g of groups) {
     if (!g.palette.length) continue;
+    // Lone boulders (tiny groups) draw as a SINGLE rock sprite — never piled.
+    if (g.cells.length <= 2) {
+      for (const c of g.cells) {
+        const s = camera.worldToScreen(c.x, c.y);
+        if (s.x > -cs * 3 && s.x < camera.viewW + cs * 3 && s.y > -cs * 3 && s.y < camera.viewH + cs * 3)
+          drawBoulder(c, g.palette, 0, 1.0, cs, z);
+      }
+      continue;
+    }
+    // Larger masses (mountain-wall rock) keep the piled-boulder look.
     const clip = new Path2D();
     let onscreen = false;
     for (const c of g.cells) {
@@ -4869,10 +4944,124 @@ function drawBoulder(c, palette, k, mult, cs, z) {
   ctx.restore();
 }
 
+// Large rock FORMATIONS — each connected patch of formation cells is drawn as a
+// single big AI rock-formation sprite (crystal / ember / fungal / glow), scaled
+// to the patch's footprint and embedded into the earth so its base melts into
+// the soil rather than sitting on top. Distinct sprites per map (seeded), no
+// piling. Falls back to piled boulders when the sprites are absent.
+const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
+let _formState = null, _formGroups = null;
+function formationGroups() {
+  if (_formState === state) return _formGroups;
+  const sub = state.substrate, cs = sub.cellSize;
+  const groups = [];
+  const seen = new Set();
+  const id = (c, r) => r * sub.cols + c;
+  const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  sub.forEachCell((cell, col, row) => {
+    if (!cell.formation || cell.water || seen.has(id(col, row))) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const cells = [];
+    const q = [[col, row]]; seen.add(id(col, row));
+    while (q.length) {
+      const [c, r] = q.pop();
+      const cc = sub.cellCenter(c, r); cells.push(cc);
+      if (cc.x < x0) x0 = cc.x; if (cc.x > x1) x1 = cc.x;
+      if (cc.y < y0) y0 = cc.y; if (cc.y > y1) y1 = cc.y;
+      for (const [dc, dr] of NB) {
+        const nc = c + dc, nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
+        const ncell = sub.cellAt(nc, nr);
+        if (ncell && ncell.formation && !ncell.water) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+      }
+    }
+    groups.push({ cells, bbox: { x0: x0 - cs / 2, y0: y0 - cs / 2, x1: x1 + cs / 2, y1: y1 + cs / 2 } });
+  });
+  // Assign distinct sprites per map: a seeded shuffle of the available pool.
+  const avail = ROCKFORM_KEYS.filter(hasAsset);
+  if (avail.length) {
+    const seed = (state.seed || 1) * 0.017;
+    const order = avail
+      .map((k, i) => ({ k, r: _hashf(i + 1, seed) }))
+      .sort((a, b) => a.r - b.r)
+      .map((o) => o.k);
+    groups.forEach((g, i) => { g.key = order[i % order.length]; });
+  }
+  _formState = state; _formGroups = groups;
+  return groups;
+}
+
+let _formBuf = null;
+function drawRockFormations() {
+  const groups = formationGroups();
+  if (!groups.length) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
+  for (const g of groups) {
+    const img = g.key ? asset(g.key) : null;
+    if (!img) {
+      // Fallback: no formation sprites loaded — render as piled boulders so the
+      // impassable mass is never invisible.
+      const pal = ALL_ROCKS.filter(hasAsset);
+      if (!pal.length) continue;
+      const cells = g.cells.slice().sort((a, b) => a.y - b.y);
+      for (const c of cells) drawBoulder(c, pal, 0, 1.0, cs, z);
+      continue;
+    }
+    const b = g.bbox;
+    const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    const cx = (b.x0 + b.x1) / 2;
+    const aspect = img.width / img.height;
+    // Cover the footprint: size by width, but grow if needed so the image is at
+    // least as tall as the footprint. Slight overhang so edges fully cover.
+    let dw = bw * 1.08;
+    let dh = dw / aspect;
+    if (dh < bh * 1.02) { dh = bh * 1.02; dw = dh * aspect; }
+    const embed = cs * 0.55;                         // bury the jagged base into the soil
+    const sw = dw * z, sh = dh * z;
+    const tl = camera.worldToScreen(cx - dw / 2, (b.y1 + embed) - dh);
+    if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
+    // Render into an offscreen buffer so the soil-tone base blend is MASKED to the
+    // rock silhouette (source-atop) — it reads as embedded earth, never a flat
+    // band over the sprite's transparent margins.
+    const W = Math.max(1, Math.ceil(sw)), H = Math.max(1, Math.ceil(sh));
+    if (!_formBuf) _formBuf = document.createElement('canvas');
+    if (_formBuf.width !== W || _formBuf.height !== H) { _formBuf.width = W; _formBuf.height = H; }
+    const bctx = _formBuf.getContext('2d');
+    bctx.clearRect(0, 0, W, H);
+    bctx.drawImage(img, 0, 0, sw, sh);
+    bctx.globalCompositeOperation = 'source-atop';   // everything below tints only the rock pixels
+    // Cool-stone lift: warm earth-toned formations (ember/rust) can blend into the
+    // brown earth when zoomed out. A SUBTLE cool wash nudges the stone so its
+    // silhouette reads, scaled INVERSELY with zoom — a touch in the wide overview,
+    // zero when zoomed in to work (the rich art is left untouched). Kept light so
+    // it defines the body without washing the detail to a pale ghost.
+    const liftA = Math.max(0, Math.min(0.16, 0.16 - (z - 0.5) * 0.26));
+    if (liftA > 0.001) { bctx.fillStyle = `rgba(116,128,146,${liftA.toFixed(3)})`; bctx.fillRect(0, 0, W, H); }
+    // Base blend: a short soil-tone gradient over the bottom so the formation
+    // reads as embedded in the earth, not sitting on the ground.
+    const fadeH = Math.min(sh * 0.24, cs * 1.7 * z);
+    const grad = bctx.createLinearGradient(0, sh - fadeH, 0, sh);
+    grad.addColorStop(0, `rgba(${soil},0)`);
+    grad.addColorStop(1, `rgba(${soil},0.94)`);
+    bctx.fillStyle = grad;
+    bctx.fillRect(0, sh - fadeH, W, fadeH);
+    bctx.globalCompositeOperation = 'source-over';
+    // Soft dark rim so the lifted body still seats into the earth (depth).
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = Math.max(2, 5 * z);
+    ctx.drawImage(_formBuf, tl.x, tl.y);
+    ctx.restore();
+  }
+}
+
 // Above-ground props (trees / grass / houses) placed along the surface line.
 // Deterministic per map (seeded by state.seed) and cached, so they don't flicker
 // or move between frames. Gated on the sprites being present.
 const _hashf = (a, b) => { const n = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return n - Math.floor(n); };
+// '#rrggbb' -> 'r,g,b' (for building rgba() strings with a separate alpha)
+const _rgb = (hex) => { const h = hex.replace('#', ''); const n = parseInt(h, 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; };
 let _propState = null, _props = null;
 function surfaceProps() {
   if (_propState === state) return _props;
@@ -5337,7 +5526,7 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null; if (substrateRenderer) substrateRenderer.rebake(); });
+loadAssets().then(() => { uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null; if (substrateRenderer) substrateRenderer.rebake(); });
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

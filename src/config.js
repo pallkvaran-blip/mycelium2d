@@ -32,9 +32,18 @@ export const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
-    rockCount: 6,                // impassable rock formations to route around
-    rockRadiusMin: 2,
-    rockRadiusMax: 5,
+    // Rock landmarks come in two kinds:
+    //   • FORMATIONS — a few large, unique AI-rendered rock-formation sprites
+    //     (crystal / ember / fungal / glow). Wide-and-low footprints so the art
+    //     draws at its native aspect. The mycelium routes around them.
+    //   • lone BOULDERS — scattered single old-style rocks, one sprite each,
+    //     never piled.
+    formationCount: 3,           // big single-image rock formations per map
+    formationWidthMinCols: 6,    // footprint width (cols) — wide & low to match the art
+    formationWidthMaxCols: 11,
+    rockCount: 5,                // scattered lone boulders (1 cell each, drawn as a single rock)
+    rockRadiusMin: 0,
+    rockRadiusMax: 0,
     // Wall blockers: terrain spanning the surface down to depth — dig under them.
     wallCountMin: 3,             // walls per map (each topped with a distinct mountain for now)
     wallCountMax: 3,
