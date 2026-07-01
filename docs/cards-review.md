@@ -54,4 +54,27 @@ ant stuff."* Result: **134 cards** (31 cut, 1 added). Full log in `cards-design.
 - **Ant lane** rounded out to 8 cards incl. the **NEW Fungus-Garden Mat** — the unconditional anti-ant
   defensive engine (parallel to Nematophagous Mat) the lane was missing.
 
-→ Awaiting **review round 2** on the v3 set (human will rate cards in the phone tool).
+## Round 2 — 28 rated (👍 27 / 👎 1) on the v3 set
+
+Verdicts kept; comment text intentionally **not** retained here. Per the human: most round-2 comments
+on LIKED cards were **repeats of round-1 rulings already fixed** (substrate dropped at sensing-edge /
+direction-only; Digest hits all occupied substrate; Appressorial Punch = unplayable-without-rock,
+clears one whole rock toward goal; Hydraulic Boring = whole-rock no distance count; Rehydration Pulse
+= radius not strand; Cellulase/digest = flat +1 not %; Septal Pore Flux no-stack clause dropped). These
+were **not re-applied** (they were already done) to avoid churn/confusion.
+
+**👍 LIKE (27):** Hyphal Extension · Apical Drive · Foraging Fan · Tropic Lunge · Leaf Litter Cache ·
+Humus Bed · Mycorrhizal Mat · Saprotrophic Digest · Appressorial Punch · Sclerotial Crust · Brown-Rot
+Mat · Septal Pore Flux · Oxalate Exudate Network · Cellulase Bloom · Hyphal Imbibition · Hydraulic
+Boring · Rehydration Pulse · Mineralize · Phosphate Tap · Saprotrophic Lattice · Septal Reinforcement ·
+Sclerotial Vault · Constricting Ring · Anastomosis Salvage · Trophallaxis Hijack · Condense · Ammonify.
+
+**👎 PASS (1):** Monsoon Bloom — "clear all rot too powerful, maybe a radius." → radius cut 160 → 110.
+
+### New round-2 actions taken (→ v4)
+- **"Over-explained"** (Apical Drive, Foraging Fan, Phosphate Tap, Mineralize, Condense, Ammonify, and
+  deck-wide): tightened all `effect` text to 1–2 concise sentences, mechanics preserved (fidelity-verified).
+- **Spores removed** from the whole game (designer directive) — see `cards-design.md` §13.
+- **Variable buy costs** (TM-style) replace the flat-14 rule (designer directive) — §13.
+
+→ Awaiting **review round 3** on the v4 set (124 cards).

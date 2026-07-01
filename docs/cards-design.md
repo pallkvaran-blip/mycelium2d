@@ -4,9 +4,9 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **design draft v3** — **134 cards** (v1 119 → v2 164 → v3 134, consolidated for redundancy);
-> R1–R12 compliant; NOT yet balanced-final and NOT implemented. See **§12** for the current state and
-> **§7** for older known issues. CURRENT rules live in §10 (rulings) → §11 (economy) → §12 (consolidation).
+> Status: **design draft v4** — **124 cards** (v1 119 → v2 164 → v3 134 → v4 124). Spores REMOVED;
+> buy costs now VARIABLE (TM-style); card text tightened. NOT yet balanced-final and NOT implemented.
+> CURRENT rules live in §10 (rulings) → §11 (economy) → §12 (consolidation) → **§13 (v4 — authoritative)**.
 
 ---
 
@@ -43,10 +43,13 @@ These were settled in design discussion and are the backbone. Numbers are in §3
   pay energy to draw from. Engine/extender cards add *new* basics to the draw deck; they then go
   to the discard. The discard is not recycled.
 - **Food piles are the heartbeat.** Harvesting a pile pays **energy + a draft** at once: consume
-  K leaves → see N cards → keep M, paying a **flat energy cost per card kept**. Ants race you for
-  piles; partial harvest = partial payout. (Piles reuse the existing sparse food-cluster system.)
-- **Flat buy cost per card** (by rarity tier; never scales with quantity). The decision is timing,
-  not cost-scaling.
+  K leaves → see N cards → keep M, paying **each kept card's own buy cost** (§13 variable cost).
+  Ants race you for piles; partial harvest = partial payout. (Piles reuse the existing sparse
+  food-cluster system.)
+- **Variable buy cost per card** (TM-style; *superseded the earlier flat-cost idea* — see §13). Each
+  premium card costs a different amount of energy to acquire, balanced to its power; a W/P/N play-gate
+  is a *second* cost, so gated cards cost less energy. Basics are free. The decision is power-vs-price-
+  vs-gate-vs-timing, like a Terraforming Mars card.
 - **Playing is free** for most cards; some cards cost **Water / Phosphorus / Nitrogen** to play.
 - **Terraforming-Mars philosophy.** Almost every card is *good*; the decision is **timing &
   opportunity cost**, never good-vs-bad. Each card should trip exactly one thought: "great but too
@@ -105,7 +108,8 @@ uncommon ~4–5, rare ~4–6 with a higher ceiling. A late-game engine that can'
 1. **Engine energy ceiling:** sum of all *installed* engines' energy/round **< SKIP (12)**;
    per-engine ≤ 4. Idle card-dry player is always ≥ −2/round. (Resource/growth/defense engines
    are exempt from the sum but still obey repay clocks.)
-2. **Flat buy cost:** depends only on rarity tier; never scales with quantity/hand size/count.
+2. **Variable buy cost:** each premium card has its own power-balanced buy cost (§13); basics = 0.
+   A W/P/N gate offsets buy cost (gate is a second cost). *(Supersedes the interim flat-cost rule.)*
 3. **Free play except W/P/N:** `playCostEnergy == 0` for every card. Energy is spent only on
    draw / buy / skip.
 4. **No free reshuffle:** discard is a graveyard. Cards re-enter the deck ONLY via an explicit
@@ -127,7 +131,7 @@ uncommon ~4–5, rare ~4–6 with a higher ceiling. A late-game engine that can'
 - **basic** — draw-deck floor; cheap/free repeatable actions (Grow, Add Substrate, Digest…),
   drawn by paying energy. Weak individually.
 - **engine** — graduates to a persistent **tableau** when played; produces something each round
-  (bounded energy / a resource / growth / defense / spores). Has a repay clock.
+  (bounded energy / a resource / growth / defense). Has a repay clock.
 - **action** — once installed, a repeatable ability on a **once-per-X-rounds** cooldown.
 - **event** — one-shot / exhaust; a big single effect (blow up a rock, instant tunnel, spore bloom).
 - **extender** — adds basics to the draw deck / improves draw economy; your runway. Not recycled.
@@ -157,8 +161,9 @@ Resource-gated plays: 57 (≈ W 16 · P 14 · N 16)
    (Adhesive Web, Arthrobotrys Snare, Nematophagous Mat, GS-GOGAT Surge)
 5. **Tempo Sprint** — skip the engine layer; chain cheap grow/dig bursts and cashouts, fruit near-empty.
    (Rhizomorph Lance, Spitzenkörper Focus, Sclerotial Cache, Osmotic Cashout)
-6. **Spore Payoff / Score Max** — reach the goal then bank spores each round for max fruiting yield.
-   (Stipe Buttress, Hymenial Surge Bed, Synchronous Flush)
+6. **Goal Rush / Reach** — routing, substrate, and reach-extends to cross the map and close the final
+   gap fast. (Cord Formation, Rhizomorph Lance, Spore Dispersal Vector, Fruiting Vigil) *(spores removed
+   — §13; win is now binary: reach the goal & fruit = win, no score.)*
 7. **Defensive Survivalist** — broad mitigation + death-insurance; grind slowly but safely.
    (Sclerotial Bunker, Anastomosis Weave, Melanized Cord, Spore Bastion)
 
@@ -221,8 +226,8 @@ From the adversarial review. **Do these first in the balance pass.**
 ## 8. Open questions for the human
 
 - **Energy-ceiling enforcement:** global runtime clamp vs. per-card mutual exclusion?
-- **Spore valuation:** what is 1 spore worth (energy-equiv + run score)? Needed to lint spore
-  engines' repay. And — does fruiting yield *do* anything mechanically (meta progression / score)?
+- ~~**Spore valuation**~~ — RESOLVED (§13): spores are removed from the game. Win is binary —
+  reach the goal and fruit = win the level. No spore score / no fruiting yield.
 - **Resource stockpile caps & overflow** (rarely >6 assumed; some engines key off thresholds).
 - **Harvest charge model** for lakes/formations (several cards say "no charge consumed").
 - **Run-pool / collection data model**; are drafted-but-not-kept cards gone for the level or the run?
@@ -252,10 +257,10 @@ Per-card verdicts live in `docs/cards-review.md`.
 **Costing / rarity**
 - **R1 — Rarity is not a frequency or cost lever.** Every card is unique, single-copy, equally
   likely in any draft. Drop the "rarity" framing; never balance a card on being "rare/rarely drawn".
-- **R2 — Flat buy cost (PENDING CONFIRM).** Every premium card costs the SAME flat energy to buy
-  at a pile (Terraforming-Mars style). Power is balanced by the resource (W/P/N) play-gate + effect
-  strength + timing — not by buy cost. Basics stay free deck-floor. If confirmed, this replaces the
-  §3 buy-cost tiers.
+- **R2 — ~~Flat buy cost~~ → REVERSED to VARIABLE buy cost (§13).** The flat-cost experiment was
+  tried (v2/v3) and then reversed by the designer: real Terraforming-Mars balances via *variable*
+  card cost. Every premium card now has its own power-balanced buy cost; the W/P/N play-gate is a
+  second cost (gated cards cost less energy). Basics stay free deck-floor. See §13 for the curve.
 - **R12 — Re-cost energy engines** (Brown-Rot Mat was too cheap/OP). Balance via effect magnitude +
   the engine-energy ceiling, not buy price.
 
@@ -294,10 +299,10 @@ Per-card verdicts live in `docs/cards-review.md`.
 v2 = 164 cards, fully R1–R12 compliant (0 flat-cost / play-energy / percentage / node-target violations).
 Data: `docs/cards.csv` / `docs/cards.json`. Verdict ledger: `docs/cards-review.md`.
 
-**Locked economy**
-- **Flat buy cost = 14 energy for EVERY premium card** (engine/action/event/extender), basics = 0.
-  Power lives in the W/P/N play-gate + effect + timing, never in buy cost. (TM-style.)
-- `CONFIG.economy = { startEnergy:110, energyCarryCap:160, drawCostEnergy:8, skipCostEnergy:12, buyCostFlat:14, basicBuyCost:0 }`.
+**Economy** — *the flat-buy line below was REVERSED in v4; see §13 for variable buy costs.*
+- ~~Flat buy cost = 14 for every premium card~~ → **variable per-card buy cost (5–20+), §13.**
+- `CONFIG.economy = { startEnergy:110, energyCarryCap:160, drawCostEnergy:8, skipCostEnergy:12, basicBuyCost:0 }`
+  (buy cost now lives per-card in `buyCostEnergy`, not a global flat).
 - **Piles** (`CONFIG.pile`): small `25 energy · see3/keep1` · med `40 · see4/keep2` · large `55 · see5/keep2`.
   Energy scales linearly with leaves consumed; the **draft unlocks only at full harvest** (ants stealing
   part of a pile = less energy AND no draft). ~9 piles/map; route 4–6.
@@ -398,3 +403,53 @@ Necrotic Tithe / Spent Mat Combustion → **energy**; Imbibition Surge / Condens
 Ammonify → **nitrogen**; Picket Hyphae / Trail Hijack / Aphid Ranch / Pheromone Scramble /
 Mycoparasite Harvest / Demarcation Line / Saprophytic Reclaim / Fungus-Garden Mat → **defense**;
 Foxfire Glow / Litter Drift / Forest-Floor Mantle / Sensory Sheath → **growth**.
+
+---
+
+## 13. v4 — spores removed, variable buy costs, tighter text (CURRENT — authoritative)
+
+v4 = **124 cards** (v3 134 → 10 cut). Driven by three designer directives:
+*(1)* remove everything spore-related, *(2)* costs are variable & power-balanced like Terraforming
+Mars (NOT flat), *(3)* tighten over-explained card text. Produced by a multi-agent workflow with
+adversarial fidelity + cost-curve verification.
+
+### 13.1 Spores removed — win is now binary
+**Spores are no longer part of the game.** "Fruiting" simply means **reaching the goal and winning
+the level** — there is no spore count, no fruiting yield, no score, no carry-over.
+- **Cut (spore-economy cards):** Primordium Set, Stipe Buttress, Spore Print Flush, Synchronous Flush,
+  Veil Rupture, Stroma Crust, Hardened Apothecium — plus three that became redundant shells once their
+  spore rider was stripped: **Shade-or-Sun Cap** (collapsed to a plain +18 burst, dup of the burst
+  cluster), **Fruiting Primordium** (redundant "win now at goal" finisher), **Sclerotial Bloom**
+  (a 3 P dig dominated by Apatite Detonation).
+- **Kept (spore is only *flavor*, mechanic is non-spore):** Spore Dispersal Vector (routing leap),
+  Aerial Spore Cast (multi-front routing), Spore Bastion (threat-halt), Spore Salvo (energy+N burst),
+  Sporulating Bloom (tutor), Adhesive Web *(A. oligospora)*.
+- **Finishers intact:** Fruiting Vigil (close an 8-cell gap to the goal & win) and Positive Phototropism
+  (surge 3 toward the goal when in range) — both are reach-to-goal tools, exactly what winning needs now.
+- The `fruiting` family is gone; its non-spore survivors (Hydrophobin Rind, Melanized Cord, Anastomosis
+  Graft — all mitigation/insurance) refolded into **defense**.
+
+### 13.2 Variable buy cost (reverses the flat-14 rule)
+Buy cost is now **per-card and power-balanced**, the way TM actually works. Curve (premium cards):
+**5–20 energy, median 10**, e.g. 5–7 small utilities · 8–13 solid commons/uncommons · 14–18 strong
+engines/bursts/finishers. Basics stay **0**.
+- A **W/P/N play-gate is a second cost**, so a heavily-gated card costs *less* energy (≈ 2–3 energy off
+  per gate point). Energy-positive bursts are priced near their payout (e.g. Osmotic Cashout +22 → buy 17,
+  net ≈ +5). Anchor: Rhizomorph Trunkline (+4/round, ungated) = 18.
+- An adversarial **cost-curve critic** removed strict dominance: e.g. Septal Pore Gating (a weaker
+  draw-discount than Septal Pore Flux) dropped to **6**; Phosphatase Cushion re-priced to **8** to match
+  the capped-resource-engine pattern (Aquaporin Channels 7).
+- `buyCostEnergy` now carries this per card in `cards.json`/`cards.csv`. `CONFIG.economy.buyCostFlat` is
+  retired.
+
+### 13.3 Tighter card text
+Every card's `effect` was rewritten concise & phone-readable (1–2 short sentences), with an adversarial
+fidelity pass guaranteeing **no mechanic, number, gate, targeting mode, cooldown, or "unplayable-if"
+clause drifted**. Two flagged drifts were hand-corrected (Melanized Sheath kept absolute "cannot be
+infected"; Saprophytic Reclaim kept "rotted *or* infected"). **Monsoon Bloom**'s radius was cut 160 → 110
+(designer PASS: 160 read as "clear all").
+
+### 13.4 Composition (124)
+Type: basic 16 · engine 43 · event 44 · action 14 · extender 7.
+Family: basics 10 · energy 16 · water 17 · phosphorus 15 · nitrogen 13 · defense 24 · growth 13 ·
+extenders 9 · events 7. (No `fruiting`, no `gapfill`.)
