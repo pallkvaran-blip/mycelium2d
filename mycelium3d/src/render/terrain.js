@@ -15,6 +15,20 @@ function hashf(x, y) {
   return s - Math.floor(s);
 }
 
+// Optional AI-generated texture maps (assets/). Loaded async and applied when
+// they arrive; with no assets the game keeps its untextured procedural look
+// (same gating philosophy as the 2D game's art pipeline).
+function loadTexInto(material, url, repeatX = 1, repeatY = 1, onLoad = null) {
+  new THREE.TextureLoader().load(url, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeatX, repeatY);
+    material.map = tex;
+    material.needsUpdate = true;
+    if (onLoad) onLoad(material);
+  }, undefined, () => { /* asset absent — keep the procedural look */ });
+}
+
 export class TerrainRenderer {
   constructor(substrate, config, scene) {
     this.sub = substrate;
@@ -85,6 +99,8 @@ export class TerrainRenderer {
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    // Soil texture multiplies under the zone tinting (goal soil stays green).
+    loadTexInto(mat, 'assets/tex-soil.jpg', sub.worldWidth / 340, sub.worldBreadth / 340);
     this.group.add(new THREE.Mesh(geo, mat));
   }
 
@@ -109,8 +125,11 @@ export class TerrainRenderer {
     geo.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(r.rock), flatShading: true, roughness: 0.95, metalness: 0.05,
-      emissive: new THREE.Color(r.rockEmissive), emissiveIntensity: 0.5,
+      emissive: new THREE.Color(r.rockEmissive), emissiveIntensity: 1.0,
     });
+    // The map multiplies with the base colour — lift it so textured rock keeps
+    // its dark-slate value rather than going black.
+    loadTexInto(mat, 'assets/tex-rock.jpg', 1, 1, (m) => m.color.set('#4a515e'));
     const mesh = new THREE.InstancedMesh(geo, mat, cells.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sv = new THREE.Vector3();
     const col = new THREE.Color();
@@ -126,9 +145,10 @@ export class TerrainRenderer {
       sv.set(s, s * (0.8 + h1 * 0.4), s);
       m.compose(v, q, sv);
       mesh.setMatrixAt(i, m);
-      // curtains cold slate, formations slightly warmer, boulders varied
-      const base = c.curtain ? 0.85 : c.formation ? 1.1 : 1.0;
-      col.set(r.rock).multiplyScalar(base * (0.8 + h1 * 0.5));
+      // Neutral per-instance brightness variation (the material colour / rock
+      // texture carries the hue): curtains cold, formations a touch warmer.
+      const base = c.curtain ? 0.85 : c.formation ? 1.15 : 1.0;
+      col.setScalar(base * (0.75 + h1 * 0.5));
       mesh.setColorAt(i, col);
     }
     mesh.instanceMatrix.needsUpdate = true;

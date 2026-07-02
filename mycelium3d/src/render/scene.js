@@ -29,6 +29,11 @@ export function createScene(config, canvas) {
   scene.add(new THREE.AmbientLight(new THREE.Color(r.ambient), 1.2));
   const hemi = new THREE.HemisphereLight(new THREE.Color(r.hemiSky), new THREE.Color(r.hemiGround), r.hemiIntensity * 1.6);
   scene.add(hemi);
+  // A soft directional fill (cool "seep-light" from the surface) so rock faces
+  // keep definition at flying distance, plus the close-range headlamp.
+  const fill = new THREE.DirectionalLight(0x8fa3b8, 0.85);
+  fill.position.set(-0.4, 1, 0.25);
+  scene.add(fill);
   const headlamp = new THREE.PointLight(0xcfe3d8, 4200, 750, 2);
   camera.add(headlamp);
   scene.add(camera);

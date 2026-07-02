@@ -190,7 +190,7 @@ export const CONFIG = {
     goalBeacon: '#96e696',
     startBeacon: '#7fd4e6',
     // bloom
-    bloomStrength: 0.85,
+    bloomStrength: 0.72,
     bloomRadius: 0.55,
     bloomThreshold: 0.32,
   },
