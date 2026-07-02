@@ -10,10 +10,10 @@ Everything lives in this folder; the 2D game is untouched and the two share no c
 
 ## Play it (hosted)
 
-The Pages workflow deploys both games to the same site — the 2D game at the
-root, this one alongside it:
+The 3D game is hosted from its own repo (`pallkvaran-blip/myce3d`, migrated
+from this folder):
 
-**https://pallkvaran-blip.github.io/mycelium2d/mycelium3d/**
+**https://pallkvaran-blip.github.io/myce3d/**
 
 ## Running it locally
 
