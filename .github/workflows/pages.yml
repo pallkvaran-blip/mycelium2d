@@ -4,10 +4,12 @@ name: Deploy game to GitHub Pages
 # to a development branch. The first run auto-enables Pages (enablement: true),
 # so there is nothing to toggle in repo settings.
 #
-# The site carries BOTH games: the 2D game at the root (built by build.mjs,
-# exactly as before) and the 3D game copied verbatim to /mycelium3d/ (it is
-# fully static — vendored three.js, no build step). A repo gets one Pages
-# site, so whichever branch pushes deploys the whole thing.
+# The site carries BOTH games: the 2D game at the root and the 3D game copied
+# verbatim to /mycelium3d/ (fully static — vendored three.js, no build step).
+# A repo gets one Pages site, so whichever branch pushes deploys the whole
+# thing. To make sure a 3D-branch deploy can NEVER regress the hosted 2D game,
+# the root is always built from the LATEST tip of the 2D dev branch — not from
+# whatever 2D snapshot the pushing branch happens to carry.
 
 on:
   push:
@@ -40,8 +42,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build single-file bundle (dist/)
-        run: node build.mjs
+      - name: Build the 2D site root from the LATEST 2D dev branch
+        run: |
+          git fetch origin claude/mycelium-phase-1-build-urvq5e
+          git worktree add /tmp/twod origin/claude/mycelium-phase-1-build-urvq5e
+          (cd /tmp/twod && node build.mjs)
+          rm -rf dist
+          mv /tmp/twod/dist dist
 
       - name: Add the 3D game at /mycelium3d/ (static, no build)
         run: |
