@@ -8,7 +8,14 @@ the rock, the food caches and the threats up close before deciding your next act
 
 Everything lives in this folder; the 2D game is untouched and the two share no code.
 
-## Running it
+## Play it (hosted)
+
+The Pages workflow deploys both games to the same site — the 2D game at the
+root, this one alongside it:
+
+**https://pallkvaran-blip.github.io/mycelium2d/mycelium3d/**
+
+## Running it locally
 
 Vanilla JS ES modules (three.js is vendored — no CDN, no build step, no network
 needed). Serve the **repo root** over HTTP and open the folder:
