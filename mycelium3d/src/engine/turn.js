@@ -1,0 +1,75 @@
+// =============================================================================
+// World tick (3D port).
+//
+// No turn/move budget — the player performs actions one after another, and the
+// WHOLE world advances one step after each. tickWorld() is that single step:
+// the threats act (Trichoderma creep + eat, ants harvest + reroute, nematodes
+// crawl + feed), then each network draws passive income from the substrate it
+// has colonised, ages, the rot spreads, starvation bites, the death check runs.
+// Called from performAction() after every successful action.
+// =============================================================================
+
+import { infectNetwork, spreadTrichoderma } from './threats.js';
+import { stepAnts } from './ants.js';
+import { stepNematodes } from './nematodes.js';
+
+export function tickWorld(state) {
+  if (state.runOver) return;
+
+  const { config, substrate } = state;
+
+  // The threats all act on every step.
+  spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
+  stepAnts(state);            // ants harvest their target food, RETARGET when it empties
+  stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
+
+  for (const net of state.networks) {
+    if (!net.alive) continue;
+
+    // 1) Passive income from occupied substrate (depletes those patches).
+    resolveIncome(net, substrate, config);
+
+    // 1b) Age the strands so the colony visibly thickens over time.
+    net.agePass();
+
+    // 1c) The rot races further along the filaments.
+    infectNetwork(net, state);
+
+    // 2) Starvation if the colony is out of Energy (prunes strands).
+    if (net.energy <= 0) {
+      net.energy = 0;
+      net.applyStarvation();
+      net.pruneDead();
+    }
+
+    // 3) Recompute % healthy. Dead when no healthy strands remain (fully
+    //    overrun by mould) or nothing is left (e.g. starved out this step).
+    net.recomputeVitality();
+    if (net.nodes.length === 0 || net.healthyCount() === 0) {
+      net.alive = false;
+      if (net.active && !state.runOver) {
+        state.runOver = true;
+        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        state.log('The colony has been consumed. Run over.', 'warn');
+      }
+    }
+  }
+
+  state.turn += 1;   // a step counter (each action advances the world one step)
+}
+
+// Draw nutrient from every occupied voxel, plus the baseline trickle.
+function resolveIncome(net, substrate, config) {
+  const e = config.energy;
+  const cells = net.collectOccupiedCells(substrate);
+  let nutrientDrawn = 0;
+  for (const cell of cells) {
+    // You only digest substrate you've colonised — income ramps with the mat.
+    const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
+    cell.nutrient -= take;
+    nutrientDrawn += take;
+  }
+  const income = nutrientDrawn * e.incomeEfficiency + e.baselineTrickle;
+  net.energy += income;
+  return income;
+}
