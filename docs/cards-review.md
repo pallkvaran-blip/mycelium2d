@@ -77,4 +77,22 @@ Sclerotial Vault · Constricting Ring · Anastomosis Salvage · Trophallaxis Hij
 - **Spores removed** from the whole game (designer directive) — see `cards-design.md` §13.
 - **Variable buy costs** (TM-style) replace the flat-14 rule (designer directive) — §13.
 
-→ Awaiting **review round 3** on the v4 set (124 cards).
+## Round 3 — 16 rated (👍 14 / 👎 2) → triggered the CORE-SET cut (v5, 39 cards)
+
+Verdicts kept; comment text not retained (see `cards-design.md` §14 for the full v5 write-up).
+- **👍 (14):** all approved basics, kept with the human's shorter descriptions (Hyphal Extension,
+  Apical Drive, Foraging Fan, Tropic Lunge, Leaf Litter Cache, Humus Bed, Mycorrhizal Mat,
+  Saprotrophic Digest, Appressorial Punch, Sclerotial Crust, Hyphal Imbibition, Phosphate Tap,
+  Constricting Ring, Condense).
+- **👎 (2):** Mineralize (felt like an engine, not a basic) & Ammonify (unclear harvest source) — removed.
+
+### Directives acted on (→ v5 core set)
+- **Removed `rarity`** designations everywhere.
+- **Basics model:** start with 5× Hyphal Extension + 5× Leaf Litter Cache; every other basic enters
+  via a **draw engine** card ("Shuffle 5 copies of X…"). Constricting Ring → **action**.
+- **Weeded 124 → 39** — one card per core type (stronger cards + variations to come later).
+- **Rebalanced costs** (cap ~40; core sits 0/6–22).
+- Added a **tutorial set** (suggested starting hand, filterable in the tool).
+
+→ Awaiting **review round 4** on the v5 core set (39 cards). Use the **★ Tutorial set** filter to
+review the suggested tutorial hand on its own.

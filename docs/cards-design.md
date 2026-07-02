@@ -4,9 +4,10 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **design draft v4** — **124 cards** (v1 119 → v2 164 → v3 134 → v4 124). Spores REMOVED;
-> buy costs now VARIABLE (TM-style); card text tightened. NOT yet balanced-final and NOT implemented.
-> CURRENT rules live in §10 (rulings) → §11 (economy) → §12 (consolidation) → **§13 (v4 — authoritative)**.
+> Status: **CORE SET (v5)** — **39 cards** (deliberately small: one of each core type). No `rarity`;
+> variable buy costs (cap ~40); basics reworked around a starting deck + "draw engine" cards; a
+> filterable **tutorial set**. NOT yet balanced-final and NOT implemented.
+> CURRENT rules: §10 (rulings) → §11 (economy) → §12–13 (history) → **§14 (v5 core — authoritative)**.
 
 ---
 
@@ -453,3 +454,57 @@ infected"; Saprophytic Reclaim kept "rotted *or* infected"). **Monsoon Bloom**'s
 Type: basic 16 · engine 43 · event 44 · action 14 · extender 7.
 Family: basics 10 · energy 16 · water 17 · phosphorus 15 · nitrogen 13 · defense 24 · growth 13 ·
 extenders 9 · events 7. (No `fruiting`, no `gapfill`.)
+
+---
+
+## 14. v5 — the CORE SET (CURRENT — authoritative)
+
+**39 cards.** Deliberately weeded down from 124 to *one card per core type*, so the set is small
+enough to review properly. Stronger cards and variations on these core mechanics come later.
+
+### 14.1 What changed
+- **`rarity` removed** entirely (not a balance lever). Field dropped from `cards.json`/`cards.csv`.
+- **Basics reworked.** The player STARTS with only **5× Hyphal Extension + 5× Leaf Litter Cache**
+  in the draw deck (`startCopies: 5`). Every OTHER basic enters the deck only by playing a **draw
+  engine** card ("Shuffle 5 copies of X into your draw deck") — one draw engine per non-starting basic.
+- **Reviewed basics applied** (round-3 verdicts): all 14 liked basics kept with the human's shorter
+  descriptions; **Mineralize** and **Ammonify** removed (thumbs-down); **Constricting Ring**
+  reclassified basic → **action** (worm trap).
+- **Cost cap ~40** (eventual). The core set sits at **0 (basics) / 6–22 (premium)**, leaving 22–40 of
+  headroom for future power cards. `buyCostEnergy` is per-card (variable).
+- **Tutorial set** — a `tutorial: true` flag marks a suggested starting configuration (§14.4),
+  filterable in the review tool via the "★ Tutorial set" chip.
+
+### 14.2 The core types kept (one each)
+- **Basics (13):** grow-to-food (Hyphal Extension), grow-aimed (Apical Drive), grow-radial (Foraging
+  Fan), grow-reach (Tropic Lunge), substrate S/M/L (Leaf Litter Cache / Humus Bed / Mycorrhizal Mat),
+  digest (Saprotrophic Digest), boulder-dig (Appressorial Punch), protect (Sclerotial Crust), water
+  harvest (Hyphal Imbibition), phosphorus harvest (Phosphate Tap), water floor (Condense).
+- **Draw engines (11):** one per non-starting basic (Leading Cord, Forager Bloom, Questing Front,
+  Humus Cache, Symbiont Weave, Enzyme Priming, Boring Corps, Crust Reserve, Capillary Runners,
+  Prospecting Cords, Dew Traps).
+- **Energy (3):** income engine (Rhizomorph Trunkline +4/rd), burst (Osmotic Cashout), draw-discount
+  (Septal Pore Flux).
+- **Resource production (3):** Aquaporin Channels (W), Phosphatase Cushion (P), Mineralizing Saprobe (N).
+- **Dig (1):** Tap-Root Rhizomorph (formation/column, P-gated).
+- **Defense (3):** anti-ant engine (Fungus-Garden Mat), anti-mould engine (Melanized Sheath),
+  anti-worm action (Constricting Ring).
+- **Utility (5):** radius heal (Rehydration Pulse), converter (Nutrient Transmutation), reach
+  (Rhizomorph Lance), scout (Foxfire Glow), finisher (Fruiting Vigil).
+
+### 14.3 Schema changes
+Dropped `rarity`. Added `tutorial` (bool) and `startCopies` (int; 5 on the two starting basics, else 0).
+Draw-engine payload lives in the `effect` text ("Shuffle 5 copies of X…"). `playCostEnergy` stays 0.
+
+### 14.4 Suggested tutorial starting configuration
+Draw deck: **5× Hyphal Extension + 5× Leaf Litter Cache**. Opening HAND (7 cards, all `tutorial:true`):
+- **Rhizomorph Trunkline** — energy engine (slows the bleed) → teaches engine-building.
+- **Aquaporin Channels** — +1 Water/round → teaches resource production.
+- **Fungus-Garden Mat** — +1 N/round + ant defense → teaches defense + a 2nd resource.
+- **Forager Bloom** — shuffle in 5 grows → teaches deck extension.
+- **Boring Corps** — shuffle in 5 boulder-digs → teaches digging past barriers.
+- **Osmotic Cashout** — spend 1 W for +22 energy → teaches bursts / resource spend.
+- **Fruiting Vigil** — 2 W + 2 N, extend to goal & win → teaches the finish.
+Water comes from Aquaporin Channels, Nitrogen from Fungus-Garden Mat, so the burst and the finisher
+are both affordable within an easy level. Demonstrates: grow, substrate, energy engine, W+N
+production, deck extension, digging, burst, defense, and winning.
