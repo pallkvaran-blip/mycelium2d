@@ -157,7 +157,7 @@ export const CONFIG = {
   // ---- Rendering / feel — visual only, never gameplay ----------------------
   render: {
     fogColor: '#04070a',                  // deep underground haze
-    fogDensity: 0.0016,
+    fogDensity: 0.00085,
     clearColor: '#04070a',
     ambient: '#182420',
     hemiSky: '#26414c', hemiGround: '#1c130a', hemiIntensity: 0.5,
@@ -171,12 +171,12 @@ export const CONFIG = {
     ceiling: '#241a10',                   // the soil surface seen from below
     ceilingGoal: '#5a7a44',               // sunlit living ground over the goal
     ceilingShade: '#2f5a3c',              // shaded goal soil
-    rock: '#23262c',
-    rockEmissive: '#0c1218',
+    rock: '#2e333c',
+    rockEmissive: '#11161d',
     water: '#1d4254',
     waterDeep: '#0e2935',
-    food: '#f2c96a',                      // glowing decaying-matter caches
-    foodCore: '#ffdf9a',
+    food: '#8a6c30',                      // glowing decaying-matter caches (kept dim: bloom lifts it)
+    foodCore: '#c9a45c',
     // threats
     trich: '#8aa23e',
     trichBright: '#d2e074',
@@ -204,7 +204,6 @@ export const CONFIG = {
     cursorMin: 30,               // targeting cursor distance range (scroll wheel)
     cursorMax: 700,
     cursorStart: 180,
-    startPos: { x: 260, y: -240, z: 540 },  // spawn near the colony seed, facing east
   },
 
   dev: {

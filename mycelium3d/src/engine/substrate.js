@@ -411,6 +411,13 @@ export function generateSubstrate(config, rng) {
         }
     if (placed > 0) sub.features.foodClusters.push(sub.cellCenter(c0.cx, c0.cy, c0.cz));
   };
+  // A guaranteed STARTER cache just below the seed filament, inside its sensing
+  // radius, so the colony's very first Grow has something to reach for.
+  {
+    const seedCol = Math.max(1, Math.floor(startCols / 2));
+    const seedLay = Math.min(sub.lays - 1, Math.ceil((config.growth.startDepth + config.growth.sensingRadius * 0.4) / sub.cellSize));
+    drop(seedCol + 1, seedLay, zc[seedCol]);
+  }
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
   for (let i = 0; i < count; i++) {
