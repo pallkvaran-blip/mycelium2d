@@ -38,6 +38,7 @@ export class CreatureRenderer {
   dispose() {
     this.scene.remove(this.group);
     this.group.traverse((o) => {
+      if (o.isInstancedMesh) o.dispose();
       if (o.geometry) o.geometry.dispose();
       if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
     });
@@ -102,6 +103,7 @@ export class CreatureRenderer {
     // marching ants along the trail
     const ants = new THREE.InstancedMesh(this.antGeo, this.antMat, ANTS_PER_TRAIL);
     ants.count = 0;
+    ants.frustumCulled = false;   // marching every frame — stale sphere would cull them
     g.add(ants);
     this.group.add(g);
     return { g, mound, bar, barCanvas: canvas, barTex: tex, ants, curve: null, tube: null, lastHp: -1, nest };
@@ -149,6 +151,7 @@ export class CreatureRenderer {
     this.wormMesh = new THREE.InstancedMesh(geo, mat, cap);
     this.wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.wormMesh.count = 0;
+    this.wormMesh.frustumCulled = false;   // matrices rewritten every frame — stale sphere would cull them
     this.group.add(this.wormMesh);
   }
 
@@ -236,6 +239,7 @@ export class CreatureRenderer {
       const nest = state.ants[i];
       ng.g.visible = !!nest;
       if (!nest) continue;
+      if (ng.nest !== nest) { ng.sig = null; ng.lastHp = -1; }   // pool slot re-assigned — drop stale trail/bar
       ng.nest = nest;
       ng.mound.position.set(nest.x, -4, nest.z);
       ng.bar.position.set(nest.x, -this.state.substrate.cellSize * 1.35, nest.z);

@@ -226,7 +226,7 @@ export function generateSubstrate(config, rng) {
     const lb = Math.min(rng.int(lbMin, lbMax), sub.rows - 4);
     const cx0 = s0 + Math.floor((spanW - lw) / 2);
     const cz0 = Math.floor((sub.rows - lb) / 2) + rng.int(-2, 2);
-    const maxDepth = Math.max(ldMin, Math.min(ldMax, sub.lays - pathH - 2));
+    const maxDepth = Math.max(1, Math.min(rng.int(ldMin, ldMax), sub.lays - pathH - 2));
     const cxm = cx0 + lw / 2, czm = cz0 + lb / 2;
     for (let cx = cx0; cx < cx0 + lw; cx++) {
       for (let cz = Math.max(0, cz0); cz < Math.min(sub.rows, cz0 + lb); cz++) {
@@ -326,11 +326,13 @@ export function generateSubstrate(config, rng) {
   for (let cx = 0; cx < sub.cols; cx++) {
     for (let cz = zc[cx] - halfW; cz <= zc[cx] + halfW; cz++) {
       if (cz < 0 || cz >= sub.rows) continue;
+      // The DEEPEST obstructing voxel in the column (tilted curtains don't
+      // touch the surface at most of their columns — a contiguous-from-top
+      // scan would punch the tunnel straight through the wall's midsection).
       let d = 0;
-      while (d < sub.lays) {
-        const cell = sub.cellAt(cx, d, cz);
-        if (cell && (cell.curtain || cell.water)) d++;
-        else break;
+      for (let l = 0; l < sub.lays; l++) {
+        const cell = sub.cellAt(cx, l, cz);
+        if (cell && (cell.curtain || cell.water)) d = l + 1;
       }
       req[cx] = Math.max(req[cx], d + 1);
     }

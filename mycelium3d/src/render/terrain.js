@@ -48,9 +48,16 @@ export class TerrainRenderer {
 
   dispose() {
     this.scene.remove(this.group);
+    const glow = glowTexture();   // shared — never dispose
     this.group.traverse((o) => {
+      if (o.isInstancedMesh) o.dispose();
       if (o.geometry) o.geometry.dispose();
-      if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose()); }
+      if (o.material) {
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+          if (m.map && m.map !== glow) m.map.dispose();
+          m.dispose();
+        });
+      }
     });
   }
 
@@ -231,6 +238,7 @@ export class TerrainRenderer {
     });
     this.foodMesh.count = i;
     this.foodMesh.instanceMatrix.needsUpdate = true;
+    this.foodMesh.computeBoundingSphere();   // lures can land outside the initial extent
     // halos fade out as their cache is consumed
     for (const h of this.clusterHalos) {
       let total = 0, max = 0;

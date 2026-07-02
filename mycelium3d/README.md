@@ -96,5 +96,5 @@ mycelium3d/
 ```
 
 The playtest bot plays whole runs headlessly (lure east, grow, digest, amputate
-infection, excrete worms, bait camped mould, fruit at the goal) — all 8 test
-seeds are winnable.
+infection, excrete worms, bomb trail-cutting nests, bait camped mould, fruit at
+the goal) — all 8 test seeds are winnable.

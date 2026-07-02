@@ -158,8 +158,11 @@ function updateGoalArrow() {
   const len = Math.hypot(dx, dy) || 1;
   const margin = 46;
   const scale = Math.min((W / 2 - margin) / Math.abs(dx || 1e-6), (H / 2 - margin) / Math.abs(dy || 1e-6));
-  const ex = cx + dx * Math.min(1, scale);
-  const ey = cy + dy * Math.min(1, scale);
+  // Behind the camera the mirrored point can land near the centre — always
+  // push the arrow out to the screen edge in that case.
+  const k = behind ? scale : Math.min(1, scale);
+  const ex = cx + dx * k;
+  const ey = cy + dy * k;
   ui.updateGoalArrow(true, ex, ey, Math.atan2(dy, dx) + Math.PI / 2);
 }
 
@@ -174,7 +177,9 @@ function frame(time) {
   strands.update(time, dt);
   creatures.update(time, dt);
 
-  ui.updateCursorReadout(controls.cursorDist, !!ui.selectedAction && controls.locked);
+  // Report the distance to the ACTUAL (clamped) cursor point, not the raw
+  // scroll setting — they differ when aiming at a world boundary.
+  ui.updateCursorReadout(view.camera.position.distanceTo(controls.cursorGroup.position), !!ui.selectedAction && controls.locked);
   updateGoalArrow();
 
   view.composer.render();

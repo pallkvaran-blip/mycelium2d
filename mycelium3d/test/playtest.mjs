@@ -17,7 +17,7 @@ function play(seed, { verbose = false, maxSteps = 500 } = {}) {
   const g = cfg.growth;
 
   const goalStartX = (sub.cols - cfg.substrate.goalCols - cfg.substrate.goalSummerCols) * sub.cellSize;
-  let acted = 0, lures = 0, grows = 0, digests = 0, amputates = 0, excretes = 0, stalls = 0, lureVanished = 0;
+  let acted = 0, lures = 0, grows = 0, digests = 0, amputates = 0, excretes = 0, bombs = 0, stalls = 0, lureVanished = 0;
   const trace = [];
 
   const easternmost = () => {
@@ -62,6 +62,26 @@ function play(seed, { verbose = false, maxSteps = 500 } = {}) {
     if ((state.nematodes || []).some((w) => w.feeding) && !actionBlockedReason(state, 'excrete')) {
       performAction(state, 'excrete'); acted++; excretes++;
       continue;
+    }
+    // 0c) an ant trail chewing through the colony → bomb that nest until it falls
+    if (state.ants.length && !actionBlockedReason(state, 'attackAnts') && net.energy > 60) {
+      let threatened = false;
+      for (const n of net.nodes) {
+        for (const [dx, dy, dz] of [[0,0,0],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]) {
+          const cell = sub.cellAt(sub.colAtX(n.x) + dx, sub.layAtY(n.y) + dy, sub.rowAtZ(n.z) + dz);
+          if (cell && cell.antTrail) { threatened = true; break; }
+        }
+        if (threatened) break;
+      }
+      if (threatened) {
+        let nest = null, best = Infinity;
+        for (const a of state.ants) {
+          const d = Math.hypot(a.x - net.root.x, a.z - net.root.z);
+          if (d < best) { best = d; nest = a; }
+        }
+        performAction(state, 'attackAnts', { x: nest.x, y: nest.y, z: nest.z }); acted++; bombs++;
+        continue;
+      }
     }
 
     // 1) fruit once the colony is under the goal soil
@@ -145,7 +165,7 @@ function play(seed, { verbose = false, maxSteps = 500 } = {}) {
     died: !!(state.runResult && state.runResult.died),
     spores: state.runResult ? state.runResult.spores || 0 : 0,
     bodies: state.runResult ? state.runResult.bodies || 0 : 0,
-    steps: acted, grows, lures, digests, amputates, excretes,
+    steps: acted, grows, lures, digests, amputates, excretes, bombs,
     nodes: net.nodes.length,
     progress: `${Math.round((maxX / goalStartX) * 100)}%`,
     energy: Math.round(net.energy),
@@ -159,7 +179,7 @@ let wins = 0;
 for (const seed of list) {
   const r = play(seed, { verbose: true });
   if (r.won) wins++;
-  console.log(`seed ${String(seed).padEnd(9)} ${r.won ? 'WON ' : r.died ? 'DIED' : 'stall'}  spores=${String(r.spores).padEnd(4)} bodies=${String(r.bodies).padEnd(3)} steps=${String(r.steps).padEnd(4)} grows=${String(r.grows).padEnd(3)} lures=${String(r.lures).padEnd(3)} digest=${String(r.digests).padEnd(3)} amp=${String(r.amputates).padEnd(3)} exc=${String(r.excretes).padEnd(3)} nodes=${String(r.nodes).padEnd(5)} progress=${r.progress} e=${r.energy}`);
+  console.log(`seed ${String(seed).padEnd(9)} ${r.won ? 'WON ' : r.died ? 'DIED' : 'stall'}  spores=${String(r.spores).padEnd(4)} bodies=${String(r.bodies).padEnd(3)} steps=${String(r.steps).padEnd(4)} grows=${String(r.grows).padEnd(3)} lures=${String(r.lures).padEnd(3)} digest=${String(r.digests).padEnd(3)} amp=${String(r.amputates).padEnd(3)} exc=${String(r.excretes).padEnd(3)} bomb=${String(r.bombs).padEnd(2)} nodes=${String(r.nodes).padEnd(5)} progress=${r.progress} e=${r.energy}`);
   for (const t of r.trace.slice(-3)) console.log('   ', t);
 }
 console.log(`\n${wins}/${list.length} runs won`);

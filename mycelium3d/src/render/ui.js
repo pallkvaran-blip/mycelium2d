@@ -57,7 +57,7 @@ export class UI {
           <div class="li"><b>Click</b> the view to take the controls (Esc releases)</div>
           <div class="li"><b>Mouse</b> look · <b>W A S D</b> glide · <b>Space / C</b> rise & sink</div>
           <div class="li"><b>Shift</b> boost · <b>Scroll</b> targeting distance</div>
-          <div class="li"><b>1–7</b> actions · targeted ones aim with the glowing cursor, <b>click</b> to apply</div>
+          <div class="li"><b>1–7</b> actions · targeted ones aim with the glowing cursor, <b>click</b> to apply · <b>X</b> cancels</div>
           <div class="li"><b>H</b> fly home · <b>G</b> face the goal beacon</div>
           <div class="li note">Cross the dark volume west→east, dig under the rock curtains, reach the sunlit soil and Fruit.</div>
         </div>
@@ -134,7 +134,9 @@ export class UI {
       if (e.repeat) return;
       const idx = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7'].indexOf(e.code);
       if (idx >= 0) this._pressAction(ACTION_ORDER[idx]);
-      else if (e.code === 'Escape') this.setSelectedAction(null);
+      // X cancels while flying (the browser reserves Esc to exit pointer lock,
+      // so the page never sees it while the mouse is captured).
+      else if (e.code === 'Escape' || e.code === 'KeyX') this.setSelectedAction(null);
       else if (e.code === 'KeyH') this.handlers.onHome();
       else if (e.code === 'KeyG') this.handlers.onFaceGoal();
     });
@@ -163,11 +165,12 @@ export class UI {
     if (name === 'fruit' && !this.fruitArmed) {
       this.fruitArmed = true;
       this.handlers.onFruitPreview(true);
-      this.setHint('Fruiting ends this life cycle. Press 7 (or click Fruit) again to confirm — Esc to cancel.');
+      this.setHint('Fruiting ends this life cycle. Press 7 (or click Fruit) again to confirm — X to cancel.');
       this.update();
       return;
     }
-    if (name === 'fruit') { this.fruitArmed = false; this.handlers.onFruitPreview(false); }
+    // ANY fired instant action disarms a pending Fruit confirm (and its preview).
+    if (this.fruitArmed) { this.fruitArmed = false; this.handlers.onFruitPreview(false); }
     this.handlers.onAction(name, {});
   }
 
@@ -221,11 +224,14 @@ export class UI {
         <p>${result.bodies} fruiting bod${result.bodies === 1 ? 'y' : 'ies'} broke the sunlit soil.</p>
         <p>Spores released: <b>+${result.spores}</b></p>
         <p class="dim small">Fly up to the goal surface to see the mushrooms before you go.</p>
-        <button class="btn big" id="overlay-restart">Grow a new colony</button>`;
+        <button class="btn big" id="overlay-restart">Grow a new colony</button>
+        <button class="btn" id="overlay-fly">Keep flying</button>`;
     }
     overlay.classList.remove('hidden');
     this.elLockPrompt.style.display = 'none';
     card.querySelector('#overlay-restart').addEventListener('click', () => this.handlers.onRestart());
+    const fly = card.querySelector('#overlay-fly');
+    if (fly) fly.addEventListener('click', () => this.hideOverlay());
   }
   hideOverlay() {
     this.root.querySelector('#overlay').classList.add('hidden');
@@ -258,7 +264,7 @@ export class UI {
     // default hint by mode
     if (this.selectedAction) {
       const label = ACTIONS[this.selectedAction].label;
-      this.setHint(`${label}: aim with the glowing cursor (scroll = distance) and click to apply. Esc cancels.`);
+      this.setHint(`${label}: aim with the glowing cursor (scroll = distance) and click to apply. X cancels.`);
     } else if (!this.fruitArmed) {
       this.setHint('');
     }

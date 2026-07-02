@@ -69,6 +69,7 @@ export class StrandRenderer {
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
     this.pulses = new THREE.Points(this.pulseGeo, pulseMat);
+    this.pulses.frustumCulled = false;   // positions move every frame — stale sphere would cull them
     this.pulseGeo.setDrawRange(0, 0);
     this.group.add(this.pulses);
     this._pulseState = [];
@@ -79,6 +80,7 @@ export class StrandRenderer {
 
   dispose() {
     this.scene.remove(this.group);
+    this.mesh.dispose();
     this.mesh.geometry.dispose(); this.mesh.material.dispose();
     this.tipGeo.dispose(); this.tips.material.dispose();
     this.glowGeo.dispose(); this.glow.material.dispose();
