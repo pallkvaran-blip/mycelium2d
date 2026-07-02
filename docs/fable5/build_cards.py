@@ -119,9 +119,11 @@ C("Serpula Creep", "action", "dig", "route",
   buy=12, P=2, timing="mid", produces="clear", family="dig-ladder", targeting="directional", clears=["column"])
 
 C("Basin Breach", "event", "dig", "route",
-  "DIRECTIONAL, one-shot. Drain and clear the lake basin barrier in a chosen direction — opens the hardest crossing on the map. Unplayable if the basin is not in range.",
-  "Undermine the bowl and let the whole lake find the deep dark.",
-  buy=22, P=3, W=2, timing="late", produces="clear", family="dig-ladder", targeting="directional", clears=["lake-basin"])
+  "DIRECTIONAL, one-shot. Drain and clear the lake basin barrier in a chosen direction AND bank a one-time +8 Water windfall from the drained lake. The lake specialist: opens the hardest crossing and fills your Water at once. Unplayable if the basin is not in range.",
+  "Undermine the bowl and let the whole lake find the deep dark — catching what you can as it goes.",
+  buy=16, P=2, W=1, timing="late", produces="lake-basin clear + big Water windfall", family="dig-ladder",
+  targeting="directional", clears=["lake-basin"],
+  notes="Not dominated by Universal Solvent: cheaper, water-positive, but lake-basin only vs Universal's flexible any-rock clear.")
 
 C("Universal Solvent", "event", "dig", "route",
   "DIRECTIONAL, one-shot. Clear ANY ONE rock in a chosen direction regardless of class — boulder, formation, column, or lake basin. Unplayable if no rock is in range.",
@@ -133,10 +135,10 @@ C("Universal Solvent", "event", "dig", "route",
 # 5) ENERGY ENGINES (BOUNDED — each <=4/round; global clamp <11 total)
 # =============================================================================
 C("Rhizomorph Cord", "engine", "energy-engine", "energy",
-  "INSTALL. +2 Energy per round while the network is alive. The cheap, reliable trunk line.",
+  "INSTALL. +2 Energy per round while the network is alive. The steady, unconditional benchmark engine.",
   "Bundled hyphae as a pipeline, shuttling sugar from the far frontier home.",
-  buy=9, timing="early", produces="+2 energy/round",
-  notes="Energy engine: 2/round. Repay ~5 rounds. Counts to <11 ceiling.", family="energy-engine")
+  buy=10, timing="early", produces="+2 energy/round",
+  notes="Energy engine: 2/round, unconditional. Repay ~5 rounds. Counts to <11 ceiling. The benchmark the conditional/gated +2s trade against.", family="energy-engine")
 
 C("Xylaria Deadwood Bed", "engine", "energy-engine", "energy",
   "INSTALL. +3 Energy per round, but only while you occupy at least 4 substrate patches (else +1). Rewards a broad, colonised mat.",
@@ -162,8 +164,8 @@ C("Fairy-Ring Metabolism", "engine", "energy-engine", "energy",
 C("Autolysis", "event", "energy-burst", "energy",
   "GLOBAL, one-shot. Over-digest ALL occupied substrate for +2 Energy per patch (flat). Downside: leaves those patches near-empty, cutting passive income next round.",
   "The colony eats its own stored mass in a rush.",
-  buy=7, timing="flex", produces="energy burst", family="energy-burst", targeting="global",
-  notes="Ungated but real downside (income crash). Flat +2/patch.")
+  buy=5, timing="flex", produces="energy burst", family="energy-burst", targeting="global",
+  notes="Cheapest ungated floor burst. Flat +2/patch + income-crash downside; trades cleanly vs Enzyme Bloom (6E/W2/+3, no downside).")
 
 C("Enzyme Bloom", "event", "energy-burst", "energy",
   "GLOBAL, one-shot. +3 Energy per occupied patch (flat). Gated by Water — turgor drives the enzyme flush.",
@@ -194,7 +196,8 @@ C("Anastomosis", "extender", "draw", "draw",
 C("Chlamydospore Reserve", "extender", "draw", "draw",
   "INSTALL. Shuffle 2 Burst Digest and 1 Leaf-Litter Lure basic into your draw deck. Runway plus a little economy.",
   "Thick-walled survival spores banked against the lean stretch.",
-  buy=7, timing="flex", produces="+3 basics", family="extender")
+  buy=8, timing="flex", produces="+3 basics", family="extender",
+  notes="All '+3 basics' extenders share a buy cost; the choice is WHICH basics (economy vs traversal vs anti-stall), not price.")
 
 C("Rhizomorph Highway", "extender", "draw", "draw",
   "INSTALL. Shuffle 3 Tropic Lunge basics into your draw deck. Runway tuned for punching across barren terrain.",
@@ -287,10 +290,10 @@ C("Crystalline Trellis", "event", "phosphorus", "route",
   targeting="directional", growth="5 (aimed)")
 
 C("Phosphate Foundry", "engine", "phosphorus", "energy",
-  "INSTALL. +2 Energy per round, but consumes 1 Phosphorus each round to run (idles at +0 if you have no P). Converts your P supply into master currency.",
+  "INSTALL. +3 Energy per round, but consumes 1 Phosphorus each round to run (idles at +0 if you have no P). Out-earns the ungated Cord by burning surplus P — the P-flush player's throughput upgrade.",
   "Burning stored phosphate for ATP when the sugar runs thin.",
-  buy=11, P=1, timing="mid", produces="+2 energy/round (burns P)",
-  notes="ENERGY engine: 2/round, counts to <11 ceiling; self-limits via P cost.", family="phosphorus")
+  buy=11, P=1, timing="mid", produces="+3 energy/round (burns 1 P/round)",
+  notes="ENERGY engine: 3/round (>Cord's flat 2), counts to <11 ceiling; self-limits via ongoing P upkeep. Gate+upkeep buys the extra +1 over Cord.", family="phosphorus")
 
 # =============================================================================
 # 10) NITROGEN LANE
@@ -314,14 +317,14 @@ C("Mycelial Bloom", "event", "nitrogen", "growth",
 C("Chitin Armor", "engine", "nitrogen", "general-defense",
   "INSTALL. Gated by Nitrogen. +50% vitality recovery each round network-wide and a standing resistance to all threats' first touch. The N defensive payoff.",
   "Melanised, chitin-thick walls that shrug off the first bite.",
-  buy=12, N=2, timing="mid", produces="defense engine", threat="all", family="nitrogen",
-  notes="Defense engine (exempt). Unconditional value even threat-free (recovery).")
+  buy=10, N=2, timing="mid", produces="defense engine", threat="all", family="nitrogen",
+  notes="Defense engine (exempt). Unconditional value even threat-free (recovery). Gated => buys below its ungated first-hit-resist sibling Sclerotium Bunker (12). Distinct from Ganoderma Bracket's flat damage-reduction mechanic.")
 
 C("Nitrogen Foundry", "engine", "nitrogen", "energy",
-  "INSTALL. +2 Energy per round, but consumes 1 Nitrogen each round (idles at +0 with no N). Turns aggression payoff into master currency.",
+  "INSTALL. +3 Energy per round, but consumes 1 Nitrogen each round (idles at +0 with no N). Out-earns the ungated Cord by burning surplus N — the aggression deck's throughput upgrade.",
   "Deaminating amino acids for a steady drip of ATP.",
-  buy=11, N=1, timing="mid", produces="+2 energy/round (burns N)",
-  notes="ENERGY engine: 2/round, counts to <11 ceiling; self-limits via N cost.", family="nitrogen")
+  buy=11, N=1, timing="mid", produces="+3 energy/round (burns 1 N/round)",
+  notes="ENERGY engine: 3/round (>Cord's flat 2), counts to <11 ceiling; self-limits via ongoing N upkeep. Gate+upkeep buys the extra +1 over Cord.", family="nitrogen")
 
 C("Cordyceps Lance", "event", "nitrogen", "route",
   "DIRECTIONAL, one-shot. Gated by Nitrogen. A violent aimed growth strike of 6 segments straight in a chosen direction — the aggressive traversal spike.",
@@ -532,10 +535,10 @@ C("Bore-Tide", "event", "phosphorus", "route",
   targeting="radius", radius=100, clears=["boulder","formation"])
 
 C("Diazotroph Symbiosis", "engine", "nitrogen", "nitrogen",
-  "INSTALL. Host nitrogen-fixing bacteria: +2 Nitrogen per round from the air itself, unconditional. A second standing N line for aggression decks.",
+  "INSTALL. Host nitrogen-fixing bacteria: +3 Nitrogen per round from the air itself, unconditional. The BIG standing N line — a full tier above the +2 Springtail Snare, for N-hungry aggression decks.",
   "Bacteria lodged in the hyphae, spinning nitrogen out of nothing.",
-  buy=11, timing="mid", produces="+2 nitrogen/round", family="nitrogen",
-  notes="Resource engine (exempt). Unconditional.")
+  buy=13, timing="mid", produces="+3 nitrogen/round", family="nitrogen",
+  notes="Resource engine (exempt). +3/round tier (cf. Springtail Snare +2/10E) — sized up, not a clone.")
 
 C("Lion's-Mane Regrowth", "action", "general-defense", "defense",
   "RADIUS around a tap (radius 110), cooldown 2. Regenerate strands and rapidly re-grow tissue lost to any threat in the radius — restorative, not preventive. Pairs with any excision.",
@@ -571,9 +574,10 @@ C("Fissure Grow", "basic", "growth-trick", "route",
   targeting="directional", growth="2 (aimed)", clears=["boulder"])
 
 C("Turgor Tap", "basic", "water", "growth",
-  "GLOBAL. Gated by Water. Spend turgor for a single free growth pulse toward sensed food at no Energy — a cheap Water-fuelled tempo basic.",
-  "A short swell of pressure, spent on one honest push.",
-  W=1, timing="flex", produces="growth", family="water", targeting="global", growth="1 pulse")
+  "GLOBAL. Gated by Water. Spend turgor for TWO growth pulses toward food, reaching even food OUT of sensing range — a Water-fuelled tempo basic that grows when the free Hyphal Advance would be dead.",
+  "A short swell of pressure, spent on two honest pushes past the edge of sense.",
+  W=1, timing="flex", produces="growth (2, extended reach)", family="water", targeting="global", growth="2 (extended reach)",
+  notes="Beats free Hyphal Advance on reach + count, justifying the W gate (not dominated).")
 
 C("Necromass Feast", "event", "nitrogen", "energy",
   "GLOBAL, one-shot. Gated by Nitrogen. Convert banked Nitrogen into a one-time +5 Energy per 2 N spent (you choose how much, up to your stock). Flexible late fuel.",
@@ -592,7 +596,7 @@ C("Hyphal Fusion", "action", "draw", "draw",
   notes="Slow, single-target, long cooldown: does not break the no-reshuffle clock.")
 
 C("Deep-Reach Taproot", "event", "route", "route",
-  "DIRECTIONAL, one-shot. Gated by Water. Dive a single strand deep and far: grow 6 aimed segments straight DOWN-and-across in a chosen direction, tunnelling beneath a barrier belt.",
+  "DIRECTIONAL, one-shot. Gated by Water. Grow 6 aimed segments straight DOWN-and-across in a chosen direction, tunnelling the frontier beneath a barrier belt.",
   "The one cord that goes deep enough to pass under everything.",
   buy=10, W=2, timing="mid", produces="deep aimed growth", family="grow-engine",
   targeting="directional", growth="6 (deep aimed)")
@@ -614,10 +618,10 @@ C("Spore Print Draft", "extender", "draw", "draw",
   buy=8, timing="flex", produces="+3 basics", family="extender")
 
 C("Cellulase Cascade", "action", "energy-burst", "energy",
-  "GLOBAL, cooldown 2. Digest all occupied substrate for +2 Energy per patch (flat), repeatable on cooldown. A metered burst engine, not a one-shot — the reliable mid-game refill.",
+  "INSTALL, cooldown 2. ACTIVATE to digest all occupied substrate for +2 Energy per patch (flat). A player-fired burst you can repeat every 2 rounds — not a passive engine, so you must spend the action each time.",
   "The enzyme wave you can call up again and again, if you pace it.",
-  buy=10, timing="mid", produces="repeatable digest burst", family="digest", targeting="global",
-  notes="Action (cooldown-gated repeatable), not a standing energy engine => exempt from ceiling.")
+  buy=10, timing="mid", produces="repeatable digest burst (player-fired)", family="digest", targeting="global",
+  notes="Player-activated action (not auto-firing), so it prints no passive Energy => exempt from the <11 energy-engine ceiling.")
 
 C("Mycorrhizal Handshake", "engine", "energy-engine", "energy",
   "INSTALL. +3 Energy per round while at least one tip sits within sensing range of a food pile; +1 otherwise. Rewards keeping the frontier fed.",
@@ -651,10 +655,10 @@ C("Colonise Pocket", "action", "grow", "grow",
   targeting="radius", radius=90)
 
 C("Ambrosia Garden", "engine", "energy-engine", "energy",
-  "INSTALL. +2 Energy per round, but only while NO threat is currently touching your network; +0 while under attack. A fair-weather engine that pays in calm stretches.",
+  "INSTALL. +3 Energy per round, but only while NO threat is currently touching your network; +0 while under attack. A high-ceiling fair-weather engine that out-earns the steady Cord on calm maps and craters under a swarm.",
   "Beetles farming their fungal gardens — productive only in peace.",
-  buy=9, timing="mid", produces="+2 energy/round (peacetime)",
-  notes="ENERGY engine: 2/round, conditional, counts to <11 ceiling.", family="energy-engine")
+  buy=9, timing="mid", produces="+3 energy/round (peacetime)",
+  notes="ENERGY engine: 3/round peak, conditional (0 under attack), counts to <11 ceiling. Cheaper + higher ceiling than Cord, but a 0 floor.", family="energy-engine")
 
 C("Dead-Man's-Fingers Reach", "event", "phosphorus", "route",
   "DIRECTIONAL, one-shot. Gated by Phosphorus. Grow 4 aimed segments straight down in a chosen direction through deep soil, then branch — the structural deep-dive to slip under a column belt.",
@@ -739,6 +743,19 @@ C("Ganoderma Bracket", "engine", "general-defense", "defense",
   "Reishi, the bracket that returns to the same log for a decade.",
   buy=9, timing="flex", produces="flat damage reduction + heal", threat="all", family="general-defense",
   notes="Unconditional; defense engine (exempt).")
+
+C("Hydrophobin Dew", "basic", "water", "water",
+  "GLOBAL. Condense atmospheric moisture on the network's own water-repellent surfaces for +1 Water, anywhere, no lake required — the free Water floor to mirror Saprophagy (N) and Rhizosphere Priming (P).",
+  "Hydrophobins pearling the dawn air into droplets on every hypha.",
+  timing="flex", produces="water floor", family="water-tap", targeting="global",
+  notes="+1 floor beneath Guttation Sip's +3 lake tap; the guaranteed W source on lake-sparse maps.")
+
+C("Ammonifying Bore", "event", "dig", "route",
+  "DIRECTIONAL, one-shot. Gated by Nitrogen. Rot a rock formation apart with ammonifying acids in a chosen direction — clears ONE formation AND banks +2 Nitrogen from its organic binder. The Nitrogen lane's own dig. Unplayable if no formation is in range.",
+  "Ammonia eating the very cement that held the stone together.",
+  buy=6, N=2, timing="mid", produces="formation clear + N", threat="none", family="dig-ladder",
+  targeting="directional", clears=["formation"],
+  notes="Closes the per-resource dig matrix (W & P had digs, N did not). Distinct from W-gated Rhizomorph Pry: one-shot + N gate + N refund.")
 
 C("Rhizomorph Relay", "extender", "draw", "draw",
   "INSTALL. Shuffle 2 Tropic Lunge and 1 Colonise-Pocket-style Radial Flush basic into your draw deck. Balanced runway of push + fill.",
