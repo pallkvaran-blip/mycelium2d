@@ -111,5 +111,17 @@ Verdicts kept; comment text not retained (full write-up in `cards-design.md` §1
 - **Fixes:** Fungus-Garden Mat → **Sclerotial Seal** (seal a food pile vs ants); Melanized Sheath →
   **Suberin Wall** (network-wide mould cure/block); Foxfire Glow removed.
 
-→ Awaiting **review round 5** on the v6 set (38 cards). Watch-item to sanity-check: does *grow costs
-water* feel right in play, and is the no-water-in-starting-deck soft-lock risk acceptable (§15.2)?
+## Round 5 — 38/38 rated (👍 38 / 👎 0) → v7 cost tuning
+
+Whole set approved; the round was cost tweaks (full write-up: `cards-design.md` §16):
+- **Substrate now costs Nitrogen** (Leaf Litter 1, Humus Bed 1, Mycorrhizal Mat 2) — clean three-pillar
+  model: Water=growth, Nitrogen=food (substrate+digest), Phosphorus=work (actions+digs).
+- **Foraging Fan → 2 W**; **Appressorial Punch → 1 W** (turgor).
+- **Water economy scaled up:** Condense **+3 W** and **5 copies seeded into the starting deck** (solves
+  the water soft-lock — starting deck = 5 HE + 5 LLC + 5 Condense); Aquaporin **+2 W/round**; Hyphal
+  Imbibition **+9 / +3 W**. Water soft cap raised to ~20 (N/P stay ~6).
+- **Suberin Wall** → radius cure-on-tap action (1 P) ("we never pick specific strands").
+- Rhizomorph Lance / Fruiting Vigil reworded to "grow up to 6 steps".
+
+→ Awaiting **review round 6** on the v7 set. Open watch-item: does *every* grow needing water feel
+right, or should the basic 1-step grow stay free (§16.4)?

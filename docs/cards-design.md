@@ -4,10 +4,11 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **CORE SET (v6)** — **38 cards**. Resources now GATE the three core loops (grow=Water,
-> digest=Nitrogen, action=Phosphorus). No `rarity`; variable buy costs (cap ~40); starting deck +
-> draw engines; filterable tutorial set. NOT yet balanced-final and NOT implemented.
-> CURRENT rules: §10 → §11 → §12–14 (history) → **§15 (v6 resource gating — authoritative)**.
+> Status: **CORE SET (v7)** — **38 cards**, ALL approved in review (38👍/0👎). Resources gate the core
+> loops (grow=Water, digest=Nitrogen, action=Phosphorus) + substrate=Nitrogen; water economy scaled up;
+> starting deck seeds water; Suberin Wall is a radius cure. No `rarity`; variable buy costs (cap ~40).
+> NOT yet balanced-final / NOT implemented.
+> CURRENT rules: §10 → §11 → §12–15 (history) → **§16 (v7 — authoritative)**.
 
 ---
 
@@ -536,9 +537,8 @@ so it has no built-in water source — yet grow now costs water. Safeguards so a
   Fruiting Vigil's 2 N from the buffer alone.
 - Early water is reachable: **Aquaporin Channels** (+1 W/round, in the tutorial hand), **Condense** /
   **Hyphal Imbibition** (via draw engines), and **lake taps**.
-- **Proposed baseline safety net** (needs your ok): a tiny passive **+1 W every 2 rounds** (under the
-  soft cap) so a waterless, cash-poor turn can never fully brick. *This is the main balance risk to
-  watch — flagged for review.*
+- ~~Proposed baseline +1 W/2 rounds safety net~~ → **RESOLVED in v7 (§16):** the designer instead seeds
+  **5× Condense (+3 W each)** into the starting draw deck, so water is guaranteed from the deck itself.
 Soft cap ~6 per resource. Every W/P/N-gated card must remain recoverable from a zero stock (no gate is
 ever a permanent dead end).
 
@@ -561,3 +561,42 @@ gated finisher needs.
 
 ### 15.5 Composition (38)
 basic 13 · engine 7 · event 4 · action 3 · extender 11.
+
+---
+
+## 16. v7 — resource-cost tuning (CURRENT — authoritative)
+
+Round-5 review approved all 38 cards (38👍/0👎); these are the requested cost tweaks. The gating model
+of §15 stands, extended so **substrate placement is also gated** and the **water economy is scaled up**
+to match "grow costs water."
+
+### 16.1 Resource costs
+- **Substrate → Nitrogen** (organic matter): Leaf Litter Cache **1 N**, Humus Bed **1 N**, Mycorrhizal
+  Mat **2 N**. This makes the food loop N-driven (place substrate with N, digest it with N) — the clean
+  three-pillar model: **Water = growth · Nitrogen = food (substrate + digest) · Phosphorus = work
+  (actions + digs)**.
+- **Foraging Fan → 2 W** (grow-in-every-direction is strong). **Appressorial Punch → 1 W** (appressoria
+  bore through rock by turgor pressure; also a grow-through).
+- Everything else from §15 unchanged (grows 1–2 W, Saprotrophic Digest 1 N, actions 1 P, Tap-Root 2 P
+  install, Fruiting Vigil 2 W + 2 N, etc.).
+
+### 16.2 Water economy scaled up (grow now consumes water every turn)
+- **Condense → +3 Water**, and **5 copies seeded into the starting draw deck** (startCopies 5). The
+  starting draw deck is now **5× Hyphal Extension + 5× Leaf Litter Cache + 5× Condense** — water is
+  guaranteed from the deck, so the earlier soft-lock worry is resolved without a passive trickle.
+- **Aquaporin Channels → +2 Water/round.**
+- **Hyphal Imbibition → +9 Water** at a lake edge / **+3 Water** from soil.
+- Consequently the **Water soft cap rises to ~20** (a lake tap alone gives +9); **Nitrogen and
+  Phosphorus keep the ~6 soft cap**. (Per-resource caps — update `CONFIG.resources` accordingly.)
+- `startResources` stays 5 W / 2 N / 2 P for turn-1 action before Condense is drawn.
+
+### 16.3 Card wording / redesign
+- **Suberin Wall** → now a **radius cure on tap** (was a network-wide passive engine; "we never pick
+  strands"): *Action (once per 3 rounds, 1 P): tap a point; cure all mould infection within radius 80
+  and block reinfection there for 2 rounds.* (action → P-gated, radius targeting.)
+- **Rhizomorph Lance / Fruiting Vigil** reworded to "grow up to 6 steps" (Vigil keeps 2 W + 2 N).
+
+### 16.4 Open balance question (flagged, not decided)
+Grows now cost water on essentially every turn. With the scaled-up water sources this should flow, but
+whether *every* grow should cost water (vs. only bigger/aimed grows, keeping the 1-step basic free) is
+worth a playtest read — noted for a future round.
