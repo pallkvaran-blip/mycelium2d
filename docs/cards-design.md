@@ -4,10 +4,10 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **CORE SET (v5)** — **39 cards** (deliberately small: one of each core type). No `rarity`;
-> variable buy costs (cap ~40); basics reworked around a starting deck + "draw engine" cards; a
-> filterable **tutorial set**. NOT yet balanced-final and NOT implemented.
-> CURRENT rules: §10 (rulings) → §11 (economy) → §12–13 (history) → **§14 (v5 core — authoritative)**.
+> Status: **CORE SET (v6)** — **38 cards**. Resources now GATE the three core loops (grow=Water,
+> digest=Nitrogen, action=Phosphorus). No `rarity`; variable buy costs (cap ~40); starting deck +
+> draw engines; filterable tutorial set. NOT yet balanced-final and NOT implemented.
+> CURRENT rules: §10 → §11 → §12–14 (history) → **§15 (v6 resource gating — authoritative)**.
 
 ---
 
@@ -508,3 +508,56 @@ Draw deck: **5× Hyphal Extension + 5× Leaf Litter Cache**. Opening HAND (7 car
 Water comes from Aquaporin Channels, Nitrogen from Fungus-Garden Mat, so the burst and the finisher
 are both affordable within an easy level. Demonstrates: grow, substrate, energy engine, W+N
 production, deck extension, digging, burst, defense, and winning.
+
+---
+
+## 15. v6 — resources GATE the core loops (CURRENT — authoritative)
+
+**38 cards.** Fixes the "resources are easy to make but gate nothing / feel useless" problem by making
+each map resource **required for a core recurring activity**, so producing W/P/N genuinely matters.
+
+### 15.1 The gating model
+- **WATER → GROWTH** (turgor). Every grow action costs Water. Single-step grows (Hyphal Extension,
+  Apical Drive, Foraging Fan) = **1 W**; multi-step grows are discounted below 1 W/step so they stay
+  worth it (Tropic Lunge 3 steps = 2 W, Rhizomorph Lance 6 = 2 W, Fruiting Vigil = 2 W). **Substrate
+  placement** (Leaf Litter / Humus Bed / Mycorrhizal Mat) is NOT growth and stays free.
+- **NITROGEN → DIGESTION**. Saprotrophic Digest = **1 N** (enzymes need N).
+- **PHOSPHORUS → repeatable ACTIONS** (ATP). Every activation of an action-type card = **1 P**
+  (Constricting Ring, Sclerotial Seal). Tap-Root Rhizomorph pays **2 P at install** (engine).
+  The resource **converter** (Nutrient Transmutation) is exempt (it's the relief valve) and
+  resource-*producing* engines are never P-gated.
+- Other cards keep sensible thematic gates (Osmotic Cashout 1 W = water→energy; Rehydration Pulse 1 W;
+  Fruiting Vigil 2 W + 2 N).
+
+### 15.2 Anti-soft-lock economy (proposed — confirm)
+The starting draw deck stays strictly **5× Hyphal Extension + 5× Leaf Litter Cache** (per the designer),
+so it has no built-in water source — yet grow now costs water. Safeguards so a run can't dead-end:
+- **`startResources = { water: 5, nitrogen: 2, phosphorus: 2 }`** — lets you grow from turn 1 and pay
+  Fruiting Vigil's 2 N from the buffer alone.
+- Early water is reachable: **Aquaporin Channels** (+1 W/round, in the tutorial hand), **Condense** /
+  **Hyphal Imbibition** (via draw engines), and **lake taps**.
+- **Proposed baseline safety net** (needs your ok): a tiny passive **+1 W every 2 rounds** (under the
+  soft cap) so a waterless, cash-poor turn can never fully brick. *This is the main balance risk to
+  watch — flagged for review.*
+Soft cap ~6 per resource. Every W/P/N-gated card must remain recoverable from a zero stock (no gate is
+ever a permanent dead end).
+
+### 15.3 Three review-failed cards fixed
+- **Fungus-Garden Mat** removed (ants steal from *piles*, not your network) → replaced by **Sclerotial
+  Seal** (action, 1 P, once/3 rounds): *tap a food pile; ants can't harvest it for 3 rounds* — protects
+  what ants actually attack.
+- **Melanized Sheath** removed ("3 nearest strands" was untargetable) → replaced by **Suberin Wall**
+  (engine, buy 16): *network-wide — cure 1 infected strand/round and block new mould infection* (global,
+  no per-strand targeting).
+- **Foxfire Glow** removed, no replacement (the map is fully visible — scouting is pointless).
+
+### 15.4 Buy-cost rebalance & tutorial
+Gated cards were pushed to lower energy buys (the gate is a second cost): e.g. Osmotic Cashout 18→12,
+Fruiting Vigil 20→12, Rhizomorph Lance 12→10, Constricting Ring 6→5, Tap-Root 14→12; Rhizomorph
+Trunkline stays the priciest at 22. Tutorial hand updated (Fungus-Garden Mat was in it): now
+**Rhizomorph Trunkline · Aquaporin Channels (W) · Mineralizing Saprobe (N) · Osmotic Cashout ·
+Fruiting Vigil · Forager Bloom · Boring Corps** + the 5×/5× starting deck — carries the W and N the
+gated finisher needs.
+
+### 15.5 Composition (38)
+basic 13 · engine 7 · event 4 · action 3 · extender 11.

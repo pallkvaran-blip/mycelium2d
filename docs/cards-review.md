@@ -94,5 +94,22 @@ Verdicts kept; comment text not retained (see `cards-design.md` §14 for the ful
 - **Rebalanced costs** (cap ~40; core sits 0/6–22).
 - Added a **tutorial set** (suggested starting hand, filterable in the tool).
 
-→ Awaiting **review round 4** on the v5 core set (39 cards). Use the **★ Tutorial set** filter to
-review the suggested tutorial hand on its own.
+## Round 4 — 39/39 rated (👍 36 / 👎 3) → v6 resource gating + 3 fixes
+
+Verdicts kept; comment text not retained (full write-up in `cards-design.md` §15).
+- **👍 (36):** the whole core set approved; the human's shorter descriptions applied verbatim
+  (Tropic Lunge, Saprotrophic Digest, Appressorial Punch, Hyphal Imbibition +3 W, Septal Pore Flux,
+  Tap-Root "every 5 rounds", Constricting Ring "once/6 + tap where no worm in range", Fruiting Vigil
+  "extend 6").
+- **👎 (3):** Fungus-Garden Mat (ants don't touch the network — no effect), Melanized Sheath
+  ("3 nearest strands" untargetable), Foxfire Glow (map already fully visible).
+
+### Big directive: resources were easy to make but gated nothing → now they gate the core loops
+- **Water → grow · Nitrogen → digest · Phosphorus → repeatable actions.** Many cards now carry small
+  W/P/N play-costs, so producing W/P/N is finally necessary. `startResources 5 W / 2 N / 2 P`;
+  soft-lock safeguards proposed (§15.2). Buy costs rebalanced down for gated cards.
+- **Fixes:** Fungus-Garden Mat → **Sclerotial Seal** (seal a food pile vs ants); Melanized Sheath →
+  **Suberin Wall** (network-wide mould cure/block); Foxfire Glow removed.
+
+→ Awaiting **review round 5** on the v6 set (38 cards). Watch-item to sanity-check: does *grow costs
+water* feel right in play, and is the no-water-in-starting-deck soft-lock risk acceptable (§15.2)?
