@@ -218,5 +218,12 @@ Pact / Woodwide Web *look* like energy but are exempt by rule and by design).
 ## 6. Files
 - `cards.json` / `cards.csv` — identical column set, one row per card. `clears`
   is a `|`-joined string in the CSV, a JSON array in the JSON.
-- `review.html` — self-contained dark field-guide for phone review; 👍/👎 + notes
-  persist to `localStorage["mycelium-fable5-feedback"]`, with a text/JSON export.
+- `review.html` — self-contained dark field-guide built for reviewing all 119
+  cards on a phone. No network/CDN dependencies (data embedded, inline CSS/JS).
+  Features: full-text search (incl. gates), filter by category/type/vote,
+  group by category/type/threat/timing with sticky per-group progress headers,
+  sort by buy cost or name, an overall progress bar, "next unrated" jump, and a
+  grouped markdown + raw-JSON export. 👍/👎 + notes persist to
+  `localStorage["mycelium-fable5-feedback"]` (namespaced so it never collides
+  with the other tool). Verified in Chromium at a 390px viewport.
+- `build_cards.py` — the single source of truth that emits all of the above.

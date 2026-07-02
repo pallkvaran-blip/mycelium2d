@@ -794,26 +794,33 @@ html = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mycelium — Fable-5 Card Field Guide</title>
 <style>
-:root{--bg:#0a0f0c;--panel:#101a13;--panel2:#0d1610;--line:#1e2f22;--mint:#bfffd0;--mint2:#7fdca0;--dim:#8fae98;--txt:#dCEfd8;--warn:#f2c14e;--w:#69c0ff;--p:#d59cff;--n:#ffd08a;}
+:root{--bg:#0a0f0c;--panel:#101a13;--panel2:#0d1610;--line:#1e2f22;--mint:#bfffd0;--mint2:#7fdca0;--dim:#8fae98;--txt:#dcefd8;--warn:#f2c14e;--w:#69c0ff;--p:#d59cff;--n:#ffd08a;--up:#2e6b40;--down:#6b2e2e;}
 *{box-sizing:border-box}
+html{scroll-padding-top:var(--hh,150px)}
 body{margin:0;background:radial-gradient(120% 80% at 50% -10%,#12211a 0%,var(--bg) 60%);color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
-header{position:sticky;top:0;z-index:10;background:rgba(10,15,12,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 14px 10px}
-h1{margin:0;font-size:18px;letter-spacing:.3px;color:var(--mint)}
-.sub{color:var(--dim);font-size:12px;margin-top:2px}
-.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-input[type=search],select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:14px}
-input[type=search]{flex:1;min-width:140px}
-.stat{color:var(--dim);font-size:12px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+header{position:sticky;top:0;z-index:20;background:rgba(9,14,11,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:12px 14px 8px}
+h1{margin:0;font-size:17px;letter-spacing:.3px;color:var(--mint)}
+.sub{color:var(--dim);font-size:11.5px;margin-top:2px}
+.controls{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+input[type=search],select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:7px 9px;font-size:13.5px;max-width:100%}
+input[type=search]{flex:1;min-width:130px}
+.bar{height:6px;border-radius:6px;background:#12201a;margin-top:9px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,#2e6b40,var(--mint2));width:0;transition:width .25s}
+.stat{color:var(--dim);font-size:11.5px;margin-top:7px;display:flex;gap:11px;flex-wrap:wrap;align-items:center}
 .stat b{color:var(--mint2)}
-main{padding:12px 12px 90px;max-width:760px;margin:0 auto}
-.card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin:10px 0;box-shadow:0 1px 0 rgba(191,255,208,.03) inset}
-.card.up{border-color:#2e6b40;box-shadow:0 0 0 1px #2e6b40 inset}
-.card.down{border-color:#6b2e2e;opacity:.62}
+main{padding:8px 12px 96px;max-width:760px;margin:0 auto}
+.grp{position:sticky;top:var(--hh,150px);z-index:5;margin:14px 0 4px;padding:6px 10px;background:rgba(13,22,16,.96);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.grp .gname{font-weight:700;color:var(--mint);font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+.grp .gcount{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.grp .gcount b{color:var(--mint2)}
+.card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:9px 0;box-shadow:0 1px 0 rgba(191,255,208,.03) inset;scroll-margin-top:calc(var(--hh,150px) + 44px)}
+.card.up{border-color:var(--up);box-shadow:0 0 0 1px var(--up) inset}
+.card.down{border-color:var(--down);opacity:.6}
 .crow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .cname{font-weight:600;color:var(--mint);font-size:15.5px}
 .cost{font-variant-numeric:tabular-nums;color:var(--mint2);font-weight:600;white-space:nowrap}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 4px}
-.tag{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+.tag{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
 .tag.type{color:var(--mint2);border-color:#295c3a}
 .tag.W{color:var(--w);border-color:#274a63}.tag.P{color:var(--p);border-color:#4a2f63}.tag.N{color:var(--n);border-color:#63512f}
 .tag.threat{color:var(--warn);border-color:#5c4a20}
@@ -821,90 +828,138 @@ main{padding:12px 12px 90px;max-width:760px;margin:0 auto}
 .flav{font-size:12px;color:var(--dim);font-style:italic}
 .note{font-size:11.5px;color:#6f8f79;margin-top:5px}
 .vote{display:flex;gap:8px;margin-top:10px;align-items:center}
-.vote button{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 14px;font-size:16px;cursor:pointer}
-.vote button.on-up{background:#173a24;border-color:#2e6b40}
-.vote button.on-down{background:#3a1717;border-color:#6b2e2e}
-.vote input{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 10px;font-size:13px}
-footer{position:fixed;bottom:0;left:0;right:0;background:rgba(10,15,12,.95);border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;justify-content:center;backdrop-filter:blur(8px)}
-footer button{background:var(--mint);color:#06110a;border:0;border-radius:9px;padding:9px 16px;font-weight:600;font-size:13px;cursor:pointer}
+.vote button{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 14px;font-size:16px;cursor:pointer;transition:transform .06s}
+.vote button:active{transform:scale(.9)}
+.vote button.on-up{background:#173a24;border-color:var(--up)}
+.vote button.on-down{background:#3a1717;border-color:var(--down)}
+.vote input{flex:1;min-width:60px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 10px;font-size:13px}
+.empty{color:var(--dim);text-align:center;margin-top:44px}
+footer{position:fixed;bottom:0;left:0;right:0;background:rgba(9,14,11,.96);border-top:1px solid var(--line);padding:9px 12px calc(9px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center;backdrop-filter:blur(10px);z-index:20}
+footer button{background:var(--mint);color:#06110a;border:0;border-radius:9px;padding:9px 15px;font-weight:600;font-size:13px;cursor:pointer}
 footer button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
-dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:14px;max-width:92vw;width:640px}
-textarea{width:100%;height:44vh;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;font:12px/1.5 ui-monospace,monospace;padding:10px}
+dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:14px;max-width:92vw;width:640px;padding:14px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+textarea{width:100%;height:46vh;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:9px;font:12px/1.5 ui-monospace,SFMono-Regular,monospace;padding:10px;resize:vertical}
+.dlgrow{margin-top:10px;display:flex;gap:8px;justify-content:flex-end}
+.dlgrow button{border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px}
+.dlgrow .ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+.dlgrow .ok{background:var(--mint);color:#06110a;border:0}
 </style></head><body>
 <header>
   <h1>Mycelium · Fable-5 Card Field Guide</h1>
-  <div class="sub">Tap 👍 / 👎 on each card. Saved locally on this phone; export when done.</div>
+  <div class="sub">119 cards. Tap 👍 / 👎 on each; saved on this phone. Group, filter, then export when done.</div>
   <div class="controls">
-    <input id="q" type="search" placeholder="Search name / effect / flavor…">
+    <input id="q" type="search" placeholder="Search name / effect / flavor / gate…">
     <select id="fCat"></select>
     <select id="fType"></select>
     <select id="fVote"><option value="">all votes</option><option value="up">👍 only</option><option value="down">👎 only</option><option value="none">unrated</option></select>
+    <select id="grp"><option value="category">group: category</option><option value="type">group: type</option><option value="threat">group: threat</option><option value="timing">group: timing</option><option value="none">group: none</option></select>
+    <select id="sort"><option value="cost">sort: buy cost ↑</option><option value="costd">sort: buy cost ↓</option><option value="name">sort: name</option></select>
   </div>
+  <div class="bar"><i id="pbar"></i></div>
   <div class="stat"><span>Showing <b id="nShown">0</b></span><span>👍 <b id="nUp">0</b></span><span>👎 <b id="nDown">0</b></span><span>rated <b id="nRated">0</b>/<b id="nTotal">0</b></span></div>
 </header>
 <main id="list"></main>
 <footer>
   <button class="ghost" onclick="jump()">Next unrated ↓</button>
-  <button onclick="exportFb()">Export feedback</button>
-  <button class="ghost" onclick="if(confirm('Clear all your votes on this device?')){localStorage.removeItem(KEY);fb={};render()}">Reset</button>
+  <button onclick="exportFb()">Export</button>
+  <button class="ghost" onclick="resetAll()">Reset</button>
 </footer>
-<dialog id="dlg"><textarea id="exp" readonly></textarea><div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button class="ghost" onclick="copyExp()" style="background:#101a13;color:#dCEfd8;border:1px solid #1e2f22;border-radius:9px;padding:8px 14px;cursor:pointer">Copy</button><button onclick="dlg.close()" style="background:#bfffd0;color:#06110a;border:0;border-radius:9px;padding:8px 14px;cursor:pointer">Close</button></div></dialog>
+<dialog id="dlg"><textarea id="exp" readonly></textarea><div class="dlgrow"><button class="ghost" onclick="copyExp()">Copy</button><button class="ok" onclick="document.getElementById('dlg').close()">Close</button></div></dialog>
 <script>
 const CARDS = __CARDS__;
 const KEY = "mycelium-fable5-feedback";
-let fb = JSON.parse(localStorage.getItem(KEY) || "{}");
+let fb = {};
+try { fb = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e){ fb = {}; }
 const $ = s => document.querySelector(s);
 const list = $("#list");
-function save(){ localStorage.setItem(KEY, JSON.stringify(fb)); }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(fb)); }catch(e){} }
 function opts(sel, vals, label){ sel.innerHTML = '<option value="">'+label+'</option>' + vals.map(v=>'<option>'+v+'</option>').join(''); }
 opts($("#fCat"), [...new Set(CARDS.map(c=>c.category))].sort(), "all categories");
 opts($("#fType"), [...new Set(CARDS.map(c=>c.type))].sort(), "all types");
-function gate(c){ let g=[]; if(+c.playCostWater)g.push(['W',c.playCostWater]); if(+c.playCostPhosphorus)g.push(['P',c.playCostPhosphorus]); if(+c.playCostNitrogen)g.push(['N',c.playCostNitrogen]); return g; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function gates(c){ let g=[]; if(+c.playCostWater)g.push(['W',c.playCostWater]); if(+c.playCostPhosphorus)g.push(['P',c.playCostPhosphorus]); if(+c.playCostNitrogen)g.push(['N',c.playCostNitrogen]); return g; }
 function matches(c){
   const q=$("#q").value.toLowerCase().trim();
-  if(q && !(c.name+' '+c.effect+' '+c.flavor+' '+c.produces).toLowerCase().includes(q)) return false;
+  if(q){ const hay=(c.name+' '+c.effect+' '+c.flavor+' '+c.produces+' '+c.category+' '+c.familyKey+' '+gates(c).map(g=>g[0]).join('')).toLowerCase(); if(!hay.includes(q)) return false; }
   if($("#fCat").value && c.category!==$("#fCat").value) return false;
   if($("#fType").value && c.type!==$("#fType").value) return false;
   const v=$("#fVote").value, cur=fb[c.name]&&fb[c.name].v;
   if(v==='up'&&cur!=='up')return false; if(v==='down'&&cur!=='down')return false; if(v==='none'&&cur)return false;
   return true;
 }
+function sortCards(arr){
+  const s=$("#sort").value;
+  const cost=c=>c.type==='basic'?-1:(+c.buyCostEnergy||0);
+  return arr.slice().sort((a,b)=>{
+    if(s==='name') return a.name.localeCompare(b.name);
+    if(s==='costd') return cost(b)-cost(a) || a.name.localeCompare(b.name);
+    return cost(a)-cost(b) || a.name.localeCompare(b.name);
+  });
+}
+function cardHTML(c){
+  const f=fb[c.name]||{}; const g=gates(c);
+  const cost = c.type==='basic' ? 'basic' : (c.buyCostEnergy+'⚡');
+  const gtags = g.map(([k,v])=>'<span class="tag '+k+'">'+v+k+'</span>').join('');
+  const th = c.threat&&c.threat!=='none' ? '<span class="tag threat">'+esc(c.threat)+'</span>':'';
+  const tg = c.targeting ? '<span class="tag">'+esc(c.targeting)+(c.radius?(' r'+c.radius):'')+'</span>':'';
+  const gr = c.growthAmount ? '<span class="tag">grow '+esc(c.growthAmount)+'</span>':'';
+  const n = encodeURIComponent(c.name);
+  return '<div class="card '+(f.v==='up'?'up':f.v==='down'?'down':'')+'" id="c_'+n+'" data-n="'+n+'">'
+    +'<div class="crow"><span class="cname">'+esc(c.name)+'</span><span class="cost">'+cost+'</span></div>'
+    +'<div class="tags"><span class="tag type">'+esc(c.type)+'</span><span class="tag">'+esc(c.category)+'</span>'+gtags+th+tg+gr+'<span class="tag">'+esc(c.timing)+'</span></div>'
+    +'<div class="eff">'+esc(c.effect)+'</div>'
+    +'<div class="flav">'+esc(c.flavor)+'</div>'
+    +(c.notes?'<div class="note">▸ '+esc(c.notes)+'</div>':'')
+    +'<div class="vote">'
+    +'<button class="'+(f.v==='up'?'on-up':'')+'" onclick="vote(\\''+n+'\\',\\'up\\')">👍</button>'
+    +'<button class="'+(f.v==='down'?'on-down':'')+'" onclick="vote(\\''+n+'\\',\\'down\\')">👎</button>'
+    +'<input placeholder="note…" value="'+esc(f.note||'').replace(/"/g,'&quot;')+'" oninput="note(\\''+n+'\\',this.value)"></div></div>';
+}
 function render(){
   const shown = CARDS.filter(matches);
-  list.innerHTML = shown.map(c=>{
-    const f=fb[c.name]||{}; const g=gate(c);
-    const cost = c.type==='basic' ? 'basic' : (c.buyCostEnergy+'⚡');
-    const gtags = g.map(([k,v])=>`<span class="tag ${k}">${v}${k}</span>`).join('');
-    const th = c.threat&&c.threat!=='none' ? `<span class="tag threat">${c.threat}</span>`:'';
-    const tg = c.targeting ? `<span class="tag">${c.targeting}${c.radius?(' r'+c.radius):''}</span>`:'';
-    return `<div class="card ${f.v==='up'?'up':f.v==='down'?'down':''}" data-n="${encodeURIComponent(c.name)}">
-      <div class="crow"><span class="cname">${c.name}</span><span class="cost">${cost}</span></div>
-      <div class="tags"><span class="tag type">${c.type}</span><span class="tag">${c.category}</span>${gtags}${th}${tg}<span class="tag">${c.timing}</span></div>
-      <div class="eff">${c.effect}</div>
-      <div class="flav">${c.flavor}</div>
-      ${c.notes?`<div class="note">▸ ${c.notes}</div>`:''}
-      <div class="vote">
-        <button class="${f.v==='up'?'on-up':''}" onclick="vote('${encodeURIComponent(c.name)}','up')">👍</button>
-        <button class="${f.v==='down'?'on-down':''}" onclick="vote('${encodeURIComponent(c.name)}','down')">👎</button>
-        <input placeholder="note…" value="${(f.note||'').replace(/"/g,'&quot;')}" oninput="note('${encodeURIComponent(c.name)}',this.value)">
-      </div></div>`;
-  }).join('') || '<p style="color:#8fae98;text-align:center;margin-top:40px">No cards match.</p>';
+  const gb = $("#grp").value;
+  let out='';
+  if(gb==='none'){
+    out = sortCards(shown).map(cardHTML).join('');
+  } else {
+    const groups = {};
+    for(const c of shown){ const k=c[gb]||'—'; (groups[k]=groups[k]||[]).push(c); }
+    for(const k of Object.keys(groups).sort()){
+      const g=sortCards(groups[k]);
+      const rated=g.filter(c=>fb[c.name]&&fb[c.name].v).length;
+      out += '<div class="grp"><span class="gname">'+esc(k)+'</span><span class="gcount">rated <b>'+rated+'</b>/'+g.length+'</span></div>'
+           + g.map(cardHTML).join('');
+    }
+  }
+  list.innerHTML = out || '<p class="empty">No cards match.</p>';
   const up=Object.values(fb).filter(x=>x.v==='up').length, dn=Object.values(fb).filter(x=>x.v==='down').length;
+  const rated=up+dn;
   $("#nShown").textContent=shown.length; $("#nUp").textContent=up; $("#nDown").textContent=dn;
-  $("#nRated").textContent=Object.values(fb).filter(x=>x.v).length; $("#nTotal").textContent=CARDS.length;
+  $("#nRated").textContent=rated; $("#nTotal").textContent=CARDS.length;
+  $("#pbar").style.width=(CARDS.length?Math.round(rated/CARDS.length*100):0)+'%';
 }
-function vote(n,v){ n=decodeURIComponent(n); fb[n]=fb[n]||{}; fb[n].v = fb[n].v===v?null:v; save(); render(); }
-function note(n,t){ n=decodeURIComponent(n); fb[n]=fb[n]||{}; fb[n].note=t; save(); }
-function jump(){ const el=[...document.querySelectorAll('.card')].find(c=>{const n=decodeURIComponent(c.dataset.n);return !(fb[n]&&fb[n].v);}); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); }
+function vote(n,v){ n=decodeURIComponent(n); fb[n]=fb[n]||{}; fb[n].v = fb[n].v===v?null:v; if(!fb[n].v&&!fb[n].note) delete fb[n]; save(); render(); }
+function note(n,t){ n=decodeURIComponent(n); fb[n]=fb[n]||{}; fb[n].note=t; if(!fb[n].v&&!t) delete fb[n]; save(); }
+function jump(){ const el=[...document.querySelectorAll('.card')].find(c=>{const n=decodeURIComponent(c.dataset.n);return !(fb[n]&&fb[n].v);}); if(el){el.scrollIntoView({behavior:'smooth',block:'center'});} else {alert('Every shown card is rated 🎉');} }
+function resetAll(){ if(confirm('Clear ALL your votes and notes on this device?')){ fb={}; save(); render(); } }
 function exportFb(){
-  const lines=["# Mycelium Fable-5 card feedback","", "total rated: "+Object.values(fb).filter(x=>x.v).length+"/"+CARDS.length,""];
-  for(const c of CARDS){ const f=fb[c.name]; if(f&&(f.v||f.note)) lines.push(`${f.v==='up'?'👍':f.v==='down'?'👎':'·'}  ${c.name}${f.note?'  — '+f.note:''}`); }
-  lines.push("","## JSON"); lines.push(JSON.stringify(fb,null,2));
-  $("#exp").value=lines.join("\\n"); $("#dlg").showModal();
+  const up=Object.values(fb).filter(x=>x.v==='up').length, dn=Object.values(fb).filter(x=>x.v==='down').length;
+  const L=["# Mycelium Fable-5 — card feedback","","rated "+(up+dn)+"/"+CARDS.length+"   (👍 "+up+"  👎 "+dn+")",""];
+  const byCat={};
+  for(const c of CARDS){ (byCat[c.category]=byCat[c.category]||[]).push(c); }
+  for(const cat of Object.keys(byCat).sort()){
+    const rows=byCat[cat].map(c=>{const f=fb[c.name];if(!f||(!f.v&&!f.note))return null;return "  "+(f.v==='up'?'👍':f.v==='down'?'👎':'· ')+" "+c.name+(f.note?"  — "+f.note:"");}).filter(Boolean);
+    if(rows.length){ L.push("## "+cat); L.push(...rows); L.push(""); }
+  }
+  L.push("## raw JSON (key: "+KEY+")"); L.push(JSON.stringify(fb,null,2));
+  $("#exp").value=L.join("\\n"); $("#dlg").showModal();
 }
-function copyExp(){ const t=$("#exp"); t.select(); try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')} }
-["#q","#fCat","#fType","#fVote"].forEach(s=>$(s).addEventListener('input',render));
-render();
+function copyExp(){ const t=$("#exp"); t.select(); try{navigator.clipboard.writeText(t.value);}catch(e){try{document.execCommand('copy');}catch(_){}}}
+function setHH(){ document.documentElement.style.setProperty('--hh', (document.querySelector('header').offsetHeight)+'px'); }
+["#q","#fCat","#fType","#fVote","#grp","#sort"].forEach(s=>$(s).addEventListener('input',()=>{render();setHH();}));
+window.addEventListener('resize',setHH);
+setHH(); render();
 </script></body></html>
 """
 html = html.replace("__CARDS__", cards_js)
