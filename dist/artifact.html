@@ -258,16 +258,18 @@
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      .cardbtn { width: 62vw; max-width: 250px; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 42vw; max-height: 176px; }
+      /* proper portrait card ratio (~1.5): narrower width + a vw-based min-height,
+         with the art window growing to fill it so short-rule cards aren't squares */
+      .cardbtn { width: 54vw; max-width: 230px; min-height: 80vw; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: auto; min-height: 42vw; max-height: none; flex: 1 1 auto; }
       .cardbtn .cplate .cn { font-size: 14px; }
       .cardbtn .crules { font-size: 11px; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
         scroll-snap-type: x mandatory; scrollbar-width: none; }
       .offerrow::-webkit-scrollbar { display: none; }
-      .offercard { width: 62vw; max-width: 250px; flex: 0 0 auto; scroll-snap-align: center; }
-      .offercard .cart { height: 42vw; max-height: 176px; }
+      .offercard { width: 58vw; max-width: 244px; min-height: 84vw; flex: 0 0 auto; scroll-snap-align: center; }
+      .offercard .cart { height: auto; min-height: 44vw; max-height: none; flex: 1 1 auto; }
     }
     /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
@@ -294,13 +296,14 @@
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      .cardbtn { width: 148px; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 78px; }
+      /* reset the portrait vw min-heights (small landscape phones match both blocks) */
+      .cardbtn { width: 148px; min-height: 0; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 78px; min-height: 0; flex: 0 0 auto; }
       .cardbtn .cplate { padding: 5px 7px 2px; }
       .cardbtn .cplate .cn { font-size: 12px; }
       .cardbtn .crules { font-size: 9px; margin: 3px 6px 6px; padding: 5px 7px; line-height: 1.35; }
-      .offercard { width: 150px; }
-      .offercard .cart { height: 80px; }
+      .offercard { width: 150px; min-height: 0; }
+      .offercard .cart { height: 80px; min-height: 0; flex: 0 0 auto; }
       .offercard .crules { font-size: 9px; }
     }
 </style>
@@ -308,8 +311,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1tbdqi";
-globalThis.__BUILD__ = "local 07-03 18:20";
+window.__ASSET_VER = "9ot7n5";
+globalThis.__BUILD__ = "local 07-03 18:33";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
