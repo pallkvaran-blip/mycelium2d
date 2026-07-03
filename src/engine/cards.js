@@ -78,6 +78,7 @@ export function cardBlockedReason(state, name) {
   if (!net || !net.alive) return 'The network is no longer alive.';
   const c = CARD_BY_NAME[name];
   if (!c) return 'Unknown card.';
+  if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
   if (net.nitrogen < c.costN) return `Not enough Nitrogen (need ${c.costN}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
@@ -126,7 +127,10 @@ export function playCard(state, handIndex, ctx = {}) {
   const res = eff.apply(state, c, ctx);
   if (!res.ok) { state.log(res.message, 'warn'); return res; }
 
-  // Charge the resource gate only on success.
+  // Charge the card's Energy cost + its resource gate, only on success.
+  // (Premium cards carry a buyCostEnergy; basics are 0 — you paid Energy to draw them.
+  //  Until food-pile drafting exists, that Energy cost is paid here, at play time.)
+  net.energy -= c.buyCostEnergy;
   net.water -= c.costW; net.nitrogen -= c.costN; net.phosphorus -= c.costP;
   C.hand.splice(handIndex, 1);
   if (res.install) {

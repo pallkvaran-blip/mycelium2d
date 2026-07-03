@@ -33,9 +33,11 @@ console.log('# Card economy + effects');
   const dr = drawCard(s);
   ok(dr.ok && net.energy === e0 - cc.drawCostEnergy && s.cards.hand.length === h0 + 1 && s.cards.drawDeck.length === d0 - 1, 'draw spends energy, moves a basic to hand');
 
-  // engine install + per-tick production (produceCardEngines is isolated from income)
+  // playing a premium card costs its Energy (buyCostEnergy); basics are free to play
+  net.energy = 100;
   const ti = ensureHand(s, 'Rhizomorph Trunkline'); playCard(s, ti);
   ok(s.cards.engines.some((e) => e.name === 'Rhizomorph Trunkline'), 'Rhizomorph Trunkline installed as an engine');
+  ok(net.energy === 100 - 22, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 22)`);
   net.energy = 100; produceCardEngines(s);
   ok(net.energy === 104, `energy engine produces +4/tick (got ${net.energy})`);
 
@@ -64,11 +66,16 @@ console.log('# Card economy + effects');
   net.water = 1; const ci = ensureHand(s, 'Condense'); playCard(s, ci);
   ok(net.water === 4, `Condense +3 Water (got ${net.water})`);
 
-  // energy burst: Osmotic Cashout −1 water +22 energy
+  // energy burst: Osmotic Cashout costs 12⚡ buy + 1 Water, yields +22⚡ (net +10)
   net.water = 5; net.energy = 50; const oi = ensureHand(s, 'Osmotic Cashout'); playCard(s, oi);
-  ok(net.energy === 72 && net.water === 4, `Osmotic Cashout +22⚡ for 1 Water (energy ${net.energy}, water ${net.water})`);
+  ok(net.energy === 50 - 12 + 22 && net.water === 4, `Osmotic Cashout: −12⚡ buy +22⚡ effect, −1 Water (energy ${net.energy}, water ${net.water})`);
+
+  // energy gate: a premium card is unplayable without its Energy cost
+  net.energy = 3; net.water = 9; net.nitrogen = 9;
+  ok(/Energy/.test(cardBlockedReason(s, 'Fruiting Vigil') || ''), 'a premium card is blocked with too little Energy');
 
   // draw engine grows the deck by 5 of its basic
+  net.energy = 100;
   const dd0 = s.cards.drawDeck.length; const fbi = ensureHand(s, 'Forager Bloom'); playCard(s, fbi);
   ok(s.cards.drawDeck.length === dd0 + 5 && s.cards.drawDeck.includes('Foraging Fan'), 'Forager Bloom shuffles 5 Foraging Fan into the deck');
 

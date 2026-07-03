@@ -106,7 +106,7 @@ export class UI {
     // ---- Hint line ----
     this.el.hint = div('hint');
     this.el.hint.textContent = cardsOn
-      ? 'Draw basics (⚡), then play cards from your hand. Grow costs Water · Digest costs Nitrogen · Actions cost Phosphorus. Reach the goal on the right to win.'
+      ? 'Draw basics (⚡). Playing a premium card costs its ⚡ + any W/P/N gate (basics are free to play). Grow needs Water · Digest needs Nitrogen · Actions need Phosphorus. Reach the goal to win.'
       : 'Hover an action for details. Grow extends the network toward sensed food.';
     root.appendChild(this.el.hint);
 
@@ -300,12 +300,13 @@ export class UI {
     const s = this.state, net = s.active;
     list.innerHTML = '';
     s.cards.hand.forEach((h, i) => {
-      const c = CARD_BY_NAME[h.name] || { costW: 0, costN: 0, costP: 0, effect: '', type: '' };
+      const c = CARD_BY_NAME[h.name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
       const gate = [];
+      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
       if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
       if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
       if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
-      const affordable = net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
