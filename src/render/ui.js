@@ -308,7 +308,10 @@ export class UI {
       const affordable = net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
-      const b = button(cls, `<span class="cn">${escapeHtml(h.name)}</span><span class="ct">${escapeHtml(c.type)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span>`);
+      const b = button(cls,
+        `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="ct">${escapeHtml(c.type)}</span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`);
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(i);
       list.appendChild(b);

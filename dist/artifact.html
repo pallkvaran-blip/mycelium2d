@@ -155,16 +155,18 @@
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 6px; }
-    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 940px; max-height: 30vh; overflow-y: auto; }
-    .cardbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 104px; max-width: 150px;
-      padding: 6px 8px; background: rgba(40,54,48,0.92); border: 1px solid var(--panel-border); border-radius: 8px;
+    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1080px; max-height: 42vh; overflow-y: auto; }
+    .cardbtn { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 178px;
+      padding: 7px 9px; background: rgba(40,54,48,0.94); border: 1px solid var(--panel-border); border-radius: 8px;
       color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; }
     .cardbtn:hover:not(.unaff) { background: rgba(60,84,72,0.98); }
-    .cardbtn.unaff { opacity: 0.4; cursor: not-allowed; }
+    .cardbtn.unaff { opacity: 0.45; cursor: not-allowed; }
     .cardbtn.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-    .cardbtn .cn { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-    .cardbtn .ct { font-size: 9px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
-    .cardbtn .cgate { display: flex; gap: 4px; margin-top: 1px; }
+    .cardbtn .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .cardbtn .cn { font-size: 12.5px; font-weight: 600; line-height: 1.15; }
+    .cardbtn .ct { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .cardbtn .cgate { display: flex; gap: 4px; flex: none; }
+    .cardbtn .cdesc { font-size: 10px; color: var(--ink-dim); line-height: 1.32; white-space: normal; }
     .cc { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 4px; }
     .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
     .cc.n { color: #93cf52; background: rgba(147,207,82,0.15); }
@@ -177,7 +179,7 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "4bhqkz";
+window.__ASSET_VER = "1s0sax8";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -5428,7 +5430,10 @@ class UI {
       const affordable = net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
-      const b = button(cls, `<span class="cn">${escapeHtml(h.name)}</span><span class="ct">${escapeHtml(c.type)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span>`);
+      const b = button(cls,
+        `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="ct">${escapeHtml(c.type)}</span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`);
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(i);
       list.appendChild(b);
