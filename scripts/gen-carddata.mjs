@@ -10,7 +10,8 @@ const cards = JSON.parse(readFileSync(join(root, 'docs/cards.json'), 'utf8'));
 const slim = cards.map((c) => ({
   name: c.name, type: c.type, category: c.category,
   buyCostEnergy: c.buyCostEnergy || 0,
-  costW: c.playCostWater || 0, costP: c.playCostPhosphorus || 0, costN: c.playCostNitrogen || 0,
+  // Two-resource model: Water + Phosphorus. Any legacy Nitrogen cost folds into Phosphorus.
+  costW: c.playCostWater || 0, costP: (c.playCostPhosphorus || 0) + (c.playCostNitrogen || 0),
   timing: c.timing || 'any', repay: c.repayRounds || 0, threat: c.threat || 'none',
   produces: c.produces || '', effect: c.effect || '', family: c.familyKey || '',
   tutorial: !!c.tutorial, startCopies: c.startCopies || 0,

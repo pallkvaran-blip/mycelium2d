@@ -54,6 +54,10 @@ ok(grew, 'Grow produced new filaments toward lured food');
 ok(state.active.nodes.length > nodesBefore, 'network grew');
 
 console.log('# No turns: every action advances the world one step');
+// Re-lure with fresh food a little further out (the earlier lure is digested fast
+// now that colonisation is instant), so this Grow has an attractor and ticks.
+state.active.energy = 9999;
+performAction(state, 'addSubstrate', { x: seedNode.x + 110, y: seedNode.y + 70 });
 const turnBefore = state.turn;
 performAction(state, 'grow');
 ok(state.turn > turnBefore, 'the step counter advances on each action (the world ticks)');

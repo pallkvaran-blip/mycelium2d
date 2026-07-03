@@ -75,13 +75,15 @@ export const CONFIG = {
     // cycles are needed to fully colonise (and densely branch) a pocket.
     // (0.166 ≈ 6 grow cycles — one more round of branching than before.)
     colonizeRate: 0.166,
+    entryBurst: 9,               // branches sprayed the FIRST time a strand enters a food pocket
+                                 //   (fans across the cell so it reads as fully colonised at once)
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
     start: 120,                  // starting Energy (SLIDER)
     baselineTrickle: 1,          // tiny per-action free trickle (you depend on colonising food)
-    passiveIncomeRate: 34,       // nutrient pulled from each colonised cell/turn — ~3 turns to empty a cell (SLIDER)
+    passiveIncomeRate: 25,       // nutrient pulled from each colonised cell/turn — a fully-colonised pile (50/cell) empties in 2 steps (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },
 
@@ -92,21 +94,20 @@ export const CONFIG = {
 
   // ---- Card economy (C1) --------------------------------------------------
   // The card layer sits on top of the action sim. ENERGY (net.energy) is the
-  // master currency, spent only to DRAW / SKIP (and BUY at a pile, later).
-  // Three resources gate PLAYS: Water=growth, Nitrogen=food (substrate+digest),
-  // Phosphorus=work (repeatable actions). Each card's own W/P/N costs live in
-  // the generated card data (src/cards-data.js); these are the loop-wide knobs.
+  // master currency, spent to DRAW (3 cards at once) / SKIP. TWO resources gate
+  // PLAYS: WATER = growth + substrate; PHOSPHORUS = digest/defense/work, harvested
+  // from rocks. Each card's own W/P costs live in the generated card data
+  // (src/cards-data.js); these are the loop-wide knobs.
   cards: {
     enabled: true,               // turn the card layer on
-    drawCostEnergy: 8,           // energy to draw one card from the draw deck
+    drawCostEnergy: 16,          // energy to DRAW (pulls drawCount cards at once)
+    drawCount: 3,                // cards pulled per Draw
     skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
-    startWater: 5,               // starting resource buffers (design §16)
-    startNitrogen: 2,
-    startPhosphorus: 2,
-    softCapWater: 20,            // per-resource soft caps (water runs high now that grow costs it)
-    softCapNitrogen: 6,
-    softCapPhosphorus: 6,
+    startWater: 7,               // starting Water (now covers grow AND substrate)
+    startPhosphorus: 3,          // starting Phosphorus (digest/defense/work; topped up from rocks)
+    softCapWater: 20,            // per-resource soft caps
+    softCapPhosphorus: 10,
     engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
     // resource harvest amounts (used by harvest-card effects)
     harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge

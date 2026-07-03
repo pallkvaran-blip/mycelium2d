@@ -234,7 +234,7 @@ function botToGoal(budget = 900) {
   const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
   let guard = 0;
   while (!state.won && !state.runOver && guard++ < budget) {
-    net.energy = Math.max(net.energy, 200); net.water = 99; net.nitrogen = 99; net.phosphorus = 99;
+    net.energy = Math.max(net.energy, 200); net.water = 99; net.phosphorus = 99;
     const fp = net.frontierPoint(); if (!fp) break;
     const fcol = sub.colAtX(fp.x);
     let target;

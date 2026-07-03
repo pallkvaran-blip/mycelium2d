@@ -27,12 +27,12 @@ console.log('# Card economy + effects');
 
   ok(s.cards.drawDeck.length === 15, `starting draw deck = 15 (5 HE/5 LLC/5 Condense), got ${s.cards.drawDeck.length}`);
   ok(s.cards.hand.length === 0, `hand starts EMPTY (got ${s.cards.hand.length})`);
-  ok(net.water === cc.startWater && net.nitrogen === cc.startNitrogen && net.phosphorus === cc.startPhosphorus, 'starting W/N/P buffers set');
+  ok(net.water === cc.startWater && net.phosphorus === cc.startPhosphorus, 'starting W/P buffers set');
 
-  // draw: −energy, +hand, −deck (check before the world tick)
+  // draw: −energy, +drawCount to hand, −drawCount from deck (check before the world tick)
   const e0 = net.energy, h0 = s.cards.hand.length, d0 = s.cards.drawDeck.length;
   const dr = drawCard(s);
-  ok(dr.ok && net.energy === e0 - cc.drawCostEnergy && s.cards.hand.length === h0 + 1 && s.cards.drawDeck.length === d0 - 1, 'draw spends energy, moves a basic to hand');
+  ok(dr.ok && net.energy === e0 - cc.drawCostEnergy && s.cards.hand.length === h0 + cc.drawCount && s.cards.drawDeck.length === d0 - cc.drawCount, `draw spends energy, pulls ${cc.drawCount} basics to hand`);
 
   // playing a premium card costs its Energy (buyCostEnergy); basics are free to play
   net.energy = 100;
@@ -60,11 +60,11 @@ console.log('# Card economy + effects');
   const ap = playCard(s, ai, { x: fp.x + 300, y: fp.y });
   ok(ap.ok && net.nodes.length > n0 && net.water === 4, `Apical Drive grew nodes and spent 1 Water (nodes ${n0}->${net.nodes.length}, water ${net.water})`);
 
-  // substrate placement costs nitrogen and drops food
-  net.nitrogen = 3; const nut0 = s.substrate.totalNutrient();
+  // substrate placement costs WATER and drops food (two-resource model)
+  net.water = 3; const nut0 = s.substrate.totalNutrient();
   const li = ensureHand(s, 'Leaf Litter Cache');
   const lp = playCard(s, li, { x: fp.x + 200, y: fp.y });
-  ok(lp.ok && s.substrate.totalNutrient() > nut0 && net.nitrogen === 2, 'Leaf Litter Cache deposits substrate and spends 1 Nitrogen');
+  ok(lp.ok && s.substrate.totalNutrient() > nut0 && net.water === 2, 'Leaf Litter Cache deposits substrate and spends 1 Water');
 
   // harvest: Condense +3 water
   net.water = 1; const ci = ensureHand(s, 'Condense'); playCard(s, ci);
@@ -75,7 +75,7 @@ console.log('# Card economy + effects');
   ok(net.energy === 50 - 12 + 22 && net.water === 4, `Osmotic Cashout: −12⚡ buy +22⚡ effect, −1 Water (energy ${net.energy}, water ${net.water})`);
 
   // energy gate: a premium card is unplayable without its Energy cost
-  net.energy = 3; net.water = 9; net.nitrogen = 9;
+  net.energy = 3; net.water = 9; net.phosphorus = 9;
   ok(/Energy/.test(cardBlockedReason(s, 'Fruiting Vigil') || ''), 'a premium card is blocked with too little Energy');
 
   // draw engine grows the deck by 5 of its basic
@@ -112,6 +112,16 @@ console.log('# Card-dry + broke = death');
   tickWorld(s);
   ok(s.runOver === true && s.runResult && s.runResult.died, 'card-dry with no energy ends the run');
 }
+{
+  // Stall: deck NOT empty but Energy < draw cost, no Water, unplayable hand, no draft.
+  // Must end the run (not silently freeze) now that Draw (16) costs more than Skip (12).
+  const s = createState(clone(), 222); isolate(s); initCards(s);
+  s.cards.drawDeck = ['Hyphal Extension'];            // deck has cards…
+  s.cards.hand = [{ id: s.cards.seq++, name: 'Hyphal Extension' }];  // …but only a 1-Water card
+  s.active.water = 0; s.active.phosphorus = 0; s.active.energy = 10;  // < draw 16 and < skip 12
+  tickWorld(s);
+  ok(s.runOver === true && s.runResult && s.runResult.died, 'a no-affordable-move stall (deck left, Energy < draw cost) ends the run');
+}
 
 // ============================ D: winnable through cards =====================
 console.log('# Winnable: route to the goal by playing cards');
@@ -120,7 +130,7 @@ console.log('# Winnable: route to the goal by playing cards');
   const sub = s.substrate, net = s.active;
   const goalCols = Math.max(2, Math.min(sub.cols - 4, s.config.substrate.goalCols || 6));
   const goalStart = sub.cols - goalCols;
-  const cheat = () => { net.energy = 9999; net.water = 99; net.nitrogen = 99; net.phosphorus = 99; };
+  const cheat = () => { net.energy = 9999; net.water = 99; net.phosphorus = 99; };
   const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
 
   let guard = 0; const budget = 900;

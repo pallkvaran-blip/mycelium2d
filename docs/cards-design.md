@@ -4,12 +4,13 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **IMPLEMENTED (v9)** — **40 cards** (added draw engines for the two starters). The card layer
-> is now BUILT INTO THE GAME (`src/engine/cards.js`) and playable: deck/hand/W-P-N, draw/skip/play,
-> per-round engines, reach-the-goal win. Resources gate the core loops (grow=Water, digest=Nitrogen,
-> action=Phosphorus) + substrate=Nitrogen. No `rarity`; variable buy costs (cap ~40). **v9: pile drafting
-> is live** — you start with an EMPTY hand and draft new cards by finishing map food piles.
-> CURRENT rules: §10 → §11 → §12–16 (history) → §17 (v8) → **§18 (v9 pile drafting — authoritative)**.
+> Status: **IMPLEMENTED (v10)** — **40 cards**. The card layer is BUILT INTO THE GAME
+> (`src/engine/cards.js`) and playable: deck/hand, draw/skip/play, per-round engines, reach-the-goal win.
+> **v10: TWO resources only** — WATER (grow + substrate) and PHOSPHORUS (digest/defense/utility/work,
+> harvested from rocks); Nitrogen retired. **Draw pulls 3** cards for 16⚡. Entering a food pocket bursts
+> to look fully colonised at once, and a pile digests in ~2 steps. **v9: pile drafting** — empty starting
+> hand; draft new cards by finishing map food piles. No `rarity`; variable buy costs (cap ~40).
+> CURRENT rules: §17 (v8) → §18 (v9 drafting) → **§19 (v10 two-resource — authoritative)**.
 
 ---
 
@@ -678,3 +679,44 @@ wired, in a simplified free-draft form.
 - Free draft (no buy cost at the pile) — the earlier design charged each kept card's buy cost. Free is
   friendlier for the tutorial; revisit for difficulty.
 - "Touched" = any pile cell colonised. Ants stealing an uncolonised pile grants nothing (intended).
+
+## 19. v10 — two resources, draw 3, instant colonisation, 2-step digest (CURRENT — authoritative)
+
+### 19.1 Two resources (Nitrogen retired)
+The three-resource model (Water/Nitrogen/Phosphorus) collapses to **two**:
+- **WATER** — growth **and** substrate placement (the expansion resource). Harvested by Condense /
+  Hyphal Imbibition; +1 / 2 rounds from Aquaporin Channels.
+- **PHOSPHORUS** — digest-burst, defense, utility, and repeatable actions (the "work"/mineral
+  resource). **Harvested from rocks** (Phosphate Tap on mineral contact; +1 / round from Mineralizing
+  Saprobe or Phosphatase Cushion; Nutrient Transmutation converts W↔P).
+
+Per-card reassignment of the old Nitrogen cost (my call): substrate (Leaf Litter Cache / Humus Bed /
+Mycorrhizal Mat) → **Water**; Saprotrophic Digest, Fruiting Vigil → **Phosphorus**; N production/gains
+(Mineralizing Saprobe, Constricting Ring) → **Phosphorus**. Config: `startWater 7`, `startPhosphorus 3`,
+`softCapWater 20`, `softCapPhosphorus 10` (no more `*Nitrogen`).
+
+### 19.2 Draw 3
+`Draw` now pulls **`cards.drawCount` (=3)** cards at once for **`drawCostEnergy` (=16)** (was 1 for 8).
+Deck-underflow safe (pulls what's left). `drawDiscount` (Septal Pore Flux) still applies to the lump.
+
+### 19.3 Instant colonisation + 2-step digest
+- **Entry burst** (`substrate.entryBurst = 9`): the FIRST time a strand enters a food pocket,
+  `_colonizeStep` sprays a burst that fans across the cell (and into food neighbours) and jumps
+  `cell.colonized` straight to **1** — the pocket reads as fully colonised at once.
+- **2-step digest** (`energy.passiveIncomeRate 34 → 25`, `foodCellNutrient` stays 50): a fully
+  colonised cell (colonized = 1) drains `min(nutrient, 25)` per tick → 50 → 25 → 0 in exactly two steps.
+
+### 19.4 Code / data
+- Data: `docs/cards.json` (nitrogen retired) → `scripts/gen-carddata.mjs` (emits `costW`/`costP`, folds
+  any legacy N into P) → `src/cards-data.js`.
+- Runtime: `src/engine/cards.js` (init/gate/play/engines/effects, multi-draw), `src/engine/network.js`
+  (`water`/`phosphorus` only; entry-burst colonise), `src/config.js`, `src/render/ui.js` (HUD = W/P,
+  hand + draft chips, "Draw 3" label), `src/main.js`.
+- Tests: 29/29 card + 86/86 smoke; in-browser verified (draw 3, W/P HUD, dense colonise, 50→25→0,
+  self-play win in 31 steps / 139 nodes).
+
+### 19.5 Revisit later
+- **Phosphatase Cushion now duplicates Mineralizing Saprobe** (both +1 P/round). Only Mineralizing is
+  in the tutorial draft pool, so the dup is invisible for now — differentiate or cut when the pool widens.
+- Balance: Water now carries grow **and** substrate; Phosphorus is rock-gated. Watch early-game Water
+  pressure and whether P is reachable before the first rock contact; tune start buffers / harvest if needed.

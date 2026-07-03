@@ -1,15 +1,16 @@
 // =============================================================================
 // Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
 //
-// Model (design §16):
-//   - ENERGY (net.energy) is the master currency: spent to DRAW and to SKIP.
-//   - Three resources gate PLAYS: WATER (growth), NITROGEN (food: substrate+digest),
-//     PHOSPHORUS (work: repeatable actions). They live on the active Network.
+// Model (design §19 — two-resource):
+//   - ENERGY (net.energy) is the master currency: spent to DRAW (a hand-full at once) and to SKIP.
+//   - TWO resources gate PLAYS: WATER (growth + substrate) and PHOSPHORUS (digest/defense/
+//     utility/work, harvested from rocks). They live on the active Network.
 //   - A DRAW DECK of basics you pay energy to draw into your HAND; a HAND of cards
-//     you play (paying their W/P/N gate); a DISCARD graveyard (no reshuffle).
+//     you play (paying their W/P gate); a DISCARD graveyard (no reshuffle). Finishing a
+//     map food pile drafts a card into hand for free (pendingOffers → chooseOffer).
 //   - Engine cards INSTALL and produce each world-tick (produceCardEngines).
-//   - WIN = a strand reaches the goal zone. LOSE (card-dry) = energy 0 with an
-//     empty draw deck and an unplayable hand (checked in checkGoalReached path).
+//   - WIN = a strand reaches the goal zone. LOSE (stall) = no draw/skip/play/draft possible
+//     (checked in checkGoalReached path).
 //
 // This module has NO dependency on turn.js (turn.js imports FROM here), so the
 // card operations resolve the effect + economy and the CALLER advances the world
@@ -54,7 +55,7 @@ const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial).map((c) => c.name);
 export function initCards(state, mode = 'tutorial') {
   const cc = state.config.cards;
   const net = state.active;
-  net.water = cc.startWater; net.nitrogen = cc.startNitrogen; net.phosphorus = cc.startPhosphorus;
+  net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
 
   const drawDeck = [];
   for (const c of CARD_DATA) for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name);
@@ -124,7 +125,6 @@ export function cardBlockedReason(state, name) {
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
-  if (net.nitrogen < c.costN) return `Not enough Nitrogen (need ${c.costN}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
   return null;
 }
@@ -135,16 +135,17 @@ export function cardNeedsTarget(name) {
 
 // --- operations (do NOT tick; the caller advances the world after) ----------
 export function drawCard(state) {
-  const C = state.cards, net = state.active;
+  const C = state.cards, net = state.active, cc = state.config.cards;
   if (state.runOver) return { ok: false, message: 'The run is over.' };
   if (!C.drawDeck.length) return { ok: false, message: 'Draw deck is empty — you are card-dry.' };
   const cost = drawCost(state);
   if (net.energy < cost) return { ok: false, message: `Not enough Energy to draw (need ${cost}).` };
   net.energy -= cost;
-  const name = C.drawDeck.shift();
-  C.hand.push({ id: C.seq++, name });
-  state.log(`Drew ${name} (−${cost}⚡).`, 'action');
-  return { ok: true, tick: true, message: `Drew ${name}.` };
+  const n = Math.min(cc.drawCount || 1, C.drawDeck.length);   // pull the whole hand-full at once
+  const drawn = [];
+  for (let i = 0; i < n; i++) { const name = C.drawDeck.shift(); C.hand.push({ id: C.seq++, name }); drawn.push(name); }
+  state.log(`Drew ${n} card${n > 1 ? 's' : ''} (−${cost}⚡): ${drawn.join(', ')}.`, 'action');
+  return { ok: true, tick: true, message: `Drew ${n} card${n > 1 ? 's' : ''}.` };
 }
 
 export function skipRound(state) {
@@ -175,7 +176,7 @@ export function playCard(state, handIndex, ctx = {}) {
   // (Premium cards carry a buyCostEnergy; basics are 0 — you paid Energy to draw them.
   //  Until food-pile drafting exists, that Energy cost is paid here, at play time.)
   net.energy -= c.buyCostEnergy;
-  net.water -= c.costW; net.nitrogen -= c.costN; net.phosphorus -= c.costP;
+  net.water -= c.costW; net.phosphorus -= c.costP;
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
@@ -204,7 +205,6 @@ export function produceCardEngines(state) {
     if (due) {
       if (e.energy) energySum += e.energy;
       if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
-      if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
       if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
     }
     if (e.digEvery) {
@@ -236,17 +236,20 @@ export function checkGoalReached(state) {
       }
     }
   }
-  // Card-dry death: no cards to draw, no affordable play, and cannot even skip.
+  // Stall death: the world can no longer be advanced. You can't afford to DRAW
+  // (deck empty OR too little Energy), can't SKIP, have no playable card, and no
+  // free draft is pending. (Gating on deck-emptiness alone missed the freeze where
+  // the deck still has cards but Energy is below the draw cost — Draw costs 16 > skip 12.)
   const C = state.cards;
   const cc = state.config.cards;
-  const dry = C.drawDeck.length === 0;
+  const canDraw = C.drawDeck.length > 0 && net.energy >= drawCost(state);
   const canSkip = net.energy >= cc.skipCostEnergy;
   const canPlay = C.hand.some((h) => !cardBlockedReason(state, h.name) && EFFECTS[h.name]);
   const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
-  if (dry && !canSkip && !canPlay && !hasDraft) {
+  if (!canDraw && !canSkip && !canPlay && !hasDraft) {
     net.alive = false; state.runOver = true;
     state.runResult = { won: false, died: true, turns: state.turn };
-    state.log('Card-dry and out of Energy — the colony stalls. Run over.', 'warn');
+    state.log('Out of Energy with no playable move — the colony stalls. Run over.', 'warn');
   }
 }
 
@@ -340,12 +343,12 @@ export const EFFECTS = {
     return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
   }),
 
-  // --- substrate (Nitrogen) ---
+  // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
-  // --- digest (Nitrogen) ---
+  // --- digest (Phosphorus) ---
   'Saprotrophic Digest': grow((s) => {
     const net = s.active, sub = s.substrate;
     const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
@@ -379,7 +382,7 @@ export const EFFECTS = {
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
-  'Mineralizing Saprobe': engine({ nitrogen: 1 }, 'Installed: +1 Nitrogen/round.'),
+  'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
 
   // --- dig engine (Phosphorus install) ---
   'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
@@ -387,9 +390,9 @@ export const EFFECTS = {
   // --- utility ---
   'Nutrient Transmutation': grow((s) => {
     const net = s.active;
-    const pools = [['water', net.water], ['nitrogen', net.nitrogen], ['phosphorus', net.phosphorus]];
+    const pools = [['water', net.water], ['phosphorus', net.phosphorus]];
     pools.sort((a, b) => b[1] - a[1]);
-    const from = pools[0], to = pools[2];
+    const from = pools[0], to = pools[1];
     if (from[1] < 2) return { ok: false, message: 'Need 2 of a resource to convert.' };
     net[from[0]] -= 2; net[to[0]] += 1;
     return { ok: true, message: `Converted 2 ${from[0]} → 1 ${to[0]}.` };
@@ -406,8 +409,8 @@ export const EFFECTS = {
     let idx = 0, bd = Infinity;
     worms.forEach((w, i) => { const d = (w.x - fp.x) ** 2 + (w.y - fp.y) ** 2; if (d < bd) { bd = d; idx = i; } });
     worms.splice(idx, 1);
-    s.active.nitrogen = Math.min(s.config.cards.softCapNitrogen, s.active.nitrogen + 2);
-    return { ok: true, message: 'Snared a nematode: +2 Nitrogen.' };
+    s.active.phosphorus = Math.min(s.config.cards.softCapPhosphorus, s.active.phosphorus + 2);
+    return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
   }),
   'Sclerotial Seal': targeted((s, c, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);

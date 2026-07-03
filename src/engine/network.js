@@ -22,10 +22,10 @@ export class Network {
 
     this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
-    // Card-layer resources (C1): gate PLAYS. Water=growth, Nitrogen=food, Phosphorus=work.
+    // Card-layer resources (C1): gate PLAYS. Two resources — Water=growth+substrate,
+    // Phosphorus=digest/defense/work (harvested from rocks).
     const cc = config.cards || {};
     this.water = cc.startWater || 0;
-    this.nitrogen = cc.startNitrogen || 0;
     this.phosphorus = cc.startPhosphorus || 0;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -425,17 +425,25 @@ export class Network {
       e.nodes.push(n);
     }
 
+    const cs = substrate.cellSize;
     let created = 0;
     for (const { cell, nodes } of byCell.values()) {
       if (this.nodes.length >= g.maxNodes) break;
-      // Strands lengthen as the pocket fills, so a fully colonised piece ends up
-      // almost packed with mycelium.
-      const len = g.segmentLength * (0.85 + cell.colonized * 0.7);
-      const parent = nodes[Math.floor(rng() * nodes.length)];
-      const branches = 1 + (rng() < 0.6 ? 1 : 0);
+      // FIRST entry into a fresh pocket: disperse a full burst that fans out
+      // across the cell (and into its food neighbours) so the pocket reads as
+      // fully colonised at once, and jump colonisation straight to 1 (so income
+      // digests it at full rate — a pile clears in ~2 steps). Later visits just
+      // thicken it a little.
+      const firstEntry = cell.colonized <= 0;
+      const branches = firstEntry ? (this.config.substrate.entryBurst || 9) : (1 + (rng() < 0.6 ? 1 : 0));
+      let lastParent = nodes[0];
       for (let b = 0; b < branches; b++) {
+        const parent = nodes[Math.floor(rng() * nodes.length)];
+        lastParent = parent;
+        const dist = firstEntry
+          ? cs * (0.25 + rng() * 0.7)                          // fan across the pocket + into neighbours
+          : g.segmentLength * (0.85 + cell.colonized * 0.7) * (0.7 + rng() * 0.6);
         const ang = rng() * Math.PI * 2;
-        const dist = len * (0.7 + rng() * 0.6);
         const nx = parent.x + Math.cos(ang) * dist;
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
@@ -444,7 +452,7 @@ export class Network {
         this.addNode(nx, ny, parent);
         created++;
       }
-      cell.colonized = Math.min(1, cell.colonized + step * parent.health);
+      cell.colonized = firstEntry ? 1 : Math.min(1, cell.colonized + step * lastParent.health);
     }
     return created;
   }

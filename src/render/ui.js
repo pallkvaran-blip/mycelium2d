@@ -47,7 +47,6 @@ export class UI {
     const hud = div('panel hud');
     const resStats = cardsOn ? `
         <div class="stat res-w"><span class="k">Water</span><span class="v" id="hud-water">0</span></div>
-        <div class="stat res-n"><span class="k">Nitro</span><span class="v" id="hud-nitrogen">0</span></div>
         <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
       : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
     const build = (typeof globalThis !== 'undefined' && globalThis.__BUILD__) ? globalThis.__BUILD__ : 'dev';
@@ -107,7 +106,7 @@ export class UI {
     // ---- Hint line ----
     this.el.hint = div('hint');
     this.el.hint.textContent = cardsOn
-      ? 'Draw basics (⚡). Playing a premium card costs its ⚡ + any W/P/N gate (basics are free to play). Grow needs Water · Digest needs Nitrogen · Actions need Phosphorus. Reach the goal to win.'
+      ? 'Draw pulls 3 basics (⚡). Playing a premium card costs its ⚡ + any W/P gate. Water = grow + substrate · Phosphorus = digest/defense/actions (harvest it from rocks). Finish a food pile to draft a card. Reach the goal to win.'
       : 'Hover an action for details. Grow extends the network toward sensed food.';
     root.appendChild(this.el.hint);
 
@@ -270,13 +269,13 @@ export class UI {
     // Card layer: resources, hand, draw/skip.
     if (this.cardsOn && s.cards) {
       text('hud-water', Math.floor(net.water || 0));
-      text('hud-nitrogen', Math.floor(net.nitrogen || 0));
       text('hud-phosphorus', Math.floor(net.phosphorus || 0));
       this._renderHand();
       const cc = s.config.cards;
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
+      const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
       if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `Draw <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
+        this.el.drawBtn.innerHTML = `Draw ${drawN || (cc.drawCount || 1)} <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
         this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
       }
       if (this.el.skipBtn) {
@@ -308,13 +307,12 @@ export class UI {
     const s = this.state, net = s.active;
     list.innerHTML = '';
     s.cards.hand.forEach((h, i) => {
-      const c = CARD_BY_NAME[h.name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
       const gate = [];
       if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
       if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
       if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
-      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
@@ -336,11 +334,10 @@ export class UI {
     const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
-      const c = CARD_BY_NAME[name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
       const gate = [];
       if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
       if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
       if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       return `<button class="offercard" data-name="${escapeHtml(name)}">`
         + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
@@ -350,7 +347,7 @@ export class UI {
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
       + `<h2>Pile digested — draft a card</h2>`
-      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·N·P to play it.</p>`
+      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·P to play it.</p>`
       + `<div class="offerrow">${cards}</div>`
       + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
       + `</div>`;

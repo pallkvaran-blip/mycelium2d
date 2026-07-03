@@ -215,8 +215,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1g32ch1";
-globalThis.__BUILD__ = "local 07-03 06:10";
+window.__ASSET_VER = "j30bcv";
+globalThis.__BUILD__ = "local 07-03 10:11";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -297,13 +297,15 @@ const CONFIG = {
     // cycles are needed to fully colonise (and densely branch) a pocket.
     // (0.166 ≈ 6 grow cycles — one more round of branching than before.)
     colonizeRate: 0.166,
+    entryBurst: 9,               // branches sprayed the FIRST time a strand enters a food pocket
+                                 //   (fans across the cell so it reads as fully colonised at once)
   },
 
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
     start: 120,                  // starting Energy (SLIDER)
     baselineTrickle: 1,          // tiny per-action free trickle (you depend on colonising food)
-    passiveIncomeRate: 34,       // nutrient pulled from each colonised cell/turn — ~3 turns to empty a cell (SLIDER)
+    passiveIncomeRate: 25,       // nutrient pulled from each colonised cell/turn — a fully-colonised pile (50/cell) empties in 2 steps (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },
 
@@ -314,21 +316,20 @@ const CONFIG = {
 
   // ---- Card economy (C1) --------------------------------------------------
   // The card layer sits on top of the action sim. ENERGY (net.energy) is the
-  // master currency, spent only to DRAW / SKIP (and BUY at a pile, later).
-  // Three resources gate PLAYS: Water=growth, Nitrogen=food (substrate+digest),
-  // Phosphorus=work (repeatable actions). Each card's own W/P/N costs live in
-  // the generated card data (src/cards-data.js); these are the loop-wide knobs.
+  // master currency, spent to DRAW (3 cards at once) / SKIP. TWO resources gate
+  // PLAYS: WATER = growth + substrate; PHOSPHORUS = digest/defense/work, harvested
+  // from rocks. Each card's own W/P costs live in the generated card data
+  // (src/cards-data.js); these are the loop-wide knobs.
   cards: {
     enabled: true,               // turn the card layer on
-    drawCostEnergy: 8,           // energy to draw one card from the draw deck
+    drawCostEnergy: 16,          // energy to DRAW (pulls drawCount cards at once)
+    drawCount: 3,                // cards pulled per Draw
     skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
-    startWater: 5,               // starting resource buffers (design §16)
-    startNitrogen: 2,
-    startPhosphorus: 2,
-    softCapWater: 20,            // per-resource soft caps (water runs high now that grow costs it)
-    softCapNitrogen: 6,
-    softCapPhosphorus: 6,
+    startWater: 7,               // starting Water (now covers grow AND substrate)
+    startPhosphorus: 3,          // starting Phosphorus (digest/defense/work; topped up from rocks)
+    softCapWater: 20,            // per-resource soft caps
+    softCapPhosphorus: 10,
     engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
     // resource harvest amounts (used by harvest-card effects)
     harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
@@ -609,7 +610,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -624,9 +624,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "substrate",
   "buyCostEnergy": 0,
-  "costW": 0,
+  "costW": 1,
   "costP": 0,
-  "costN": 1,
   "timing": "early",
   "repay": 0,
   "threat": "none",
@@ -643,7 +642,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
-  "costN": 0,
   "timing": "early",
   "repay": 0,
   "threat": "none",
@@ -660,7 +658,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 2,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -677,7 +674,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 2,
   "costP": 0,
-  "costN": 0,
   "timing": "mid",
   "repay": 0,
   "threat": "none",
@@ -692,9 +688,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "substrate",
   "buyCostEnergy": 0,
-  "costW": 0,
+  "costW": 1,
   "costP": 0,
-  "costN": 1,
   "timing": "early",
   "repay": 0,
   "threat": "none",
@@ -709,9 +704,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "substrate",
   "buyCostEnergy": 0,
-  "costW": 0,
+  "costW": 2,
   "costP": 0,
-  "costN": 2,
   "timing": "mid",
   "repay": 0,
   "threat": "none",
@@ -727,8 +721,7 @@ const CARD_DATA = [
   "category": "economy",
   "buyCostEnergy": 0,
   "costW": 0,
-  "costP": 0,
-  "costN": 1,
+  "costP": 1,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -745,7 +738,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -762,7 +754,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "mid",
   "repay": 0,
   "threat": "all",
@@ -779,7 +770,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -796,7 +786,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -813,7 +802,6 @@ const CARD_DATA = [
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -830,7 +818,6 @@ const CARD_DATA = [
   "buyCostEnergy": 22,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "mid",
   "repay": 3,
   "threat": "none",
@@ -847,7 +834,6 @@ const CARD_DATA = [
   "buyCostEnergy": 12,
   "costW": 1,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -864,7 +850,6 @@ const CARD_DATA = [
   "buyCostEnergy": 14,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "early",
   "repay": 3,
   "threat": "none",
@@ -881,7 +866,6 @@ const CARD_DATA = [
   "buyCostEnergy": 14,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "early",
   "repay": 4,
   "threat": "none",
@@ -898,7 +882,6 @@ const CARD_DATA = [
   "buyCostEnergy": 14,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "early",
   "repay": 3,
   "threat": "none",
@@ -911,17 +894,16 @@ const CARD_DATA = [
  {
   "name": "Mineralizing Saprobe",
   "type": "engine",
-  "category": "decay / unconditional N production",
+  "category": "decay / unconditional P production",
   "buyCostEnergy": 14,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "early",
   "repay": 4,
   "threat": "none",
-  "produces": "1 N / round (unconditional, global)",
-  "effect": "Install. Gain +1 Nitrogen at the end of each round.",
-  "family": "nitrogen",
+  "produces": "1 P / round (unconditional)",
+  "effect": "Install. Gain +1 Phosphorus at the end of each round.",
+  "family": "phosphorus",
   "tutorial": true,
   "startCopies": 0
  },
@@ -932,7 +914,6 @@ const CARD_DATA = [
   "buyCostEnergy": 12,
   "costW": 0,
   "costP": 2,
-  "costN": 0,
   "timing": "mid",
   "repay": 4,
   "threat": "none",
@@ -949,13 +930,12 @@ const CARD_DATA = [
   "buyCostEnergy": 5,
   "costW": 0,
   "costP": 1,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "worm",
   "produces": "",
-  "effect": "Install. Action (once per 6 rounds): tap a point where no nematode is within range; the next nematode to enter a small radius is snared and digested for +2 Nitrogen.",
-  "family": "nitrogen",
+  "effect": "Install. Action (once per 6 rounds): tap a point where no nematode is within range; the next nematode to enter a small radius is snared and digested for +2 Phosphorus.",
+  "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
  },
@@ -966,7 +946,6 @@ const CARD_DATA = [
   "buyCostEnergy": 7,
   "costW": 1,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "all",
@@ -983,13 +962,12 @@ const CARD_DATA = [
   "buyCostEnergy": 6,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Install. Action (once per round): spend 2 of one resource (W/P/N) to gain 1 of another.",
-  "family": "nitrogen",
+  "effect": "Install. Action (once per round): spend 2 of one resource (W/P) to gain 1 of the other.",
+  "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
  },
@@ -1000,7 +978,6 @@ const CARD_DATA = [
   "buyCostEnergy": 10,
   "costW": 2,
   "costP": 0,
-  "costN": 0,
   "timing": "mid",
   "repay": 0,
   "threat": "none",
@@ -1016,13 +993,12 @@ const CARD_DATA = [
   "category": "finisher",
   "buyCostEnergy": 12,
   "costW": 2,
-  "costP": 0,
-  "costN": 2,
+  "costP": 2,
   "timing": "late",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Exhaust (2 Water + 2 Nitrogen): pick the goal direction and extend up to 6 steps.",
+  "effect": "Exhaust (2 Water + 2 Phosphorus): pick the goal direction and extend up to 6 steps.",
   "family": "events",
   "tutorial": true,
   "startCopies": 0
@@ -1034,7 +1010,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1051,7 +1026,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1068,7 +1042,6 @@ const CARD_DATA = [
   "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1085,7 +1058,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1102,7 +1074,6 @@ const CARD_DATA = [
   "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1119,7 +1090,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1136,7 +1106,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1153,7 +1122,6 @@ const CARD_DATA = [
   "buyCostEnergy": 7,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1170,7 +1138,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1187,7 +1154,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1204,7 +1170,6 @@ const CARD_DATA = [
   "buyCostEnergy": 6,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1221,7 +1186,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1238,7 +1202,6 @@ const CARD_DATA = [
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1255,7 +1218,6 @@ const CARD_DATA = [
   "buyCostEnergy": 10,
   "costW": 0,
   "costP": 1,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "ant",
@@ -1272,7 +1234,6 @@ const CARD_DATA = [
   "buyCostEnergy": 10,
   "costW": 0,
   "costP": 1,
-  "costN": 0,
   "timing": "any",
   "repay": 0,
   "threat": "mould",
@@ -1793,10 +1754,10 @@ class Network {
 
     this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
-    // Card-layer resources (C1): gate PLAYS. Water=growth, Nitrogen=food, Phosphorus=work.
+    // Card-layer resources (C1): gate PLAYS. Two resources — Water=growth+substrate,
+    // Phosphorus=digest/defense/work (harvested from rocks).
     const cc = config.cards || {};
     this.water = cc.startWater || 0;
-    this.nitrogen = cc.startNitrogen || 0;
     this.phosphorus = cc.startPhosphorus || 0;
     this.spores = 0;           // spores this network has produced (Fruit)
 
@@ -2196,17 +2157,25 @@ class Network {
       e.nodes.push(n);
     }
 
+    const cs = substrate.cellSize;
     let created = 0;
     for (const { cell, nodes } of byCell.values()) {
       if (this.nodes.length >= g.maxNodes) break;
-      // Strands lengthen as the pocket fills, so a fully colonised piece ends up
-      // almost packed with mycelium.
-      const len = g.segmentLength * (0.85 + cell.colonized * 0.7);
-      const parent = nodes[Math.floor(rng() * nodes.length)];
-      const branches = 1 + (rng() < 0.6 ? 1 : 0);
+      // FIRST entry into a fresh pocket: disperse a full burst that fans out
+      // across the cell (and into its food neighbours) so the pocket reads as
+      // fully colonised at once, and jump colonisation straight to 1 (so income
+      // digests it at full rate — a pile clears in ~2 steps). Later visits just
+      // thicken it a little.
+      const firstEntry = cell.colonized <= 0;
+      const branches = firstEntry ? (this.config.substrate.entryBurst || 9) : (1 + (rng() < 0.6 ? 1 : 0));
+      let lastParent = nodes[0];
       for (let b = 0; b < branches; b++) {
+        const parent = nodes[Math.floor(rng() * nodes.length)];
+        lastParent = parent;
+        const dist = firstEntry
+          ? cs * (0.25 + rng() * 0.7)                          // fan across the pocket + into neighbours
+          : g.segmentLength * (0.85 + cell.colonized * 0.7) * (0.7 + rng() * 0.6);
         const ang = rng() * Math.PI * 2;
-        const dist = len * (0.7 + rng() * 0.6);
         const nx = parent.x + Math.cos(ang) * dist;
         const ny = parent.y + Math.sin(ang) * dist;
         if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
@@ -2215,7 +2184,7 @@ class Network {
         this.addNode(nx, ny, parent);
         created++;
       }
-      cell.colonized = Math.min(1, cell.colonized + step * parent.health);
+      cell.colonized = firstEntry ? 1 : Math.min(1, cell.colonized + step * lastParent.health);
     }
     return created;
   }
@@ -3234,15 +3203,16 @@ const __m_engine_cards = (function () {
 // =============================================================================
 // Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
 //
-// Model (design §16):
-//   - ENERGY (net.energy) is the master currency: spent to DRAW and to SKIP.
-//   - Three resources gate PLAYS: WATER (growth), NITROGEN (food: substrate+digest),
-//     PHOSPHORUS (work: repeatable actions). They live on the active Network.
+// Model (design §19 — two-resource):
+//   - ENERGY (net.energy) is the master currency: spent to DRAW (a hand-full at once) and to SKIP.
+//   - TWO resources gate PLAYS: WATER (growth + substrate) and PHOSPHORUS (digest/defense/
+//     utility/work, harvested from rocks). They live on the active Network.
 //   - A DRAW DECK of basics you pay energy to draw into your HAND; a HAND of cards
-//     you play (paying their W/P/N gate); a DISCARD graveyard (no reshuffle).
+//     you play (paying their W/P gate); a DISCARD graveyard (no reshuffle). Finishing a
+//     map food pile drafts a card into hand for free (pendingOffers → chooseOffer).
 //   - Engine cards INSTALL and produce each world-tick (produceCardEngines).
-//   - WIN = a strand reaches the goal zone. LOSE (card-dry) = energy 0 with an
-//     empty draw deck and an unplayable hand (checked in checkGoalReached path).
+//   - WIN = a strand reaches the goal zone. LOSE (stall) = no draw/skip/play/draft possible
+//     (checked in checkGoalReached path).
 //
 // This module has NO dependency on turn.js (turn.js imports FROM here), so the
 // card operations resolve the effect + economy and the CALLER advances the world
@@ -3286,7 +3256,7 @@ const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial).map((c) => c.name);
 function initCards(state, mode = 'tutorial') {
   const cc = state.config.cards;
   const net = state.active;
-  net.water = cc.startWater; net.nitrogen = cc.startNitrogen; net.phosphorus = cc.startPhosphorus;
+  net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
 
   const drawDeck = [];
   for (const c of CARD_DATA) for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name);
@@ -3356,7 +3326,6 @@ function cardBlockedReason(state, name) {
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
-  if (net.nitrogen < c.costN) return `Not enough Nitrogen (need ${c.costN}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
   return null;
 }
@@ -3367,16 +3336,17 @@ function cardNeedsTarget(name) {
 
 // --- operations (do NOT tick; the caller advances the world after) ----------
 function drawCard(state) {
-  const C = state.cards, net = state.active;
+  const C = state.cards, net = state.active, cc = state.config.cards;
   if (state.runOver) return { ok: false, message: 'The run is over.' };
   if (!C.drawDeck.length) return { ok: false, message: 'Draw deck is empty — you are card-dry.' };
   const cost = drawCost(state);
   if (net.energy < cost) return { ok: false, message: `Not enough Energy to draw (need ${cost}).` };
   net.energy -= cost;
-  const name = C.drawDeck.shift();
-  C.hand.push({ id: C.seq++, name });
-  state.log(`Drew ${name} (−${cost}⚡).`, 'action');
-  return { ok: true, tick: true, message: `Drew ${name}.` };
+  const n = Math.min(cc.drawCount || 1, C.drawDeck.length);   // pull the whole hand-full at once
+  const drawn = [];
+  for (let i = 0; i < n; i++) { const name = C.drawDeck.shift(); C.hand.push({ id: C.seq++, name }); drawn.push(name); }
+  state.log(`Drew ${n} card${n > 1 ? 's' : ''} (−${cost}⚡): ${drawn.join(', ')}.`, 'action');
+  return { ok: true, tick: true, message: `Drew ${n} card${n > 1 ? 's' : ''}.` };
 }
 
 function skipRound(state) {
@@ -3407,7 +3377,7 @@ function playCard(state, handIndex, ctx = {}) {
   // (Premium cards carry a buyCostEnergy; basics are 0 — you paid Energy to draw them.
   //  Until food-pile drafting exists, that Energy cost is paid here, at play time.)
   net.energy -= c.buyCostEnergy;
-  net.water -= c.costW; net.nitrogen -= c.costN; net.phosphorus -= c.costP;
+  net.water -= c.costW; net.phosphorus -= c.costP;
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
@@ -3436,7 +3406,6 @@ function produceCardEngines(state) {
     if (due) {
       if (e.energy) energySum += e.energy;
       if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
-      if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
       if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
     }
     if (e.digEvery) {
@@ -3468,17 +3437,20 @@ function checkGoalReached(state) {
       }
     }
   }
-  // Card-dry death: no cards to draw, no affordable play, and cannot even skip.
+  // Stall death: the world can no longer be advanced. You can't afford to DRAW
+  // (deck empty OR too little Energy), can't SKIP, have no playable card, and no
+  // free draft is pending. (Gating on deck-emptiness alone missed the freeze where
+  // the deck still has cards but Energy is below the draw cost — Draw costs 16 > skip 12.)
   const C = state.cards;
   const cc = state.config.cards;
-  const dry = C.drawDeck.length === 0;
+  const canDraw = C.drawDeck.length > 0 && net.energy >= drawCost(state);
   const canSkip = net.energy >= cc.skipCostEnergy;
   const canPlay = C.hand.some((h) => !cardBlockedReason(state, h.name) && EFFECTS[h.name]);
   const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
-  if (dry && !canSkip && !canPlay && !hasDraft) {
+  if (!canDraw && !canSkip && !canPlay && !hasDraft) {
     net.alive = false; state.runOver = true;
     state.runResult = { won: false, died: true, turns: state.turn };
-    state.log('Card-dry and out of Energy — the colony stalls. Run over.', 'warn');
+    state.log('Out of Energy with no playable move — the colony stalls. Run over.', 'warn');
   }
 }
 
@@ -3572,12 +3544,12 @@ const EFFECTS = {
     return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
   }),
 
-  // --- substrate (Nitrogen) ---
+  // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
-  // --- digest (Nitrogen) ---
+  // --- digest (Phosphorus) ---
   'Saprotrophic Digest': grow((s) => {
     const net = s.active, sub = s.substrate;
     const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
@@ -3611,7 +3583,7 @@ const EFFECTS = {
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
-  'Mineralizing Saprobe': engine({ nitrogen: 1 }, 'Installed: +1 Nitrogen/round.'),
+  'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
 
   // --- dig engine (Phosphorus install) ---
   'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
@@ -3619,9 +3591,9 @@ const EFFECTS = {
   // --- utility ---
   'Nutrient Transmutation': grow((s) => {
     const net = s.active;
-    const pools = [['water', net.water], ['nitrogen', net.nitrogen], ['phosphorus', net.phosphorus]];
+    const pools = [['water', net.water], ['phosphorus', net.phosphorus]];
     pools.sort((a, b) => b[1] - a[1]);
-    const from = pools[0], to = pools[2];
+    const from = pools[0], to = pools[1];
     if (from[1] < 2) return { ok: false, message: 'Need 2 of a resource to convert.' };
     net[from[0]] -= 2; net[to[0]] += 1;
     return { ok: true, message: `Converted 2 ${from[0]} → 1 ${to[0]}.` };
@@ -3638,8 +3610,8 @@ const EFFECTS = {
     let idx = 0, bd = Infinity;
     worms.forEach((w, i) => { const d = (w.x - fp.x) ** 2 + (w.y - fp.y) ** 2; if (d < bd) { bd = d; idx = i; } });
     worms.splice(idx, 1);
-    s.active.nitrogen = Math.min(s.config.cards.softCapNitrogen, s.active.nitrogen + 2);
-    return { ok: true, message: 'Snared a nematode: +2 Nitrogen.' };
+    s.active.phosphorus = Math.min(s.config.cards.softCapPhosphorus, s.active.phosphorus + 2);
+    return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
   }),
   'Sclerotial Seal': targeted((s, c, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
@@ -5278,7 +5250,6 @@ class UI {
     const hud = div('panel hud');
     const resStats = cardsOn ? `
         <div class="stat res-w"><span class="k">Water</span><span class="v" id="hud-water">0</span></div>
-        <div class="stat res-n"><span class="k">Nitro</span><span class="v" id="hud-nitrogen">0</span></div>
         <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
       : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
     const build = (typeof globalThis !== 'undefined' && globalThis.__BUILD__) ? globalThis.__BUILD__ : 'dev';
@@ -5338,7 +5309,7 @@ class UI {
     // ---- Hint line ----
     this.el.hint = div('hint');
     this.el.hint.textContent = cardsOn
-      ? 'Draw basics (⚡). Playing a premium card costs its ⚡ + any W/P/N gate (basics are free to play). Grow needs Water · Digest needs Nitrogen · Actions need Phosphorus. Reach the goal to win.'
+      ? 'Draw pulls 3 basics (⚡). Playing a premium card costs its ⚡ + any W/P gate. Water = grow + substrate · Phosphorus = digest/defense/actions (harvest it from rocks). Finish a food pile to draft a card. Reach the goal to win.'
       : 'Hover an action for details. Grow extends the network toward sensed food.';
     root.appendChild(this.el.hint);
 
@@ -5501,13 +5472,13 @@ class UI {
     // Card layer: resources, hand, draw/skip.
     if (this.cardsOn && s.cards) {
       text('hud-water', Math.floor(net.water || 0));
-      text('hud-nitrogen', Math.floor(net.nitrogen || 0));
       text('hud-phosphorus', Math.floor(net.phosphorus || 0));
       this._renderHand();
       const cc = s.config.cards;
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
+      const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
       if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `Draw <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
+        this.el.drawBtn.innerHTML = `Draw ${drawN || (cc.drawCount || 1)} <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
         this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
       }
       if (this.el.skipBtn) {
@@ -5539,13 +5510,12 @@ class UI {
     const s = this.state, net = s.active;
     list.innerHTML = '';
     s.cards.hand.forEach((h, i) => {
-      const c = CARD_BY_NAME[h.name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
       const gate = [];
       if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
       if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
       if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
-      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
@@ -5567,11 +5537,10 @@ class UI {
     const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
-      const c = CARD_BY_NAME[name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
       const gate = [];
       if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
       if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
       if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       return `<button class="offercard" data-name="${escapeHtml(name)}">`
         + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
@@ -5581,7 +5550,7 @@ class UI {
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
       + `<h2>Pile digested — draft a card</h2>`
-      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·N·P to play it.</p>`
+      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·P to play it.</p>`
       + `<div class="offerrow">${cards}</div>`
       + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
       + `</div>`;
@@ -5854,7 +5823,7 @@ function botToGoal(budget = 900) {
   const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
   let guard = 0;
   while (!state.won && !state.runOver && guard++ < budget) {
-    net.energy = Math.max(net.energy, 200); net.water = 99; net.nitrogen = 99; net.phosphorus = 99;
+    net.energy = Math.max(net.energy, 200); net.water = 99; net.phosphorus = 99;
     const fp = net.frontierPoint(); if (!fp) break;
     const fcol = sub.colAtX(fp.x);
     let target;
