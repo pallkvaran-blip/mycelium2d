@@ -163,6 +163,26 @@
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 8px 10px;
       display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    /* hand header (collapse toggle + selected-card chip) — phone only; desktop keeps the hand open */
+    .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
+    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
+      padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
+      border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
+    .handtoggle .htcount { font-size: 11px; font-weight: 700; color: var(--accent);
+      background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0 6px; }
+    .handtoggle .htchev { color: var(--ink-dim); font-size: 10px; }
+    .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+      padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
+      border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
+      box-shadow: 0 0 10px -3px rgba(130,230,166,0.5); }
+    .handsel.hidden { display: none; }
+    .handsel .hslabel { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.13em; color: var(--accent); flex: 0 0 auto; }
+    .handsel .hsname { font-family: var(--serif); font-size: 14px; font-weight: 600; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+    .handsel .hscancel { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--panel-border);
+      background: rgba(0,0,0,0.32); color: var(--ink-dim); cursor: pointer; font-size: 12px; line-height: 1; }
+    .handsel .hscancel:active { background: rgba(224,106,106,0.35); color: #fff; }
     /* filter chips */
     .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; }
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
@@ -255,6 +275,9 @@
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
       .handbar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handhead { display: flex; }              /* collapse toggle + selected chip visible on phone */
+      .handbody { display: none; }              /* carousel hidden until the tray is expanded */
+      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
@@ -294,6 +317,9 @@
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
       .handbar { bottom: 46px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .handhead { display: flex; }
+      .handbody { display: none; }
+      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
@@ -317,8 +343,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "9ot7n5";
-globalThis.__BUILD__ = "local 07-03 18:33";
+window.__ASSET_VER = "1agj1uz";
+globalThis.__BUILD__ = "local 07-03 19:11";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5333,8 +5359,18 @@ class UI {
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.handFilter = 'all';          // active card-hand filter group key
+    this.handOpen = !this._isNarrow();// phones start with the hand tray collapsed
+    this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
+  }
+
+  // Small screens (phone portrait or short landscape) use the collapsible hand
+  // tray + card-selection flow; desktop keeps the always-open hand.
+  _isNarrow() {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(max-width: 760px)').matches
+        || window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
   }
 
   setState(state) { this.state = state; }
@@ -5403,17 +5439,29 @@ class UI {
 
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
-      const hand = div('panel handbar');
+      const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
-        `<div class="handfilter" id="handfilter"></div>`
+        // Header (phone only): tap to expand/collapse the carousel + a chip
+        // showing which card is currently selected/aiming.
+        `<div class="handhead">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide your hand">`
+        + `<span class="htchev">${this.handOpen ? '▾' : '▴'}</span><span class="htlabel">Hand</span>`
+        + `<span class="htcount" id="htcount">0</span></button>`
+        + `<div class="handsel hidden" id="handsel"></div>`
+        + `</div>`
+        + `<div class="handbody" id="handbody">`
+        + `<div class="handfilter" id="handfilter"></div>`
         + `<div class="handcarousel">`
         + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
         + `<div class="handlist" id="handlist"></div>`
         + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
+        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
+      this.el.handsel = hand.querySelector('#handsel');
+      this.el.htcount = hand.querySelector('#htcount');
       const scrollByCard = (dir) => {
         const t = this.el.handlist; if (!t) return;
         const card = t.querySelector('.cardbtn');
@@ -5422,14 +5470,16 @@ class UI {
       };
       hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
       hand.querySelector('#handnext').onclick = () => scrollByCard(1);
+      hand.querySelector('#handtoggle').onclick = () => this.toggleHand();
       root.appendChild(hand);
     }
 
     // ---- Hint line ----
     this.el.hint = div('hint');
-    this.el.hint.textContent = cardsOn
+    this.defaultHint = cardsOn
       ? 'Draw pulls 3 basics (⚡). Playing a premium card costs its ⚡ + any W/P gate. Water = grow + substrate · Phosphorus = digest/defense/actions (harvest it from rocks). Finish a food pile to draft a card. Reach the goal to win.'
       : 'Hover an action for details. Grow extends the network toward sensed food.';
+    this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
     // ---- Right column: event log ----
@@ -5529,10 +5579,44 @@ class UI {
   setPendingCard(index) {
     const h = this.state.cards && this.state.cards.hand[index];
     this.pendingCard = h ? { id: h.id, name: h.name } : null;
+    this._renderHandSelection();
   }
-  clearPendingCard() { this.pendingCard = null; }
+  clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
+
+  // Collapsible hand tray (phones). Desktop keeps it open and hides the toggle.
+  setHandOpen(open) {
+    this.handOpen = open;
+    if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
+    const chev = this.el.handbar && this.el.handbar.querySelector('.htchev');
+    if (chev) chev.textContent = open ? '▾' : '▴';
+  }
+  toggleHand() { this.setHandOpen(!this.handOpen); }
+  // Minimize the carousel so the map is visible (only meaningful on small screens).
+  collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
+  expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
+
+  // The "selected card" chip in the hand header — makes it clear which card is
+  // armed while the carousel is minimized and you're aiming on the map.
+  _renderHandSelection() {
+    const el = this.el.handsel;
+    if (!el) return;
+    if (this.pendingCard) {
+      el.classList.remove('hidden');
+      el.innerHTML = `<span class="hslabel">Aiming</span><span class="hsname"></span>`
+        + `<button class="hscancel" aria-label="Cancel selection">✕</button>`;
+      el.querySelector('.hsname').textContent = this.pendingCard.name;
+      el.querySelector('.hscancel').onclick = (e) => {
+        e.stopPropagation();
+        if (this.handlers.onCancelCard) this.handlers.onCancelCard();
+      };
+    } else {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+    }
+  }
 
   setHint(text) { this.el.hint.textContent = text; }
+  resetHint() { this.el.hint.textContent = this.defaultHint; }
 
   showOverlay(result) {
     const o = this.el.overlay;
@@ -5627,6 +5711,8 @@ class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
+    if (this.el.htcount) this.el.htcount.textContent = s.cards.hand.length;
+    this._renderHandSelection();
 
     // STACK: group identical cards by name; keep the first hand index to play.
     const groups = new Map();
@@ -5939,7 +6025,11 @@ const handlers = {
   },
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
-  onDraw() { resolveCardOp(drawCard(state)); },
+  onDraw() {
+    resolveCardOp(drawCard(state));
+    // Surface the fresh cards on phones so you can pick right away.
+    ui.expandHand();
+  },
   onSkip() { resolveCardOp(skipRound(state)); },
   onPlayCard(index) {
     const entry = state.cards && state.cards.hand[index];
@@ -5948,10 +6038,16 @@ const handlers = {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
+      ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
       return;
     }
     resolveCardOp(playCard(state, index));
+  },
+  onCancelCard() {
+    ui.clearPendingCard();
+    ui.resetHint();
+    uiDirty = true;
   },
   onChooseCard(name) {
     // Drafting a pile reward is free and does NOT advance the world.
@@ -6131,7 +6227,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); ui.resetHint(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 

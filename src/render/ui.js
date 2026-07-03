@@ -28,8 +28,18 @@ export class UI {
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.handFilter = 'all';          // active card-hand filter group key
+    this.handOpen = !this._isNarrow();// phones start with the hand tray collapsed
+    this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
+  }
+
+  // Small screens (phone portrait or short landscape) use the collapsible hand
+  // tray + card-selection flow; desktop keeps the always-open hand.
+  _isNarrow() {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(max-width: 760px)').matches
+        || window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
   }
 
   setState(state) { this.state = state; }
@@ -98,17 +108,29 @@ export class UI {
 
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
-      const hand = div('panel handbar');
+      const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
-        `<div class="handfilter" id="handfilter"></div>`
+        // Header (phone only): tap to expand/collapse the carousel + a chip
+        // showing which card is currently selected/aiming.
+        `<div class="handhead">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide your hand">`
+        + `<span class="htchev">${this.handOpen ? '▾' : '▴'}</span><span class="htlabel">Hand</span>`
+        + `<span class="htcount" id="htcount">0</span></button>`
+        + `<div class="handsel hidden" id="handsel"></div>`
+        + `</div>`
+        + `<div class="handbody" id="handbody">`
+        + `<div class="handfilter" id="handfilter"></div>`
         + `<div class="handcarousel">`
         + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
         + `<div class="handlist" id="handlist"></div>`
         + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
+        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
+      this.el.handsel = hand.querySelector('#handsel');
+      this.el.htcount = hand.querySelector('#htcount');
       const scrollByCard = (dir) => {
         const t = this.el.handlist; if (!t) return;
         const card = t.querySelector('.cardbtn');
@@ -117,14 +139,16 @@ export class UI {
       };
       hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
       hand.querySelector('#handnext').onclick = () => scrollByCard(1);
+      hand.querySelector('#handtoggle').onclick = () => this.toggleHand();
       root.appendChild(hand);
     }
 
     // ---- Hint line ----
     this.el.hint = div('hint');
-    this.el.hint.textContent = cardsOn
+    this.defaultHint = cardsOn
       ? 'Draw pulls 3 basics (⚡). Playing a premium card costs its ⚡ + any W/P gate. Water = grow + substrate · Phosphorus = digest/defense/actions (harvest it from rocks). Finish a food pile to draft a card. Reach the goal to win.'
       : 'Hover an action for details. Grow extends the network toward sensed food.';
+    this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
     // ---- Right column: event log ----
@@ -224,10 +248,44 @@ export class UI {
   setPendingCard(index) {
     const h = this.state.cards && this.state.cards.hand[index];
     this.pendingCard = h ? { id: h.id, name: h.name } : null;
+    this._renderHandSelection();
   }
-  clearPendingCard() { this.pendingCard = null; }
+  clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
+
+  // Collapsible hand tray (phones). Desktop keeps it open and hides the toggle.
+  setHandOpen(open) {
+    this.handOpen = open;
+    if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
+    const chev = this.el.handbar && this.el.handbar.querySelector('.htchev');
+    if (chev) chev.textContent = open ? '▾' : '▴';
+  }
+  toggleHand() { this.setHandOpen(!this.handOpen); }
+  // Minimize the carousel so the map is visible (only meaningful on small screens).
+  collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
+  expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
+
+  // The "selected card" chip in the hand header — makes it clear which card is
+  // armed while the carousel is minimized and you're aiming on the map.
+  _renderHandSelection() {
+    const el = this.el.handsel;
+    if (!el) return;
+    if (this.pendingCard) {
+      el.classList.remove('hidden');
+      el.innerHTML = `<span class="hslabel">Aiming</span><span class="hsname"></span>`
+        + `<button class="hscancel" aria-label="Cancel selection">✕</button>`;
+      el.querySelector('.hsname').textContent = this.pendingCard.name;
+      el.querySelector('.hscancel').onclick = (e) => {
+        e.stopPropagation();
+        if (this.handlers.onCancelCard) this.handlers.onCancelCard();
+      };
+    } else {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+    }
+  }
 
   setHint(text) { this.el.hint.textContent = text; }
+  resetHint() { this.el.hint.textContent = this.defaultHint; }
 
   showOverlay(result) {
     const o = this.el.overlay;
@@ -322,6 +380,8 @@ export class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
+    if (this.el.htcount) this.el.htcount.textContent = s.cards.hand.length;
+    this._renderHandSelection();
 
     // STACK: group identical cards by name; keep the first hand index to play.
     const groups = new Map();

@@ -173,7 +173,11 @@ const handlers = {
   },
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
-  onDraw() { resolveCardOp(drawCard(state)); },
+  onDraw() {
+    resolveCardOp(drawCard(state));
+    // Surface the fresh cards on phones so you can pick right away.
+    ui.expandHand();
+  },
   onSkip() { resolveCardOp(skipRound(state)); },
   onPlayCard(index) {
     const entry = state.cards && state.cards.hand[index];
@@ -182,10 +186,16 @@ const handlers = {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
+      ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
       return;
     }
     resolveCardOp(playCard(state, index));
+  },
+  onCancelCard() {
+    ui.clearPendingCard();
+    ui.resetHint();
+    uiDirty = true;
   },
   onChooseCard(name) {
     // Drafting a pile reward is free and does NOT advance the world.
@@ -365,7 +375,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); ui.resetHint(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 

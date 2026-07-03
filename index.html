@@ -162,6 +162,26 @@
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 8px 10px;
       display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    /* hand header (collapse toggle + selected-card chip) — phone only; desktop keeps the hand open */
+    .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
+    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
+      padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
+      border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
+    .handtoggle .htcount { font-size: 11px; font-weight: 700; color: var(--accent);
+      background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0 6px; }
+    .handtoggle .htchev { color: var(--ink-dim); font-size: 10px; }
+    .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+      padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
+      border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
+      box-shadow: 0 0 10px -3px rgba(130,230,166,0.5); }
+    .handsel.hidden { display: none; }
+    .handsel .hslabel { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.13em; color: var(--accent); flex: 0 0 auto; }
+    .handsel .hsname { font-family: var(--serif); font-size: 14px; font-weight: 600; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+    .handsel .hscancel { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--panel-border);
+      background: rgba(0,0,0,0.32); color: var(--ink-dim); cursor: pointer; font-size: 12px; line-height: 1; }
+    .handsel .hscancel:active { background: rgba(224,106,106,0.35); color: #fff; }
     /* filter chips */
     .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; }
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
@@ -254,6 +274,9 @@
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
       .handbar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handhead { display: flex; }              /* collapse toggle + selected chip visible on phone */
+      .handbody { display: none; }              /* carousel hidden until the tray is expanded */
+      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
@@ -293,6 +316,9 @@
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
       .handbar { bottom: 46px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .handhead { display: flex; }
+      .handbody { display: none; }
+      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
