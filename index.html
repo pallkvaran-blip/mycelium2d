@@ -201,8 +201,15 @@
     .offercard .cgate { display: flex; gap: 4px; flex: none; }
     .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.32; }
     @media (max-width: 760px) {
-      .handbar { bottom: 82px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
-      .handlist { justify-content: flex-start; gap: 5px; max-height: 24vh; }
+      /* Keep the control bar to ONE compact row (drop the deck count, tighten
+         buttons) so Draw/Skip/New Map/Puzzle fit without wrapping… */
+      .actionbar { bottom: 56px; gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
+      .actionbar .btn { padding: 6px 7px; font-size: 11px; }
+      .actionbar .deckbtn .deckn { display: none; }
+      .actionbar .ctrl { gap: 4px; }
+      /* …then float the hand ABOVE that row so it never covers Draw/Skip. */
+      .handbar { bottom: 108px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
+      .handlist { justify-content: flex-start; gap: 5px; max-height: 22vh; }
       .cardbtn { width: 150px; padding: 5px 7px; gap: 2px; }
       .cardbtn .cdesc { font-size: 9.5px; -webkit-line-clamp: 2; }
       .offerbox { padding: 14px; max-width: 94vw; }
