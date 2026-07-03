@@ -393,14 +393,27 @@ export function generateSubstrate(config, rng) {
         }
     return null;
   };
+  // Every cluster placed here is a MAP pile: finishing (fully digesting) one
+  // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
+  // through Substrate.deposit() and are NOT registered, so they grant nothing.
+  sub.foodPiles = [];
   const drop = (cc, cr, radius) => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
+    const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
+      cells.push(sub.index(col, row));
     });
+    if (!cells.length) return;
+    // A drop can be relocated onto an existing cache (findClear). Merge overlapping
+    // drops into ONE pile so a single connected blob grants exactly one draft.
+    const set = new Set(cells);
+    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
+    if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
+    else sub.foodPiles.push({ cells, rewarded: false });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;

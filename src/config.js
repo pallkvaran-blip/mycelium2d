@@ -28,7 +28,7 @@ export const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 9,         // SPARSE caches along the route — energy is a real constraint (a couple extra to offset rock-clearance trimming)
+    foodClusterCount: 14,        // caches along the route (each is a card-draft pile) — +50% over the old sparse 9 to make the tutorial map easier
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE

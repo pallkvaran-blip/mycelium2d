@@ -4,7 +4,8 @@
 import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
 import { tickWorld } from '../src/engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason } from '../src/engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason, chooseOffer } from '../src/engine/cards.js';
+import { CARD_BY_NAME } from '../src/cards-data.js';
 
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) { passed++; console.log('  ok  -', m); } else { failed++; console.error('  FAIL-', m); } };
@@ -25,7 +26,7 @@ console.log('# Card economy + effects');
   const net = s.active, cc = s.config.cards;
 
   ok(s.cards.drawDeck.length === 15, `starting draw deck = 15 (5 HE/5 LLC/5 Condense), got ${s.cards.drawDeck.length}`);
-  ok(s.cards.hand.length >= 7, `tutorial hand dealt (${s.cards.hand.length} cards)`);
+  ok(s.cards.hand.length === 0, `hand starts EMPTY (got ${s.cards.hand.length})`);
   ok(net.water === cc.startWater && net.nitrogen === cc.startNitrogen && net.phosphorus === cc.startPhosphorus, 'starting W/N/P buffers set');
 
   // draw: −energy, +hand, −deck (check before the world tick)
@@ -148,6 +149,41 @@ console.log('# Winnable: route to the goal by playing cards');
   }
   const reach = Math.max(...net.nodes.map((n) => sub.colAtX(n.x)));
   ok(s.won, `routed to the goal via cards in ${guard} plays (reached col ${reach} / goalStart ${goalStart})`);
+}
+
+// ============================ E: pile-reward draft ==========================
+console.log('# Finishing a MAP food pile drafts a card; player piles do not');
+{
+  const s = createState(clone(), 20260703); isolate(s); initCards(s);
+  const sub = s.substrate, net = s.active;
+  ok(sub.foodPiles && sub.foodPiles.length > 0, `map food piles registered (${sub.foodPiles ? sub.foodPiles.length : 0})`);
+
+  // Take the first map pile: mark it colonized and fully drained, then tick.
+  const pile = sub.foodPiles[0];
+  for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; }
+  net.energy = 50;
+  const offers0 = s.cards.pendingOffers.length;
+  tickWorld(s);
+  ok(s.cards.pendingOffers.length === offers0 + 1, 'finishing a colonized map pile queues a draft offer');
+  const offer = s.cards.pendingOffers[0];
+  ok(offer && offer.choices.length === 3, `draft offers 3 cards (got ${offer ? offer.choices.length : 0})`);
+  ok(offer.choices.every((n) => CARD_BY_NAME[n] && CARD_BY_NAME[n].tutorial), 'all offered cards are from the tutorial set');
+
+  // Choosing adds it to hand for free — no Energy or resources spent to acquire.
+  const e0 = net.energy, h0 = s.cards.hand.length;
+  const cr = chooseOffer(s, offer.choices[0]);
+  ok(cr.ok && s.cards.hand.length === h0 + 1 && net.energy === e0, 'drafting a card adds it to hand for free (no cost)');
+  ok(s.cards.pendingOffers.length === offers0, 'the resolved offer is cleared from the queue');
+
+  // A pile the PLAYER placed grants NO draft (only map piles are tracked).
+  for (const p of sub.foodPiles) p.rewarded = true;     // neutralize any overlap
+  const before = s.cards.pendingOffers.length;
+  const px = sub.cellSize * 4, py = sub.surfaceY + sub.cellSize * 3;
+  sub.deposit(px, py, s.config.cards.substrateSmall, 1);
+  sub.cellsInRadius(px, py, sub.cellSize * 1.6, (cell) => { if (cell.maxNutrient > 0 && !cell.rock) { cell.colonized = 1; cell.nutrient = 0; } });
+  net.energy = 50;
+  tickWorld(s);
+  ok(s.cards.pendingOffers.length === before, 'finishing a player-placed pile grants NO draft');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

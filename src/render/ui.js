@@ -170,6 +170,12 @@ export class UI {
     // ---- Run-over overlay ----
     this.el.overlay = div('overlay hidden');
     root.appendChild(this.el.overlay);
+
+    // ---- Card-draft overlay (pick 1 of 3 after finishing a food pile) ----
+    if (cardsOn) {
+      this.el.offer = div('offer hidden');
+      root.appendChild(this.el.offer);
+    }
   }
 
   _actionButton(name) {
@@ -277,6 +283,7 @@ export class UI {
         this.el.skipBtn.innerHTML = `Skip <span class="cost">${cc.skipCostEnergy}⚡</span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
+      this._renderOffer();
     }
 
     // Old action buttons (only present when the card layer is off).
@@ -319,6 +326,38 @@ export class UI {
       list.appendChild(b);
     });
     if (!s.cards.hand.length) list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>';
+  }
+
+  // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
+  _renderOffer() {
+    const el = this.el.offer;
+    if (!el) return;
+    const s = this.state;
+    const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
+    if (!off) { el.classList.add('hidden'); return; }
+    const cards = off.choices.map((name) => {
+      const c = CARD_BY_NAME[name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const gate = [];
+      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
+      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
+      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
+      return `<button class="offercard" data-name="${escapeHtml(name)}">`
+        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="ct">${escapeHtml(c.type)}</span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span></button>`;
+    }).join('');
+    const more = s.cards.pendingOffers.length - 1;
+    el.innerHTML = `<div class="offerbox">`
+      + `<h2>Pile digested — draft a card</h2>`
+      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·N·P to play it.</p>`
+      + `<div class="offerrow">${cards}</div>`
+      + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
+      + `</div>`;
+    el.classList.remove('hidden');
+    el.querySelectorAll('.offercard').forEach((btn) => {
+      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
+    });
   }
 
   _renderLog() {

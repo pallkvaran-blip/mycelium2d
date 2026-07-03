@@ -4,11 +4,12 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **IMPLEMENTED (v8)** — **40 cards** (added draw engines for the two starters). The card layer
+> Status: **IMPLEMENTED (v9)** — **40 cards** (added draw engines for the two starters). The card layer
 > is now BUILT INTO THE GAME (`src/engine/cards.js`) and playable: deck/hand/W-P-N, draw/skip/play,
 > per-round engines, reach-the-goal win. Resources gate the core loops (grow=Water, digest=Nitrogen,
-> action=Phosphorus) + substrate=Nitrogen. No `rarity`; variable buy costs (cap ~40).
-> CURRENT rules: §10 → §11 → §12–16 (history) → **§17 (v8 implementation — authoritative)**.
+> action=Phosphorus) + substrate=Nitrogen. No `rarity`; variable buy costs (cap ~40). **v9: pile drafting
+> is live** — you start with an EMPTY hand and draft new cards by finishing map food piles.
+> CURRENT rules: §10 → §11 → §12–16 (history) → §17 (v8) → **§18 (v9 pile drafting — authoritative)**.
 
 ---
 
@@ -637,8 +638,43 @@ go card-dry with no energy and you die.
 ### 17.3 v8 implementation simplifications (revisit later)
 - **Action-per-tick**: every draw/play/skip advances the world one step (matches the existing engine).
   A distinct multi-play "round" is deferred.
-- **No pile drafting yet**: the premium hand is the tutorial set; buying new cards at food piles (the
-  pile → energy + draft) is not wired — the draw deck + draw engines are the card flow for now.
+- ~~**No pile drafting yet**~~ → **DONE in v9 (§18)**: finishing a map food pile now drafts a card. The
+  starting hand is empty; the draw deck + draw engines + pile drafts are the card flow.
 - **Action-type cards are one-shot** on play (they resolve immediately and discard) rather than
   installed-with-cooldown; Tap-Root is the one repeatable "engine" that clears on a timer.
 - **Defense effects are first-pass** (radius cure / snare / pile-seal); tuning pending playtests.
+
+## 18. v9 — pile drafting + empty starting hand (CURRENT — authoritative)
+
+The acquisition loop the earlier framework called for (§4 "food piles are the heartbeat") is now
+wired, in a simplified free-draft form.
+
+### 18.1 The rule
+- **Start with only your draw deck; the hand is EMPTY.** (Deck = 5× Hyphal Extension + 5× Leaf Litter
+  Cache + 5× Condense.) You draw basics to act.
+- **Finishing (fully digesting) a MAP food pile drafts a card.** When a map-placed pile you have
+  colonised is drained to zero, you pick **1 of 3 random cards from the tutorial set**. The card joins
+  your hand **for free** — you still pay its ⚡ + W/P/N to *play* it later.
+- **Only map piles count.** Piles you place yourself (Leaf Litter Cache / Humus Bed / Mycorrhizal Mat)
+  are not tracked and grant nothing — no farming your own substrate for cards.
+- The tutorial map has **+50% food piles** (`foodClusterCount` 9 → 14) so the draft loop has room to
+  breathe and the level is a touch easier.
+
+### 18.2 Code
+- **`src/engine/substrate.js`** — `sub.foodPiles = [{ cells, rewarded }]`, registered only for
+  generator-placed caches (`drop`). Overlapping drops merge into one pile (one blob = one draft).
+- **`src/engine/cards.js`** — `checkPileRewards(state)` (fires the draft when a colonised map pile hits
+  zero), `offerPileReward` (3 random tutorial-set cards into `state.cards.pendingOffers`), `chooseOffer`
+  (free add to hand). Card-dry death is suppressed while a draft is pending. `initCards` starts empty.
+- **`src/engine/turn.js`** — `tickWorld` runs `checkPileRewards` after engines, before the win check.
+- **`src/render/ui.js` / `index.html` / `src/main.js`** — a modal draft overlay (`.offer`) showing the
+  3 cards; tapping one drafts it (no world tick — it's a reward, not an action).
+- **`test/cards.test.js`** — draft fires on a finished map pile; 3 tutorial-set choices; free add;
+  player-placed piles grant nothing. (29/29 card tests; verified in-browser end-to-end.)
+
+### 18.3 Revisit later
+- Draft pool is the whole **tutorial set** (incl. the two starter basics). Once past the tutorial,
+  widen to the full collection / bias by what the pile "contained".
+- Free draft (no buy cost at the pile) — the earlier design charged each kept card's buy cost. Free is
+  friendlier for the tutorial; revisit for difficulty.
+- "Touched" = any pile cell colonised. Ants stealing an uncolonised pile grants nothing (intended).

@@ -12,7 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, cardNeedsTarget } from './engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, chooseOffer } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -65,6 +65,7 @@ function begin(newState) {
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
+    chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -183,6 +184,12 @@ const handlers = {
       return;
     }
     resolveCardOp(playCard(state, index));
+  },
+  onChooseCard(name) {
+    // Drafting a pile reward is free and does NOT advance the world.
+    const res = chooseOffer(state, name);
+    if (res.ok) uiDirty = true;
+    else if (res.message) { ui.setHint(res.message); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;

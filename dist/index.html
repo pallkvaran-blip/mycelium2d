@@ -181,19 +181,42 @@
     .cc.p { color: #c79be6; background: rgba(179,128,224,0.15); }
     .cc.free { color: var(--ink-dim); background: rgba(255,255,255,0.06); }
     .handempty { color: var(--ink-dim); font-size: 12px; padding: 8px 12px; }
+    /* Card-draft overlay: pick 1 of 3 after finishing a food pile */
+    .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
+    .offer.hidden { display: none; }
+    .offerbox { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+      padding: 20px 22px; max-width: 640px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
+    .offerbox h2 { font-size: 19px; margin: 0 0 6px; color: var(--accent); font-weight: 600; }
+    .offerbox p { margin: 4px 0; color: var(--ink); font-size: 13px; }
+    .offerbox p.dim { color: var(--ink-dim); }
+    .offerbox p.small { font-size: 12px; }
+    .offerrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .offercard { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 180px;
+      padding: 10px 12px; background: rgba(40,54,48,0.94); border: 1px solid var(--panel-border); border-radius: 10px;
+      color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; transition: transform .08s, background .08s, border-color .08s; }
+    .offercard:hover { background: rgba(60,84,72,0.98); transform: translateY(-2px); border-color: var(--accent); }
+    .offercard .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .offercard .cn { font-size: 13px; font-weight: 600; line-height: 1.15; }
+    .offercard .ct { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .offercard .cgate { display: flex; gap: 4px; flex: none; }
+    .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.32; }
     @media (max-width: 760px) {
       .handbar { bottom: 82px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
       .handlist { justify-content: flex-start; gap: 5px; max-height: 24vh; }
       .cardbtn { width: 150px; padding: 5px 7px; gap: 2px; }
       .cardbtn .cdesc { font-size: 9.5px; -webkit-line-clamp: 2; }
+      .offerbox { padding: 14px; max-width: 94vw; }
+      .offerrow { flex-direction: column; align-items: stretch; }
+      .offercard { width: auto; }
     }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "10hx1xr";
-globalThis.__BUILD__ = "local 07-03 05:48";
+window.__ASSET_VER = "1g32ch1";
+globalThis.__BUILD__ = "local 07-03 06:10";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -227,7 +250,7 @@ const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 9,         // SPARSE caches along the route — energy is a real constraint (a couple extra to offset rock-clearance trimming)
+    foodClusterCount: 14,        // caches along the route (each is a card-draft pile) — +50% over the old sparse 9 to make the tutorial map easier
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
@@ -1687,14 +1710,27 @@ function generateSubstrate(config, rng) {
         }
     return null;
   };
+  // Every cluster placed here is a MAP pile: finishing (fully digesting) one
+  // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
+  // through Substrate.deposit() and are NOT registered, so they grant nothing.
+  sub.foodPiles = [];
   const drop = (cc, cr, radius) => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
+    const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
+      cells.push(sub.index(col, row));
     });
+    if (!cells.length) return;
+    // A drop can be relocated onto an existing cache (findClear). Merge overlapping
+    // drops into ONE pile so a single connected blob grants exactly one draft.
+    const set = new Set(cells);
+    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
+    if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
+    else sub.foodPiles.push({ cells, rewarded: false });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -3239,9 +3275,14 @@ function shuffle(arr, rng) {
   return arr;
 }
 
+// The "tutorial set": the pool a finished food pile drafts 3 random cards from.
+const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial).map((c) => c.name);
+
 // --- setup ------------------------------------------------------------------
-// Build the starting deck+hand. `mode`: 'tutorial' (default) seeds the tutorial
-// hand; 'all' puts every premium card in hand (dev / free explore).
+// Build the starting deck. `mode`: 'tutorial' (default) starts with an EMPTY
+// hand — you draw basics from the deck, and DRAFT new premium cards by finishing
+// (fully digesting) the food piles the map placed. 'all' deals every premium
+// card to hand up-front (dev / free explore).
 function initCards(state, mode = 'tutorial') {
   const cc = state.config.cards;
   const net = state.active;
@@ -3253,15 +3294,54 @@ function initCards(state, mode = 'tutorial') {
 
   let seq = 0;
   const hand = [];
-  for (const c of CARD_DATA) {
-    if (c.type === 'basic') continue;
-    const take = mode === 'all' ? true : c.tutorial;
-    if (take) hand.push({ id: seq++, name: c.name });
+  if (mode === 'all') {
+    for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0 };
-  state.log('Card layer online: draw basics, play from your hand, reach the goal.', 'good');
+  state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  state.log('Card layer online: draw basics; finish a map food pile to draft a new card; reach the goal.', 'good');
   return state.cards;
+}
+
+// --- pile-reward draft ------------------------------------------------------
+// Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
+// one of 3 random tutorial-set cards, FREE (into hand). You still pay to play it.
+// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
+function offerPileReward(state) {
+  const C = state.cards;
+  const bag = TUTORIAL_POOL.slice();
+  shuffle(bag, state.rng);
+  C.pendingOffers.push({ choices: bag.slice(0, Math.min(3, bag.length)) });
+  state.log('A food pile is fully digested — choose a new card to add to your hand.', 'good');
+}
+
+function checkPileRewards(state) {
+  const C = state.cards; if (!C || !C.pendingOffers || state.runOver) return;
+  const sub = state.substrate; if (!sub || !sub.foodPiles) return;
+  const net = state.active; if (!net || !net.alive) return;
+  for (const pile of sub.foodPiles) {
+    if (pile.rewarded) continue;
+    let total = 0, touched = false;
+    for (const idx of pile.cells) {
+      const cell = sub.cells[idx]; if (!cell) continue;
+      total += cell.nutrient;
+      if (cell.colonized > 0) touched = true;   // the colony actually digested it
+    }
+    if (touched && total <= 1e-6) { pile.rewarded = true; offerPileReward(state); }
+  }
+}
+
+// Resolve a pending draft: add the chosen card to hand (free). No world tick —
+// drafting is a reward for an action already taken, not an action itself.
+function chooseOffer(state, cardName) {
+  const C = state.cards; if (!C) return { ok: false, message: 'No card layer.' };
+  const offer = C.pendingOffers && C.pendingOffers[0];
+  if (!offer) return { ok: false, message: 'No card reward to pick.' };
+  if (!offer.choices.includes(cardName)) return { ok: false, message: 'That card is not on offer.' };
+  C.hand.push({ id: C.seq++, name: cardName });
+  C.pendingOffers.shift();
+  state.log(`Drafted ${cardName} into your hand (free — you still pay to play it).`, 'good');
+  return { ok: true, card: cardName };
 }
 
 // --- costs / gating ---------------------------------------------------------
@@ -3394,7 +3474,8 @@ function checkGoalReached(state) {
   const dry = C.drawDeck.length === 0;
   const canSkip = net.energy >= cc.skipCostEnergy;
   const canPlay = C.hand.some((h) => !cardBlockedReason(state, h.name) && EFFECTS[h.name]);
-  if (dry && !canSkip && !canPlay) {
+  const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
+  if (dry && !canSkip && !canPlay && !hasDraft) {
     net.alive = false; state.runOver = true;
     state.runResult = { won: false, died: true, turns: state.turn };
     state.log('Card-dry and out of Energy — the colony stalls. Run over.', 'warn');
@@ -3577,7 +3658,7 @@ for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
   });
 }
 
-  return { initCards, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, produceCardEngines, checkGoalReached, EFFECTS };
+  return { initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, produceCardEngines, checkGoalReached, EFFECTS };
 })();
 
 // ===================== src/engine/turn.js =====================
@@ -3585,7 +3666,7 @@ const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
   const { stepAnts } = __m_engine_ants;
   const { stepNematodes } = __m_engine_nematodes;
-  const { produceCardEngines, checkGoalReached } = __m_engine_cards;
+  const { produceCardEngines, checkGoalReached, checkPileRewards } = __m_engine_cards;
 // =============================================================================
 // World tick (A2, B4).
 //
@@ -3647,6 +3728,7 @@ function tickWorld(state) {
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
   if (state.cards) {
     produceCardEngines(state);
+    checkPileRewards(state);   // a finished map pile grants a card draft
     checkGoalReached(state);
   }
 
@@ -5319,6 +5401,12 @@ class UI {
     // ---- Run-over overlay ----
     this.el.overlay = div('overlay hidden');
     root.appendChild(this.el.overlay);
+
+    // ---- Card-draft overlay (pick 1 of 3 after finishing a food pile) ----
+    if (cardsOn) {
+      this.el.offer = div('offer hidden');
+      root.appendChild(this.el.offer);
+    }
   }
 
   _actionButton(name) {
@@ -5426,6 +5514,7 @@ class UI {
         this.el.skipBtn.innerHTML = `Skip <span class="cost">${cc.skipCostEnergy}⚡</span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
+      this._renderOffer();
     }
 
     // Old action buttons (only present when the card layer is off).
@@ -5470,6 +5559,38 @@ class UI {
     if (!s.cards.hand.length) list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>';
   }
 
+  // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
+  _renderOffer() {
+    const el = this.el.offer;
+    if (!el) return;
+    const s = this.state;
+    const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
+    if (!off) { el.classList.add('hidden'); return; }
+    const cards = off.choices.map((name) => {
+      const c = CARD_BY_NAME[name] || { costW: 0, costN: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      const gate = [];
+      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
+      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
+      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
+      return `<button class="offercard" data-name="${escapeHtml(name)}">`
+        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="ct">${escapeHtml(c.type)}</span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span></button>`;
+    }).join('');
+    const more = s.cards.pendingOffers.length - 1;
+    el.innerHTML = `<div class="offerbox">`
+      + `<h2>Pile digested — draft a card</h2>`
+      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·N·P to play it.</p>`
+      + `<div class="offerrow">${cards}</div>`
+      + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
+      + `</div>`;
+    el.classList.remove('hidden');
+    el.querySelectorAll('.offercard').forEach((btn) => {
+      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
+    });
+  }
+
   _renderLog() {
     const list = this.el.loglist;
     if (!list) return;
@@ -5502,7 +5623,7 @@ const __m_main = (function () {
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { spawnNematodeAt } = __m_engine_nematodes;
   const { tickWorld } = __m_engine_turn;
-  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget } = __m_engine_cards;
+  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, chooseOffer } = __m_engine_cards;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
@@ -5564,6 +5685,7 @@ function begin(newState) {
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
+    chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -5682,6 +5804,12 @@ const handlers = {
       return;
     }
     resolveCardOp(playCard(state, index));
+  },
+  onChooseCard(name) {
+    // Drafting a pile reward is free and does NOT advance the world.
+    const res = chooseOffer(state, name);
+    if (res.ok) uiDirty = true;
+    else if (res.message) { ui.setHint(res.message); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;
