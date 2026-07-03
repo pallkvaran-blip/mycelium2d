@@ -155,8 +155,27 @@
     .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
-    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 6px; }
-    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1080px; max-height: 30vh; overflow-y: auto; }
+    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 8px; align-items: center; }
+    /* filter chips */
+    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; }
+    .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
+      padding: 3px 9px; border-radius: 999px; background: rgba(40,54,48,0.9); color: var(--ink-dim);
+      border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; }
+    .fchip:hover { color: var(--ink); border-color: rgba(130,230,166,0.4); }
+    .fchip.on { background: rgba(127,230,163,0.18); color: var(--accent); border-color: rgba(130,230,166,0.6); }
+    .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
+    /* carousel wrapper + nav (nav hidden on desktop; it's a wrap grid there) */
+    .handcarousel { display: flex; align-items: center; gap: 6px; max-width: 100%; }
+    .handnav { display: none; flex: 0 0 auto; width: 30px; align-self: stretch; border: 1px solid var(--panel-border);
+      background: rgba(20,28,24,0.92); color: var(--accent); border-radius: 9px; font-size: 20px; line-height: 1;
+      cursor: pointer; font-family: inherit; }
+    .handnav:active { background: rgba(40,60,48,0.98); }
+    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; max-height: 30vh; overflow-y: auto; }
+    /* stack count badge (×N) */
+    .stackn { position: absolute; top: 6px; right: 6px; z-index: 6; font-weight: 700; font-size: 11px; color: #eafff2;
+      background: rgba(6,12,9,0.82); border: 1px solid rgba(130,230,166,0.5); border-radius: 10px; padding: 1px 6px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.6); }
     /* V1 card face: dark body, glowing mycelium-cord border, art window on top */
     .cardbtn { position: relative; display: flex; flex-direction: column; align-items: stretch; width: 172px;
       padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
@@ -212,34 +231,62 @@
     .offercard .ct { font-size: 8.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; }
     .offercard .cgate { display: flex; gap: 4px; flex: none; }
     .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.34; }
+    /* PHONE PORTRAIT (and narrow windows): compact controls + a swipeable card carousel. */
     @media (max-width: 760px) {
-      /* Keep the control bar to ONE compact row (drop the deck count, tighten
-         buttons) so Draw/Skip/New Map/Puzzle fit without wrapping… */
       .actionbar { bottom: 56px; gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 6px 7px; font-size: 11px; }
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
-      /* …then float the hand ABOVE that row so it never covers Draw/Skip. */
-      .handbar { bottom: 108px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
-      .handlist { justify-content: flex-start; gap: 5px; max-height: 22vh; }
-      .cardbtn { width: 132px; }
-      .cardbtn .cart { height: 72px; }
-      .cardbtn .cbody { padding: 5px 6px 6px; }
-      .cardbtn .cn { font-size: 11px; }
-      .cardbtn .cdesc { font-size: 9px; -webkit-line-clamp: 2; }
+      .handbar { bottom: 108px; left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
+        align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
+      .handfilter::-webkit-scrollbar { display: none; }
+      .handcarousel { align-self: stretch; }
+      .handnav { display: flex; align-items: center; justify-content: center; }
+      .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+        justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .handlist::-webkit-scrollbar { display: none; }
+      .cardbtn { width: 46vw; max-width: 210px; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 104px; }
+      .cardbtn .cbody { padding: 6px 8px 8px; }
+      .cardbtn .cn { font-size: 12.5px; }
+      .cardbtn .cdesc { font-size: 10px; -webkit-line-clamp: 2; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { gap: 8px; }
       .offercard { width: 30vw; max-width: 180px; }
       .offercard .cart { height: 88px; }
       .offercard .cdesc { font-size: 9.5px; -webkit-line-clamp: 3; }
     }
+    /* PHONE LANDSCAPE: almost no height — sit low, short scrollable cards, no rules text. */
+    @media (orientation: landscape) and (max-height: 520px) {
+      .hint { display: none; }
+      .actionbar { bottom: 6px; left: 6px; right: auto; transform: none; gap: 4px; padding: 4px 6px; flex-wrap: nowrap; }
+      .actionbar .btn { padding: 5px 7px; font-size: 11px; }
+      .actionbar .deckbtn .deckn { display: none; }
+      .actionbar .ctrl { gap: 4px; }
+      .handbar { bottom: 46px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
+      .handfilter::-webkit-scrollbar { display: none; }
+      .fchip { font-size: 10px; padding: 2px 7px; }
+      .handcarousel { align-self: stretch; }
+      .handnav { display: flex; align-items: center; justify-content: center; width: 26px; font-size: 17px; }
+      .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+        justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
+      .handlist::-webkit-scrollbar { display: none; }
+      .cardbtn { width: 156px; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 50px; }
+      .cardbtn .cbody { padding: 4px 7px 5px; gap: 2px; }
+      .cardbtn .cn { font-size: 11px; }
+      .cardbtn .cdesc { display: none; }
+    }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "ulfn0e";
-globalThis.__BUILD__ = "local 07-03 17:34";
+window.__ASSET_VER = "taml7i";
+globalThis.__BUILD__ = "local 07-03 17:53";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5253,6 +5300,7 @@ class UI {
     this.handlers = handlers;
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
+    this.handFilter = 'all';          // active card-hand filter group key
     this.el = {};
     this._build();
   }
@@ -5324,8 +5372,24 @@ class UI {
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
       const hand = div('panel handbar');
-      hand.innerHTML = `<div class="handlist" id="handlist"></div>`;
+      hand.innerHTML =
+        `<div class="handfilter" id="handfilter"></div>`
+        + `<div class="handcarousel">`
+        + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
+        + `<div class="handlist" id="handlist"></div>`
+        + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
+        + `</div>`;
+      this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
+      this.el.handfilter = hand.querySelector('#handfilter');
+      const scrollByCard = (dir) => {
+        const t = this.el.handlist; if (!t) return;
+        const card = t.querySelector('.cardbtn');
+        const step = card ? card.offsetWidth + 8 : t.clientWidth * 0.8;
+        t.scrollBy({ left: dir * step, behavior: 'smooth' });
+      };
+      hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
+      hand.querySelector('#handnext').onclick = () => scrollByCard(1);
       root.appendChild(hand);
     }
 
@@ -5531,23 +5595,58 @@ class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
-    list.innerHTML = '';
+
+    // STACK: group identical cards by name; keep the first hand index to play.
+    const groups = new Map();
     s.cards.hand.forEach((h, i) => {
-      const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      let g = groups.get(h.name);
+      if (!g) { g = { name: h.name, card: CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' }, count: 0, firstIndex: i }; groups.set(h.name, g); }
+      g.count++;
+    });
+    const all = [...groups.values()];
+
+    // FILTER chips (built from the groups present), then apply the active filter.
+    this._renderHandFilter(all);
+    const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroup(g.card).key === this.handFilter);
+
+    const prevScroll = list.scrollLeft;
+    if (!s.cards.hand.length) { list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>'; return; }
+    list.innerHTML = '';
+    if (!filtered.length) { list.innerHTML = '<div class="handempty">No cards in this filter.</div>'; return; }
+
+    filtered.forEach((g) => {
+      const c = g.card;
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
-      const pending = this.pendingCard && this.pendingCard.id === h.id;
+      const pending = this.pendingCard && this.pendingCard.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
-        cardArt(h.name)
+        cardArt(g.name)
+        + (g.count > 1 ? `<span class="stackn">×${g.count}</span>` : '')
         + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="chead"><span class="cn">${escapeHtml(g.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
         + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
         + `</span>`);
       b.title = c.effect;
-      b.onclick = () => this.handlers.onPlayCard(i);
+      b.onclick = () => this.handlers.onPlayCard(g.firstIndex);
       list.appendChild(b);
     });
-    if (!s.cards.hand.length) list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>';
+    list.scrollLeft = prevScroll;   // keep carousel position across a re-render
+  }
+
+  // Filter chips: All + one per card group present in hand (with counts).
+  _renderHandFilter(groups) {
+    const fbar = this.el.handfilter;
+    if (!fbar) return;
+    const present = new Map();
+    groups.forEach((g) => { const gr = cardGroup(g.card); const e = present.get(gr.key) || { key: gr.key, label: gr.label, n: 0 }; e.n += g.count; present.set(gr.key, e); });
+    if (this.handFilter !== 'all' && !present.has(this.handFilter)) this.handFilter = 'all';  // active filter emptied out
+    const total = groups.reduce((a, g) => a + g.count, 0);
+    const ordered = GROUP_ORDER.filter((k) => present.has(k)).map((k) => present.get(k));
+    const chip = (key, label, n, on) => `<button class="fchip${on ? ' on' : ''}" data-f="${key}">${escapeHtml(label)}<span class="fn">${n}</span></button>`;
+    // Only worth showing filters when there's more than one group.
+    fbar.style.display = ordered.length > 1 ? '' : 'none';
+    fbar.innerHTML = chip('all', 'All', total, this.handFilter === 'all') + ordered.map((e) => chip(e.key, e.label, e.n, this.handFilter === e.key)).join('');
+    fbar.querySelectorAll('.fchip').forEach((b) => { b.onclick = () => { this.handFilter = b.dataset.f; this._renderHand(); }; });
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
@@ -5602,6 +5701,22 @@ function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/
 // The art window: a bespoke image per card; if it's missing the dark gradient shows through.
 function cardArt(name) {
   return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+}
+// Card -> filter group (bucket). Used for the hand filter chips + stacking view.
+const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
+function cardGroup(c) {
+  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
+  if (t === 'extender') return { key: 'extender', label: 'Draw' };
+  if (cat.includes('growth')) return { key: 'grow', label: 'Grow' };
+  if (cat.includes('substrate')) return { key: 'substrate', label: 'Substrate' };
+  if (cat.includes('economy') || cat.includes('digest')) return { key: 'digest', label: 'Digest' };
+  if (fam === 'water' || cat.includes('water')) return { key: 'water', label: 'Water' };
+  if (fam === 'phosphorus' || cat.includes('phosphorus') || cat.includes('mineral')) return { key: 'mineral', label: 'Mineral' };
+  if (fam === 'energy' || cat.includes('energy')) return { key: 'energy', label: 'Energy' };
+  if (t === 'engine') return { key: 'engine', label: 'Engine' };
+  if (cat.includes('defense') || cat.includes('anti')) return { key: 'defense', label: 'Defense' };
+  if (t === 'event' || t === 'action') return { key: 'action', label: 'Action' };
+  return { key: 'other', label: 'Other' };
 }
 // Themed cost pips (Energy / Water / Phosphorus).
 function gateChips(c) {

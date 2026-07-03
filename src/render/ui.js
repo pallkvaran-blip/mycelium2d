@@ -27,6 +27,7 @@ export class UI {
     this.handlers = handlers;
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
+    this.handFilter = 'all';          // active card-hand filter group key
     this.el = {};
     this._build();
   }
@@ -98,8 +99,24 @@ export class UI {
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
       const hand = div('panel handbar');
-      hand.innerHTML = `<div class="handlist" id="handlist"></div>`;
+      hand.innerHTML =
+        `<div class="handfilter" id="handfilter"></div>`
+        + `<div class="handcarousel">`
+        + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
+        + `<div class="handlist" id="handlist"></div>`
+        + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
+        + `</div>`;
+      this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
+      this.el.handfilter = hand.querySelector('#handfilter');
+      const scrollByCard = (dir) => {
+        const t = this.el.handlist; if (!t) return;
+        const card = t.querySelector('.cardbtn');
+        const step = card ? card.offsetWidth + 8 : t.clientWidth * 0.8;
+        t.scrollBy({ left: dir * step, behavior: 'smooth' });
+      };
+      hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
+      hand.querySelector('#handnext').onclick = () => scrollByCard(1);
       root.appendChild(hand);
     }
 
@@ -305,23 +322,58 @@ export class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
-    list.innerHTML = '';
+
+    // STACK: group identical cards by name; keep the first hand index to play.
+    const groups = new Map();
     s.cards.hand.forEach((h, i) => {
-      const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      let g = groups.get(h.name);
+      if (!g) { g = { name: h.name, card: CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' }, count: 0, firstIndex: i }; groups.set(h.name, g); }
+      g.count++;
+    });
+    const all = [...groups.values()];
+
+    // FILTER chips (built from the groups present), then apply the active filter.
+    this._renderHandFilter(all);
+    const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroup(g.card).key === this.handFilter);
+
+    const prevScroll = list.scrollLeft;
+    if (!s.cards.hand.length) { list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>'; return; }
+    list.innerHTML = '';
+    if (!filtered.length) { list.innerHTML = '<div class="handempty">No cards in this filter.</div>'; return; }
+
+    filtered.forEach((g) => {
+      const c = g.card;
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
-      const pending = this.pendingCard && this.pendingCard.id === h.id;
+      const pending = this.pendingCard && this.pendingCard.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
-        cardArt(h.name)
+        cardArt(g.name)
+        + (g.count > 1 ? `<span class="stackn">×${g.count}</span>` : '')
         + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="chead"><span class="cn">${escapeHtml(g.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
         + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
         + `</span>`);
       b.title = c.effect;
-      b.onclick = () => this.handlers.onPlayCard(i);
+      b.onclick = () => this.handlers.onPlayCard(g.firstIndex);
       list.appendChild(b);
     });
-    if (!s.cards.hand.length) list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>';
+    list.scrollLeft = prevScroll;   // keep carousel position across a re-render
+  }
+
+  // Filter chips: All + one per card group present in hand (with counts).
+  _renderHandFilter(groups) {
+    const fbar = this.el.handfilter;
+    if (!fbar) return;
+    const present = new Map();
+    groups.forEach((g) => { const gr = cardGroup(g.card); const e = present.get(gr.key) || { key: gr.key, label: gr.label, n: 0 }; e.n += g.count; present.set(gr.key, e); });
+    if (this.handFilter !== 'all' && !present.has(this.handFilter)) this.handFilter = 'all';  // active filter emptied out
+    const total = groups.reduce((a, g) => a + g.count, 0);
+    const ordered = GROUP_ORDER.filter((k) => present.has(k)).map((k) => present.get(k));
+    const chip = (key, label, n, on) => `<button class="fchip${on ? ' on' : ''}" data-f="${key}">${escapeHtml(label)}<span class="fn">${n}</span></button>`;
+    // Only worth showing filters when there's more than one group.
+    fbar.style.display = ordered.length > 1 ? '' : 'none';
+    fbar.innerHTML = chip('all', 'All', total, this.handFilter === 'all') + ordered.map((e) => chip(e.key, e.label, e.n, this.handFilter === e.key)).join('');
+    fbar.querySelectorAll('.fchip').forEach((b) => { b.onclick = () => { this.handFilter = b.dataset.f; this._renderHand(); }; });
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
@@ -376,6 +428,22 @@ function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/
 // The art window: a bespoke image per card; if it's missing the dark gradient shows through.
 function cardArt(name) {
   return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+}
+// Card -> filter group (bucket). Used for the hand filter chips + stacking view.
+const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
+function cardGroup(c) {
+  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
+  if (t === 'extender') return { key: 'extender', label: 'Draw' };
+  if (cat.includes('growth')) return { key: 'grow', label: 'Grow' };
+  if (cat.includes('substrate')) return { key: 'substrate', label: 'Substrate' };
+  if (cat.includes('economy') || cat.includes('digest')) return { key: 'digest', label: 'Digest' };
+  if (fam === 'water' || cat.includes('water')) return { key: 'water', label: 'Water' };
+  if (fam === 'phosphorus' || cat.includes('phosphorus') || cat.includes('mineral')) return { key: 'mineral', label: 'Mineral' };
+  if (fam === 'energy' || cat.includes('energy')) return { key: 'energy', label: 'Energy' };
+  if (t === 'engine') return { key: 'engine', label: 'Engine' };
+  if (cat.includes('defense') || cat.includes('anti')) return { key: 'defense', label: 'Defense' };
+  if (t === 'event' || t === 'action') return { key: 'action', label: 'Action' };
+  return { key: 'other', label: 'Other' };
 }
 // Themed cost pips (Energy / Water / Phosphorus).
 function gateChips(c) {
