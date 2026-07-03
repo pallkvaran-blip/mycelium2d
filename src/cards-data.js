@@ -1,6 +1,6 @@
 // =============================================================================
 // Card data — GENERATED from docs/cards.json (do not edit by hand).
-// Regenerate: node scripts/gen-carddata.mjs  (or the scratchpad generator).
+// Regenerate: node scripts/gen-carddata.mjs
 // Engine-relevant fields only. Effects are dispatched by name in engine/cards.js.
 // =============================================================================
 export const CARD_DATA = [
@@ -287,8 +287,8 @@ export const CARD_DATA = [
   "timing": "early",
   "repay": 4,
   "threat": "none",
-  "produces": "+2 Water/round",
-  "effect": "Install. Gain +2 Water at the end of each round.",
+  "produces": "+1 Water / 2 rounds",
+  "effect": "Install. Gain +1 Water every 2 rounds.",
   "family": "water",
   "tutorial": true,
   "startCopies": 0

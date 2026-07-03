@@ -151,10 +151,18 @@ export function produceCardEngines(state) {
   const cc = state.config.cards;
   let energySum = 0;
   for (const e of C.engines) {
-    if (e.energy) energySum += e.energy;
-    if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
-    if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
-    if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+    // Cadence: an engine with `every > 1` produces only every N rounds (ticks).
+    let due = true;
+    if (e.every && e.every > 1) {
+      e._et = (e._et || 0) + 1;
+      if (e._et < e.every) due = false; else e._et = 0;
+    }
+    if (due) {
+      if (e.energy) energySum += e.energy;
+      if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
+      if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
+      if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+    }
     if (e.digEvery) {
       e._t = (e._t || 0) + 1;
       if (e._t >= e.digEvery) { e._t = 0; digNearestRock(state, e.digClasses || ['formation', 'column']); }
@@ -324,7 +332,7 @@ export const EFFECTS = {
   'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: draws cost 3 less.'),
 
   // --- resource engines ---
-  'Aquaporin Channels': engine({ water: 2 }, 'Installed: +2 Water/round.'),
+  'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
   'Mineralizing Saprobe': engine({ nitrogen: 1 }, 'Installed: +1 Nitrogen/round.'),
 

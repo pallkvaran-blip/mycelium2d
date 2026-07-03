@@ -155,7 +155,7 @@
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 6px; }
-    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1080px; max-height: 42vh; overflow-y: auto; }
+    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1080px; max-height: 30vh; overflow-y: auto; }
     .cardbtn { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 178px;
       padding: 7px 9px; background: rgba(40,54,48,0.94); border: 1px solid var(--panel-border); border-radius: 8px;
       color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; }
@@ -166,7 +166,8 @@
     .cardbtn .cn { font-size: 12.5px; font-weight: 600; line-height: 1.15; }
     .cardbtn .ct { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; }
     .cardbtn .cgate { display: flex; gap: 4px; flex: none; }
-    .cardbtn .cdesc { font-size: 10px; color: var(--ink-dim); line-height: 1.32; white-space: normal; }
+    .cardbtn .cdesc { font-size: 10px; color: var(--ink-dim); line-height: 1.3; white-space: normal;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .cc { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 4px; }
     .cc.e { color: var(--accent); background: rgba(127,230,163,0.14); }
     .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
@@ -174,14 +175,19 @@
     .cc.p { color: #c79be6; background: rgba(179,128,224,0.15); }
     .cc.free { color: var(--ink-dim); background: rgba(255,255,255,0.06); }
     .handempty { color: var(--ink-dim); font-size: 12px; padding: 8px 12px; }
-    @media (max-width: 760px) { .handbar { bottom: 92px; left: 6px; right: 6px; transform: none; max-width: none; } .handlist { justify-content: flex-start; } .cardbtn { min-width: 88px; } }
+    @media (max-width: 760px) {
+      .handbar { bottom: 82px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
+      .handlist { justify-content: flex-start; gap: 5px; max-height: 24vh; }
+      .cardbtn { width: 150px; padding: 5px 7px; gap: 2px; }
+      .cardbtn .cdesc { font-size: 9.5px; -webkit-line-clamp: 2; }
+    }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1kj0ia0";
-globalThis.__BUILD__ = "local 07-03 05:06";
+window.__ASSET_VER = "1bwgpnk";
+globalThis.__BUILD__ = "local 07-03 05:27";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -563,7 +569,7 @@ function setByPath(obj, path, value) {
 const __m_cards_data = (function () {
 // =============================================================================
 // Card data — GENERATED from docs/cards.json (do not edit by hand).
-// Regenerate: node scripts/gen-carddata.mjs  (or the scratchpad generator).
+// Regenerate: node scripts/gen-carddata.mjs
 // Engine-relevant fields only. Effects are dispatched by name in engine/cards.js.
 // =============================================================================
 const CARD_DATA = [
@@ -850,8 +856,8 @@ const CARD_DATA = [
   "timing": "early",
   "repay": 4,
   "threat": "none",
-  "produces": "+2 Water/round",
-  "effect": "Install. Gain +2 Water at the end of each round.",
+  "produces": "+1 Water / 2 rounds",
+  "effect": "Install. Gain +1 Water every 2 rounds.",
   "family": "water",
   "tutorial": true,
   "startCopies": 0
@@ -3335,10 +3341,18 @@ function produceCardEngines(state) {
   const cc = state.config.cards;
   let energySum = 0;
   for (const e of C.engines) {
-    if (e.energy) energySum += e.energy;
-    if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
-    if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
-    if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+    // Cadence: an engine with `every > 1` produces only every N rounds (ticks).
+    let due = true;
+    if (e.every && e.every > 1) {
+      e._et = (e._et || 0) + 1;
+      if (e._et < e.every) due = false; else e._et = 0;
+    }
+    if (due) {
+      if (e.energy) energySum += e.energy;
+      if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
+      if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
+      if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+    }
     if (e.digEvery) {
       e._t = (e._t || 0) + 1;
       if (e._t >= e.digEvery) { e._t = 0; digNearestRock(state, e.digClasses || ['formation', 'column']); }
@@ -3508,7 +3522,7 @@ const EFFECTS = {
   'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: draws cost 3 less.'),
 
   // --- resource engines ---
-  'Aquaporin Channels': engine({ water: 2 }, 'Installed: +2 Water/round.'),
+  'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
   'Mineralizing Saprobe': engine({ nitrogen: 1 }, 'Installed: +1 Nitrogen/round.'),
 

@@ -41,9 +41,12 @@ console.log('# Card economy + effects');
   net.energy = 100; produceCardEngines(s);
   ok(net.energy === 104, `energy engine produces +4/tick (got ${net.energy})`);
 
+  net.energy = 100;
   const wi = ensureHand(s, 'Aquaporin Channels'); playCard(s, wi);
   net.water = 0; produceCardEngines(s);
-  ok(net.water === 2, `water engine produces +2/tick (got ${net.water})`);
+  ok(net.water === 0, 'water engine does not produce on the off-round (every 2 rounds)');
+  produceCardEngines(s);
+  ok(net.water === 1, `water engine produces +1 every 2 rounds (got ${net.water})`);
 
   // engine energy clamp (< skip)
   s.cards.engines = [{ energy: 8 }, { energy: 8 }]; net.energy = 0; produceCardEngines(s);
