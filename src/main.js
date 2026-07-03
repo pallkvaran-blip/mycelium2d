@@ -1202,7 +1202,7 @@ function drawMountains() {
       if (_rangeBuf.width !== bandW || _rangeBuf.height !== bandH) { _rangeBuf.width = bandW; _rangeBuf.height = bandH; }
       const bctx = _rangeBuf.getContext('2d');
       bctx.clearRect(0, 0, bandW, bandH);
-      bctx.filter = 'brightness(0.58) saturate(0.65) blur(1.2px)';  // atmospheric — push it far back
+      bctx.filter = 'brightness(0.72) saturate(0.78) blur(1.0px)';  // atmospheric — far back, but readable
       bctx.drawImage(img, s.x - sw / 2, (by - sh) - skyTopY, sw, sh);
       bctx.filter = 'none';
       const fade = bctx.createLinearGradient(0, bandH * 0.42, 0, bandH);
@@ -1213,7 +1213,7 @@ function drawMountains() {
       bctx.fillRect(0, 0, bandW, bandH);
       bctx.globalCompositeOperation = 'source-over';
       ctx.save();
-      ctx.globalAlpha = 0.4;                                  // distant haze
+      ctx.globalAlpha = 0.55;                                 // distant haze
       ctx.drawImage(_rangeBuf, 0, skyTopY);
       ctx.restore();
     }
