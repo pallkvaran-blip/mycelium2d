@@ -15,16 +15,19 @@ permissions:
   pages: write
   id-token: write
 
+# Don't cancel an in-progress deploy (GitHub's recommended Pages setting):
+# cancelling a run mid-deploy can leave the Pages backend in a state that makes
+# the NEXT run fail with "Deployment failed, try again later." Queue instead.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.dep1.outputs.page_url || steps.dep2.outputs.page_url || steps.dep3.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,6 +50,29 @@ jobs:
         with:
           path: dist
 
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # The Pages deploy backend intermittently returns a hard "Deployment failed,
+      # try again later." on the first attempt, and actions/deploy-pages does NOT
+      # retry that. So we attempt up to 3 times with backoff — a transient failure
+      # self-heals in the same run instead of needing a manual re-dispatch. Only the
+      # LAST attempt is allowed to fail the job.
+      - name: Deploy to GitHub Pages (try 1)
+        id: dep1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait, then retry (try 2)
+        if: steps.dep1.outcome == 'failure'
+        run: sleep 20
+      - name: Deploy to GitHub Pages (try 2)
+        id: dep2
+        if: steps.dep1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait, then retry (try 3)
+        if: steps.dep1.outcome == 'failure' && steps.dep2.outcome == 'failure'
+        run: sleep 40
+      - name: Deploy to GitHub Pages (try 3)
+        id: dep3
+        if: steps.dep1.outcome == 'failure' && steps.dep2.outcome == 'failure'
         uses: actions/deploy-pages@v4
