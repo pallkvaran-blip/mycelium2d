@@ -216,8 +216,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1omlpcu";
-globalThis.__BUILD__ = "local 07-03 11:06";
+window.__ASSET_VER = "1lq6r5z";
+globalThis.__BUILD__ = "local 07-03 11:49";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -549,7 +549,7 @@ const CONFIG = {
   },
 
   dev: {
-    enabled: true,              // show dev cheats + sliders (remove for release)
+    enabled: false,             // dev cheats + sliders panel (off — hidden from the game UI)
     cheatEnergy: 100,
     cheatSpores: 100,
   },
@@ -5650,7 +5650,9 @@ function begin(newState) {
   // Card layer online for procedural (non-puzzle) runs.
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state);
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = {
+  // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing
+  // even with the dev-tools panel off; remove for a public release.
+  window.__game = {
     get state() { return state; }, camera, performAction, tickWorld,
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),

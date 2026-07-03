@@ -326,7 +326,7 @@ export const CONFIG = {
   },
 
   dev: {
-    enabled: true,              // show dev cheats + sliders (remove for release)
+    enabled: false,             // dev cheats + sliders panel (off — hidden from the game UI)
     cheatEnergy: 100,
     cheatSpores: 100,
   },

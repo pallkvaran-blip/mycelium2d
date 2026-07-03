@@ -60,7 +60,9 @@ function begin(newState) {
   // Card layer online for procedural (non-puzzle) runs.
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state);
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = {
+  // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing
+  // even with the dev-tools panel off; remove for a public release.
+  window.__game = {
     get state() { return state; }, camera, performAction, tickWorld,
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),
