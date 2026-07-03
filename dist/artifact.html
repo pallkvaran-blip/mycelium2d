@@ -233,11 +233,24 @@
     .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.34; }
     /* PHONE PORTRAIT (and narrow windows): compact controls + a swipeable card carousel. */
     @media (max-width: 760px) {
-      .actionbar { bottom: 56px; gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
+      /* HUD + Event Log share the top as equal, non-overlapping halves of matched height */
+      .hud { top: 8px; left: 8px; right: auto; min-width: 0; width: 56%; max-width: 240px;
+        height: 122px; padding: 8px 10px; overflow: hidden; }
+      .hud .title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .hud .sub { font-size: 9px; }
+      .hud .stats { gap: 3px 10px; }
+      .hud .stat .v { font-size: 15px; }
+      .hud .vitality { margin-top: 8px; }
+      .logpanel { top: 8px; right: 8px; left: auto; width: 40%; max-width: 200px;
+        height: 122px; max-height: none; padding: 8px 10px; }
+      .logpanel .title { font-size: 12px; }
+      .loglist { font-size: 9.5px; line-height: 1.4; }
+      /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
+      .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 6px 7px; font-size: 11px; }
       .actionbar .deckbtn .deckn { display: none; }
       .actionbar .ctrl { gap: 4px; }
-      .handbar { bottom: 108px; left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handbar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
@@ -285,8 +298,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "taml7i";
-globalThis.__BUILD__ = "local 07-03 17:53";
+window.__ASSET_VER = "y9nhxc";
+globalThis.__BUILD__ = "local 07-03 18:05";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
