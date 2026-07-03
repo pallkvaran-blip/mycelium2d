@@ -11,6 +11,7 @@
       --accent-dim: #3a6f50;
       --warn: #e0a85a;
       --danger: #e06a6a;
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg);
@@ -156,17 +157,27 @@
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 6px; }
     .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1080px; max-height: 30vh; overflow-y: auto; }
-    .cardbtn { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 178px;
-      padding: 7px 9px; background: rgba(40,54,48,0.94); border: 1px solid var(--panel-border); border-radius: 8px;
-      color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; }
-    .cardbtn:hover:not(.unaff) { background: rgba(60,84,72,0.98); }
-    .cardbtn.unaff { opacity: 0.45; cursor: not-allowed; }
-    .cardbtn.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    /* V1 card face: dark body, glowing mycelium-cord border, art window on top */
+    .cardbtn { position: relative; display: flex; flex-direction: column; align-items: stretch; width: 172px;
+      padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
+      border: 2px solid rgba(130,230,166,0.5); border-radius: 12px; color: var(--ink);
+      cursor: pointer; text-align: left; font-family: inherit;
+      box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 6px 16px -8px rgba(0,0,0,0.7); }
+    .cardbtn:hover:not(.unaff) { border-color: rgba(170,255,205,0.85);
+      box-shadow: 0 0 14px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.28), 0 8px 18px -8px rgba(0,0,0,0.8); }
+    .cardbtn.unaff { opacity: 0.5; cursor: not-allowed; }
+    .cardbtn.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
+    .cart { position: relative; display: block; height: 90px; overflow: hidden;
+      background: radial-gradient(circle at 50% 40%, #16241c, #060f0b); }
+    .caimg { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cart::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, transparent 58%, rgba(7,12,10,0.92)); }
+    .cbody { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
     .cardbtn .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .cardbtn .cn { font-size: 12.5px; font-weight: 600; line-height: 1.15; }
-    .cardbtn .ct { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-    .cardbtn .cgate { display: flex; gap: 4px; flex: none; }
-    .cardbtn .cdesc { font-size: 10px; color: var(--ink-dim); line-height: 1.3; white-space: normal;
+    .cardbtn .cn { font-family: var(--serif); font-size: 12.5px; font-weight: 600; line-height: 1.12; color: #eaf4ee; }
+    .cardbtn .ct { font-size: 8.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+    .cardbtn .cgate { display: flex; gap: 3px; flex: none; }
+    .cardbtn .cdesc { font-size: 9.5px; color: var(--ink-dim); line-height: 1.3; white-space: normal;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .cc { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 4px; }
     .cc.e { color: var(--accent); background: rgba(127,230,163,0.14); }
@@ -186,15 +197,21 @@
     .offerbox p.dim { color: var(--ink-dim); }
     .offerbox p.small { font-size: 12px; }
     .offerrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
-    .offercard { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 180px;
-      padding: 10px 12px; background: rgba(40,54,48,0.94); border: 1px solid var(--panel-border); border-radius: 10px;
-      color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; transition: transform .08s, background .08s, border-color .08s; }
-    .offercard:hover { background: rgba(60,84,72,0.98); transform: translateY(-2px); border-color: var(--accent); }
+    .offercard { position: relative; display: flex; flex-direction: column; align-items: stretch; width: 194px;
+      padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
+      border: 2px solid rgba(130,230,166,0.55); border-radius: 14px; color: var(--ink);
+      cursor: pointer; text-align: left; font-family: inherit;
+      box-shadow: 0 0 10px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.2), 0 10px 24px -10px rgba(0,0,0,0.8);
+      transition: transform .08s, box-shadow .08s, border-color .08s; }
+    .offercard:hover { transform: translateY(-3px); border-color: #eafff2;
+      box-shadow: 0 0 16px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.3), 0 12px 26px -10px rgba(0,0,0,0.85); }
+    .offercard .cart { height: 118px; }
+    .offercard .cbody { padding: 8px 11px 11px; gap: 4px; }
     .offercard .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .offercard .cn { font-size: 13px; font-weight: 600; line-height: 1.15; }
-    .offercard .ct { font-size: 8.5px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .offercard .cn { font-family: var(--serif); font-size: 14.5px; font-weight: 600; line-height: 1.12; color: #eaf4ee; }
+    .offercard .ct { font-size: 8.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; }
     .offercard .cgate { display: flex; gap: 4px; flex: none; }
-    .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.32; }
+    .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.34; }
     @media (max-width: 760px) {
       /* Keep the control bar to ONE compact row (drop the deck count, tighten
          buttons) so Draw/Skip/New Map/Puzzle fit without wrapping… */
@@ -205,19 +222,24 @@
       /* …then float the hand ABOVE that row so it never covers Draw/Skip. */
       .handbar { bottom: 108px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px; }
       .handlist { justify-content: flex-start; gap: 5px; max-height: 22vh; }
-      .cardbtn { width: 150px; padding: 5px 7px; gap: 2px; }
-      .cardbtn .cdesc { font-size: 9.5px; -webkit-line-clamp: 2; }
+      .cardbtn { width: 132px; }
+      .cardbtn .cart { height: 72px; }
+      .cardbtn .cbody { padding: 5px 6px 6px; }
+      .cardbtn .cn { font-size: 11px; }
+      .cardbtn .cdesc { font-size: 9px; -webkit-line-clamp: 2; }
       .offerbox { padding: 14px; max-width: 94vw; }
-      .offerrow { flex-direction: column; align-items: stretch; }
-      .offercard { width: auto; }
+      .offerrow { gap: 8px; }
+      .offercard { width: 30vw; max-width: 180px; }
+      .offercard .cart { height: 88px; }
+      .offercard .cdesc { font-size: 9.5px; -webkit-line-clamp: 3; }
     }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1lq6r5z";
-globalThis.__BUILD__ = "local 07-03 11:49";
+window.__ASSET_VER = "ulfn0e";
+globalThis.__BUILD__ = "local 07-03 17:34";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5512,17 +5534,15 @@ class UI {
     list.innerHTML = '';
     s.cards.hand.forEach((h, i) => {
       const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      const gate = [];
-      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
-        `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`);
+        cardArt(h.name)
+        + `<span class="cbody">`
+        + `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
+        + `</span>`);
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(i);
       list.appendChild(b);
@@ -5539,14 +5559,13 @@ class UI {
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      const gate = [];
-      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       return `<button class="offercard" data-name="${escapeHtml(name)}">`
-        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + cardArt(name)
+        + `<span class="cbody">`
+        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
         + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span></button>`;
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
+        + `</span></button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
@@ -5578,6 +5597,20 @@ function span(t, cls) { const s = document.createElement('span'); s.className = 
 function button(cls, html) { const b = document.createElement('button'); b.className = cls; b.innerHTML = html; return b; }
 function text(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
+function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+// The art window: a bespoke image per card; if it's missing the dark gradient shows through.
+function cardArt(name) {
+  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+}
+// Themed cost pips (Energy / Water / Phosphorus).
+function gateChips(c) {
+  const g = [];
+  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+  if (c.costW) g.push(`<span class="cc w">${c.costW}W</span>`);
+  if (c.costP) g.push(`<span class="cc p">${c.costP}P</span>`);
+  return g.join('');
+}
 function vitalityColor(v) {
   const r = Math.round(200 - v * 140), g = Math.round(70 + v * 150), b = Math.round(60 + v * 40);
   return `rgb(${r},${g},${b})`;

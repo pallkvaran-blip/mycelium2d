@@ -308,17 +308,15 @@ export class UI {
     list.innerHTML = '';
     s.cards.hand.forEach((h, i) => {
       const c = CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      const gate = [];
-      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.id === h.id;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
       const b = button(cls,
-        `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`);
+        cardArt(h.name)
+        + `<span class="cbody">`
+        + `<span class="chead"><span class="cn">${escapeHtml(h.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
+        + `</span>`);
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(i);
       list.appendChild(b);
@@ -335,14 +333,13 @@ export class UI {
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      const gate = [];
-      if (c.buyCostEnergy) gate.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
-      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
       return `<button class="offercard" data-name="${escapeHtml(name)}">`
-        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span></span>`
+        + cardArt(name)
+        + `<span class="cbody">`
+        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
         + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span></button>`;
+        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
+        + `</span></button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
@@ -374,6 +371,20 @@ function span(t, cls) { const s = document.createElement('span'); s.className = 
 function button(cls, html) { const b = document.createElement('button'); b.className = cls; b.innerHTML = html; return b; }
 function text(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
+function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+// The art window: a bespoke image per card; if it's missing the dark gradient shows through.
+function cardArt(name) {
+  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+}
+// Themed cost pips (Energy / Water / Phosphorus).
+function gateChips(c) {
+  const g = [];
+  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+  if (c.costW) g.push(`<span class="cc w">${c.costW}W</span>`);
+  if (c.costP) g.push(`<span class="cc p">${c.costP}P</span>`);
+  return g.join('');
+}
 function vitalityColor(v) {
   const r = Math.round(200 - v * 140), g = Math.round(70 + v * 150), b = Math.round(60 + v * 40);
   return `rgb(${r},${g},${b})`;
