@@ -50,8 +50,9 @@ export class UI {
         <div class="stat res-n"><span class="k">Nitro</span><span class="v" id="hud-nitrogen">0</span></div>
         <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
       : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
+    const build = (typeof globalThis !== 'undefined' && globalThis.__BUILD__) ? globalThis.__BUILD__ : 'dev';
     hud.innerHTML = `
-      <div class="title">MYCELIUM <span class="sub">· cards</span></div>
+      <div class="title">MYCELIUM <span class="sub">· cards · <span id="hud-build">${build}</span></span></div>
       <div class="stats">
         <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
         ${resStats}

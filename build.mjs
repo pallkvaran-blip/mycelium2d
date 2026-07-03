@@ -86,7 +86,10 @@ function transform(file) {
     `})();`;
 }
 
-const js = MODULES
+// A short build stamp so a running device can be identified (shown in the HUD).
+const BUILD = (process.env.GITHUB_SHA || '').slice(0, 7)
+  || ('local ' + new Date().toISOString().slice(5, 16).replace('T', ' '));
+const js = `globalThis.__BUILD__ = ${JSON.stringify(BUILD)};\n\n` + MODULES
   .map((f) => `// ===================== ${f} =====================\n${transform(f)}`)
   .join('\n\n');
 
