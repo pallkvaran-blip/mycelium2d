@@ -182,29 +182,35 @@
     .stackn { position: absolute; top: 6px; right: 6px; z-index: 6; font-weight: 700; font-size: 11px; color: #eafff2;
       background: rgba(6,12,9,0.82); border: 1px solid rgba(130,230,166,0.5); border-radius: 10px; padding: 1px 6px;
       box-shadow: 0 0 6px rgba(0,0,0,0.6); }
-    /* V1 card face: dark body, glowing mycelium-cord border, art window on top */
-    .cardbtn { position: relative; display: flex; flex-direction: column; align-items: stretch; width: 172px;
+    /* Portrait CCG card face: framed art window + name plate + full-text rules box.
+       Card height is AUTO so the whole description always shows (no clamping). */
+    .cardbtn, .offercard { position: relative; display: flex; flex-direction: column; align-items: stretch;
       padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
-      border: 2px solid rgba(130,230,166,0.5); border-radius: 12px; color: var(--ink);
+      border: 2px solid rgba(130,230,166,0.5); border-radius: 14px; color: var(--ink);
       cursor: pointer; text-align: left; font-family: inherit;
-      box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 6px 16px -8px rgba(0,0,0,0.7); }
-    .cardbtn:hover:not(.unaff) { border-color: rgba(170,255,205,0.85);
-      box-shadow: 0 0 14px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.28), 0 8px 18px -8px rgba(0,0,0,0.8); }
+      box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75);
+      transition: transform .08s, box-shadow .08s, border-color .08s; }
+    .cardbtn { width: 190px; }
+    .cardbtn:hover:not(.unaff), .offercard:hover { border-color: rgba(170,255,205,0.85);
+      box-shadow: 0 0 14px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.28), 0 10px 22px -9px rgba(0,0,0,0.85); }
+    .offercard:hover { transform: translateY(-3px); }
     .cardbtn.unaff { opacity: 0.5; cursor: not-allowed; }
     .cardbtn.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
-    .cart { position: relative; display: block; height: 90px; overflow: hidden;
-      background: radial-gradient(circle at 50% 40%, #16241c, #060f0b); }
+    /* art window — inset so the dark frame shows around it, with an arched bottom */
+    .cart { position: relative; margin: 6px 6px 0; height: 132px; overflow: hidden;
+      border-radius: 10px 10px 30px 30px / 10px 10px 16px 16px;
+      background: radial-gradient(circle at 50% 40%, #16241c, #060f0b);
+      box-shadow: inset 0 0 0 1px rgba(130,230,166,0.28), inset 0 -14px 20px -12px rgba(4,7,6,0.9); }
     .caimg { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .cart::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(180deg, transparent 58%, rgba(7,12,10,0.92)); }
-    .cbody { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; }
-    .cardbtn .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .cardbtn .cn { font-family: var(--serif); font-size: 12.5px; font-weight: 600; line-height: 1.12; color: #eaf4ee; }
-    .cardbtn .ct { font-size: 8.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
-    .cardbtn .cgate { display: flex; gap: 3px; flex: none; }
-    .cardbtn .cdesc { font-size: 9.5px; color: var(--ink-dim); line-height: 1.3; white-space: normal;
-      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-    .cc { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 4px; }
+    .pips { position: absolute; top: 12px; left: 12px; z-index: 6; display: flex; flex-direction: column; gap: 4px; }
+    .cplate { text-align: center; padding: 7px 9px 3px; }
+    .cplate .cn { font-family: var(--serif); font-size: 14px; font-weight: 600; line-height: 1.12; color: #eaf4ee;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.6); display: block; }
+    .cplate .ct { font-size: 8px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 3px; display: block; }
+    .crules { margin: 3px 8px 9px; padding: 7px 9px; border: 1px solid rgba(130,230,166,0.16); border-radius: 9px;
+      background: linear-gradient(180deg, rgba(10,16,13,0.5), rgba(6,10,8,0.68));
+      font-size: 10.5px; line-height: 1.4; color: #d3e2da; }
+    .cc { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 5px; }
     .cc.e { color: var(--accent); background: rgba(127,230,163,0.14); }
     .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
     .cc.n { color: #93cf52; background: rgba(147,207,82,0.15); }
@@ -216,29 +222,21 @@
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
     .offer.hidden { display: none; }
     .offerbox { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
-      padding: 20px 22px; max-width: 640px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
+      padding: 20px 22px; max-width: 720px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
     .offerbox h2 { font-size: 19px; margin: 0 0 6px; color: var(--accent); font-weight: 600; }
     .offerbox p { margin: 4px 0; color: var(--ink); font-size: 13px; }
     .offerbox p.dim { color: var(--ink-dim); }
     .offerbox p.small { font-size: 12px; }
-    .offerrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
-    .offercard { position: relative; display: flex; flex-direction: column; align-items: stretch; width: 194px;
-      padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
-      border: 2px solid rgba(130,230,166,0.55); border-radius: 14px; color: var(--ink);
-      cursor: pointer; text-align: left; font-family: inherit;
-      box-shadow: 0 0 10px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.2), 0 10px 24px -10px rgba(0,0,0,0.8);
-      transition: transform .08s, box-shadow .08s, border-color .08s; }
-    .offercard:hover { transform: translateY(-3px); border-color: #eafff2;
-      box-shadow: 0 0 16px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.3), 0 12px 26px -10px rgba(0,0,0,0.85); }
-    .offercard .cart { height: 118px; }
-    .offercard .cbody { padding: 8px 11px 11px; gap: 4px; }
-    .offercard .chead { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .offercard .cn { font-family: var(--serif); font-size: 14.5px; font-weight: 600; line-height: 1.12; color: #eaf4ee; }
-    .offercard .ct { font-size: 8.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em; }
-    .offercard .cgate { display: flex; gap: 4px; flex: none; }
-    .offercard .cdesc { font-size: 10.5px; color: var(--ink-dim); line-height: 1.34; }
+    .offerrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .offercard { width: 200px; }
+    .offercard .cart { height: 148px; }
+    .offercard .cplate .cn { font-size: 15px; }
+    .offercard .crules { font-size: 11px; }
     /* PHONE PORTRAIT (and narrow windows): compact controls + a swipeable card carousel. */
     @media (max-width: 760px) {
+      /* hide the hint here too — the carousel layout (lowered controls) starts at 760px,
+         so leaving it at ≤720px let it overlap + swallow taps in the 721-760px band */
+      .hint { display: none; }
       /* HUD + Event Log share the top as equal, non-overlapping halves of matched height */
       .hud { top: 8px; left: 8px; right: auto; min-width: 0; width: 56%; max-width: 240px;
         height: 122px; padding: 8px 10px; overflow: hidden; }
@@ -266,20 +264,29 @@
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      .cardbtn { width: 46vw; max-width: 210px; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 104px; }
-      .cardbtn .cbody { padding: 6px 8px 8px; }
-      .cardbtn .cn { font-size: 12.5px; }
-      .cardbtn .cdesc { font-size: 10px; -webkit-line-clamp: 2; }
+      .cardbtn { width: 62vw; max-width: 250px; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 42vw; max-height: 176px; }
+      .cardbtn .cplate .cn { font-size: 14px; }
+      .cardbtn .crules { font-size: 11px; }
       .offerbox { padding: 14px; max-width: 94vw; }
-      .offerrow { gap: 8px; }
-      .offercard { width: 30vw; max-width: 180px; }
-      .offercard .cart { height: 88px; }
-      .offercard .cdesc { font-size: 9.5px; -webkit-line-clamp: 3; }
+      .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
+        scroll-snap-type: x mandatory; scrollbar-width: none; }
+      .offerrow::-webkit-scrollbar { display: none; }
+      .offercard { width: 62vw; max-width: 250px; flex: 0 0 auto; scroll-snap-align: center; }
+      .offercard .cart { height: 42vw; max-height: 176px; }
     }
-    /* PHONE LANDSCAPE: almost no height — sit low, short scrollable cards, no rules text. */
+    /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
       .hint { display: none; }
+      .hud { top: 6px; left: 6px; min-width: 0; width: 36%; max-width: 300px; height: 104px; padding: 6px 9px; overflow: hidden; }
+      .hud .title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .hud .sub { font-size: 8px; }
+      .hud .stats { gap: 2px 8px; }
+      .hud .stat .v { font-size: 14px; }
+      .hud .vitality { margin-top: 5px; }
+      .logpanel { top: 6px; right: 6px; left: auto; width: 34%; max-width: 320px; height: 104px; max-height: none; padding: 6px 9px; }
+      .logpanel .title { font-size: 12px; }
+      .loglist { font-size: 9px; line-height: 1.35; }
       .actionbar { bottom: 6px; left: 6px; right: auto; transform: none; gap: 4px; padding: 4px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 5px 7px; font-size: 11px; }
       .actionbar .deckbtn .deckn { display: none; }
@@ -293,19 +300,22 @@
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      .cardbtn { width: 156px; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 50px; }
-      .cardbtn .cbody { padding: 4px 7px 5px; gap: 2px; }
-      .cardbtn .cn { font-size: 11px; }
-      .cardbtn .cdesc { display: none; }
+      .cardbtn { width: 148px; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 78px; }
+      .cardbtn .cplate { padding: 5px 7px 2px; }
+      .cardbtn .cplate .cn { font-size: 12px; }
+      .cardbtn .crules { font-size: 9px; margin: 3px 6px 6px; padding: 5px 7px; line-height: 1.35; }
+      .offercard { width: 150px; }
+      .offercard .cart { height: 80px; }
+      .offercard .crules { font-size: 9px; }
     }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "y9nhxc";
-globalThis.__BUILD__ = "local 07-03 18:05";
+window.__ASSET_VER = "1tbdqi";
+globalThis.__BUILD__ = "local 07-03 18:20";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5638,13 +5648,7 @@ class UI {
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
-      const b = button(cls,
-        cardArt(g.name)
-        + (g.count > 1 ? `<span class="stackn">×${g.count}</span>` : '')
-        + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(g.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
-        + `</span>`);
+      const b = button(cls, cardFaceHTML(g.name, c, g.count));
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(g.firstIndex);
       list.appendChild(b);
@@ -5677,13 +5681,7 @@ class UI {
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      return `<button class="offercard" data-name="${escapeHtml(name)}">`
-        + cardArt(name)
-        + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
-        + `</span></button>`;
+      return `<button class="offercard" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
@@ -5744,6 +5742,14 @@ function gateChips(c) {
   if (c.costW) g.push(`<span class="cc w">${c.costW}W</span>`);
   if (c.costP) g.push(`<span class="cc p">${c.costP}P</span>`);
   return g.join('');
+}
+// One portrait card face: framed art window + cost pips + name plate + FULL rules.
+function cardFaceHTML(name, c, count) {
+  return cardArt(name)
+    + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
+    + `<span class="pips">${gateChips(c) || '<span class="cc free">free</span>'}</span>`
+    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.type || '')}</span></span>`
+    + `<span class="crules">${escapeHtml(c.effect || '')}</span>`;
 }
 function vitalityColor(v) {
   const r = Math.round(200 - v * 140), g = Math.round(70 + v * 150), b = Math.round(60 + v * 40);

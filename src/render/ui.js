@@ -346,13 +346,7 @@ export class UI {
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
-      const b = button(cls,
-        cardArt(g.name)
-        + (g.count > 1 ? `<span class="stackn">×${g.count}</span>` : '')
-        + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(g.name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
-        + `</span>`);
+      const b = button(cls, cardFaceHTML(g.name, c, g.count));
       b.title = c.effect;
       b.onclick = () => this.handlers.onPlayCard(g.firstIndex);
       list.appendChild(b);
@@ -385,13 +379,7 @@ export class UI {
     if (!off) { el.classList.add('hidden'); return; }
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      return `<button class="offercard" data-name="${escapeHtml(name)}">`
-        + cardArt(name)
-        + `<span class="cbody">`
-        + `<span class="chead"><span class="cn">${escapeHtml(name)}</span><span class="cgate">${gateChips(c) || '<span class="cc free">free</span>'}</span></span>`
-        + `<span class="ct">${escapeHtml(c.type)}</span>`
-        + `<span class="cdesc">${escapeHtml(c.effect)}</span>`
-        + `</span></button>`;
+      return `<button class="offercard" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
@@ -452,6 +440,14 @@ function gateChips(c) {
   if (c.costW) g.push(`<span class="cc w">${c.costW}W</span>`);
   if (c.costP) g.push(`<span class="cc p">${c.costP}P</span>`);
   return g.join('');
+}
+// One portrait card face: framed art window + cost pips + name plate + FULL rules.
+function cardFaceHTML(name, c, count) {
+  return cardArt(name)
+    + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
+    + `<span class="pips">${gateChips(c) || '<span class="cc free">free</span>'}</span>`
+    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.type || '')}</span></span>`
+    + `<span class="crules">${escapeHtml(c.effect || '')}</span>`;
 }
 function vitalityColor(v) {
   const r = Math.round(200 - v * 140), g = Math.round(70 + v * 150), b = Math.round(60 + v * 40);
