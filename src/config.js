@@ -90,6 +90,36 @@ export const CONFIG = {
     movesPerTurn: 3,             // moves available each turn (SLIDER)
   },
 
+  // ---- Card economy (C1) --------------------------------------------------
+  // The card layer sits on top of the action sim. ENERGY (net.energy) is the
+  // master currency, spent only to DRAW / SKIP (and BUY at a pile, later).
+  // Three resources gate PLAYS: Water=growth, Nitrogen=food (substrate+digest),
+  // Phosphorus=work (repeatable actions). Each card's own W/P/N costs live in
+  // the generated card data (src/cards-data.js); these are the loop-wide knobs.
+  cards: {
+    enabled: true,               // turn the card layer on
+    drawCostEnergy: 8,           // energy to draw one card from the draw deck
+    skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
+    handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
+    startWater: 5,               // starting resource buffers (design §16)
+    startNitrogen: 2,
+    startPhosphorus: 2,
+    softCapWater: 20,            // per-resource soft caps (water runs high now that grow costs it)
+    softCapNitrogen: 6,
+    softCapPhosphorus: 6,
+    engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
+    // resource harvest amounts (used by harvest-card effects)
+    harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
+    harvestWaterSoil: 3,         // …off a lake
+    harvestPhosphorus: 3,        // Phosphate Tap on mineral/boulder contact
+    // substrate patch sizes (nutrient) placed at the sensing-range edge
+    substrateSmall: 40,
+    substrateMedium: 70,
+    substrateLarge: 110,
+    reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
+    directionalSteps: 3,         // cells an aimed basic grow advances
+  },
+
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
   growth: {
     sensingRadius: 135,          // tips sense substrate attractors within this radius

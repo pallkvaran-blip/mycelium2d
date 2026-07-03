@@ -149,12 +149,35 @@
       .actionbar .btn { padding: 6px 8px; font-size: 11.5px; }
       .actionbar .expr-group .group-label { display: none; }
     }
+
+    /* ---- Card layer HUD ---- */
+    .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
+    .btn.deckbtn { background: rgba(70,90,120,0.85); }
+    .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
+    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 6px; }
+    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 940px; max-height: 30vh; overflow-y: auto; }
+    .cardbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 104px; max-width: 150px;
+      padding: 6px 8px; background: rgba(40,54,48,0.92); border: 1px solid var(--panel-border); border-radius: 8px;
+      color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; }
+    .cardbtn:hover:not(.unaff) { background: rgba(60,84,72,0.98); }
+    .cardbtn.unaff { opacity: 0.4; cursor: not-allowed; }
+    .cardbtn.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .cardbtn .cn { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+    .cardbtn .ct { font-size: 9px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+    .cardbtn .cgate { display: flex; gap: 4px; margin-top: 1px; }
+    .cc { font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 4px; }
+    .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
+    .cc.n { color: #93cf52; background: rgba(147,207,82,0.15); }
+    .cc.p { color: #c79be6; background: rgba(179,128,224,0.15); }
+    .cc.free { color: var(--ink-dim); background: rgba(255,255,255,0.06); }
+    .handempty { color: var(--ink-dim); font-size: 12px; padding: 8px 12px; }
+    @media (max-width: 760px) { .handbar { bottom: 92px; left: 6px; right: 6px; transform: none; max-width: none; } .handlist { justify-content: flex-start; } .cardbtn { min-width: 88px; } }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1igkcm8";
+window.__ASSET_VER = "4bhqkz";
 // ===================== src/config.js =====================
 const __m_config = (function () {
 // =============================================================================
@@ -247,6 +270,36 @@ const CONFIG = {
   // ---- Turn loop (A2, B4) -------------------------------------------------
   turn: {
     movesPerTurn: 3,             // moves available each turn (SLIDER)
+  },
+
+  // ---- Card economy (C1) --------------------------------------------------
+  // The card layer sits on top of the action sim. ENERGY (net.energy) is the
+  // master currency, spent only to DRAW / SKIP (and BUY at a pile, later).
+  // Three resources gate PLAYS: Water=growth, Nitrogen=food (substrate+digest),
+  // Phosphorus=work (repeatable actions). Each card's own W/P/N costs live in
+  // the generated card data (src/cards-data.js); these are the loop-wide knobs.
+  cards: {
+    enabled: true,               // turn the card layer on
+    drawCostEnergy: 8,           // energy to draw one card from the draw deck
+    skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
+    handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
+    startWater: 5,               // starting resource buffers (design §16)
+    startNitrogen: 2,
+    startPhosphorus: 2,
+    softCapWater: 20,            // per-resource soft caps (water runs high now that grow costs it)
+    softCapNitrogen: 6,
+    softCapPhosphorus: 6,
+    engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
+    // resource harvest amounts (used by harvest-card effects)
+    harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
+    harvestWaterSoil: 3,         // …off a lake
+    harvestPhosphorus: 3,        // Phosphate Tap on mineral/boulder contact
+    // substrate patch sizes (nutrient) placed at the sensing-range edge
+    substrateSmall: 40,
+    substrateMedium: 70,
+    substrateLarge: 110,
+    reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
+    directionalSteps: 3,         // cells an aimed basic grow advances
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -501,6 +554,701 @@ function setByPath(obj, path, value) {
   return { CONFIG, SLIDERS, getByPath, setByPath };
 })();
 
+// ===================== src/cards-data.js =====================
+const __m_cards_data = (function () {
+// =============================================================================
+// Card data — GENERATED from docs/cards.json (do not edit by hand).
+// Regenerate: node scripts/gen-carddata.mjs  (or the scratchpad generator).
+// Engine-relevant fields only. Effects are dispatched by name in engine/cards.js.
+// =============================================================================
+const CARD_DATA = [
+ {
+  "name": "Hyphal Extension",
+  "type": "basic",
+  "category": "growth",
+  "buyCostEnergy": 0,
+  "costW": 1,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Grow 1 step: toward all food sources in range.",
+  "family": "basics",
+  "tutorial": true,
+  "startCopies": 5
+ },
+ {
+  "name": "Leaf Litter Cache",
+  "type": "basic",
+  "category": "substrate",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 1,
+  "timing": "early",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Pick a direction; drop a SMALL nutrient patch at the edge of sensing range.",
+  "family": "basics",
+  "tutorial": true,
+  "startCopies": 5
+ },
+ {
+  "name": "Apical Drive",
+  "type": "basic",
+  "category": "growth",
+  "buyCostEnergy": 0,
+  "costW": 1,
+  "costP": 0,
+  "costN": 0,
+  "timing": "early",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Grow 1 step: choose a direction.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Foraging Fan",
+  "type": "basic",
+  "category": "growth",
+  "buyCostEnergy": 0,
+  "costW": 2,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Grow 1 step: every direction.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Tropic Lunge",
+  "type": "basic",
+  "category": "growth",
+  "buyCostEnergy": 0,
+  "costW": 2,
+  "costP": 0,
+  "costN": 0,
+  "timing": "mid",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Grow 3 steps toward the nearest food source, even if out of range.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Humus Bed",
+  "type": "basic",
+  "category": "substrate",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 1,
+  "timing": "early",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Pick a direction; drop a MEDIUM patch at the edge of sensing range.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Mycorrhizal Mat",
+  "type": "basic",
+  "category": "substrate",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 2,
+  "timing": "mid",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Pick a direction; drop a LARGE patch at the edge of sensing range.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Saprotrophic Digest",
+  "type": "basic",
+  "category": "economy",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 1,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Drain 1 nutrient from every occupied food source, doubling the energy received.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Appressorial Punch",
+  "type": "basic",
+  "category": "utility",
+  "buyCostEnergy": 0,
+  "costW": 1,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Grow hyphae through one selected boulder in-range.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Sclerotial Crust",
+  "type": "basic",
+  "category": "defense",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "mid",
+  "repay": 0,
+  "threat": "all",
+  "produces": "",
+  "effect": "Tap a point: strands within radius 40 harden — immune to infection and eating for 2 rounds.",
+  "family": "basics",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Hyphal Imbibition",
+  "type": "basic",
+  "category": "water-harvest",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+9 Water lakeside / +3 Water from soil",
+  "effect": "If your network touches a lake edge, harvest +9 Water. Otherwise gain +3 Water from soil.",
+  "family": "water",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Phosphate Tap",
+  "type": "basic",
+  "category": "phosphorus-mining",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+3 Phosphorus on harvest",
+  "effect": "If your network contacts any mineral, crystal, or boulder, harvest +3 Phosphorus.",
+  "family": "phosphorus",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Condense",
+  "type": "basic",
+  "category": "water-harvest",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+3 Water",
+  "effect": "Gain 3 Water.",
+  "family": "water",
+  "tutorial": false,
+  "startCopies": 5
+ },
+ {
+  "name": "Rhizomorph Trunkline",
+  "type": "engine",
+  "category": "energy income",
+  "buyCostEnergy": 22,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "mid",
+  "repay": 3,
+  "threat": "none",
+  "produces": "+4 energy/round",
+  "effect": "Install. Gain +4 energy at the end of each round.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Osmotic Cashout",
+  "type": "event",
+  "category": "energy burst",
+  "buyCostEnergy": 12,
+  "costW": 1,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Exhaust (1 Water): gain +22 energy.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Septal Pore Flux",
+  "type": "engine",
+  "category": "cheaper draws",
+  "buyCostEnergy": 14,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "early",
+  "repay": 3,
+  "threat": "none",
+  "produces": "-3 energy per draw (savings)",
+  "effect": "Install. Drawing a basic card costs 3 less energy.",
+  "family": "energy",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Aquaporin Channels",
+  "type": "engine",
+  "category": "water-engine",
+  "buyCostEnergy": 14,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "early",
+  "repay": 4,
+  "threat": "none",
+  "produces": "+2 Water/round",
+  "effect": "Install. Gain +2 Water at the end of each round.",
+  "family": "water",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Phosphatase Cushion",
+  "type": "engine",
+  "category": "phosphorus-producer",
+  "buyCostEnergy": 14,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "early",
+  "repay": 3,
+  "threat": "none",
+  "produces": "+1 Phosphorus / round (lifetime cap 8)",
+  "effect": "Install. Gain +1 Phosphorus at the end of each round.",
+  "family": "phosphorus",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Mineralizing Saprobe",
+  "type": "engine",
+  "category": "decay / unconditional N production",
+  "buyCostEnergy": 14,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "early",
+  "repay": 4,
+  "threat": "none",
+  "produces": "1 N / round (unconditional, global)",
+  "effect": "Install. Gain +1 Nitrogen at the end of each round.",
+  "family": "nitrogen",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Tap-Root Rhizomorph",
+  "type": "engine",
+  "category": "routing",
+  "buyCostEnergy": 12,
+  "costW": 0,
+  "costP": 2,
+  "costN": 0,
+  "timing": "mid",
+  "repay": 4,
+  "threat": "none",
+  "produces": "+1 cleared formation/column per round it has a target (~5 energy-equiv of barrier bypass)",
+  "effect": "Install (2 Phosphorus to play). Every 5 rounds, you may clear an in-range rock formation or column.",
+  "family": "growth",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Constricting Ring",
+  "type": "action",
+  "category": "anti-worm",
+  "buyCostEnergy": 5,
+  "costW": 0,
+  "costP": 1,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "worm",
+  "produces": "",
+  "effect": "Install. Action (once per 6 rounds): tap a point where no nematode is within range; the next nematode to enter a small radius is snared and digested for +2 Nitrogen.",
+  "family": "nitrogen",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Rehydration Pulse",
+  "type": "event",
+  "category": "water-repair",
+  "buyCostEnergy": 7,
+  "costW": 1,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "all",
+  "produces": "",
+  "effect": "Exhaust (1 Water): tap a point; heal all worm/mould damage within radius 60.",
+  "family": "water",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Nutrient Transmutation",
+  "type": "action",
+  "category": "resource converter",
+  "buyCostEnergy": 6,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Action (once per round): spend 2 of one resource (W/P/N) to gain 1 of another.",
+  "family": "nitrogen",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Rhizomorph Lance",
+  "type": "event",
+  "category": "mobility",
+  "buyCostEnergy": 10,
+  "costW": 2,
+  "costP": 0,
+  "costN": 0,
+  "timing": "mid",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Exhaust (2 Water): pick a direction; instantly grow up to 6 steps that way.",
+  "family": "events",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Fruiting Vigil",
+  "type": "event",
+  "category": "finisher",
+  "buyCostEnergy": 12,
+  "costW": 2,
+  "costP": 0,
+  "costN": 2,
+  "timing": "late",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Exhaust (2 Water + 2 Nitrogen): pick the goal direction and extend up to 6 steps.",
+  "family": "events",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Leading Cord",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Apical Drive basics",
+  "effect": "Shuffle 5 copies of Apical Drive into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Forager Bloom",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Foraging Fan basics",
+  "effect": "Shuffle 5 copies of Foraging Fan into your draw deck.",
+  "family": "extenders",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Questing Front",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 9,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Tropic Lunge basics",
+  "effect": "Shuffle 5 copies of Tropic Lunge into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Humus Cache",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Humus Bed basics",
+  "effect": "Shuffle 5 copies of Humus Bed into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Symbiont Weave",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 9,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Mycorrhizal Mat basics",
+  "effect": "Shuffle 5 copies of Mycorrhizal Mat into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Enzyme Priming",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Saprotrophic Digest basics",
+  "effect": "Shuffle 5 copies of Saprotrophic Digest into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Boring Corps",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Appressorial Punch basics",
+  "effect": "Shuffle 5 copies of Appressorial Punch into your draw deck.",
+  "family": "extenders",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Crust Reserve",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 7,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Sclerotial Crust basics",
+  "effect": "Shuffle 5 copies of Sclerotial Crust into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Capillary Runners",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Hyphal Imbibition basics",
+  "effect": "Shuffle 5 copies of Hyphal Imbibition into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Prospecting Cords",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Phosphate Tap basics",
+  "effect": "Shuffle 5 copies of Phosphate Tap into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Dew Traps",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 6,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Condense basics",
+  "effect": "Shuffle 5 copies of Condense into your draw deck.",
+  "family": "extenders",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Colonizing Front",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Hyphal Extension basics",
+  "effect": "Shuffle 5 copies of Hyphal Extension into your draw deck.",
+  "family": "extenders",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Leaf Fall",
+  "type": "extender",
+  "category": "draw-engine",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "Leaf Litter Cache basics",
+  "effect": "Shuffle 5 copies of Leaf Litter Cache into your draw deck.",
+  "family": "extenders",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Sclerotial Seal",
+  "type": "action",
+  "category": "anti-ant",
+  "buyCostEnergy": 10,
+  "costW": 0,
+  "costP": 1,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "ant",
+  "produces": "",
+  "effect": "Install. Action (spend 1 P, once per 3 rounds): tap a food pile; for 3 rounds ants cannot harvest any leaves from it.",
+  "family": "defense",
+  "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Suberin Wall",
+  "type": "action",
+  "category": "anti-mould",
+  "buyCostEnergy": 10,
+  "costW": 0,
+  "costP": 1,
+  "costN": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "mould",
+  "produces": "",
+  "effect": "Install. Action (once per 3 rounds): tap a point; cure all mould infection within radius 80 and block reinfection there for 2 rounds.",
+  "family": "defense",
+  "tutorial": false,
+  "startCopies": 0
+ }
+];
+
+const CARD_BY_NAME = Object.fromEntries(CARD_DATA.map((c) => [c.name, c]));
+
+  return { CARD_DATA, CARD_BY_NAME };
+})();
+
 // ===================== src/engine/rng.js =====================
 const __m_engine_rng = (function () {
 // Tiny seedable PRNG (mulberry32). Kept in the engine so simulation is fully
@@ -551,7 +1299,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0 };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -992,6 +1740,11 @@ class Network {
 
     this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
+    // Card-layer resources (C1): gate PLAYS. Water=growth, Nitrogen=food, Phosphorus=work.
+    const cc = config.cards || {};
+    this.water = cc.startWater || 0;
+    this.nitrogen = cc.startNitrogen || 0;
+    this.phosphorus = cc.startPhosphorus || 0;
     this.spores = 0;           // spores this network has produced (Fruit)
 
     this.alive = true;         // false once dead (killed) ...
@@ -1159,6 +1912,139 @@ class Network {
       if (this.nodes.length >= g.maxNodes) break;
     }
     return created;
+  }
+
+  // === Card-layer growth primitives (C1) ==================================
+  // Uninfected tip nodes (the advancing frontier).
+  tips() {
+    const t = [];
+    for (const n of this.nodes) if (!n.infected && n.children.length === 0) t.push(n);
+    return t.length ? t : this.nodes.filter((n) => !n.infected);
+  }
+  // Nearest uninfected node to a world point.
+  nearestNode(x, y) {
+    let best = null, bd = Infinity;
+    for (const n of this.nodes) {
+      if (n.infected) continue;
+      const d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+  // Centroid of the frontier (origin for directional plays / substrate placement).
+  frontierPoint() {
+    const src = this.tips();
+    if (!src.length) return null;
+    let sx = 0, sy = 0;
+    for (const n of src) { sx += n.x; sy += n.y; }
+    return { x: sx / src.length, y: sy / src.length };
+  }
+
+  _placeOk(substrate, nx, ny) {
+    if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) return false;
+    if (nx <= 2 || nx >= substrate.worldWidth - 2) return false;
+    const cell = substrate.cellAtWorld(nx, ny);
+    return !(cell && (cell.rock || cell.antTrail));
+  }
+
+  // Grow a chain of `steps` segments from the frontier tip furthest along (dx,dy).
+  // straight=true ignores jitter (a committed reach); returns nodes created.
+  growDirected(substrate, rng, dx, dy, steps, straight = false) {
+    const g = this.config.growth;
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const tips = this.tips();
+    if (!tips.length) return 0;
+    let parent = tips[0], bestProj = -Infinity;
+    for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    const baseAng = Math.atan2(dy, dx);
+    let created = 0;
+    for (let i = 0; i < steps; i++) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const ang = straight ? baseAng : baseAng + rng.range(-g.branchJitter, g.branchJitter);
+      const nx = parent.x + Math.cos(ang) * g.segmentLength;
+      const ny = parent.y + Math.sin(ang) * g.segmentLength;
+      if (!this._placeOk(substrate, nx, ny)) break;   // blocked (rock/edge)
+      parent = this.addNode(nx, ny, parent);
+      created++;
+    }
+    if (created) this.recomputeVitality();
+    return created;
+  }
+
+  // Grow one segment outward from every tip (radial spread; no attractor needed).
+  growRadial(substrate, rng) {
+    const g = this.config.growth;
+    let created = 0;
+    for (const t of this.tips()) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const par = t.parentId != null ? this.byId.get(t.parentId) : null;
+      let hx = par ? t.x - par.x : 0, hy = par ? t.y - par.y : 1;
+      const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l;
+      const ang = Math.atan2(hy, hx) + rng.range(-g.branchJitter, g.branchJitter);
+      const nx = t.x + Math.cos(ang) * g.segmentLength;
+      const ny = t.y + Math.sin(ang) * g.segmentLength;
+      if (!this._placeOk(substrate, nx, ny)) continue;
+      this.addNode(nx, ny, t);
+      created++;
+    }
+    if (created) this.recomputeVitality();
+    return created;
+  }
+
+  // Grow `steps` toward the nearest food cell anywhere on the map (even out of range).
+  growToNearestFood(substrate, rng, steps) {
+    const fp = this.frontierPoint();
+    if (!fp) return 0;
+    let target = null, best = Infinity;
+    substrate.forEachCell((cell, col, row) => {
+      if (cell.nutrient > 0 && !cell.rock) {
+        const c = substrate.cellCenter(col, row);
+        const d = (c.x - fp.x) ** 2 + (c.y - fp.y) ** 2;
+        if (d < best) { best = d; target = c; }
+      }
+    });
+    if (!target) return 0;
+    return this.growDirected(substrate, rng, target.x - fp.x, target.y - fp.y, steps, false);
+  }
+
+  // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
+  // and bridge a node into it so growth can pass. classes ⊆ {boulder,formation,column,lakeBasin}.
+  digThrough(substrate, x, y, classes, cap = 90) {
+    const isClass = (cell) => cell && cell.rock && (
+      (classes.includes('boulder') && !cell.formation && !cell.column && !cell.water) ||
+      (classes.includes('formation') && cell.formation) ||
+      (classes.includes('column') && cell.column) ||
+      (classes.includes('lakeBasin') && cell.water));
+    const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+    let start = null;
+    outer:
+    for (let rad = 0; rad <= 8 && !start; rad++) {
+      for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+        if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
+        if (isClass(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+      }
+    }
+    if (!start) return 0;
+    const seen = new Set(), stack = [start], cleared = [];
+    while (stack.length && cleared.length < cap) {
+      const { col, row } = stack.pop();
+      if (!substrate.inBounds(col, row)) continue;
+      const idx = substrate.index(col, row);
+      if (seen.has(idx)) continue; seen.add(idx);
+      const cell = substrate.cells[idx];
+      if (!isClass(cell)) continue;
+      cell.rock = false; cell.formation = false; cell.column = false;
+      if (cell.water && classes.includes('lakeBasin')) cell.water = false;
+      cleared.push(substrate.cellCenter(col, row));
+      stack.push({ col: col + 1, row }, { col: col - 1, row }, { col, row: row + 1 }, { col, row: row - 1 });
+    }
+    if (cleared.length) {
+      const entry = cleared[0];
+      const near = this.nearestNode(entry.x, entry.y);
+      if (near) this.addNode(entry.x, entry.y, near);
+      this.recomputeVitality();
+    }
+    return cleared.length;
   }
 
   _tooClose(x, y, minDist, substrate, buckets, key, reach) {
@@ -1977,7 +2863,11 @@ function stepAnts(state) {
       retarget(sub, nest);
       cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
     }
-    if (cell && cell.nutrient > 0) {
+    if (cell && cell.antProof > 0) {
+      // Card effect (Sclerotial Seal): this pile is sealed against ant theft.
+      cell.antProof -= 1;
+      nest.dormant = false;
+    } else if (cell && cell.nutrient > 0) {
       cell.nutrient = Math.max(0, cell.nutrient - state.config.ants.harvestRate);
       nest.dormant = false;
     } else {
@@ -2285,11 +3175,388 @@ function newRun(config, seed) {
   return { createState, createPuzzleState, newRun };
 })();
 
+// ===================== src/engine/cards.js =====================
+const __m_engine_cards = (function () {
+  const { CARD_DATA, CARD_BY_NAME } = __m_cards_data;
+// =============================================================================
+// Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
+//
+// Model (design §16):
+//   - ENERGY (net.energy) is the master currency: spent to DRAW and to SKIP.
+//   - Three resources gate PLAYS: WATER (growth), NITROGEN (food: substrate+digest),
+//     PHOSPHORUS (work: repeatable actions). They live on the active Network.
+//   - A DRAW DECK of basics you pay energy to draw into your HAND; a HAND of cards
+//     you play (paying their W/P/N gate); a DISCARD graveyard (no reshuffle).
+//   - Engine cards INSTALL and produce each world-tick (produceCardEngines).
+//   - WIN = a strand reaches the goal zone. LOSE (card-dry) = energy 0 with an
+//     empty draw deck and an unplayable hand (checked in checkGoalReached path).
+//
+// This module has NO dependency on turn.js (turn.js imports FROM here), so the
+// card operations resolve the effect + economy and the CALLER advances the world
+// (main.js handler / test), exactly like performAction/afterAction.
+// =============================================================================
+
+
+// Draw-engine card -> the basic it seeds (5 copies).
+const DRAW_ENGINES = {
+  'Leading Cord': 'Apical Drive',
+  'Forager Bloom': 'Foraging Fan',
+  'Questing Front': 'Tropic Lunge',
+  'Humus Cache': 'Humus Bed',
+  'Symbiont Weave': 'Mycorrhizal Mat',
+  'Enzyme Priming': 'Saprotrophic Digest',
+  'Boring Corps': 'Appressorial Punch',
+  'Crust Reserve': 'Sclerotial Crust',
+  'Capillary Runners': 'Hyphal Imbibition',
+  'Prospecting Cords': 'Phosphate Tap',
+  'Dew Traps': 'Condense',
+  'Colonizing Front': 'Hyphal Extension',
+  'Leaf Fall': 'Leaf Litter Cache',
+};
+
+function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// --- setup ------------------------------------------------------------------
+// Build the starting deck+hand. `mode`: 'tutorial' (default) seeds the tutorial
+// hand; 'all' puts every premium card in hand (dev / free explore).
+function initCards(state, mode = 'tutorial') {
+  const cc = state.config.cards;
+  const net = state.active;
+  net.water = cc.startWater; net.nitrogen = cc.startNitrogen; net.phosphorus = cc.startPhosphorus;
+
+  const drawDeck = [];
+  for (const c of CARD_DATA) for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name);
+  shuffle(drawDeck, state.rng);
+
+  let seq = 0;
+  const hand = [];
+  for (const c of CARD_DATA) {
+    if (c.type === 'basic') continue;
+    const take = mode === 'all' ? true : c.tutorial;
+    if (take) hand.push({ id: seq++, name: c.name });
+  }
+
+  state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0 };
+  state.log('Card layer online: draw basics, play from your hand, reach the goal.', 'good');
+  return state.cards;
+}
+
+// --- costs / gating ---------------------------------------------------------
+function drawCost(state) {
+  return Math.max(1, state.config.cards.drawCostEnergy - (state.cards.drawDiscount || 0));
+}
+function cardBlockedReason(state, name) {
+  if (state.runOver) return 'The run is over.';
+  const net = state.active;
+  if (!net || !net.alive) return 'The network is no longer alive.';
+  const c = CARD_BY_NAME[name];
+  if (!c) return 'Unknown card.';
+  if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
+  if (net.nitrogen < c.costN) return `Not enough Nitrogen (need ${c.costN}).`;
+  if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
+  return null;
+}
+function cardNeedsTarget(name) {
+  const e = EFFECTS[name];
+  return !!(e && e.target);
+}
+
+// --- operations (do NOT tick; the caller advances the world after) ----------
+function drawCard(state) {
+  const C = state.cards, net = state.active;
+  if (state.runOver) return { ok: false, message: 'The run is over.' };
+  if (!C.drawDeck.length) return { ok: false, message: 'Draw deck is empty — you are card-dry.' };
+  const cost = drawCost(state);
+  if (net.energy < cost) return { ok: false, message: `Not enough Energy to draw (need ${cost}).` };
+  net.energy -= cost;
+  const name = C.drawDeck.shift();
+  C.hand.push({ id: C.seq++, name });
+  state.log(`Drew ${name} (−${cost}⚡).`, 'action');
+  return { ok: true, tick: true, message: `Drew ${name}.` };
+}
+
+function skipRound(state) {
+  const cc = state.config.cards, net = state.active;
+  if (state.runOver) return { ok: false, message: 'The run is over.' };
+  const cost = cc.skipCostEnergy;
+  if (net.energy < cost) return { ok: false, message: `Not enough Energy to skip (need ${cost}).` };
+  net.energy -= cost;
+  state.log(`Skipped a round (−${cost}⚡).`, 'action');
+  return { ok: true, tick: true, message: 'Skipped a round.' };
+}
+
+function playCard(state, handIndex, ctx = {}) {
+  const C = state.cards, net = state.active;
+  const entry = C.hand[handIndex];
+  if (!entry) return { ok: false, message: 'No such card in hand.' };
+  const c = CARD_BY_NAME[entry.name];
+  const blocked = cardBlockedReason(state, entry.name);
+  if (blocked) { state.log(blocked, 'warn'); return { ok: false, message: blocked }; }
+  const eff = EFFECTS[entry.name];
+  if (!eff) return { ok: false, message: `${entry.name} has no effect wired.` };
+  if (eff.target && ctx.x == null) return { ok: false, needTarget: true, message: `Tap a target for ${entry.name}.` };
+
+  const res = eff.apply(state, c, ctx);
+  if (!res.ok) { state.log(res.message, 'warn'); return res; }
+
+  // Charge the resource gate only on success.
+  net.water -= c.costW; net.nitrogen -= c.costN; net.phosphorus -= c.costP;
+  C.hand.splice(handIndex, 1);
+  if (res.install) {
+    res.install.name = entry.name;
+    C.engines.push(res.install);
+    if (res.install.drawDiscount) C.drawDiscount = (C.drawDiscount || 0) + res.install.drawDiscount;
+  } else {
+    C.discard.push(entry.name);
+  }
+  state.log(`Played ${entry.name}. ${res.message}`, 'action');
+  return { ok: true, tick: true, message: res.message };
+}
+
+// --- per world-tick: installed engines produce (called from tickWorld) ------
+function produceCardEngines(state) {
+  const C = state.cards; if (!C) return;
+  const net = state.active; if (!net || !net.alive) return;
+  const cc = state.config.cards;
+  let energySum = 0;
+  for (const e of C.engines) {
+    if (e.energy) energySum += e.energy;
+    if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
+    if (e.nitrogen) net.nitrogen = Math.min(cc.softCapNitrogen, net.nitrogen + e.nitrogen);
+    if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+    if (e.digEvery) {
+      e._t = (e._t || 0) + 1;
+      if (e._t >= e.digEvery) { e._t = 0; digNearestRock(state, e.digClasses || ['formation', 'column']); }
+    }
+  }
+  // The engine energy ceiling: installed energy income is clamped below SKIP.
+  if (energySum > 0) net.energy += Math.min(energySum, cc.engineEnergyClamp);
+}
+
+// --- WIN: a strand reaches the goal zone; LOSE: card-dry & broke ------------
+function checkGoalReached(state) {
+  if (state.runOver || !state.cards) return;
+  const net = state.active; if (!net || !net.alive) return;
+  const sub = state.substrate;
+  const f = state.config.actions.fruit;
+  for (const n of net.nodes) {
+    if (n.infected) continue;
+    const surf = sub.surfaceColumnAtX(n.x);
+    if (surf && surf.goal) {
+      const depth = n.y - sub.surfaceY;
+      if (depth >= 0 && depth <= f.reachDepth) {
+        net.fruited = true; net.alive = false;
+        state.runOver = true; state.won = true;
+        state.runResult = { won: true, turns: state.turn };
+        state.log('A fruiting body breaks the surface at the goal — you win the level!', 'good');
+        return;
+      }
+    }
+  }
+  // Card-dry death: no cards to draw, no affordable play, and cannot even skip.
+  const C = state.cards;
+  const cc = state.config.cards;
+  const dry = C.drawDeck.length === 0;
+  const canSkip = net.energy >= cc.skipCostEnergy;
+  const canPlay = C.hand.some((h) => !cardBlockedReason(state, h.name) && EFFECTS[h.name]);
+  if (dry && !canSkip && !canPlay) {
+    net.alive = false; state.runOver = true;
+    state.runResult = { won: false, died: true, turns: state.turn };
+    state.log('Card-dry and out of Energy — the colony stalls. Run over.', 'warn');
+  }
+}
+
+// --- shared effect helpers --------------------------------------------------
+function dirFrom(state, ctx) {
+  const fp = state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY };
+  let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
+  if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
+  return { fp, dx, dy };
+}
+function depositAtSensingEdge(state, ctx, amount, radiusCells) {
+  const sub = state.substrate;
+  const g = state.config.growth;
+  const { fp, dx, dy } = dirFrom(state, ctx);
+  const len = Math.hypot(dx, dy) || 1;
+  let px = fp.x + (dx / len) * g.sensingRadius;
+  let py = fp.y + (dy / len) * g.sensingRadius;
+  py = Math.max(sub.surfaceY + sub.cellSize, Math.min(sub.worldHeight - sub.cellSize, py));
+  px = Math.max(sub.cellSize, Math.min(sub.worldWidth - sub.cellSize, px));
+  sub.deposit(px, py, amount, radiusCells);
+  return { px, py };
+}
+function nodeTouches(state, pred) {
+  const sub = state.substrate;
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const cell = sub.cellAt(col + dc, row + dr);
+      if (cell && pred(cell)) return true;
+    }
+  }
+  return false;
+}
+const touchesLake = (state) => nodeTouches(state, (c) => c.water);
+const touchesMineral = (state) => nodeTouches(state, (c) => c.rock && !c.water);
+function digNearestRock(state, classes) {
+  const fp = state.active.frontierPoint(); if (!fp) return 0;
+  return state.active.digThrough(state.substrate, fp.x, fp.y, classes);
+}
+function cureRadius(state, ctx, r) {
+  let healed = 0;
+  for (const n of state.active.nodes) {
+    if ((n.x - ctx.x) ** 2 + (n.y - ctx.y) ** 2 <= r * r) {
+      if (n.infected) { n.infected = false; healed++; }
+      n.health = 1;
+    }
+  }
+  state.substrate.cellsInRadius(ctx.x, ctx.y, r, (cell) => { cell.trich = 0; });
+  state.active.recomputeVitality();
+  return healed;
+}
+
+// --- the effect registry (all 40 cards) -------------------------------------
+const grow = (fn) => ({ apply: fn });
+const targeted = (fn) => ({ target: true, apply: fn });
+const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
+
+const EFFECTS = {
+  // --- grow (Water) ---
+  'Hyphal Extension': grow((s) => {
+    const c = s.active.grow(s.substrate, s.rng);
+    return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
+  }),
+  'Apical Drive': targeted((s, c, ctx) => {
+    const { dx, dy } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false);
+    return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
+  }),
+  'Foraging Fan': grow((s) => {
+    const n = s.active.growRadial(s.substrate, s.rng);
+    return n > 0 ? { ok: true, message: `Fanned out ${n} tips.` } : { ok: false, message: 'No room to fan out.' };
+  }),
+  'Tropic Lunge': grow((s) => {
+    const n = s.active.growToNearestFood(s.substrate, s.rng, 3);
+    return n > 0 ? { ok: true, message: `Lunged ${n} toward the nearest food.` } : { ok: false, message: 'No food sensed anywhere.' };
+  }),
+  'Appressorial Punch': targeted((s, c, ctx) => {
+    const n = s.active.digThrough(s.substrate, ctx.x, ctx.y, ['boulder']);
+    return n > 0 ? { ok: true, message: 'Bored through the boulder.' } : { ok: false, message: 'No boulder there to punch through.' };
+  }),
+  'Rhizomorph Lance': targeted((s, c, ctx) => {
+    const { dx, dy } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
+  }),
+  'Fruiting Vigil': targeted((s, c, ctx) => {
+    const { dx, dy } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    checkGoalReached(s);
+    return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
+  }),
+
+  // --- substrate (Nitrogen) ---
+  'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
+  'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
+  'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
+
+  // --- digest (Nitrogen) ---
+  'Saprotrophic Digest': grow((s) => {
+    const net = s.active, sub = s.substrate;
+    const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
+    if (!cells.length) return { ok: false, message: 'No occupied substrate to digest.' };
+    const d = s.config.actions.digest;
+    let gained = 0;
+    for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; gained += take; }
+    const energy = Math.round(gained * s.config.energy.incomeEfficiency * 2);   // doubled
+    net.energy += energy;
+    return { ok: true, message: `Digest: +${energy}⚡.` };
+  }),
+
+  // --- harvest ---
+  'Condense': grow((s) => { const cc = s.config.cards; s.active.water = Math.min(cc.softCapWater, s.active.water + 3); return { ok: true, message: '+3 Water.' }; }),
+  'Hyphal Imbibition': grow((s) => {
+    const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
+    s.active.water = Math.min(cc.softCapWater, s.active.water + amt);
+    return { ok: true, message: `+${amt} Water${amt === cc.harvestWaterLake ? ' (lake)' : ''}.` };
+  }),
+  'Phosphate Tap': grow((s) => {
+    if (!touchesMineral(s)) return { ok: false, message: 'Not in contact with mineral rock.' };
+    const cc = s.config.cards; s.active.phosphorus = Math.min(cc.softCapPhosphorus, s.active.phosphorus + cc.harvestPhosphorus);
+    return { ok: true, message: `+${cc.harvestPhosphorus} Phosphorus.` };
+  }),
+
+  // --- energy ---
+  'Rhizomorph Trunkline': engine({ energy: 4 }, 'Installed: +4⚡/round.'),
+  'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
+  'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: draws cost 3 less.'),
+
+  // --- resource engines ---
+  'Aquaporin Channels': engine({ water: 2 }, 'Installed: +2 Water/round.'),
+  'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
+  'Mineralizing Saprobe': engine({ nitrogen: 1 }, 'Installed: +1 Nitrogen/round.'),
+
+  // --- dig engine (Phosphorus install) ---
+  'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
+
+  // --- utility ---
+  'Nutrient Transmutation': grow((s) => {
+    const net = s.active;
+    const pools = [['water', net.water], ['nitrogen', net.nitrogen], ['phosphorus', net.phosphorus]];
+    pools.sort((a, b) => b[1] - a[1]);
+    const from = pools[0], to = pools[2];
+    if (from[1] < 2) return { ok: false, message: 'Need 2 of a resource to convert.' };
+    net[from[0]] -= 2; net[to[0]] += 1;
+    return { ok: true, message: `Converted 2 ${from[0]} → 1 ${to[0]}.` };
+  }),
+
+  // --- defense (best-effort v1) ---
+  'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
+  'Suberin Wall': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 80); return { ok: true, message: h ? `Cured ${h} infected strands.` : 'No infection in range (walled off).' }; }),
+  'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
+  'Constricting Ring': grow((s) => {
+    const worms = s.nematodes || [];
+    if (!worms.length) return { ok: false, message: 'No nematodes to snare.' };
+    const fp = s.active.frontierPoint() || { x: 0, y: 0 };
+    let idx = 0, bd = Infinity;
+    worms.forEach((w, i) => { const d = (w.x - fp.x) ** 2 + (w.y - fp.y) ** 2; if (d < bd) { bd = d; idx = i; } });
+    worms.splice(idx, 1);
+    s.active.nitrogen = Math.min(s.config.cards.softCapNitrogen, s.active.nitrogen + 2);
+    return { ok: true, message: 'Snared a nematode: +2 Nitrogen.' };
+  }),
+  'Sclerotial Seal': targeted((s, c, ctx) => {
+    const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
+    if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });
+    return { ok: true, message: 'Sealed the pile — ants can’t harvest it for 3 rounds.' };
+  }),
+};
+
+// Draw-engine cards: shuffle 5 copies of a basic into the draw deck.
+for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
+  EFFECTS[name] = grow((s) => {
+    for (let i = 0; i < 5; i++) s.cards.drawDeck.push(payload);
+    shuffle(s.cards.drawDeck, s.rng);
+    return { ok: true, message: `Shuffled 5 ${payload} into the draw deck.` };
+  });
+}
+
+  return { initCards, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, produceCardEngines, checkGoalReached, EFFECTS };
+})();
+
 // ===================== src/engine/turn.js =====================
 const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
   const { stepAnts } = __m_engine_ants;
   const { stepNematodes } = __m_engine_nematodes;
+  const { produceCardEngines, checkGoalReached } = __m_engine_cards;
 // =============================================================================
 // World tick (A2, B4).
 //
@@ -2345,6 +3612,13 @@ function tickWorld(state) {
         state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
+  }
+
+  // Card layer (only when active): installed engines produce, then the goal /
+  // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
+  if (state.cards) {
+    produceCardEngines(state);
+    checkGoalReached(state);
   }
 
   checkPuzzleGoal(state);
@@ -3846,6 +5120,7 @@ function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
 const __m_render_ui = (function () {
   const { ACTIONS, actionCost } = __m_engine_actions;
   const { SLIDERS, getByPath, setByPath } = __m_config;
+  const { CARD_BY_NAME } = __m_cards_data;
 // =============================================================================
 // UI — HUD, action buttons, event log, dev tools, "what we're testing" panel.
 //
@@ -3871,6 +5146,7 @@ class UI {
     this.state = state;
     this.handlers = handlers;
     this.selectedAction = null;
+    this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.el = {};
     this._build();
   }
@@ -3884,14 +5160,21 @@ class UI {
     // living network stays the focus; they're one tap away.
     const narrow = window.innerWidth < 760;
     const maybeCollapsed = narrow ? ' collapsed' : '';
+    const cardsOn = !!(this.state.config.cards && this.state.config.cards.enabled);
+    this.cardsOn = cardsOn;
 
     // ---- Top-left HUD ----
     const hud = div('panel hud');
+    const resStats = cardsOn ? `
+        <div class="stat res-w"><span class="k">Water</span><span class="v" id="hud-water">0</span></div>
+        <div class="stat res-n"><span class="k">Nitro</span><span class="v" id="hud-nitrogen">0</span></div>
+        <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
+      : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
     hud.innerHTML = `
-      <div class="title">MYCELIUM <span class="sub">· Phase 1</span></div>
+      <div class="title">MYCELIUM <span class="sub">· cards</span></div>
       <div class="stats">
         <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
-        <div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>
+        ${resStats}
         <div class="stat"><span class="k">Step</span><span class="v" id="hud-turn">1</span></div>
       </div>
       <div class="vitality"><span class="k">Healthy</span>
@@ -3906,8 +5189,19 @@ class UI {
     const bar = div('panel actionbar');
     this.el.buttons = {};
 
-    const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
-    for (const name of order) bar.appendChild(this._actionButton(name));
+    // Old always-available actions: only when the card layer is OFF (cards replace them).
+    if (!cardsOn) {
+      const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
+      for (const name of order) bar.appendChild(this._actionButton(name));
+    } else {
+      // Draw + Skip drive the card round.
+      const drawBtn = button('btn deckbtn', 'Draw');
+      drawBtn.onclick = () => this.handlers.onDraw();
+      const skipBtn = button('btn deckbtn', 'Skip');
+      skipBtn.onclick = () => this.handlers.onSkip();
+      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
+      bar.appendChild(drawBtn); bar.appendChild(skipBtn);
+    }
 
     // New map + puzzle (no End Turn — there are no turns; you just keep acting)
     const ctrl = div('ctrl');
@@ -3921,9 +5215,19 @@ class UI {
 
     root.appendChild(bar);
 
+    // ---- Hand bar (card layer) ----
+    if (cardsOn) {
+      const hand = div('panel handbar');
+      hand.innerHTML = `<div class="handlist" id="handlist"></div>`;
+      this.el.handlist = hand.querySelector('#handlist');
+      root.appendChild(hand);
+    }
+
     // ---- Hint line ----
     this.el.hint = div('hint');
-    this.el.hint.textContent = 'Hover an action for details. Grow extends the network toward sensed food.';
+    this.el.hint.textContent = cardsOn
+      ? 'Draw basics (⚡), then play cards from your hand. Grow costs Water · Digest costs Nitrogen · Actions cost Phosphorus. Reach the goal on the right to win.'
+      : 'Hover an action for details. Grow extends the network toward sensed food.';
     root.appendChild(this.el.hint);
 
     // ---- Right column: event log ----
@@ -4014,6 +5318,12 @@ class UI {
     if (name && hints[name]) this.setHint(hints[name]);
   }
 
+  setPendingCard(index) {
+    const h = this.state.cards && this.state.cards.hand[index];
+    this.pendingCard = h ? { id: h.id, name: h.name } : null;
+  }
+  clearPendingCard() { this.pendingCard = null; }
+
   setHint(text) { this.el.hint.textContent = text; }
 
   showOverlay(result) {
@@ -4025,13 +5335,17 @@ class UI {
 
     let title, body;
     if (won) {
-      title = 'Treasure reached! 🧩';
-      body = `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+      title = this.cardsOn && !puzzle ? 'You reached the goal! 🍄' : 'Treasure reached! 🧩';
+      body = this.cardsOn && !puzzle
+        ? `The colony crossed the map and fruited at the summer goal in <b>${result.turns}</b> steps.`
+        : `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
     } else if (died) {
       title = 'The colony has died';
       body = puzzle
         ? 'It starved or was overrun before reaching the treasure. Try a different route.'
-        : 'Trichoderma and hazards overwhelmed the network before it could fruit.';
+        : this.cardsOn
+          ? 'It ran card-dry and out of Energy, or was overwhelmed, before reaching the goal.'
+          : 'Trichoderma and hazards overwhelmed the network before it could fruit.';
     } else {
       title = 'The network has fruited';
       body = `It pushed up <b>${result.bodies}</b> fruiting bodies and released <b>${result.spores}</b> spores.`;
@@ -4066,14 +5380,30 @@ class UI {
       vfill.style.background = vitalityColor(net.vitality);
     }
 
-    // Button states / costs
+    // Card layer: resources, hand, draw/skip.
+    if (this.cardsOn && s.cards) {
+      text('hud-water', Math.floor(net.water || 0));
+      text('hud-nitrogen', Math.floor(net.nitrogen || 0));
+      text('hud-phosphorus', Math.floor(net.phosphorus || 0));
+      this._renderHand();
+      const cc = s.config.cards;
+      const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
+      if (this.el.drawBtn) {
+        this.el.drawBtn.innerHTML = `Draw <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
+        this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
+      }
+      if (this.el.skipBtn) {
+        this.el.skipBtn.innerHTML = `Skip <span class="cost">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
+      }
+    }
+
+    // Old action buttons (only present when the card layer is off).
     for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit']) {
       const btn = this.el.buttons[name];
       if (!btn) continue;
       const { energy } = actionCost(s, name);
       btn.innerHTML = `${ACTIONS[name].label} <span class="cost">${energy}⚡</span>`;
-      // Hide threat-specific actions when that threat isn't present (e.g. puzzle):
-      // the ant-bomb when there are no nests, Excrete when there are no worms.
       const noAnts = name === 'attackAnts' && !(s.ants && s.ants.length);
       const noWorms = name === 'excrete' && !(s.nematodes && s.nematodes.length);
       const hidden = noAnts || noWorms;
@@ -4082,6 +5412,28 @@ class UI {
     }
 
     this._renderLog();
+  }
+
+  _renderHand() {
+    const list = this.el.handlist;
+    if (!list) return;
+    const s = this.state, net = s.active;
+    list.innerHTML = '';
+    s.cards.hand.forEach((h, i) => {
+      const c = CARD_BY_NAME[h.name] || { costW: 0, costN: 0, costP: 0, effect: '', type: '' };
+      const gate = [];
+      if (c.costW) gate.push(`<span class="cc w">${c.costW}W</span>`);
+      if (c.costN) gate.push(`<span class="cc n">${c.costN}N</span>`);
+      if (c.costP) gate.push(`<span class="cc p">${c.costP}P</span>`);
+      const affordable = net.water >= c.costW && net.nitrogen >= c.costN && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      const pending = this.pendingCard && this.pendingCard.id === h.id;
+      const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
+      const b = button(cls, `<span class="cn">${escapeHtml(h.name)}</span><span class="ct">${escapeHtml(c.type)}</span><span class="cgate">${gate.join('') || '<span class="cc free">free</span>'}</span>`);
+      b.title = c.effect;
+      b.onclick = () => this.handlers.onPlayCard(i);
+      list.appendChild(b);
+    });
+    if (!s.cards.hand.length) list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>';
   }
 
   _renderLog() {
@@ -4116,6 +5468,7 @@ const __m_main = (function () {
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { spawnNematodeAt } = __m_engine_nematodes;
   const { tickWorld } = __m_engine_turn;
+  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget } = __m_engine_cards;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
@@ -4169,8 +5522,16 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
+  // Card layer online for procedural (non-puzzle) runs.
+  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state);
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, tickWorld };
+  if (CONFIG.dev.enabled) window.__game = {
+    get state() { return state; }, camera, performAction, tickWorld,
+    draw: () => resolveCardOp(drawCard(state)),
+    skip: () => resolveCardOp(skipRound(state)),
+    play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
+    botToGoal,
+  };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
@@ -4273,6 +5634,21 @@ const handlers = {
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
+  // --- card layer ---
+  onDraw() { resolveCardOp(drawCard(state)); },
+  onSkip() { resolveCardOp(skipRound(state)); },
+  onPlayCard(index) {
+    const entry = state.cards && state.cards.hand[index];
+    if (!entry) return;
+    if (cardNeedsTarget(entry.name)) {
+      ui.setPendingCard(index);
+      ui.setSelectedAction(null);
+      ui.setHint(`Tap the map to aim/target ${entry.name}.`);
+      uiDirty = true;
+      return;
+    }
+    resolveCardOp(playCard(state, index));
+  },
   onFruitPreview(on) {
     previewFruit = on;
     // Compute the candidate fruit points once, on hover-start (a UI event, not
@@ -4291,6 +5667,49 @@ function afterAction(name, res) {
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
+}
+
+// Resolve a card op (draw/skip/play): advance the world, refresh renderers.
+function resolveCardOp(res) {
+  if (res && res.ok) {
+    if (res.tick) tickWorld(state);
+    substrateRenderer.markDirty();
+    rendererFor(state.active).markStructureDirty();
+    if (state.runOver) ui.showOverlay(state.runResult);
+  } else if (res && res.message) {
+    ui.setHint(res.message);
+  }
+  uiDirty = true;
+}
+
+// Dev / self-play: drive the card game to the goal (route right + dig barriers).
+// Cheats resources so it exercises the real card→sim→win path end to end.
+function botToGoal(budget = 900) {
+  if (!state.cards) return { won: false, reason: 'card layer off' };
+  const sub = state.substrate, net = state.active;
+  const goalCols = Math.max(2, Math.min(sub.cols - 4, state.config.substrate.goalCols || 6));
+  const goalStart = sub.cols - goalCols;
+  const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
+  let guard = 0;
+  while (!state.won && !state.runOver && guard++ < budget) {
+    net.energy = Math.max(net.energy, 200); net.water = 99; net.nitrogen = 99; net.phosphorus = 99;
+    const fp = net.frontierPoint(); if (!fp) break;
+    const fcol = sub.colAtX(fp.x);
+    let target;
+    if (fcol >= goalStart) target = { x: fp.x, y: sub.surfaceY + 18 };
+    else { let tcol = Math.min(sub.cols - 1, fcol + 3), tr = clearRow(tcol); if (tr < 0) { tcol = Math.min(sub.cols - 1, fcol + 1); tr = clearRow(tcol); } target = tr >= 0 ? sub.cellCenter(tcol, tr) : { x: fp.x + 100, y: fp.y }; }
+    let idx = state.cards.hand.findIndex((h) => h.name === 'Rhizomorph Lance');
+    if (idx < 0) { state.cards.hand.push({ id: state.cards.seq++, name: 'Rhizomorph Lance' }); idx = state.cards.hand.length - 1; }
+    const before = net.nodes.length;
+    resolveCardOp(playCard(state, idx, { x: target.x, y: target.y }));
+    if (!state.won && net.nodes.length === before) {
+      const dx = Math.sign(target.x - fp.x) || 1;
+      net.digThrough(sub, fp.x + dx * sub.cellSize, (fp.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
+      tickWorld(state); substrateRenderer.markDirty(); rendererFor(state.active).markStructureDirty();
+      if (state.runOver) ui.showOverlay(state.runResult); uiDirty = true;
+    }
+  }
+  return { won: state.won, steps: guard, reachCol: Math.max(...net.nodes.map((n) => sub.colAtX(n.x))), goalStart };
 }
 
 // --- canvas interaction -----------------------------------------------------
@@ -4368,6 +5787,14 @@ function setupInput() {
       uiDirty = true;
       return;
     }
+    // A card is awaiting a map target: this tap supplies it.
+    if (ui.pendingCard) {
+      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const idx = state.cards.hand.findIndex((h) => h.id === ui.pendingCard.id);
+      ui.clearPendingCard();
+      if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
+      return;
+    }
     if (!ui.selectedAction) {
       // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
@@ -4394,7 +5821,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -5601,6 +7028,26 @@ function drawTargetingCursor(time) {
     ctx.fillStyle = 'rgba(228,216,190,0.95)';
     ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+  }
+
+  // Card awaiting a target: aim line from the frontier to the cursor + a marker.
+  if (ui && ui.pendingCard) {
+    const rect2 = canvas.getBoundingClientRect();
+    const wc = camera.screenToWorld(mouse.x - rect2.left, mouse.y - rect2.top);
+    const sp = camera.worldToScreen(wc.x, wc.y);
+    const fp = state.active && state.active.frontierPoint();
+    ctx.save();
+    if (fp) {
+      const a = camera.worldToScreen(fp.x, fp.y);
+      ctx.strokeStyle = 'rgba(127,230,163,0.7)';
+      ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(sp.x, sp.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = 'rgba(127,230,163,0.95)';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    return;
   }
 
   const sel = ui && ui.selectedAction;

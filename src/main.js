@@ -12,6 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -56,8 +57,16 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
+  // Card layer online for procedural (non-puzzle) runs.
+  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state);
   buildRenderers();
-  if (CONFIG.dev.enabled) window.__game = { get state() { return state; }, camera, performAction, tickWorld };
+  if (CONFIG.dev.enabled) window.__game = {
+    get state() { return state; }, camera, performAction, tickWorld,
+    draw: () => resolveCardOp(drawCard(state)),
+    skip: () => resolveCardOp(skipRound(state)),
+    play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
+    botToGoal,
+  };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
@@ -160,6 +169,21 @@ const handlers = {
     uiDirty = true;
   },
   onSliderChange() { uiDirty = true; },
+  // --- card layer ---
+  onDraw() { resolveCardOp(drawCard(state)); },
+  onSkip() { resolveCardOp(skipRound(state)); },
+  onPlayCard(index) {
+    const entry = state.cards && state.cards.hand[index];
+    if (!entry) return;
+    if (cardNeedsTarget(entry.name)) {
+      ui.setPendingCard(index);
+      ui.setSelectedAction(null);
+      ui.setHint(`Tap the map to aim/target ${entry.name}.`);
+      uiDirty = true;
+      return;
+    }
+    resolveCardOp(playCard(state, index));
+  },
   onFruitPreview(on) {
     previewFruit = on;
     // Compute the candidate fruit points once, on hover-start (a UI event, not
@@ -178,6 +202,49 @@ function afterAction(name, res) {
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
   if (state.runOver) ui.showOverlay(state.runResult);
   uiDirty = true;
+}
+
+// Resolve a card op (draw/skip/play): advance the world, refresh renderers.
+function resolveCardOp(res) {
+  if (res && res.ok) {
+    if (res.tick) tickWorld(state);
+    substrateRenderer.markDirty();
+    rendererFor(state.active).markStructureDirty();
+    if (state.runOver) ui.showOverlay(state.runResult);
+  } else if (res && res.message) {
+    ui.setHint(res.message);
+  }
+  uiDirty = true;
+}
+
+// Dev / self-play: drive the card game to the goal (route right + dig barriers).
+// Cheats resources so it exercises the real card→sim→win path end to end.
+function botToGoal(budget = 900) {
+  if (!state.cards) return { won: false, reason: 'card layer off' };
+  const sub = state.substrate, net = state.active;
+  const goalCols = Math.max(2, Math.min(sub.cols - 4, state.config.substrate.goalCols || 6));
+  const goalStart = sub.cols - goalCols;
+  const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
+  let guard = 0;
+  while (!state.won && !state.runOver && guard++ < budget) {
+    net.energy = Math.max(net.energy, 200); net.water = 99; net.nitrogen = 99; net.phosphorus = 99;
+    const fp = net.frontierPoint(); if (!fp) break;
+    const fcol = sub.colAtX(fp.x);
+    let target;
+    if (fcol >= goalStart) target = { x: fp.x, y: sub.surfaceY + 18 };
+    else { let tcol = Math.min(sub.cols - 1, fcol + 3), tr = clearRow(tcol); if (tr < 0) { tcol = Math.min(sub.cols - 1, fcol + 1); tr = clearRow(tcol); } target = tr >= 0 ? sub.cellCenter(tcol, tr) : { x: fp.x + 100, y: fp.y }; }
+    let idx = state.cards.hand.findIndex((h) => h.name === 'Rhizomorph Lance');
+    if (idx < 0) { state.cards.hand.push({ id: state.cards.seq++, name: 'Rhizomorph Lance' }); idx = state.cards.hand.length - 1; }
+    const before = net.nodes.length;
+    resolveCardOp(playCard(state, idx, { x: target.x, y: target.y }));
+    if (!state.won && net.nodes.length === before) {
+      const dx = Math.sign(target.x - fp.x) || 1;
+      net.digThrough(sub, fp.x + dx * sub.cellSize, (fp.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
+      tickWorld(state); substrateRenderer.markDirty(); rendererFor(state.active).markStructureDirty();
+      if (state.runOver) ui.showOverlay(state.runResult); uiDirty = true;
+    }
+  }
+  return { won: state.won, steps: guard, reachCol: Math.max(...net.nodes.map((n) => sub.colAtX(n.x))), goalStart };
 }
 
 // --- canvas interaction -----------------------------------------------------
@@ -255,6 +322,14 @@ function setupInput() {
       uiDirty = true;
       return;
     }
+    // A card is awaiting a map target: this tap supplies it.
+    if (ui.pendingCard) {
+      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const idx = state.cards.hand.findIndex((h) => h.id === ui.pendingCard.id);
+      ui.clearPendingCard();
+      if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
+      return;
+    }
     if (!ui.selectedAction) {
       // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
@@ -281,7 +356,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -1488,6 +1563,26 @@ function drawTargetingCursor(time) {
     ctx.fillStyle = 'rgba(228,216,190,0.95)';
     ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
+  }
+
+  // Card awaiting a target: aim line from the frontier to the cursor + a marker.
+  if (ui && ui.pendingCard) {
+    const rect2 = canvas.getBoundingClientRect();
+    const wc = camera.screenToWorld(mouse.x - rect2.left, mouse.y - rect2.top);
+    const sp = camera.worldToScreen(wc.x, wc.y);
+    const fp = state.active && state.active.frontierPoint();
+    ctx.save();
+    if (fp) {
+      const a = camera.worldToScreen(fp.x, fp.y);
+      ctx.strokeStyle = 'rgba(127,230,163,0.7)';
+      ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(sp.x, sp.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = 'rgba(127,230,163,0.95)';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    return;
   }
 
   const sel = ui && ui.selectedAction;

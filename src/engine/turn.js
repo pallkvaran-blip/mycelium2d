@@ -15,6 +15,7 @@
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
 import { stepAnts } from './ants.js';
 import { stepNematodes } from './nematodes.js';
+import { produceCardEngines, checkGoalReached } from './cards.js';
 
 export function tickWorld(state) {
   if (state.runOver) return;
@@ -56,6 +57,13 @@ export function tickWorld(state) {
         state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
+  }
+
+  // Card layer (only when active): installed engines produce, then the goal /
+  // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
+  if (state.cards) {
+    produceCardEngines(state);
+    checkGoalReached(state);
   }
 
   checkPuzzleGoal(state);

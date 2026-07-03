@@ -22,6 +22,7 @@ const R = (p) => join(root, p);
 // Dependency order: a module's deps must be registered before it runs.
 const MODULES = [
   'src/config.js',
+  'src/cards-data.js',
   'src/engine/rng.js',
   'src/engine/substrate.js',
   'src/engine/network.js',
@@ -30,6 +31,7 @@ const MODULES = [
   'src/engine/ants.js',
   'src/engine/puzzle.js',
   'src/engine/state.js',
+  'src/engine/cards.js',
   'src/engine/turn.js',
   'src/engine/actions.js',
   'src/render/camera.js',

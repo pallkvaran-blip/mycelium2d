@@ -22,6 +22,11 @@ export class Network {
 
     this.traits = {};   // (genetic traits removed for now — Melanize is gone)
     this.energy = config.energy.start;
+    // Card-layer resources (C1): gate PLAYS. Water=growth, Nitrogen=food, Phosphorus=work.
+    const cc = config.cards || {};
+    this.water = cc.startWater || 0;
+    this.nitrogen = cc.startNitrogen || 0;
+    this.phosphorus = cc.startPhosphorus || 0;
     this.spores = 0;           // spores this network has produced (Fruit)
 
     this.alive = true;         // false once dead (killed) ...
@@ -189,6 +194,139 @@ export class Network {
       if (this.nodes.length >= g.maxNodes) break;
     }
     return created;
+  }
+
+  // === Card-layer growth primitives (C1) ==================================
+  // Uninfected tip nodes (the advancing frontier).
+  tips() {
+    const t = [];
+    for (const n of this.nodes) if (!n.infected && n.children.length === 0) t.push(n);
+    return t.length ? t : this.nodes.filter((n) => !n.infected);
+  }
+  // Nearest uninfected node to a world point.
+  nearestNode(x, y) {
+    let best = null, bd = Infinity;
+    for (const n of this.nodes) {
+      if (n.infected) continue;
+      const d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+  // Centroid of the frontier (origin for directional plays / substrate placement).
+  frontierPoint() {
+    const src = this.tips();
+    if (!src.length) return null;
+    let sx = 0, sy = 0;
+    for (const n of src) { sx += n.x; sy += n.y; }
+    return { x: sx / src.length, y: sy / src.length };
+  }
+
+  _placeOk(substrate, nx, ny) {
+    if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) return false;
+    if (nx <= 2 || nx >= substrate.worldWidth - 2) return false;
+    const cell = substrate.cellAtWorld(nx, ny);
+    return !(cell && (cell.rock || cell.antTrail));
+  }
+
+  // Grow a chain of `steps` segments from the frontier tip furthest along (dx,dy).
+  // straight=true ignores jitter (a committed reach); returns nodes created.
+  growDirected(substrate, rng, dx, dy, steps, straight = false) {
+    const g = this.config.growth;
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const tips = this.tips();
+    if (!tips.length) return 0;
+    let parent = tips[0], bestProj = -Infinity;
+    for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    const baseAng = Math.atan2(dy, dx);
+    let created = 0;
+    for (let i = 0; i < steps; i++) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const ang = straight ? baseAng : baseAng + rng.range(-g.branchJitter, g.branchJitter);
+      const nx = parent.x + Math.cos(ang) * g.segmentLength;
+      const ny = parent.y + Math.sin(ang) * g.segmentLength;
+      if (!this._placeOk(substrate, nx, ny)) break;   // blocked (rock/edge)
+      parent = this.addNode(nx, ny, parent);
+      created++;
+    }
+    if (created) this.recomputeVitality();
+    return created;
+  }
+
+  // Grow one segment outward from every tip (radial spread; no attractor needed).
+  growRadial(substrate, rng) {
+    const g = this.config.growth;
+    let created = 0;
+    for (const t of this.tips()) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const par = t.parentId != null ? this.byId.get(t.parentId) : null;
+      let hx = par ? t.x - par.x : 0, hy = par ? t.y - par.y : 1;
+      const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l;
+      const ang = Math.atan2(hy, hx) + rng.range(-g.branchJitter, g.branchJitter);
+      const nx = t.x + Math.cos(ang) * g.segmentLength;
+      const ny = t.y + Math.sin(ang) * g.segmentLength;
+      if (!this._placeOk(substrate, nx, ny)) continue;
+      this.addNode(nx, ny, t);
+      created++;
+    }
+    if (created) this.recomputeVitality();
+    return created;
+  }
+
+  // Grow `steps` toward the nearest food cell anywhere on the map (even out of range).
+  growToNearestFood(substrate, rng, steps) {
+    const fp = this.frontierPoint();
+    if (!fp) return 0;
+    let target = null, best = Infinity;
+    substrate.forEachCell((cell, col, row) => {
+      if (cell.nutrient > 0 && !cell.rock) {
+        const c = substrate.cellCenter(col, row);
+        const d = (c.x - fp.x) ** 2 + (c.y - fp.y) ** 2;
+        if (d < best) { best = d; target = c; }
+      }
+    });
+    if (!target) return 0;
+    return this.growDirected(substrate, rng, target.x - fp.x, target.y - fp.y, steps, false);
+  }
+
+  // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
+  // and bridge a node into it so growth can pass. classes ⊆ {boulder,formation,column,lakeBasin}.
+  digThrough(substrate, x, y, classes, cap = 90) {
+    const isClass = (cell) => cell && cell.rock && (
+      (classes.includes('boulder') && !cell.formation && !cell.column && !cell.water) ||
+      (classes.includes('formation') && cell.formation) ||
+      (classes.includes('column') && cell.column) ||
+      (classes.includes('lakeBasin') && cell.water));
+    const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+    let start = null;
+    outer:
+    for (let rad = 0; rad <= 8 && !start; rad++) {
+      for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+        if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
+        if (isClass(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+      }
+    }
+    if (!start) return 0;
+    const seen = new Set(), stack = [start], cleared = [];
+    while (stack.length && cleared.length < cap) {
+      const { col, row } = stack.pop();
+      if (!substrate.inBounds(col, row)) continue;
+      const idx = substrate.index(col, row);
+      if (seen.has(idx)) continue; seen.add(idx);
+      const cell = substrate.cells[idx];
+      if (!isClass(cell)) continue;
+      cell.rock = false; cell.formation = false; cell.column = false;
+      if (cell.water && classes.includes('lakeBasin')) cell.water = false;
+      cleared.push(substrate.cellCenter(col, row));
+      stack.push({ col: col + 1, row }, { col: col - 1, row }, { col, row: row + 1 }, { col, row: row - 1 });
+    }
+    if (cleared.length) {
+      const entry = cleared[0];
+      const near = this.nearestNode(entry.x, entry.y);
+      if (near) this.addNode(entry.x, entry.y, near);
+      this.recomputeVitality();
+    }
+    return cleared.length;
   }
 
   _tooClose(x, y, minDist, substrate, buckets, key, reach) {

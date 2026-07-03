@@ -49,7 +49,11 @@ export function stepAnts(state) {
       retarget(sub, nest);
       cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
     }
-    if (cell && cell.nutrient > 0) {
+    if (cell && cell.antProof > 0) {
+      // Card effect (Sclerotial Seal): this pile is sealed against ant theft.
+      cell.antProof -= 1;
+      nest.dormant = false;
+    } else if (cell && cell.nutrient > 0) {
       cell.nutrient = Math.max(0, cell.nutrient - state.config.ants.harvestRate);
       nest.dormant = false;
     } else {

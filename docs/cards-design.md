@@ -4,11 +4,11 @@ Source of truth for the card layer. Card data lives in `docs/cards.csv` (spreads
 and `docs/cards.json` (implementation-ready). This doc is the rules + balance framework + the
 open issues to resolve before implementation.
 
-> Status: **CORE SET (v7)** — **38 cards**, ALL approved in review (38👍/0👎). Resources gate the core
-> loops (grow=Water, digest=Nitrogen, action=Phosphorus) + substrate=Nitrogen; water economy scaled up;
-> starting deck seeds water; Suberin Wall is a radius cure. No `rarity`; variable buy costs (cap ~40).
-> NOT yet balanced-final / NOT implemented.
-> CURRENT rules: §10 → §11 → §12–15 (history) → **§16 (v7 — authoritative)**.
+> Status: **IMPLEMENTED (v8)** — **40 cards** (added draw engines for the two starters). The card layer
+> is now BUILT INTO THE GAME (`src/engine/cards.js`) and playable: deck/hand/W-P-N, draw/skip/play,
+> per-round engines, reach-the-goal win. Resources gate the core loops (grow=Water, digest=Nitrogen,
+> action=Phosphorus) + substrate=Nitrogen. No `rarity`; variable buy costs (cap ~40).
+> CURRENT rules: §10 → §11 → §12–16 (history) → **§17 (v8 implementation — authoritative)**.
 
 ---
 
@@ -600,3 +600,45 @@ to match "grow costs water."
 Grows now cost water on essentially every turn. With the scaled-up water sources this should flow, but
 whether *every* grow should cost water (vs. only bigger/aimed grows, keeping the 1-step basic free) is
 worth a playtest read — noted for a future round.
+
+---
+
+## 17. v8 — card layer IMPLEMENTED in-game (CURRENT — authoritative)
+
+The card system is now built into the game and playable (procedural/sandbox runs; the classic
+puzzle mode still uses the old action bar). Verified headless (19/19 card tests) + in-browser
+(self-play reaches the goal and wins).
+
+### 17.1 New/changed code
+- **`src/cards-data.js`** — card defs generated from `docs/cards.json` (`scripts/gen-carddata.mjs`).
+- **`src/engine/cards.js`** — the runtime: deck/hand/discard, W/P/N gating, `drawCard`/`skipRound`/
+  `playCard`, installed-engine per-round production (`produceCardEngines`), the effect registry for all
+  40 cards, and the win/lose checks (`checkGoalReached`).
+- **`src/engine/network.js`** — W/P/N resource fields + growth primitives: `growDirected` (aimed/reach),
+  `growRadial`, `growToNearestFood`, `digThrough` (flood-clear a rock feature + bridge in), `tips`,
+  `frontierPoint`, `nearestNode`.
+- **`src/engine/turn.js`** — `tickWorld` now runs `produceCardEngines` + `checkGoalReached` each tick
+  (guarded on `state.cards`, so the plain sim/tests are untouched).
+- **`src/config.js`** — a `cards` economy block (draw/skip cost, start buffers, soft caps, harvest
+  amounts, substrate sizes, reach/step sizes, engine clamp).
+- **`src/main.js` / `src/render/ui.js` / `index.html`** — the card HUD: W/P/N readout, the hand of
+  cards with gate chips, Draw/Skip buttons, tap-to-target (directional/radius/pile) with an aim-line
+  preview, and a card-aware win/lose overlay. The old action bar is hidden when the card layer is on.
+  `window.__game` exposes `draw/skip/play/botToGoal` for console self-play.
+- **`test/cards.test.js`** — economy + every effect + goal-win + card-dry death + a routed win.
+
+### 17.2 How it plays
+Start with **5× Hyphal Extension + 5× Leaf Litter Cache + 5× Condense** in the draw deck and the
+tutorial hand of premium cards. **Draw** (spend ⚡) pulls a basic into hand; **play** a card (paying its
+W/P/N gate) resolves its effect and advances the world one tick (threats move, engines produce,
+income flows); **Skip** (spend ⚡) advances without a card. Reach the goal band on the right to win;
+go card-dry with no energy and you die.
+
+### 17.3 v8 implementation simplifications (revisit later)
+- **Action-per-tick**: every draw/play/skip advances the world one step (matches the existing engine).
+  A distinct multi-play "round" is deferred.
+- **No pile drafting yet**: the premium hand is the tutorial set; buying new cards at food piles (the
+  pile → energy + draft) is not wired — the draw deck + draw engines are the card flow for now.
+- **Action-type cards are one-shot** on play (they resolve immediately and discard) rather than
+  installed-with-cooldown; Tap-Root is the one repeatable "engine" that clears on a timer.
+- **Defense effects are first-pass** (radius cure / snare / pile-seal); tuning pending playtests.

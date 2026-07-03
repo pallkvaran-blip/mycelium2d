@@ -123,5 +123,13 @@ Whole set approved; the round was cost tweaks (full write-up: `cards-design.md` 
 - **Suberin Wall** → radius cure-on-tap action (1 P) ("we never pick specific strands").
 - Rhizomorph Lance / Fruiting Vigil reworded to "grow up to 6 steps".
 
-→ Awaiting **review round 6** on the v7 set. Open watch-item: does *every* grow needing water feel
-right, or should the basic 1-step grow stay free (§16.4)?
+→ Open watch-item: does *every* grow needing water feel right, or should the basic 1-step grow stay
+free (§16.4)?
+
+## v8 — card layer IMPLEMENTED in the game (40 cards)
+
+Added draw engines for the two starters (**Colonizing Front** → Hyphal Extension, **Leaf Fall** →
+Leaf Litter Cache), both in the tutorial set. Then built the whole card layer into the game
+(`src/engine/cards.js` + HUD): deck/hand/W-P-N, draw/skip/play, per-round engines, reach-the-goal win.
+Verified headless (19/19 card tests, 86/86 smoke) and in a real browser (self-play routes to the goal
+and wins). Full write-up: `cards-design.md` §17. Now playable — ready for hands-on playtest feedback.
