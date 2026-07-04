@@ -412,6 +412,7 @@ function frame(time) {
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
   drawGoalProps();              // summery bush clusters on the goal soil (over the hill backdrop)
+  drawCardPileGlints();         // card-draft marker over map leaf-litter piles (over terrain)
 
   for (const net of state.networks) {
     rendererFor(net).draw(ctx, camera, time);
@@ -798,27 +799,37 @@ function drawTerrainAssets() {
   if (hasAsset('soil')) fillPatternWorld('soil', null, cover, 0.5);
 }
 
-// Substrate = heaped leaves. Each food cell draws a small pile of oak/maple
-// leaves; the pile SHRINKS as the cell is digested (fewer leaves), and every
-// leaf's position/rotation/size/type is hashed from (col,row,k) so the heap is
-// stable across frames and digestion peels leaves off the top. No glow.
+// Substrate food = heaped sprites, keyed to what the pile IS:
+//   • MAP caches (foodKind 'cache') → heaped oak/maple LEAVES — wild litter that
+//     grants a card draft when fully digested (a glint marks them; see below).
+//   • PLAYER-placed food (foodKind 'nut') → heaped ACORNS/CHESTNUTS — a humble
+//     lower-tier cache that only yields energy, never a card.
+// The pile SHRINKS as the cell is digested (fewer pieces); every piece's
+// position/size/type is hashed from (col,row,k) so the heap is stable across
+// frames and digestion peels pieces off the top. No glow.
 function drawSubstrateLeaves() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
-  if (!oak && !maple) return;
-  const leaves = [oak || maple, maple || oak];
+  const acorn = asset('acorn'), chestnut = asset('chestnut');
+  const leaves = (oak || maple) ? [oak || maple, maple || oak] : null;
+  const nuts = (acorn || chestnut) ? [acorn || chestnut, chestnut || acorn] : null;
+  if (!leaves && !nuts) return;
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
-  const base = cs * 0.64;                       // base leaf height in world units (kept tight to the cell)
-  const MAXL = 11, margin = cs * 1.6 * z;       // more leaves per cell → a fuller heap once bundled
+  const margin = cs * 1.6 * z;
   sub.forEachCell((cell, col, row) => {
     if (cell.nutrient <= 0 || cell.rock) return;
+    const isNut = cell.foodKind === 'nut';
+    const set = isNut ? nuts : leaves;
+    if (!set) return;                            // this pile's sprites not loaded
     const ctr = sub.cellCenter(col, row);
     const s = camera.worldToScreen(ctr.x, ctr.y);
     if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
     const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
-    const count = Math.max(1, Math.round(MAXL * frac));
-    // Pull this cell's leaves toward the local food centroid so a cluster reads
+    const MAXP = isNut ? 7 : 11;                 // nuts are chunkier → fewer per cell
+    const base = cs * (isNut ? 0.5 : 0.64);      // …and a touch smaller
+    const count = Math.max(1, Math.round(MAXP * frac));
+    // Pull this cell's pieces toward the local food centroid so a cluster reads
     // as ONE heaped pile (not a cross of separate cells). This also bundles
-    // leaves inward — away from any nearby rock.
+    // pieces inward — away from any nearby rock.
     let bx = 0, by = 0;
     for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
       const nb = sub.cellAt(col + dc, row + dr);
@@ -831,18 +842,60 @@ function drawSubstrateLeaves() {
       const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
       const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
       const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
-      const img = leaves[h3 < 0.5 ? 0 : 1];
+      const img = set[h3 < 0.5 ? 0 : 1];
       if (!img) continue;
       const lh = base * (0.7 + h1 * 0.6) * z;
       const lw = lh * (img.width / img.height);
       const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
       ctx.save();
       ctx.translate(s.x + ox, s.y + oy);
-      ctx.rotate(h3 * Math.PI * 2);
+      // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
+      ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
       ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
       ctx.restore();
     }
   });
+}
+
+// A soft green "draft" glint floating over each MAP leaf-litter pile that still
+// grants a card (un-rewarded, undigested) — the at-a-glance tell that finishing
+// THIS pile hands you a card, unlike the nut caches you place yourself.
+function drawCardPileGlints() {
+  const sub = state.substrate;
+  if (!sub || !sub.foodPiles || state.runOver) return;
+  const z = camera.zoom, cs = sub.cellSize;
+  const pulse = 0.5 + 0.5 * Math.sin((lastTime || 0) / 520);
+  for (const pile of sub.foodPiles) {
+    if (pile.rewarded) continue;
+    let topX = 0, minY = Infinity, any = false;
+    for (const idx of pile.cells) {
+      const cell = sub.cells[idx]; if (!cell || cell.nutrient <= 0) continue;
+      const col = idx % sub.cols, row = (idx / sub.cols) | 0;
+      const ctr = sub.cellCenter(col, row);
+      any = true;
+      if (ctr.y < minY) { minY = ctr.y; topX = ctr.x; }
+    }
+    if (!any) continue;                          // fully digested — reward is pending
+    const p = camera.worldToScreen(topX, minY - cs * 0.95);
+    if (p.x < -40 || p.x > camera.viewW + 40 || p.y < -40 || p.y > camera.viewH + 40) continue;
+    const r = cs * 0.5 * z;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.2);
+    g.addColorStop(0, `rgba(150,240,190,${0.22 + 0.16 * pulse})`);
+    g.addColorStop(1, 'rgba(150,240,190,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // a small four-point sparkle at the centre
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = `rgba(180,250,205,${0.55 + 0.35 * pulse})`;
+    ctx.font = `${Math.max(9, Math.round(cs * 0.62 * z))}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✦', 0, 0);
+    ctx.restore();
+  }
 }
 
 // Fill `cover` (screen rect) with a world-anchored, zoom-scaled tiled texture,

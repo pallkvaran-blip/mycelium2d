@@ -26,6 +26,7 @@ const DRAW_ENGINES = {
   'Questing Front': 'Tropic Lunge',
   'Humus Cache': 'Humus Bed',
   'Symbiont Weave': 'Mycorrhizal Mat',
+  'Acorn Fall': 'Acorn Cache',
   'Enzyme Priming': 'Saprotrophic Digest',
   'Boring Corps': 'Appressorial Punch',
   'Crust Reserve': 'Sclerotial Crust',
@@ -345,6 +346,7 @@ export const EFFECTS = {
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
+  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Buried a small nut cache at the sensing edge.' }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 

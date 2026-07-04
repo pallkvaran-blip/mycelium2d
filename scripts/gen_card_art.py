@@ -29,6 +29,8 @@ STYLE = {
 CARDS = [
  ("hyphal-extension","dark","a spreading fan of luminous mycelial hyphae threads reaching out through dark soil toward glowing food motes"),
  ("leaf-litter-cache","bright","a small pile of fallen autumn leaves and leaf litter on a sunlit mossy forest floor"),
+ ("acorn-cache","bright","a small hoard of ripe brown oak acorns and glossy reddish-brown chestnuts piled on a sunlit mossy forest floor, autumn nuts, shallow depth of field"),
+ ("acorn-fall","bright","ripe brown acorns and glossy chestnuts tumbling and scattering onto a sunlit mossy forest floor, a fresh autumn mast fall, warm daylight"),
  ("apical-drive","dark","a single glowing hyphal tip surging forward through dark earth, directed growth, trailing light"),
  ("foraging-fan","dark","a radiating fan of glowing mycelium spreading outward in every direction through dark soil"),
  ("tropic-lunge","dark","a strand of glowing mycelium lunging across a gap toward a distant glowing morsel of food, dark soil"),

@@ -22,7 +22,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0 };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, foodKind: '' };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -98,6 +98,9 @@ export class Substrate {
         cell.nutrient = Math.max(cell.nutrient, amount);  // flat patch (same value per cell)
         cell.maxNutrient = Math.max(cell.maxNutrient, amount);
         cell.hazard = false;
+        // Player-placed food = a humble NUT cache (energy only, no card). Never
+        // downgrade a map cache cell that grants a draft.
+        if (cell.foodKind !== 'cache') cell.foodKind = 'nut';
       }
     }
   }
@@ -405,6 +408,7 @@ export function generateSubstrate(config, rng) {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
+      cell.foodKind = 'cache';                     // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
     });
     if (!cells.length) return;

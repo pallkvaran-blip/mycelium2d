@@ -12,6 +12,16 @@
    "kind": "sprite"
   },
   {
+   "key": "acorn",
+   "file": "acorn.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "chestnut",
+   "file": "chestnut.png",
+   "kind": "sprite"
+  },
+  {
    "key": "rockSlate",
    "file": "rockSlate.png",
    "kind": "sprite"
