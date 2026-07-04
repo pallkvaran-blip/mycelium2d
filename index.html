@@ -251,6 +251,18 @@
     .offercard .cart { height: 148px; }
     .offercard .cplate .cn { font-size: 15px; }
     .offercard .crules { font-size: 11px; }
+    /* a static (non-interactive) card face inside the confirm/preview overlay */
+    .offercard.static { cursor: default; }
+    .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
+      box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75); }
+    /* Confirm/preview overlay (play a card / draft a card) */
+    .confirmbox { max-width: 560px; }
+    .confirmbox .addslabel { margin-top: 14px; color: var(--accent); }
+    .confirmbtns { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+    .confirmbtns .btn { font-size: 14px; padding: 11px 20px; }
+    .confirmbtns .btn.big { background: var(--accent); color: #06110a; border-color: var(--accent); font-weight: 600; }
+    .confirmbtns .btn.big:hover:not(:disabled) { background: #9bf0b8; }
+    .confirmbtns .confirmno { background: rgba(255,255,255,0.06); }
     /* PHONE PORTRAIT (and narrow windows): compact controls + a swipeable card carousel. */
     @media (max-width: 760px) {
       /* hide the hint here too — the carousel layout (lowered controls) starts at 760px,

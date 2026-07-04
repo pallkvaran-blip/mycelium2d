@@ -22,6 +22,11 @@
    "kind": "sprite"
   },
   {
+   "key": "pinecone",
+   "file": "pinecone.png",
+   "kind": "sprite"
+  },
+  {
    "key": "rockSlate",
    "file": "rockSlate.png",
    "kind": "sprite"

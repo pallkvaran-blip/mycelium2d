@@ -10,6 +10,7 @@
 import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
+import { cardDeckAdditions, cardNeedsTarget } from '../engine/cards.js';
 
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
@@ -27,6 +28,7 @@ export class UI {
     this.handlers = handlers;
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
+    this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.handFilter = 'all';          // active card-hand filter group key
     this.handOpen = !this._isNarrow();// phones start with the hand tray collapsed
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
@@ -215,6 +217,10 @@ export class UI {
     if (cardsOn) {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
+      // Confirm/preview overlay: arm a card (hand or draft) → see what it does
+      // (incl. any cards it shuffles into your deck) → Confirm to commit.
+      this.el.confirm = div('offer confirm hidden');
+      root.appendChild(this.el.confirm);
     }
   }
 
@@ -405,10 +411,11 @@ export class UI {
       const c = g.card;
       const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
-      const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending ? ' selected' : '');
+      const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
+      const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');
       const b = button(cls, cardFaceHTML(g.name, c, g.count));
       b.title = c.effect;
-      b.onclick = () => this.handlers.onPlayCard(g.firstIndex);
+      b.onclick = () => this.armCard(g.firstIndex, g.name);
       list.appendChild(b);
     });
     list.scrollLeft = prevScroll;   // keep carousel position across a re-render
@@ -450,8 +457,54 @@ export class UI {
       + `</div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('.offercard').forEach((btn) => {
-      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
+      btn.onclick = () => this.armOffer(btn.dataset.name);
     });
+    this._renderConfirm();
+  }
+
+  // --- arm / confirm flow --------------------------------------------------
+  // Clicking a card (hand or draft) ARMS it: a confirm overlay shows what it
+  // does — including any cards it shuffles into your deck — before you commit.
+  armCard(index, name) { this.armed = { kind: 'hand', index, name }; this._renderConfirm(); this._renderHand(); }
+  armOffer(name) { this.armed = { kind: 'offer', name }; this._renderConfirm(); }
+  clearArmed() {
+    this.armed = null;
+    if (this.el.confirm) { this.el.confirm.classList.add('hidden'); this.el.confirm.innerHTML = ''; }
+    this._renderHand();
+  }
+
+  _renderConfirm() {
+    const el = this.el.confirm;
+    if (!el) return;
+    if (!this.armed) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    const name = this.armed.name;
+    const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+    const isOffer = this.armed.kind === 'offer';
+    const adds = cardDeckAdditions(name);
+    let addHTML = '';
+    if (adds) {
+      const ac = CARD_BY_NAME[adds.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+      addHTML = `<p class="dim small addslabel">Shuffles ${adds.count} of these into your draw deck:</p>`
+        + `<div class="offerrow"><div class="offercard static">${cardFaceHTML(adds.name, ac, adds.count)}</div></div>`;
+    }
+    const doLabel = isOffer ? 'Take card' : (cardNeedsTarget(name) ? 'Aim on map' : 'Play card');
+    el.innerHTML = `<div class="offerbox confirmbox">`
+      + `<h2>${isOffer ? 'Draft this card?' : 'Play this card?'}</h2>`
+      + `<div class="offerrow"><div class="offercard static">${cardFaceHTML(name, c, isOffer ? 0 : 0)}</div></div>`
+      + addHTML
+      + `<div class="confirmbtns"><button class="btn big confirmyes">${doLabel}</button>`
+      + `<button class="btn confirmno">Cancel</button></div>`
+      + `</div>`;
+    el.classList.remove('hidden');
+    el.onclick = (e) => { if (e.target === el) this.clearArmed(); };  // tap backdrop = cancel
+    el.querySelector('.confirmyes').onclick = () => {
+      const armed = this.armed;
+      this.clearArmed();
+      if (!armed) return;
+      if (armed.kind === 'offer') this.handlers.onChooseCard(armed.name);
+      else this.handlers.onPlayCard(armed.index);
+    };
+    el.querySelector('.confirmno').onclick = () => this.clearArmed();
   }
 
   _renderLog() {

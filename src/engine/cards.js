@@ -46,7 +46,16 @@ function shuffle(arr, rng) {
 }
 
 // The "tutorial set": the pool a finished food pile drafts 3 random cards from.
-const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial).map((c) => c.name);
+// Basics are EXCLUDED — drafts hand out premium cards / draw-engines only (you
+// already get basics from the draw deck), so a pile reward always feels premium.
+const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic').map((c) => c.name);
+
+// What a draw-engine card shuffles into your deck (for the confirm/preview UI).
+// Returns { name, count } or null for non-engine cards.
+export function cardDeckAdditions(name) {
+  const basic = DRAW_ENGINES[name];
+  return basic ? { name: basic, count: 5 } : null;
+}
 
 // --- setup ------------------------------------------------------------------
 // Build the starting deck. `mode`: 'tutorial' (default) starts with an EMPTY
