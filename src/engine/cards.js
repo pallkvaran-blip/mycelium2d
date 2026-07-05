@@ -285,12 +285,34 @@ function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const g = state.config.growth;
   const { fp, dx, dy } = dirFrom(state, ctx);
   const len = Math.hypot(dx, dy) || 1;
-  let px = fp.x + (dx / len) * g.sensingRadius;
-  let py = fp.y + (dy / len) * g.sensingRadius;
-  py = Math.max(sub.surfaceY + sub.cellSize, Math.min(sub.worldHeight - sub.cellSize, py));
-  px = Math.max(sub.cellSize, Math.min(sub.worldWidth - sub.cellSize, px));
-  sub.deposit(px, py, amount, radiusCells);
-  return { px, py };
+  const ux = dx / len, uy = dy / len;
+  const clampX = (x) => Math.max(sub.cellSize, Math.min(sub.worldWidth - sub.cellSize, x));
+  const clampY = (y) => Math.max(sub.surfaceY + sub.cellSize, Math.min(sub.worldHeight - sub.cellSize, y));
+  // Where we'd LIKE it: just inside the sensing edge, in the aimed direction.
+  const target = { x: clampX(fp.x + ux * g.sensingRadius * 0.85), y: clampY(fp.y + uy * g.sensingRadius * 0.85) };
+  // But growth senses food strictly WITHIN the sensing radius, so the cache MUST
+  // land on soil that the colony can actually reach. Scan the soil cells within
+  // sensing range of the source tip (excluding cells already at/inside it) and pick
+  // the one nearest the aimed target. This guarantees a reachable, on-soil cache —
+  // never buried in rock, off the map, or dropped exactly on the un-reachable edge.
+  const reachCells = Math.ceil(g.sensingRadius / sub.cellSize);
+  const tc = sub.colAtX(fp.x), tr = sub.rowAtY(fp.y);
+  const inMin = g.killDistance + sub.cellSize, inMax = g.sensingRadius * 0.9;
+  let best = null, bestD = Infinity;
+  for (let r = tr - reachCells; r <= tr + reachCells; r++) {
+    for (let c = tc - reachCells; c <= tc + reachCells; c++) {
+      const cell = sub.cellAt(c, r);
+      if (!cell || cell.rock || cell.water) continue;
+      const cc = sub.cellCenter(c, r);
+      const dTip = Math.hypot(cc.x - fp.x, cc.y - fp.y);
+      if (dTip < inMin || dTip > inMax) continue;   // reachable and not already occupied
+      const dTgt = (cc.x - target.x) ** 2 + (cc.y - target.y) ** 2;
+      if (dTgt < bestD) { bestD = dTgt; best = cc; }
+    }
+  }
+  const at = best || target;   // fallback only if the colony is fully walled in
+  sub.deposit(at.x, at.y, amount, radiusCells);
+  return { px: at.x, py: at.y };
 }
 function nodeTouches(state, pred) {
   const sub = state.substrate;

@@ -441,8 +441,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "xagq0w";
-globalThis.__BUILD__ = "local 07-05 10:42";
+window.__ASSET_VER = "1n8b989";
+globalThis.__BUILD__ = "local 07-05 11:34";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3778,12 +3778,34 @@ function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const g = state.config.growth;
   const { fp, dx, dy } = dirFrom(state, ctx);
   const len = Math.hypot(dx, dy) || 1;
-  let px = fp.x + (dx / len) * g.sensingRadius;
-  let py = fp.y + (dy / len) * g.sensingRadius;
-  py = Math.max(sub.surfaceY + sub.cellSize, Math.min(sub.worldHeight - sub.cellSize, py));
-  px = Math.max(sub.cellSize, Math.min(sub.worldWidth - sub.cellSize, px));
-  sub.deposit(px, py, amount, radiusCells);
-  return { px, py };
+  const ux = dx / len, uy = dy / len;
+  const clampX = (x) => Math.max(sub.cellSize, Math.min(sub.worldWidth - sub.cellSize, x));
+  const clampY = (y) => Math.max(sub.surfaceY + sub.cellSize, Math.min(sub.worldHeight - sub.cellSize, y));
+  // Where we'd LIKE it: just inside the sensing edge, in the aimed direction.
+  const target = { x: clampX(fp.x + ux * g.sensingRadius * 0.85), y: clampY(fp.y + uy * g.sensingRadius * 0.85) };
+  // But growth senses food strictly WITHIN the sensing radius, so the cache MUST
+  // land on soil that the colony can actually reach. Scan the soil cells within
+  // sensing range of the source tip (excluding cells already at/inside it) and pick
+  // the one nearest the aimed target. This guarantees a reachable, on-soil cache —
+  // never buried in rock, off the map, or dropped exactly on the un-reachable edge.
+  const reachCells = Math.ceil(g.sensingRadius / sub.cellSize);
+  const tc = sub.colAtX(fp.x), tr = sub.rowAtY(fp.y);
+  const inMin = g.killDistance + sub.cellSize, inMax = g.sensingRadius * 0.9;
+  let best = null, bestD = Infinity;
+  for (let r = tr - reachCells; r <= tr + reachCells; r++) {
+    for (let c = tc - reachCells; c <= tc + reachCells; c++) {
+      const cell = sub.cellAt(c, r);
+      if (!cell || cell.rock || cell.water) continue;
+      const cc = sub.cellCenter(c, r);
+      const dTip = Math.hypot(cc.x - fp.x, cc.y - fp.y);
+      if (dTip < inMin || dTip > inMax) continue;   // reachable and not already occupied
+      const dTgt = (cc.x - target.x) ** 2 + (cc.y - target.y) ** 2;
+      if (dTgt < bestD) { bestD = dTgt; best = cc; }
+    }
+  }
+  const at = best || target;   // fallback only if the colony is fully walled in
+  sub.deposit(at.x, at.y, amount, radiusCells);
+  return { px: at.x, py: at.y };
 }
 function nodeTouches(state, pred) {
   const sub = state.substrate;
@@ -5505,7 +5527,12 @@ class Lighting {
     this.spriteNetwork = makeGlowSprite(r.networkLight);
     this.spriteFood = makeGlowSprite(r.foodLight);
     this.spriteHazard = makeGlowSprite(r.hazardLight);
-    this.spriteSense = makeGlowSprite(r.senseLight);
+    // The sensing aura uses a FULLER falloff than the point-lights: it holds its
+    // brightness almost all the way out, then drops to nothing right at the edge.
+    // Drawn at senseR = sensingRadius, this makes the VISIBLE lit area reach the
+    // colony's actual reach range (a steep gradient would fade out well short of
+    // it and read as a much smaller sensing circle than the colony really has).
+    this.spriteSense = makeGlowSprite(r.senseLight, [[0, 1], [0.62, 0.92], [0.84, 0.62], [0.95, 0.28], [1, 0]]);
   }
 
   // Dim the scene already drawn to `ctx` and add the colony's light back in.
@@ -5564,7 +5591,7 @@ class Lighting {
       const tips = rend && rend.frontierTips;
       if (!tips) continue;
       for (const t of tips) {
-        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, 0.1 * breath, W, H);
+        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, 0.12 * breath, W, H);
       }
     }
 
@@ -5606,16 +5633,18 @@ class Lighting {
 }
 
 // A radial glow sprite: solid colour at the centre fading to transparent.
-function makeGlowSprite(color) {
+// `stops` is an optional [pos, alpha] falloff profile (pos 0→1 = centre→edge);
+// the default is a steep point-light falloff. A fuller profile keeps the glow
+// bright further out so its visible extent matches the drawn radius.
+function makeGlowSprite(color, stops) {
   const size = 128;
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
   const g = c.getContext('2d');
   const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   const rgb = color.replace(/rgba?\(/, '').replace(')', '').split(',').slice(0, 3).map((s) => s.trim());
-  grd.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`);
-  grd.addColorStop(0.5, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.35)`);
-  grd.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  const profile = stops || [[0, 1], [0.5, 0.35], [1, 0]];
+  for (const [pos, a] of profile) grd.addColorStop(pos, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`);
   g.fillStyle = grd;
   g.fillRect(0, 0, size, size);
   return c;
