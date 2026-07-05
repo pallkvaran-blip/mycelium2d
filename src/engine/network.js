@@ -302,10 +302,17 @@ export class Network {
     const buckets = new Map();
     const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
     for (const n of this.nodes) if (!n.infected) bucket(n);
+    // Fan from EVERY frontier tip FAIRLY: shuffle the tips, then go ray-by-ray (one
+    // ray per tip per pass). This spreads the burst across the WHOLE frontier — a
+    // dense near-side cluster (which has many tips and comes first in node order) no
+    // longer eats the entire node budget before the far side gets a turn, so the
+    // colony fans out all over instead of only where it's already thick.
+    const tips = this.tips();
+    for (let i = tips.length - 1; i > 0; i--) { const j = rng.int(0, i); const tmp = tips[i]; tips[i] = tips[j]; tips[j] = tmp; }
     let created = 0;
-    for (const t of this.tips()) {
+    for (let k = 0; k < rays; k++) {
       if (this.nodes.length >= g.maxNodes) break;
-      for (let k = 0; k < rays; k++) {
+      for (const t of tips) {
         if (this.nodes.length >= g.maxNodes) break;
         const ang = (k / rays) * Math.PI * 2 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
         const nx = t.x + Math.cos(ang) * g.segmentLength;
