@@ -469,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "dihx14";
-globalThis.__BUILD__ = "local 07-05 14:20";
+window.__ASSET_VER = "u32zfl";
+globalThis.__BUILD__ = "local 07-05 14:33";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -600,7 +600,7 @@ const CONFIG = {
     substrateMedium: 70,
     substrateLarge: 110,
     reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
-    directionalSteps: 3,         // cells an aimed basic grow advances
+    directionalSteps: 6,         // cells Apical Drive advances (2 "steps" — was 3 for 1 step)
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -923,7 +923,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 1 step: choose a direction.",
+  "effect": "Grow 2 steps: choose a direction.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0

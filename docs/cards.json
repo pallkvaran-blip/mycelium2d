@@ -67,7 +67,7 @@
   "playCostEnergy": 0,
   "playCostWater": 1,
   "playCostPhosphorus": 0,
-  "effect": "Grow 1 step: choose a direction.",
+  "effect": "Grow 2 steps: choose a direction.",
   "timing": "early",
   "repayRounds": 0,
   "axis": "tempo",

@@ -63,7 +63,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 1 step: choose a direction.",
+  "effect": "Grow 2 steps: choose a direction.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0

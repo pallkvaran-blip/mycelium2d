@@ -124,7 +124,7 @@ export const CONFIG = {
     substrateMedium: 70,
     substrateLarge: 110,
     reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
-    directionalSteps: 3,         // cells an aimed basic grow advances
+    directionalSteps: 6,         // cells Apical Drive advances (2 "steps" — was 3 for 1 step)
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
