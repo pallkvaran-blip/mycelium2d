@@ -526,12 +526,12 @@ export class UI {
     if (confirm) confirm.disabled = !this.armedOffer;
     const prev = el.querySelector('#offerpreview');
     if (prev) {
-      // Preview what a +5 draw-engine card shuffles into the deck (name + effect).
+      // Preview what a +5 draw-engine card grants: just the granted card's name +
+      // function (e.g. "Foraging Fan: Grow 1 step: every direction").
       const adds = this.armedOffer ? cardDeckAdditions(this.armedOffer) : null;
       if (adds) {
         const ac = CARD_BY_NAME[adds.name] || { effect: '' };
-        prev.innerHTML = `<div class="hplabel">Shuffles ${adds.count} × <b>${escapeHtml(adds.name)}</b> into your draw deck:</div>`
-          + `<div class="hpdesc">${escapeHtml(ac.effect || '')}</div>`;
+        prev.innerHTML = `<div class="hpdesc"><b class="hpname">${escapeHtml(adds.name)}</b>: ${escapeHtml(ac.effect || '')}</div>`;
         prev.classList.remove('hidden');
       } else {
         prev.classList.add('hidden');
@@ -598,8 +598,7 @@ export class UI {
     const adds = armed ? cardDeckAdditions(armed.name) : null;
     if (adds) {
       const ac = CARD_BY_NAME[adds.name] || { effect: '' };
-      prev.innerHTML = `<div class="hplabel">Shuffles ${adds.count} × <b>${escapeHtml(adds.name)}</b> into your draw deck:</div>`
-        + `<div class="hpdesc">${escapeHtml(ac.effect || '')}</div>`;
+      prev.innerHTML = `<div class="hpdesc"><b class="hpname">${escapeHtml(adds.name)}</b>: ${escapeHtml(ac.effect || '')}</div>`;
       prev.classList.remove('hidden');
     } else {
       prev.classList.add('hidden');
