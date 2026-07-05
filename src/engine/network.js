@@ -338,43 +338,41 @@ export class Network {
     return n;
   }
 
-  // Grow `steps` from the strand CLOSEST to any food cell, toward that food (works
-  // anywhere on the map, even out of sensing range). Ties — strands equally near
-  // food — go to the one closer to the goal (goal band is on the far right → larger
-  // x). If the closest strand's path is walled by rock, we pick the closest strand
-  // that can lunge the FURTHEST (a full lunge from a strand with a clear path beats
-  // a 1-step stub from a strand jammed against rock). Returns nodes grown; 0 means
-  // either no food exists or every path is walled off (caller checks hasFood()).
+  // Grow `steps` from the frontier TIP CLOSEST to any food cell, toward that food
+  // (works anywhere on the map, even out of sensing range). This is where the lunge
+  // ALWAYS starts — the strand tip nearest the food, so a long strand reaching out
+  // toward food lunges from its own tip, not from the far-off base. Ties — tips
+  // equally near food — go to the one closer to the goal (far right → larger x). It
+  // grows as far as that tip can toward the food (until rock/edge stops it); only if
+  // the closest tip is walled off entirely do we fall through to the next-closest
+  // tip that can advance. Returns nodes grown; 0 means no food, or every tip's path
+  // is walled off (caller checks hasFood()).
   growToNearestFood(substrate, rng, steps) {
     const food = [];
     substrate.forEachCell((cell, col, row) => {
       if (cell.nutrient > 0 && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
     });
     if (!food.length) return 0;
-    // For every living strand, its nearest food + distance.
+    // For every frontier tip, its nearest food + distance.
     const cand = [];
-    for (const n of this.nodes) {
-      if (n.infected) continue;
+    for (const t of this.tips()) {
       let nd = Infinity, nt = null;
-      for (const f of food) { const d = (f.x - n.x) ** 2 + (f.y - n.y) ** 2; if (d < nd) { nd = d; nt = f; } }
-      if (nt) cand.push({ n, nt, nd });
+      for (const f of food) { const d = (f.x - t.x) ** 2 + (f.y - t.y) ** 2; if (d < nd) { nd = d; nt = f; } }
+      if (nt) cand.push({ n: t, nt, nd });
     }
     if (!cand.length) return 0;
-    // Order by nearest-food distance; ties (within ~2px) go to the strand closer to
-    // the goal (larger x). Quantised distance keeps the comparator transitive.
+    // Order by nearest-food distance; ties (within ~2px) go to the tip closer to the
+    // goal (larger x). Quantised distance keeps the comparator transitive.
     const EPS2 = 4;
     cand.sort((a, b) => { const qa = Math.round(a.nd / EPS2), qb = Math.round(b.nd / EPS2); return qa !== qb ? qa - qb : b.n.x - a.n.x; });
-    // Pick the closest strand that can lunge the furthest: iterate nearest-first,
-    // keep the one with the longest clear path, and stop at the first that can go
-    // the full distance (so a rock jamming the closest strand doesn't cap the lunge
-    // at 1 — a farther strand with a clear run does the full lunge instead).
-    let best = null, bestReach = 0;
+    // Grow from the CLOSEST tip that can advance at all (skip only tips walled in
+    // immediately), so the lunge starts from the tip nearest the food and goes as
+    // far as it can from there.
     for (const c of cand) {
-      const reach = this._reachableSteps(substrate, c.n, c.nt.x - c.n.x, c.nt.y - c.n.y, steps);
-      if (reach > bestReach) { best = c; bestReach = reach; if (reach >= steps) break; }
+      if (this._reachableSteps(substrate, c.n, c.nt.x - c.n.x, c.nt.y - c.n.y, steps) <= 0) continue;
+      return this.growDirected(substrate, rng, c.nt.x - c.n.x, c.nt.y - c.n.y, steps, false, c.n);
     }
-    if (!best) return 0;   // food exists but every path toward it is walled off
-    return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
+    return 0;   // food exists but every tip's path toward it is walled off
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
