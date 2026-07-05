@@ -318,6 +318,32 @@ export class Network {
     return created;
   }
 
+  // Why couldn't the fan grow anywhere? (Only called when growRadial returned 0,
+  // so the caller can report the real reason instead of a flat "no room".)
+  //   'cap'     — at the hard node limit, growth can't add more.
+  //   'rock'    — every frontier tip is walled in by rock / edge / the surface.
+  //   'crowded' — open directions exist, but they'd fall back over existing
+  //               strands (min-spacing), i.e. the colony is packed solid here.
+  // NOTE: any single frontier tip with an open, un-crowded direction means the
+  // fan WOULD have grown there — partial growth always succeeds — so reaching
+  // this at all means no tip anywhere could advance.
+  fanBlockReason(substrate) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 'cap';
+    const rays = Math.max(3, g.foragingFanRays || 8);
+    for (const t of this.tips()) {
+      for (let k = 0; k < rays; k++) {
+        const ang = (k / rays) * Math.PI * 2;
+        const nx = t.x + Math.cos(ang) * g.segmentLength;
+        const ny = t.y + Math.sin(ang) * g.segmentLength;
+        // A placeable direction that's merely crowded means the frontier is
+        // boxed by its own mass, not by rock.
+        if (this._placeOk(substrate, nx, ny)) return 'crowded';
+      }
+    }
+    return 'rock';
+  }
+
   // Any food left on the map? (For distinguishing "no food" from "blocked".)
   hasFood(substrate) {
     for (const cell of substrate.cells) if (cell.nutrient > 0 && !cell.rock && !cell.hazard) return true;

@@ -136,7 +136,7 @@ export const CONFIG = {
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
-    maxNodes: 2500,              // safety cap on network size (a colony now spans the whole level)
+    maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle

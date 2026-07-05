@@ -374,26 +374,41 @@ function cureRadius(state, ctx, r) {
 const grow = (fn) => ({ apply: fn });
 const targeted = (fn) => ({ target: true, apply: fn });
 const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
+// The colony is at its hard node cap — growth can't add more. Grow cards check
+// this first so they report the real reason instead of a misleading "no room".
+const maxedOut = (s) => s.active.nodes.length >= s.config.growth.maxNodes;
+const MAXED_MSG = 'The colony has reached its maximum size.';
 
 export const EFFECTS = {
   // --- grow (Water) ---
   'Hyphal Extension': grow((s) => {
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const c = s.active.grow(s.substrate, s.rng);
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
   'Apical Drive': targeted((s, c, ctx) => {
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
     return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
   }),
   'Foraging Fan': grow((s) => {
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+    // Partial growth always succeeds: every frontier tip with open ground fans
+    // out, even if rock walls off the others. Only when NOT ONE tip anywhere can
+    // advance do we fail — and then we name the real reason (rock vs. too dense).
     const n = s.active.growRadial(s.substrate, s.rng);
-    return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'No room to fan out.' };
+    if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
+    const reason = s.active.fanBlockReason(s.substrate);
+    if (reason === 'cap') return { ok: false, message: MAXED_MSG };
+    if (reason === 'crowded') return { ok: false, message: 'The colony is packed too tightly here to fan out any further.' };
+    return { ok: false, message: 'Rock walls the colony in on every side — nowhere to fan out.' };
   }),
   'Tropic Lunge': grow((s) => {
     // Lunge from the strand closest to ANY food, toward that food — regardless of
     // range (the closest food on the whole map, even far out of sensing range). If a
     // rock walls off the path it still grows as far as it can toward the food.
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
     if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
@@ -404,11 +419,13 @@ export const EFFECTS = {
     return n > 0 ? { ok: true, message: 'Bored through the boulder.' } : { ok: false, message: 'No boulder there to punch through.' };
   }),
   'Rhizomorph Lance': targeted((s, c, ctx) => {
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
   'Fruiting Vigil': targeted((s, c, ctx) => {
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     checkGoalReached(s);

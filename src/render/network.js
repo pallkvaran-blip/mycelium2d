@@ -47,6 +47,18 @@ export class NetworkRenderer {
     this.maxDist = 1;
     this.edges = [];
     this.tips = [];
+
+    // Batched vector paths for the "simplify" LOD (zoomed out or huge colony):
+    // one Path2D per width bucket + one for infected strands, so the whole
+    // structure strokes in ~4 native calls instead of one stroke() PER node.
+    // At several thousand nodes the per-strand path in _strokeStructure meant
+    // ~10k JS→canvas stroke calls per frame (~250ms); this collapses that to a
+    // handful. Rebuilt only here (on structure change), then reused every frame.
+    const BW = BUCKET_W;
+    const NB = BW.length;
+    const creamPaths = BW.map(() => new Path2D());
+    const infectedPath = new Path2D();
+
     for (const n of net.nodes) {
       if (n.children.length === 0) this.tips.push(n);
       if (n.parentId != null) {
@@ -54,10 +66,29 @@ export class NetworkRenderer {
         if (p) {
           const d = root ? Math.hypot(n.x - root.x, n.y - root.y) : 0;
           if (d > this.maxDist) this.maxDist = d;
-          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w: size.get(n.id) || 1, h: n.health, d });
+          const w = size.get(n.id) || 1;
+          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w, h: n.health, d });
+
+          // Bucket by the same taper width used in detail mode, then bake the
+          // meandering centreline into that bucket's shared path.
+          const baseW = 1.0 + Math.min(0.55, Math.log(1 + w) * 0.13);
+          let bi = Math.round(((baseW - 1.0) / 0.55) * (NB - 1));
+          if (bi < 0) bi = 0; else if (bi >= NB) bi = NB - 1;
+          const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) || 1;
+          const perpx = -dy / len, perpy = dx / len;
+          const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
+          const mx = (p.x + n.x) / 2 + perpx * meander, my = (p.y + n.y) / 2 + perpy * meander;
+          const path = n.infected ? infectedPath : creamPaths[bi];
+          path.moveTo(p.x, p.y);
+          path.quadraticCurveTo(mx, my, n.x, n.y);
         }
       }
     }
+    this.batches = {
+      cream: creamPaths.map((path, i) => ({ w: BW[i], path })),
+      infected: { w: 1.2, path: infectedPath },
+    };
+    this._builtNodeCount = net.nodes.length;
 
     // Frontier tips: only the OUTER edge of the network senses into the unknown
     // (interior sensing is obvious). In each angular sector around the centroid,
@@ -78,6 +109,21 @@ export class NetworkRenderer {
       }
       this.frontierTips = best.filter(Boolean);
     }
+  }
+
+  // Fast LOD: stroke the pre-baked batched paths (a few native stroke() calls
+  // total) instead of one path per node. Used when zoomed out or the colony is
+  // large — exactly when the per-strand width variation and cottony fuzz aren't
+  // visible anyway, so the look is preserved while the frame cost stays flat.
+  _strokeBatched(ctx, brightness) {
+    const r = this.config.render;
+    const fil = hexToRgb(r.filament);
+    ctx.strokeStyle = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+    ctx.globalAlpha = 0.95 * brightness;
+    for (const b of this.batches.cream) { ctx.lineWidth = b.w; ctx.stroke(b.path); }
+    const inf = this.batches.infected;
+    ctx.strokeStyle = r.infected; ctx.lineWidth = inf.w; ctx.stroke(inf.path);
+    ctx.globalAlpha = 1;
   }
 
   // Draw the mycelial structure as crisp vectors. The caller has already applied
@@ -180,6 +226,11 @@ export class NetworkRenderer {
 
   // brightnessScale: extra multiplier for elders later (default 1).
   draw(ctx, camera, time, brightnessScale = 1) {
+    // The batched LOD renders ENTIRELY from cached paths, so a missed
+    // markStructureDirty would silently show a stale (or empty) colony. Self-heal
+    // if the node count drifted from what the cache was built at — cheap insurance
+    // that the batched path is as robust as the live per-node detail path.
+    if (this._builtNodeCount !== this.network.nodes.length) this.structureDirty = true;
     if (this.structureDirty) { this._rebuildCaches(); this.structureDirty = false; }
     const r = this.config.render;
     const net = this.network;
@@ -208,11 +259,17 @@ export class NetworkRenderer {
 
     // Static structure — drawn as crisp vectors in world space (transform composes
     // with the ctx's device-pixel-ratio transform, so lines are sharp at any zoom).
+    // When the fine detail has faded out (zoomed out, or the colony is large),
+    // there's no per-strand width or fuzz left to see — switch to the batched
+    // path LOD, which strokes the whole structure in ~4 calls instead of one
+    // per node. This keeps big colonies at interactive frame rates.
+    const simplify = detailAmt <= 0.02;
     ctx.save();
     ctx.translate(tl.x, tl.y);
     ctx.scale(zoom, zoom);
     ctx.lineCap = 'round';
-    this._strokeStructure(ctx, brightness, cull, detailAmt);
+    if (simplify) this._strokeBatched(ctx, brightness);
+    else this._strokeStructure(ctx, brightness, cull, detailAmt);
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
@@ -273,6 +330,10 @@ export function drawFruitBodies(ctx, camera, points, time, preview = false) {
     ctx.restore();
   }
 }
+
+// Width buckets for the batched LOD — a coarse trunk→tip taper (fine enough to
+// read as tapering when zoomed out, few enough to keep it to ~3 stroke calls).
+const BUCKET_W = [1.06, 1.3, 1.52];
 
 // --- colour helpers --------------------------------------------------------
 function withAlpha(hex, a) {
