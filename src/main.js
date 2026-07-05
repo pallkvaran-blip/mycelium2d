@@ -1633,12 +1633,14 @@ function drawTargetingCursor(time) {
     ctx.restore();
   }
 
-  // Card awaiting a target: aim line from the frontier to the cursor + a marker.
+  // Card awaiting a target: aim line from the nearest strand tip to the cursor + a
+  // marker. The source is the frontier tip closest to the cursor, so it matches
+  // where the play will actually originate (see dirFrom / growDirected).
   if (ui && ui.pendingCard) {
     const rect2 = canvas.getBoundingClientRect();
     const wc = camera.screenToWorld(mouse.x - rect2.left, mouse.y - rect2.top);
     const sp = camera.worldToScreen(wc.x, wc.y);
-    const fp = state.active && state.active.frontierPoint();
+    const fp = state.active && (state.active.nearestTip(wc.x, wc.y) || state.active.frontierPoint());
     ctx.save();
     if (fp) {
       const a = camera.worldToScreen(fp.x, fp.y);

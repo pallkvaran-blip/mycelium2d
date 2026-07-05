@@ -441,8 +441,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1fz2a87";
-globalThis.__BUILD__ = "local 07-05 10:33";
+window.__ASSET_VER = "xagq0w";
+globalThis.__BUILD__ = "local 07-05 10:42";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2219,6 +2219,17 @@ class Network {
     }
     return best;
   }
+  // Nearest frontier TIP (childless strand end) to a world point — the source for
+  // aimed plays, so growth/placement always originates from the strand closest to
+  // where you're aiming. Returns a node, or null if the network has no tips.
+  nearestTip(x, y) {
+    let best = null, bd = Infinity;
+    for (const n of this.tips()) {
+      const d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
   // Centroid of the frontier (origin for directional plays / substrate placement).
   frontierPoint() {
     const src = this.tips();
@@ -2235,15 +2246,22 @@ class Network {
     return !(cell && (cell.rock || cell.antTrail));
   }
 
-  // Grow a chain of `steps` segments from the frontier tip furthest along (dx,dy).
-  // straight=true ignores jitter (a committed reach); returns nodes created.
-  growDirected(substrate, rng, dx, dy, steps, straight = false) {
+  // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
+  // `startTip` when given (aimed plays pass the tip nearest the aim point, so growth
+  // originates from the strand you aimed from); otherwise it starts from the frontier
+  // tip furthest along (dx,dy). straight=true ignores jitter; returns nodes created.
+  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null) {
     const g = this.config.growth;
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
     if (!tips.length) return 0;
-    let parent = tips[0], bestProj = -Infinity;
-    for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    let parent;
+    if (startTip && !startTip.infected && startTip.children.length === 0) {
+      parent = startTip;
+    } else {
+      parent = tips[0]; let bestProj = -Infinity;
+      for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    }
     const baseAng = Math.atan2(dy, dx);
     let created = 0;
     for (let i = 0; i < steps; i++) {
@@ -3744,11 +3762,16 @@ function checkGoalReached(state) {
 }
 
 // --- shared effect helpers --------------------------------------------------
+// Aimed plays originate from the frontier TIP nearest the aim point (falling back
+// to the frontier centroid only if the network somehow has no tips). Returns the
+// source point `fp`, the source `tip` node (for growth to start from), and the unit-
+// ish direction from that source to the tapped point.
 function dirFrom(state, ctx) {
-  const fp = state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY };
+  const tip = state.active.nearestTip(ctx.x, ctx.y);
+  const fp = tip ? { x: tip.x, y: tip.y } : (state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY });
   let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
-  return { fp, dx, dy };
+  return { fp, tip, dx, dy };
 }
 function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const sub = state.substrate;
@@ -3805,8 +3828,8 @@ const EFFECTS = {
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
   'Apical Drive': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
     return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
   }),
   'Foraging Fan': grow((s) => {
@@ -3822,13 +3845,13 @@ const EFFECTS = {
     return n > 0 ? { ok: true, message: 'Bored through the boulder.' } : { ok: false, message: 'No boulder there to punch through.' };
   }),
   'Rhizomorph Lance': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
   'Fruiting Vigil': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     checkGoalReached(s);
     return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
   }),
@@ -7916,12 +7939,14 @@ function drawTargetingCursor(time) {
     ctx.restore();
   }
 
-  // Card awaiting a target: aim line from the frontier to the cursor + a marker.
+  // Card awaiting a target: aim line from the nearest strand tip to the cursor + a
+  // marker. The source is the frontier tip closest to the cursor, so it matches
+  // where the play will actually originate (see dirFrom / growDirected).
   if (ui && ui.pendingCard) {
     const rect2 = canvas.getBoundingClientRect();
     const wc = camera.screenToWorld(mouse.x - rect2.left, mouse.y - rect2.top);
     const sp = camera.worldToScreen(wc.x, wc.y);
-    const fp = state.active && state.active.frontierPoint();
+    const fp = state.active && (state.active.nearestTip(wc.x, wc.y) || state.active.frontierPoint());
     ctx.save();
     if (fp) {
       const a = camera.worldToScreen(fp.x, fp.y);

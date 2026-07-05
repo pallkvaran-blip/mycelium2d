@@ -213,6 +213,17 @@ export class Network {
     }
     return best;
   }
+  // Nearest frontier TIP (childless strand end) to a world point — the source for
+  // aimed plays, so growth/placement always originates from the strand closest to
+  // where you're aiming. Returns a node, or null if the network has no tips.
+  nearestTip(x, y) {
+    let best = null, bd = Infinity;
+    for (const n of this.tips()) {
+      const d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
   // Centroid of the frontier (origin for directional plays / substrate placement).
   frontierPoint() {
     const src = this.tips();
@@ -229,15 +240,22 @@ export class Network {
     return !(cell && (cell.rock || cell.antTrail));
   }
 
-  // Grow a chain of `steps` segments from the frontier tip furthest along (dx,dy).
-  // straight=true ignores jitter (a committed reach); returns nodes created.
-  growDirected(substrate, rng, dx, dy, steps, straight = false) {
+  // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
+  // `startTip` when given (aimed plays pass the tip nearest the aim point, so growth
+  // originates from the strand you aimed from); otherwise it starts from the frontier
+  // tip furthest along (dx,dy). straight=true ignores jitter; returns nodes created.
+  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null) {
     const g = this.config.growth;
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
     if (!tips.length) return 0;
-    let parent = tips[0], bestProj = -Infinity;
-    for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    let parent;
+    if (startTip && !startTip.infected && startTip.children.length === 0) {
+      parent = startTip;
+    } else {
+      parent = tips[0]; let bestProj = -Infinity;
+      for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
+    }
     const baseAng = Math.atan2(dy, dx);
     let created = 0;
     for (let i = 0; i < steps; i++) {

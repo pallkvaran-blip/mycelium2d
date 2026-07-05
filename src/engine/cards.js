@@ -269,11 +269,16 @@ export function checkGoalReached(state) {
 }
 
 // --- shared effect helpers --------------------------------------------------
+// Aimed plays originate from the frontier TIP nearest the aim point (falling back
+// to the frontier centroid only if the network somehow has no tips). Returns the
+// source point `fp`, the source `tip` node (for growth to start from), and the unit-
+// ish direction from that source to the tapped point.
 function dirFrom(state, ctx) {
-  const fp = state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY };
+  const tip = state.active.nearestTip(ctx.x, ctx.y);
+  const fp = tip ? { x: tip.x, y: tip.y } : (state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY });
   let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
-  return { fp, dx, dy };
+  return { fp, tip, dx, dy };
 }
 function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const sub = state.substrate;
@@ -330,8 +335,8 @@ export const EFFECTS = {
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
   'Apical Drive': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
     return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
   }),
   'Foraging Fan': grow((s) => {
@@ -347,13 +352,13 @@ export const EFFECTS = {
     return n > 0 ? { ok: true, message: 'Bored through the boulder.' } : { ok: false, message: 'No boulder there to punch through.' };
   }),
   'Rhizomorph Lance': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
   'Fruiting Vigil': targeted((s, c, ctx) => {
-    const { dx, dy } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true);
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     checkGoalReached(s);
     return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
   }),
