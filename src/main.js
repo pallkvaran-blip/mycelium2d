@@ -195,8 +195,12 @@ const handlers = {
       uiDirty = true;
       return true;
     }
-    resolveCardOp(playCard(state, index));
-    return true;
+    // A card can be affordable yet no-op (e.g. "No food within sensing range"):
+    // playCard returns {ok:false} and leaves it in hand. Report the real status
+    // so the caller only minimizes/deselects on an actual play.
+    const res = playCard(state, index);
+    resolveCardOp(res);
+    return !!(res && res.ok);
   },
   onCancelCard() {
     ui.clearPendingCard();

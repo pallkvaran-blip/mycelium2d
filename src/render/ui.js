@@ -34,6 +34,22 @@ export class UI {
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
+    this._watchViewport();
+  }
+
+  // Keep the hand tray consistent when the viewport crosses the narrow↔wide
+  // breakpoint (e.g. a desktop window dragged out from a narrow width). The tray
+  // is shown only via the .open class now, so widening past the breakpoint must
+  // re-open it or the carousel stays stuck hidden. Narrowing never force-closes.
+  _watchViewport() {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const onChange = () => { if (!this._isNarrow() && !this.handOpen) this.setHandOpen(true); };
+    const mqs = [window.matchMedia('(max-width: 760px)'),
+                 window.matchMedia('(orientation: landscape) and (max-height: 520px)')];
+    for (const mq of mqs) {
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
   }
 
   // Small screens (phone portrait or short landscape) use the collapsible hand

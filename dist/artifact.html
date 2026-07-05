@@ -187,6 +187,11 @@
       border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
       box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
+    /* A collapsed tray keeps a thin transparent padding band on phones; make it
+       pass taps through to the map. Keep the aiming chip (its ✕) interactive.
+       (#ui specificity is needed to beat the "#ui > * { pointer-events:auto }" rule.) */
+    #ui > .handbar:not(.open) { pointer-events: none; }
+    #ui > .handbar:not(.open) .handsel { pointer-events: auto; }
     /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
     .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
@@ -388,8 +393,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "jfiom";
-globalThis.__BUILD__ = "local 07-05 06:15";
+window.__ASSET_VER = "1om9ydx";
+globalThis.__BUILD__ = "local 07-05 06:51";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5457,6 +5462,22 @@ class UI {
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
+    this._watchViewport();
+  }
+
+  // Keep the hand tray consistent when the viewport crosses the narrow↔wide
+  // breakpoint (e.g. a desktop window dragged out from a narrow width). The tray
+  // is shown only via the .open class now, so widening past the breakpoint must
+  // re-open it or the carousel stays stuck hidden. Narrowing never force-closes.
+  _watchViewport() {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const onChange = () => { if (!this._isNarrow() && !this.handOpen) this.setHandOpen(true); };
+    const mqs = [window.matchMedia('(max-width: 760px)'),
+                 window.matchMedia('(orientation: landscape) and (max-height: 520px)')];
+    for (const mq of mqs) {
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
   }
 
   // Small screens (phone portrait or short landscape) use the collapsible hand
@@ -6208,8 +6229,12 @@ const handlers = {
       uiDirty = true;
       return true;
     }
-    resolveCardOp(playCard(state, index));
-    return true;
+    // A card can be affordable yet no-op (e.g. "No food within sensing range"):
+    // playCard returns {ok:false} and leaves it in hand. Report the real status
+    // so the caller only minimizes/deselects on an actual play.
+    const res = playCard(state, index);
+    resolveCardOp(res);
+    return !!(res && res.ok);
   },
   onCancelCard() {
     ui.clearPendingCard();

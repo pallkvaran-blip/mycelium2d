@@ -192,6 +192,11 @@
       border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
       box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
+    /* A collapsed tray keeps a thin transparent padding band on phones; make it
+       pass taps through to the map. Keep the aiming chip (its ✕) interactive.
+       (#ui specificity is needed to beat the "#ui > * { pointer-events:auto }" rule.) */
+    #ui > .handbar:not(.open) { pointer-events: none; }
+    #ui > .handbar:not(.open) .handsel { pointer-events: auto; }
     /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
     .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
