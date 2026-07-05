@@ -130,7 +130,7 @@ export class UI {
       skipBtn.onclick = () => this.handlers.onSkip();
       this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
 
-      const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span><span class="bcost"></span></span>`);
+      const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span></span>`);
       playBtn.id = 'handplay';
       playBtn.disabled = true;
       playBtn.onclick = () => this.playArmed();
@@ -535,16 +535,9 @@ export class UI {
   _renderHandFooter() {
     const play = this.el.handplay, prev = this.el.handpreview;
     const armed = this.armed && this.armed.kind === 'hand' ? this.armed : null;
-    if (play) {
-      play.disabled = !armed;
-      // Second row of the Play Card button shows the selected card's play cost.
-      const costEl = play.querySelector('.bcost');
-      if (costEl) {
-        // basics cost nothing to play → row stays empty (:empty collapses it)
-        const c = armed ? (CARD_BY_NAME[armed.name] || { buyCostEnergy: 0, costW: 0, costP: 0 }) : null;
-        costEl.innerHTML = c ? costHTML(c.buyCostEnergy, c.costW, c.costP) : '';
-      }
-    }
+    // The Play Card button just enables/disables — the cost already shows on the
+    // card face in the carousel, so we don't repeat it on the button.
+    if (play) play.disabled = !armed;
     if (!prev) return;
     const adds = armed ? cardDeckAdditions(armed.name) : null;
     if (adds) {
