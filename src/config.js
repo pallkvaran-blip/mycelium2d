@@ -112,8 +112,9 @@ export const CONFIG = {
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
     startWater: 7,               // starting Water (now covers grow AND substrate)
     startPhosphorus: 3,          // starting Phosphorus (digest/defense/work; topped up from rocks)
-    softCapWater: 20,            // per-resource soft caps
-    softCapPhosphorus: 10,
+    softCapWater: 999,           // per-resource stockpile caps — set high so harvesting/income
+    softCapPhosphorus: 999,      //   keeps paying off and you can bank resources for big plays
+
     engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
     // resource harvest amounts (used by harvest-card effects)
     harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
