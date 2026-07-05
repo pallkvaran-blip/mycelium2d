@@ -371,8 +371,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "fsrynb";
-globalThis.__BUILD__ = "local 07-05 05:30";
+window.__ASSET_VER = "1m0ifgy";
+globalThis.__BUILD__ = "local 07-05 05:47";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5811,8 +5811,13 @@ class UI {
     });
     const all = [...groups.values()];
 
-    // Drop a stale selection if that card is no longer in hand (e.g. after a draw).
-    if (this.armed && !groups.has(this.armed.name)) this.armed = null;
+    // Reconcile the selection with the freshly-built hand: drop it if that card
+    // is gone, else refresh its index to the current firstIndex (the hand can
+    // splice/shift, e.g. after a draw or a pending targeted card resolving).
+    if (this.armed) {
+      const g = groups.get(this.armed.name);
+      if (!g) this.armed = null; else this.armed.index = g.firstIndex;
+    }
     this._renderHandFooter();
 
     // FILTER chips (built from the groups present), then apply the active filter.
@@ -5884,8 +5889,9 @@ class UI {
   // plays the highlighted card; "Cancel" minimizes the carousel. The only popup
   // is a text preview of what a draw-engine (+5) card shuffles into your deck.
   armCard(index, name) {
-    // tap the already-selected card again to deselect it
-    if (this.armed && this.armed.index === index) { this.clearArmed(); return; }
+    // tap the already-selected card again to deselect it (match by NAME — the
+    // stored index is a group firstIndex and can go stale as the hand mutates)
+    if (this.armed && this.armed.name === name) { this.clearArmed(); return; }
     this.armed = { kind: 'hand', index, name };
     this._paintArmed();
     this._renderHandFooter();
@@ -5897,9 +5903,12 @@ class UI {
   }
   playArmed() {
     if (!this.armed) return;
-    const index = this.armed.index;
+    // Resolve the current hand index by NAME at play time — never trust the
+    // stored index, which can be stale after the hand splices (e.g. a pending
+    // targeted card resolving on the map shifts every later index down).
+    const idx = this.state.cards.hand.findIndex((h) => h.name === this.armed.name);
     this.clearArmed();
-    this.handlers.onPlayCard(index);
+    if (idx >= 0) this.handlers.onPlayCard(idx);
   }
 
   // Highlight the selected (or aiming) card in the carousel without a full rebuild.
