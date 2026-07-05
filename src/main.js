@@ -924,14 +924,9 @@ const ROCK_RECIPES = [
   ['rockRiver', 'rockSlate'],
 ];
 const ALL_ROCKS = ['rockSlate', 'rockBasalt', 'rockRiver', 'rockVeined', 'rockMossy'];
-let _rockState = null, _rockGroups = null, _rockRev = -1;
+let _rockState = null, _rockGroups = null;
 function rockGroups() {
-  // Cache per-map, but also recompute when rock cells change at runtime (a punch /
-  // dig clears a boulder) so a bored-through boulder's sprite actually disappears
-  // instead of lingering over the strand that now threads where it used to be.
-  const rev = state.substrate.rockRev | 0;
-  if (_rockState === state && _rockRev === rev) return _rockGroups;
-  _rockRev = rev;
+  if (_rockState === state) return _rockGroups;
   const sub = state.substrate;
   const haveAny = ALL_ROCKS.some(hasAsset);
   const groups = [];
@@ -1009,13 +1004,9 @@ function drawBoulder(c, palette, k, mult, cs, z) {
 // the soil rather than sitting on top. Distinct sprites per map (seeded), no
 // piling. Falls back to piled boulders when the sprites are absent.
 const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
-let _formState = null, _formGroups = null, _formRev = -1;
+let _formState = null, _formGroups = null;
 function formationGroups() {
-  // Recompute when rock changes at runtime (a punch clears a formation) so its
-  // sprite disappears with the rock instead of hovering over the strand.
-  const rev = state.substrate.rockRev | 0;
-  if (_formState === state && _formRev === rev) return _formGroups;
-  _formRev = rev;
+  if (_formState === state) return _formGroups;
   const sub = state.substrate, cs = sub.cellSize;
   const groups = [];
   const seen = new Set();
@@ -1141,27 +1132,6 @@ const COLUMN_STYLES = {
   ember:   ['rockform2', 'rockform6', 'rockform9', 'rockform12'],
   crystal: ['rockform3', 'rockform7', 'rockform14'],
 };
-// A column is drawn from its descriptor, not live cells — so once a punch clears
-// its rock cells it must be dropped explicitly. A column is "standing" while any
-// cell in its footprint is still column-rock. Cached on rockRev (a punch bumps it).
-let _colState = null, _colRev = -1, _colDead = null;
-function columnDead(col) {
-  const sub = state.substrate;
-  const rev = sub.rockRev | 0;
-  if (_colState !== state || _colRev !== rev) { _colState = state; _colRev = rev; _colDead = new WeakSet(); }
-  if (_colDead.has(col)) return true;
-  const colW = state.config.substrate.columnWidthCols || 2;
-  for (let r = 0; r <= col.depth; r++) {
-    const center = col.cx + Math.round(r * Math.tan(col.tilt));
-    for (let w = 0; w < colW; w++) {
-      const cell = sub.cellAt(center + w, r);
-      if (cell && cell.rock && cell.column) return false;   // still standing
-    }
-  }
-  _colDead.add(col);   // fully bored through — remember so we skip it cheaply
-  return true;
-}
-
 function drawRockColumns() {
   const cols = state.substrate.rockColumns;
   if (!cols || !cols.length || !ROCKFORM_KEYS.some(hasAsset)) return;
@@ -1174,7 +1144,6 @@ function drawRockColumns() {
   const cdMax = state.config.substrate.columnDepthMaxRows || 11;
   const dspan = Math.max(1, cdMax - cdMin);
   cols.forEach((col, ci) => {
-    if (columnDead(col)) return;                           // bored through — sprite gone
     const tanT = Math.tan(col.tilt);                       // whole-column lean (±30°)
     // Column axis: from just above the soil line straight DOWN to the column depth,
     // drifting sideways by the tilt. Each rock is stood VERTICALLY along this axis.

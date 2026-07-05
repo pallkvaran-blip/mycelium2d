@@ -239,7 +239,9 @@ export class Network {
     if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) return false;
     if (nx <= 2 || nx >= substrate.worldWidth - 2) return false;
     const cell = substrate.cellAtWorld(nx, ny);
-    return !(cell && (cell.rock || cell.antTrail));
+    if (!cell) return true;
+    if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
+    return !(cell.rock || cell.antTrail);
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
@@ -440,7 +442,6 @@ export class Network {
       stack.push({ col: col + 1, row }, { col: col - 1, row }, { col, row: row + 1 }, { col, row: row - 1 });
     }
     if (cleared.length) {
-      substrate.rockRev = (substrate.rockRev | 0) + 1;   // renderer drops the cleared sprites
       const entry = cleared[0];
       const near = this.nearestNode(entry.x, entry.y);
       if (near) this.addNode(entry.x, entry.y, near);
@@ -498,11 +499,6 @@ export class Network {
     }
     if (!anchor) return -1;
     if (bestD > g.sensingRadius + substrate.cellSize) return -1;   // rock present but out of range
-    // Clear the rock so a strand can pass (bump rockRev so the renderer drops the
-    // now-gone sprite — boulder, formation OR column — instead of leaving it
-    // hanging over the strand).
-    for (const cell of cells) { const c = substrate.cellAt(cell.col, cell.row); c.rock = false; c.formation = false; c.column = false; }
-    substrate.rockRev = (substrate.rockRev | 0) + 1;
     // Direction of travel: from the anchor through the rock toward its far side.
     const bcx = cells.reduce((a, c) => a + c.x, 0) / cells.length;
     const bcy = cells.reduce((a, c) => a + c.y, 0) / cells.length;
@@ -513,6 +509,15 @@ export class Network {
     let far = 0;
     for (const c of cells) { const proj = (c.x - anchor.x) * ux + (c.y - anchor.y) * uy; if (proj > far) far = proj; }
     const steps = Math.min(60, Math.ceil((far + substrate.cellSize * 1.4) / g.segmentLength) + 1);
+    // Bore a 1-cell channel along the ray: mark the rock cells the strand will
+    // thread through as PASSABLE (bored) but leave them as rock, so the rock stays
+    // drawn and the strand simply overlays it — nothing disappears. Only cells on
+    // the ray are opened, so the rock still blocks everywhere else.
+    const maxT = far + substrate.cellSize * 1.5;
+    for (let t = 0; t <= maxT; t += substrate.cellSize / 3) {
+      const cell = substrate.cellAtWorld(anchor.x + ux * t, anchor.y + uy * t);
+      if (cell && cell.rock) cell.bored = true;
+    }
     // Thread a straight strand from the anchor through the cleared rock and out the
     // far side. Grown inline (not via growDirected) so the count is JUST the visible
     // through-strand — colonisation of any pile the strand now reaches happens after
