@@ -3,7 +3,8 @@
 //
 // Trichoderma is modelled as a small number of discrete, roughly fixed-size
 // CLOUDS that roam the cross-section:
-//   - Each cloud creeps toward the nearest food source.
+//   - Each cloud creeps toward the nearest food source it can SEE (rock blocks
+//     a cloud's line of sight, so food behind a boulder stays hidden).
 //   - It devours any substrate it passes over (a pile it sits on is gone in
 //     ~2 turns) but eating barely grows it — a small cloud that eats a giant
 //     pile stays small.
@@ -114,17 +115,20 @@ export function spreadTrichoderma(state) {
       if (cloud.strength <= 0.01) continue;
     }
 
-    // Head for the nearest food/strand WITHIN sight; if nothing is in range,
-    // wander until something is sensed. (sightRadius is shown on screen.)
+    // Head for the nearest food/strand WITHIN sight AND with a CLEAR LINE OF
+    // SIGHT — rock blocks a cloud's senses, so it can't home in on food hidden
+    // behind a boulder. If nothing is visible, wander until something is sensed.
+    // (sightRadius is shown on screen; LOS is only tested on a distance
+    // improvement, to keep the cost down.)
     const step = t.moveSpeed * cs;
     let tx = null, ty = null, best = t.sightRadius * t.sightRadius;
     for (const f of food) {
       const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
-      if (d < best) { best = d; tx = f.x; ty = f.y; }
+      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, f.x, f.y)) { best = d; tx = f.x; ty = f.y; }
     }
     for (const n of nodes) {
       const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
-      if (d < best) { best = d; tx = n.x; ty = n.y; }
+      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, n.x, n.y)) { best = d; tx = n.x; ty = n.y; }
     }
     if (tx != null) {
       // Creep toward the target, sliding ALONG rock faces (clouds can't travel

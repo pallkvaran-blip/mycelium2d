@@ -432,6 +432,72 @@ console.log('# Nematodes: crawl in on sight; rock blocks line of sight');
   ok(blockedIn < cs * 1.5, `rock blocks line of sight — the worm doesn't crawl in (${blockedIn | 0}px)`);
 }
 
+console.log('# Trichoderma: clouds home in on sight; rock blocks line of sight');
+{
+  const cs = CONFIG.world.cellSize;
+  // A cloud a fixed distance from the colony; measure how much it creeps in over
+  // one step with vs without a rock wall between it and the colony. A cloud
+  // wanders (aimlessly) at the SAME speed it homes, so a single run's wander can
+  // drift either way — we average over many fixed seeds: homing closes ground
+  // consistently, aimless wandering nets ~nothing.
+  function cloudLosStep(seed, wall) {
+    const s = createState(JSON.parse(JSON.stringify(CONFIG)), seed);
+    const sub = s.substrate;
+    for (const c of sub.cells) { c.rock = false; c.nutrient = 0; c.maxNutrient = 0; }
+    s.nematodes = []; s.ants = []; s.config.trichoderma.initialPatches = 0;  // isolate the cloud (no respawn)
+    const net = s.active;
+    const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
+    const cc = sub.cellCenter(rootCol + 7, rootRow + 4);
+    s.clouds = [];
+    const cloud = spawnTrichodermaAt(s, cc.x, cc.y);
+    if (wall) for (let r = 0; r < sub.rows; r++) { const cell = sub.cellAt(rootCol + 3, r); if (cell) cell.rock = true; }
+    const dist = () => Math.min(...net.nodes.map((n) => Math.hypot(n.x - cloud.cx, n.y - cloud.cy)));
+    const d0 = dist();
+    spreadTrichoderma(s);
+    return d0 - dist();
+  }
+  let clearSum = 0, blockSum = 0;
+  const N = 40;
+  for (let seed = 1; seed <= N; seed++) { clearSum += cloudLosStep(seed, false); blockSum += cloudLosStep(seed, true); }
+  const clearAvg = clearSum / N, blockAvg = blockSum / N;
+  ok(clearAvg > cs, `with clear line of sight clouds creep IN (avg ${clearAvg | 0}px/step)`);
+  ok(blockAvg < clearAvg - cs, `rock blocks line of sight — walled clouds don't home in (avg ${blockAvg | 0}px/step vs ${clearAvg | 0})`);
+}
+
+console.log('# Substrate: segmentClear + visionPolygon respect rock');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 777);
+  const sub = s.substrate;
+  const cs = sub.cellSize;
+  for (const c of sub.cells) c.rock = false;                 // clean slate
+  // A full vertical rock wall a few cells to the RIGHT of a chosen origin.
+  const oCol = 5, oRow = 5, wallCol = 9;
+  const o = sub.cellCenter(oCol, oRow);
+  for (let r = 0; r < sub.rows; r++) { const cell = sub.cellAt(wallCol, r); if (cell) cell.rock = true; }
+  const wallX = wallCol * cs;                                // left face of the wall
+
+  // segmentClear: clear to the left, blocked to a point past the wall.
+  const leftPt = sub.cellCenter(oCol - 3, oRow);
+  const pastWall = sub.cellCenter(wallCol + 3, oRow);
+  ok(sub.segmentClear(o.x, o.y, leftPt.x, leftPt.y), 'segmentClear: open ground is visible');
+  ok(!sub.segmentClear(o.x, o.y, pastWall.x, pastWall.y), 'segmentClear: rock wall blocks the line');
+
+  // visionPolygon: no vertex may sit past the wall on the +x side, and the ray
+  // pointing straight at the wall must stop at (or before) the wall face; open
+  // directions still reach near the full radius.
+  const radius = 12 * cs;
+  const poly = sub.visionPolygon(o.x, o.y, radius);
+  ok(poly.length === 96, `visionPolygon returns a full fan (${poly.length} rays)`);
+  const beyondWall = poly.some((p) => p.x > wallX + cs && Math.abs(p.y - o.y) < cs);
+  ok(!beyondWall, 'visionPolygon: no vertex reaches past the rock wall (on its axis)');
+  // The +x ray (index 0, angle 0) should stop at/just before the wall, not at full radius.
+  const rightReach = poly[0].x - o.x;
+  ok(rightReach < wallX - o.x + cs && rightReach < radius - cs, `visionPolygon: +x ray stops at the wall (${rightReach | 0}px, wall at ${(wallX - o.x) | 0}px)`);
+  // The -x ray (index 48, angle π) is unobstructed and should reach ~full radius.
+  const leftReach = o.x - poly[48].x;
+  ok(leftReach > radius - cs, `visionPolygon: open -x ray reaches the full radius (${leftReach | 0}px of ${radius | 0})`);
+}
+
 console.log('# Nematodes: feed on contact (eat strands whole) and multiply');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);

@@ -469,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "2azwou";
-globalThis.__BUILD__ = "local 07-05 19:41";
+window.__ASSET_VER = "11ml9n6";
+globalThis.__BUILD__ = "local 07-05 20:23";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -640,7 +640,7 @@ const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a soft ring
+    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
@@ -1664,6 +1664,46 @@ class Substrate {
         }
       }
     }
+  }
+
+  // --- line of sight -------------------------------------------------------
+  // True if a clear straight line runs from (x0,y0) to (x1,y1): no rock cell
+  // lies on the segment (sampled at half-cell steps, endpoint included). Rock
+  // blocks line of sight — worms and mould clouds can't sense through it.
+  segmentClear(x0, y0, x1, y1) {
+    const cs = this.cellSize;
+    const dx = x1 - x0, dy = y1 - y0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+    for (let i = 1; i <= steps; i++) {
+      const x = x0 + dx * (i / steps), y = y0 + dy * (i / steps);
+      const c = this.cellAtWorld(x, y);
+      if (c && c.rock) return false;
+    }
+    return true;
+  }
+
+  // Cast a fan of `rays` rays out to `radius` from (ox,oy); each ray stops at
+  // the first rock cell it meets. Returns the ray endpoints (world coords) as a
+  // closed, star-shaped polygon of what the point can actually SEE — so a sight
+  // overlay drawn from it is occluded by rock instead of bleeding through it.
+  // Marched at half-cell steps (same resolution as segmentClear).
+  visionPolygon(ox, oy, radius, rays = 96) {
+    const stepLen = this.cellSize * 0.5;
+    const steps = Math.max(1, Math.ceil(radius / stepLen));
+    const poly = new Array(rays);
+    for (let i = 0; i < rays; i++) {
+      const a = (i / rays) * Math.PI * 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      let reach = radius;
+      for (let s = 1; s <= steps; s++) {
+        const t = s * stepLen;
+        if (t >= radius) break;                          // reached the edge in the open
+        const c = this.cellAtWorld(ox + dx * t, oy + dy * t);
+        if (c && c.rock) { reach = t; break; }           // blocked — die at the rock face
+      }
+      poly[i] = { x: ox + dx * reach, y: oy + dy * reach };
+    }
+    return poly;
   }
 
   // Deposit nutrient in a radius (Add Substrate action). Falls off to the edge.
@@ -3069,22 +3109,9 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
   for (const node of nodes) {
     if (claimed && claimed.has(node.id)) continue;
     const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
-    if (d < bestD && losClear(sub, w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
+    if (d < bestD && sub.segmentClear(w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
   }
   return best;
-}
-
-// True if no rock cell lies on the segment (sampled). Rock blocks line of sight.
-function losClear(sub, x0, y0, x1, y1) {
-  const cs = sub.cellSize;
-  const dx = x1 - x0, dy = y1 - y0;
-  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
-  for (let i = 1; i <= steps; i++) {
-    const x = x0 + dx * (i / steps), y = y0 + dy * (i / steps);
-    const c = sub.cellAtWorld(x, y);
-    if (c && c.rock) return false;
-  }
-  return true;
 }
 
 // Move a worm by (ux,uy)*s, never THROUGH rock or out of bounds; the whole path
@@ -3141,7 +3168,8 @@ const __m_engine_threats = (function () {
 //
 // Trichoderma is modelled as a small number of discrete, roughly fixed-size
 // CLOUDS that roam the cross-section:
-//   - Each cloud creeps toward the nearest food source.
+//   - Each cloud creeps toward the nearest food source it can SEE (rock blocks
+//     a cloud's line of sight, so food behind a boulder stays hidden).
 //   - It devours any substrate it passes over (a pile it sits on is gone in
 //     ~2 turns) but eating barely grows it — a small cloud that eats a giant
 //     pile stays small.
@@ -3252,17 +3280,20 @@ function spreadTrichoderma(state) {
       if (cloud.strength <= 0.01) continue;
     }
 
-    // Head for the nearest food/strand WITHIN sight; if nothing is in range,
-    // wander until something is sensed. (sightRadius is shown on screen.)
+    // Head for the nearest food/strand WITHIN sight AND with a CLEAR LINE OF
+    // SIGHT — rock blocks a cloud's senses, so it can't home in on food hidden
+    // behind a boulder. If nothing is visible, wander until something is sensed.
+    // (sightRadius is shown on screen; LOS is only tested on a distance
+    // improvement, to keep the cost down.)
     const step = t.moveSpeed * cs;
     let tx = null, ty = null, best = t.sightRadius * t.sightRadius;
     for (const f of food) {
       const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
-      if (d < best) { best = d; tx = f.x; ty = f.y; }
+      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, f.x, f.y)) { best = d; tx = f.x; ty = f.y; }
     }
     for (const n of nodes) {
       const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
-      if (d < best) { best = d; tx = n.x; ty = n.y; }
+      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, n.x, n.y)) { best = d; tx = n.x; ty = n.y; }
     }
     if (tx != null) {
       // Creep toward the target, sliding ALONG rock faces (clouds can't travel
@@ -7366,25 +7397,50 @@ function drawChest(time) {
   ctx.restore();
 }
 
+// Draw a creature's sight range as a soft glow, CLIPPED to what it can actually
+// SEE: rays that hit rock stop at the rock face (Substrate.visionPolygon), so
+// the glow never bleeds through a boulder — the visible shape ends where the
+// rock does. A faint even wash makes the seen shape (and its rock-cut edges)
+// legible; a soft rim near the sight radius marks the range. `rgb` is "r,g,b".
+function drawOccludedSight(wx, wy, radiusWorld, rgb, edgeA) {
+  const poly = state.substrate.visionPolygon(wx, wy, radiusWorld);
+  if (!poly || !poly.length) return;
+  const sight = radiusWorld * camera.zoom;
+  const s = camera.worldToScreen(wx, wy);
+  ctx.save();
+  // Clip to the visibility polygon so nothing paints past the rock.
+  ctx.beginPath();
+  const p0 = camera.worldToScreen(poly[0].x, poly[0].y);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 1; i < poly.length; i++) {
+    const p = camera.worldToScreen(poly[i].x, poly[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  ctx.clip();
+  // Faint even wash over the seen area…
+  ctx.fillStyle = `rgba(${rgb},${edgeA * 0.32})`;
+  ctx.fillRect(s.x - sight, s.y - sight, sight * 2, sight * 2);
+  // …plus the original soft rim near the sight edge.
+  const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
+  g.addColorStop(0, `rgba(${rgb},0)`);
+  g.addColorStop(1, `rgba(${rgb},${edgeA})`);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Show each roaming mould cloud's sight range — the area within which it will
-// sense and head for food / your colony. A soft greenish rim near the edge.
+// sense and head for food / your colony, occluded by rock (it can't see past a
+// boulder). A soft greenish glow, clipped to the visible shape.
 function drawCloudSight() {
   const clouds = state.clouds;
   if (!clouds || !clouds.length) return;
-  const sight = state.config.trichoderma.sightRadius * camera.zoom;
-  ctx.save();
+  const sight = state.config.trichoderma.sightRadius;
   for (const c of clouds) {
     if (!c.showSight) continue;                       // only when the player has tapped this cloud
-    const s = camera.worldToScreen(c.cx, c.cy);
-    const a = c.dying ? 0.05 : 0.10;
-    // a soft rim just inside the edge marks the range (no hard line needed)
-    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
-    g.addColorStop(0, 'rgba(150,190,70,0)');
-    g.addColorStop(1, `rgba(150,190,70,${a})`);
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+    drawOccludedSight(c.cx, c.cy, sight, '150,190,70', c.dying ? 0.05 : 0.10);
   }
-  ctx.restore();
 }
 
 // Tap a worm or mould cloud to TOGGLE its sight-range ring (so the player can
@@ -8404,23 +8460,16 @@ function drawNematodes(time) {
 
   if (!worms || !worms.length) return;
 
-  // --- sight-range overlay: a soft glow rim (same style as the mould's),
-  // shown for SEARCHING worms (a worm that's already locked on is coming
-  // regardless, so its range adds nothing but clutter). ---
+  // --- sight-range overlay: a soft glow clipped to what the worm can SEE (rock
+  // blocks its line of sight), shown for SEARCHING worms (a worm that's already
+  // locked on is coming regardless, so its range adds nothing but clutter). ---
   {
-    const sight = state.config.nematodes.sightRadius * z;
-    ctx.save();
+    const sight = state.config.nematodes.sightRadius;
     for (const w of worms) {
       // Shown for any worm the player has TAPPED, plus the dev "Worm Vision" overlay.
       if (!(w.showSight || (showNematodeVision && !w.sees))) continue;
-      const sp = camera.worldToScreen(w.x, w.y);
-      const g = ctx.createRadialGradient(sp.x, sp.y, sight * 0.78, sp.x, sp.y, sight);
-      g.addColorStop(0, 'rgba(165,205,115,0)');
-      g.addColorStop(1, 'rgba(165,205,115,0.10)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(sp.x, sp.y, sight, 0, Math.PI * 2); ctx.fill();
+      drawOccludedSight(w.x, w.y, sight, '165,205,115', 0.10);
     }
-    ctx.restore();
   }
 
   ctx.save();

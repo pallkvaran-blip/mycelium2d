@@ -528,25 +528,50 @@ function drawChest(time) {
   ctx.restore();
 }
 
+// Draw a creature's sight range as a soft glow, CLIPPED to what it can actually
+// SEE: rays that hit rock stop at the rock face (Substrate.visionPolygon), so
+// the glow never bleeds through a boulder — the visible shape ends where the
+// rock does. A faint even wash makes the seen shape (and its rock-cut edges)
+// legible; a soft rim near the sight radius marks the range. `rgb` is "r,g,b".
+function drawOccludedSight(wx, wy, radiusWorld, rgb, edgeA) {
+  const poly = state.substrate.visionPolygon(wx, wy, radiusWorld);
+  if (!poly || !poly.length) return;
+  const sight = radiusWorld * camera.zoom;
+  const s = camera.worldToScreen(wx, wy);
+  ctx.save();
+  // Clip to the visibility polygon so nothing paints past the rock.
+  ctx.beginPath();
+  const p0 = camera.worldToScreen(poly[0].x, poly[0].y);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 1; i < poly.length; i++) {
+    const p = camera.worldToScreen(poly[i].x, poly[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  ctx.clip();
+  // Faint even wash over the seen area…
+  ctx.fillStyle = `rgba(${rgb},${edgeA * 0.32})`;
+  ctx.fillRect(s.x - sight, s.y - sight, sight * 2, sight * 2);
+  // …plus the original soft rim near the sight edge.
+  const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
+  g.addColorStop(0, `rgba(${rgb},0)`);
+  g.addColorStop(1, `rgba(${rgb},${edgeA})`);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Show each roaming mould cloud's sight range — the area within which it will
-// sense and head for food / your colony. A soft greenish rim near the edge.
+// sense and head for food / your colony, occluded by rock (it can't see past a
+// boulder). A soft greenish glow, clipped to the visible shape.
 function drawCloudSight() {
   const clouds = state.clouds;
   if (!clouds || !clouds.length) return;
-  const sight = state.config.trichoderma.sightRadius * camera.zoom;
-  ctx.save();
+  const sight = state.config.trichoderma.sightRadius;
   for (const c of clouds) {
     if (!c.showSight) continue;                       // only when the player has tapped this cloud
-    const s = camera.worldToScreen(c.cx, c.cy);
-    const a = c.dying ? 0.05 : 0.10;
-    // a soft rim just inside the edge marks the range (no hard line needed)
-    const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
-    g.addColorStop(0, 'rgba(150,190,70,0)');
-    g.addColorStop(1, `rgba(150,190,70,${a})`);
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(s.x, s.y, sight, 0, Math.PI * 2); ctx.fill();
+    drawOccludedSight(c.cx, c.cy, sight, '150,190,70', c.dying ? 0.05 : 0.10);
   }
-  ctx.restore();
 }
 
 // Tap a worm or mould cloud to TOGGLE its sight-range ring (so the player can
@@ -1566,23 +1591,16 @@ function drawNematodes(time) {
 
   if (!worms || !worms.length) return;
 
-  // --- sight-range overlay: a soft glow rim (same style as the mould's),
-  // shown for SEARCHING worms (a worm that's already locked on is coming
-  // regardless, so its range adds nothing but clutter). ---
+  // --- sight-range overlay: a soft glow clipped to what the worm can SEE (rock
+  // blocks its line of sight), shown for SEARCHING worms (a worm that's already
+  // locked on is coming regardless, so its range adds nothing but clutter). ---
   {
-    const sight = state.config.nematodes.sightRadius * z;
-    ctx.save();
+    const sight = state.config.nematodes.sightRadius;
     for (const w of worms) {
       // Shown for any worm the player has TAPPED, plus the dev "Worm Vision" overlay.
       if (!(w.showSight || (showNematodeVision && !w.sees))) continue;
-      const sp = camera.worldToScreen(w.x, w.y);
-      const g = ctx.createRadialGradient(sp.x, sp.y, sight * 0.78, sp.x, sp.y, sight);
-      g.addColorStop(0, 'rgba(165,205,115,0)');
-      g.addColorStop(1, 'rgba(165,205,115,0.10)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(sp.x, sp.y, sight, 0, Math.PI * 2); ctx.fill();
+      drawOccludedSight(w.x, w.y, sight, '165,205,115', 0.10);
     }
-    ctx.restore();
   }
 
   ctx.save();

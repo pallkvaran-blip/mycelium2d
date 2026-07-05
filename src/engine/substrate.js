@@ -91,6 +91,46 @@ export class Substrate {
     }
   }
 
+  // --- line of sight -------------------------------------------------------
+  // True if a clear straight line runs from (x0,y0) to (x1,y1): no rock cell
+  // lies on the segment (sampled at half-cell steps, endpoint included). Rock
+  // blocks line of sight — worms and mould clouds can't sense through it.
+  segmentClear(x0, y0, x1, y1) {
+    const cs = this.cellSize;
+    const dx = x1 - x0, dy = y1 - y0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
+    for (let i = 1; i <= steps; i++) {
+      const x = x0 + dx * (i / steps), y = y0 + dy * (i / steps);
+      const c = this.cellAtWorld(x, y);
+      if (c && c.rock) return false;
+    }
+    return true;
+  }
+
+  // Cast a fan of `rays` rays out to `radius` from (ox,oy); each ray stops at
+  // the first rock cell it meets. Returns the ray endpoints (world coords) as a
+  // closed, star-shaped polygon of what the point can actually SEE — so a sight
+  // overlay drawn from it is occluded by rock instead of bleeding through it.
+  // Marched at half-cell steps (same resolution as segmentClear).
+  visionPolygon(ox, oy, radius, rays = 96) {
+    const stepLen = this.cellSize * 0.5;
+    const steps = Math.max(1, Math.ceil(radius / stepLen));
+    const poly = new Array(rays);
+    for (let i = 0; i < rays; i++) {
+      const a = (i / rays) * Math.PI * 2;
+      const dx = Math.cos(a), dy = Math.sin(a);
+      let reach = radius;
+      for (let s = 1; s <= steps; s++) {
+        const t = s * stepLen;
+        if (t >= radius) break;                          // reached the edge in the open
+        const c = this.cellAtWorld(ox + dx * t, oy + dy * t);
+        if (c && c.rock) { reach = t; break; }           // blocked — die at the rock face
+      }
+      poly[i] = { x: ox + dx * reach, y: oy + dy * reach };
+    }
+    return poly;
+  }
+
   // Deposit nutrient in a radius (Add Substrate action). Falls off to the edge.
   deposit(x, y, amount, radiusCells) {
     const c0 = this.colAtX(x), r0 = this.rowAtY(y);

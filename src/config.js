@@ -164,7 +164,7 @@ export const CONFIG = {
     cloudRadiusMin: 0.8,         // starting cloud size in grid cells — small (~3 cells across)
     cloudRadiusMax: 1.3,         // HARD cap — a cloud never grows big, however much it eats
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
-    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it (SLIDER); shown on screen as a soft ring
+    sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)

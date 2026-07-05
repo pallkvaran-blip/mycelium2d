@@ -148,22 +148,9 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
   for (const node of nodes) {
     if (claimed && claimed.has(node.id)) continue;
     const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
-    if (d < bestD && losClear(sub, w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
+    if (d < bestD && sub.segmentClear(w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
   }
   return best;
-}
-
-// True if no rock cell lies on the segment (sampled). Rock blocks line of sight.
-function losClear(sub, x0, y0, x1, y1) {
-  const cs = sub.cellSize;
-  const dx = x1 - x0, dy = y1 - y0;
-  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (cs * 0.5)));
-  for (let i = 1; i <= steps; i++) {
-    const x = x0 + dx * (i / steps), y = y0 + dy * (i / steps);
-    const c = sub.cellAtWorld(x, y);
-    if (c && c.rock) return false;
-  }
-  return true;
 }
 
 // Move a worm by (ux,uy)*s, never THROUGH rock or out of bounds; the whole path
