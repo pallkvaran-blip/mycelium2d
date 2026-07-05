@@ -46,6 +46,14 @@ function loadOne(basePath, a) {
   });
 }
 
+// Warm the browser cache with the card-face JPGs so they don't pop in one by one
+// when a draft offer or the hand carousel first shows them. These are DOM <img>
+// (drawn by ui.js), not canvas assets — so we just prime the HTTP cache with the
+// SAME urls ui.js uses (no version query, matching cardArt()). Fire-and-forget.
+export function preloadCardArt(slugs, basePath = 'assets/cards/') {
+  for (const slug of slugs) { const img = new Image(); img.src = basePath + slug + '.jpg'; }
+}
+
 export function hasAsset(key) { return !!(REG[key] && REG[key].ready); }
 export function asset(key) { const e = REG[key]; return e && e.ready ? e.img : null; }
 export function assetMeta(key) { const e = REG[key]; return e ? e.meta : null; }

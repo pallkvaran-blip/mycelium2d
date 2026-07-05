@@ -22,7 +22,8 @@
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg);
       font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink);
       user-select: none; -webkit-user-select: none; }
-    #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
+    #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none;
+      opacity: 0; }   /* revealed (faded in) by main.js once the map's art has loaded */
     #ui { position: fixed; inset: 0; pointer-events: none; }
     #ui > * { pointer-events: auto; }
 

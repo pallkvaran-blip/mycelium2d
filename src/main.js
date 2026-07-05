@@ -17,8 +17,9 @@ import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
-import { UI } from './render/ui.js';
-import { loadAssets, hasAsset, asset, pattern, assetMeta } from './render/assets.js';
+import { UI, cardSlug } from './render/ui.js';
+import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
+import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -30,6 +31,18 @@ let noTrich = false;                  // testing aid: spawn sandbox maps with no
 const networkRenderers = new Map();
 
 let uiDirty = true;
+let assetsReady = false;              // canvas art loaded — until then the map stays hidden
+
+// Fade the whole map in from black. Called once art is loaded (first map) and on
+// every new map, so nothing pops in piece by piece — the finished scene fades up.
+function revealMap() {
+  canvas.style.transition = 'none';
+  canvas.style.opacity = '0';
+  void canvas.offsetWidth;            // commit opacity:0 with no transition
+  canvas.style.transition = 'opacity 0.7s ease';
+  canvas.style.opacity = '1';         // animate 0 -> 1
+}
+
 let previewFruit = false;
 let previewFruitPoints = [];
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
@@ -97,6 +110,9 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
+  // On a new map, fade the finished scene in. (The very first map waits until art
+  // has loaded — see the loadAssets() boot below — so it never fades in half-drawn.)
+  if (assetsReady) revealMap();
 }
 
 function buildRenderers() {
@@ -1732,7 +1748,16 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null; if (substrateRenderer) substrateRenderer.rebake(); });
+loadAssets().then(() => {
+  uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
+  if (substrateRenderer) substrateRenderer.rebake();
+  assetsReady = true;
+  revealMap();   // first map: reveal only now that the art is loaded, so it fades in whole
+});
+// Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
+setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } }, 4000);
+// Warm the card-face image cache so drafts / the hand don't pop in one by one.
+preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

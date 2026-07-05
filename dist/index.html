@@ -23,7 +23,8 @@
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg);
       font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink);
       user-select: none; -webkit-user-select: none; }
-    #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none; }
+    #game { position: fixed; inset: 0; display: block; cursor: crosshair; touch-action: none;
+      opacity: 0; }   /* revealed (faded in) by main.js once the map's art has loaded */
     #ui { position: fixed; inset: 0; pointer-events: none; }
     #ui > * { pointer-events: auto; }
 
@@ -435,8 +436,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "5mrvk2";
-globalThis.__BUILD__ = "local 07-05 10:14";
+window.__ASSET_VER = "4ccib2";
+globalThis.__BUILD__ = "local 07-05 10:24";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4417,6 +4418,14 @@ function loadOne(basePath, a) {
   });
 }
 
+// Warm the browser cache with the card-face JPGs so they don't pop in one by one
+// when a draft offer or the hand carousel first shows them. These are DOM <img>
+// (drawn by ui.js), not canvas assets — so we just prime the HTTP cache with the
+// SAME urls ui.js uses (no version query, matching cardArt()). Fire-and-forget.
+function preloadCardArt(slugs, basePath = 'assets/cards/') {
+  for (const slug of slugs) { const img = new Image(); img.src = basePath + slug + '.jpg'; }
+}
+
 function hasAsset(key) { return !!(REG[key] && REG[key].ready); }
 function asset(key) { const e = REG[key]; return e && e.ready ? e.img : null; }
 function assetMeta(key) { const e = REG[key]; return e ? e.meta : null; }
@@ -4430,7 +4439,7 @@ function pattern(ctx, key) {
   return p;
 }
 
-  return { loadAssets, hasAsset, asset, assetMeta, pattern };
+  return { loadAssets, preloadCardArt, hasAsset, asset, assetMeta, pattern };
 })();
 
 // ===================== src/render/substrate.js =====================
@@ -6172,9 +6181,11 @@ function text(id, v) { const el = document.getElementById(id); if (el) el.textCo
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 // Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
 function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-// The art window: a bespoke image per card; if it's missing the dark gradient shows through.
+// The art window: a bespoke image per card; if it's missing the dark gradient shows
+// through. Loaded eagerly (not lazy) and preloaded at boot (main.js) so the faces
+// don't pop in one by one when a draft or the hand opens.
 function cardArt(name) {
-  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
 }
 // Card -> filter group (bucket). Used for the hand filter chips + stacking view.
 const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
@@ -6213,7 +6224,7 @@ function vitalityColor(v) {
   return `rgb(${r},${g},${b})`;
 }
 
-  return { UI };
+  return { UI, cardSlug };
 })();
 
 // ===================== src/main.js =====================
@@ -6228,8 +6239,9 @@ const __m_main = (function () {
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
   const { Lighting } = __m_render_lighting;
-  const { UI } = __m_render_ui;
-  const { loadAssets, hasAsset, asset, pattern, assetMeta } = __m_render_assets;
+  const { UI, cardSlug } = __m_render_ui;
+  const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
+  const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
 //
@@ -6250,6 +6262,18 @@ let noTrich = false;                  // testing aid: spawn sandbox maps with no
 const networkRenderers = new Map();
 
 let uiDirty = true;
+let assetsReady = false;              // canvas art loaded — until then the map stays hidden
+
+// Fade the whole map in from black. Called once art is loaded (first map) and on
+// every new map, so nothing pops in piece by piece — the finished scene fades up.
+function revealMap() {
+  canvas.style.transition = 'none';
+  canvas.style.opacity = '0';
+  void canvas.offsetWidth;            // commit opacity:0 with no transition
+  canvas.style.transition = 'opacity 0.7s ease';
+  canvas.style.opacity = '1';         // animate 0 -> 1
+}
+
 let previewFruit = false;
 let previewFruitPoints = [];
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
@@ -6317,6 +6341,9 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
+  // On a new map, fade the finished scene in. (The very first map waits until art
+  // has loaded — see the loadAssets() boot below — so it never fades in half-drawn.)
+  if (assetsReady) revealMap();
 }
 
 function buildRenderers() {
@@ -7952,7 +7979,16 @@ setupInput();
 // Preload art assets, then invalidate the per-map caches that gate on assets
 // (rock formations + surface props) — they may have been computed empty on the
 // first frame before the async load finished.
-loadAssets().then(() => { uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null; if (substrateRenderer) substrateRenderer.rebake(); });
+loadAssets().then(() => {
+  uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
+  if (substrateRenderer) substrateRenderer.rebake();
+  assetsReady = true;
+  revealMap();   // first map: reveal only now that the art is loaded, so it fades in whole
+});
+// Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
+setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } }, 4000);
+// Warm the card-face image cache so drafts / the hand don't pop in one by one.
+preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
 else start((Date.now() & 0x7fffffff) || 1);

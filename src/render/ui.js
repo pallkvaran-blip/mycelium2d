@@ -578,10 +578,12 @@ function button(cls, html) { const b = document.createElement('button'); b.class
 function text(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 // Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
-function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
-// The art window: a bespoke image per card; if it's missing the dark gradient shows through.
+export function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+// The art window: a bespoke image per card; if it's missing the dark gradient shows
+// through. Loaded eagerly (not lazy) and preloaded at boot (main.js) so the faces
+// don't pop in one by one when a draft or the hand opens.
 function cardArt(name) {
-  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" loading="lazy" onerror="this.style.display='none'"></span>`;
+  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
 }
 // Card -> filter group (bucket). Used for the hand filter chips + stacking view.
 const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
