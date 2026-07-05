@@ -57,6 +57,7 @@ export class UI {
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
+    this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
     this.handFilter = 'all';          // active card-hand filter group key
     this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
@@ -476,27 +477,73 @@ export class UI {
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
+  // Selecting a card just HIGHLIGHTS it (and previews what a +5 draw-engine card
+  // shuffles in); the "Draft Card" button confirms the pick.
   _renderOffer() {
     const el = this.el.offer;
     if (!el) return;
     const s = this.state;
     const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
-    if (!off) { el.classList.add('hidden'); return; }
+    if (!off) { el.classList.add('hidden'); this.armedOffer = null; return; }
+    // Drop a stale selection if it isn't among the current choices.
+    if (this.armedOffer && !off.choices.includes(this.armedOffer)) this.armedOffer = null;
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      return `<button class="offercard" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+      const sel = name === this.armedOffer ? ' selected' : '';
+      return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
       + `<h2>Pile digested — draft a card</h2>`
-      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·P to play it.</p>`
+      + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
       + `<div class="offerrow">${cards}</div>`
+      + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
+      + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
       + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
       + `</div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('.offercard').forEach((btn) => {
-      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
+      btn.onclick = () => this.armOffer(btn.dataset.name);
     });
+    const confirm = el.querySelector('#offerconfirm');
+    if (confirm) confirm.onclick = () => this.confirmOffer();
+    this._paintOffer();
+  }
+
+  // Highlight a draft choice (tap again to deselect); the "Draft Card" button
+  // then confirms it. No full rebuild — just repaint the selection + preview.
+  armOffer(name) {
+    this.armedOffer = this.armedOffer === name ? null : name;
+    this._paintOffer();
+  }
+  _paintOffer() {
+    const el = this.el.offer;
+    if (!el) return;
+    el.querySelectorAll('.offercard').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.name === this.armedOffer);
+    });
+    const confirm = el.querySelector('#offerconfirm');
+    if (confirm) confirm.disabled = !this.armedOffer;
+    const prev = el.querySelector('#offerpreview');
+    if (prev) {
+      // Preview what a +5 draw-engine card shuffles into the deck (name + effect).
+      const adds = this.armedOffer ? cardDeckAdditions(this.armedOffer) : null;
+      if (adds) {
+        const ac = CARD_BY_NAME[adds.name] || { effect: '' };
+        prev.innerHTML = `<div class="hplabel">Shuffles ${adds.count} × <b>${escapeHtml(adds.name)}</b> into your draw deck:</div>`
+          + `<div class="hpdesc">${escapeHtml(ac.effect || '')}</div>`;
+        prev.classList.remove('hidden');
+      } else {
+        prev.classList.add('hidden');
+        prev.innerHTML = '';
+      }
+    }
+  }
+  confirmOffer() {
+    if (!this.armedOffer) return;
+    const name = this.armedOffer;
+    this.armedOffer = null;
+    this.handlers.onChooseCard(name);
   }
 
   // --- select / play flow --------------------------------------------------

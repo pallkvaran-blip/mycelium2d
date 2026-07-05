@@ -346,6 +346,17 @@
     .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
       box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75); }
     /* Confirm/preview overlay (play a card / draft a card) */
+    /* Draft selection + confirm */
+    .offercard.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
+    .offercard.selected:hover { transform: translateY(-3px); }
+    .offerpreview { margin: 14px auto 0; }
+    .offerfooter { display: flex; justify-content: center; margin-top: 16px; }
+    .offerfooter .btn.big { font-size: 14px; padding: 11px 24px; font-weight: 600; color: #06110a;
+      background: linear-gradient(180deg, #9bf0b8, #57cf8c); border-color: rgba(155,240,184,0.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 18px -5px rgba(127,230,163,0.7); }
+    .offerfooter .btn.big:hover:not(:disabled) { background: linear-gradient(180deg, #b6ffd0, #6ee0a0); }
+    .offerfooter .btn.big:disabled { opacity: 1; color: var(--ink-dim);
+      background: rgba(40,54,48,0.85); border-color: var(--panel-border); box-shadow: none; }
     .confirmbox { max-width: 560px; }
     .confirmbox .addslabel { margin-top: 14px; color: var(--accent); }
     .confirmbtns { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
@@ -436,8 +447,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "4ccib2";
-globalThis.__BUILD__ = "local 07-05 10:24";
+window.__ASSET_VER = "1fz2a87";
+globalThis.__BUILD__ = "local 07-05 10:33";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5659,6 +5670,7 @@ class UI {
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
+    this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
     this.handFilter = 'all';          // active card-hand filter group key
     this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
@@ -6078,27 +6090,73 @@ class UI {
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
+  // Selecting a card just HIGHLIGHTS it (and previews what a +5 draw-engine card
+  // shuffles in); the "Draft Card" button confirms the pick.
   _renderOffer() {
     const el = this.el.offer;
     if (!el) return;
     const s = this.state;
     const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
-    if (!off) { el.classList.add('hidden'); return; }
+    if (!off) { el.classList.add('hidden'); this.armedOffer = null; return; }
+    // Drop a stale selection if it isn't among the current choices.
+    if (this.armedOffer && !off.choices.includes(this.armedOffer)) this.armedOffer = null;
     const cards = off.choices.map((name) => {
       const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      return `<button class="offercard" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+      const sel = name === this.armedOffer ? ' selected' : '';
+      return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
     }).join('');
     const more = s.cards.pendingOffers.length - 1;
     el.innerHTML = `<div class="offerbox">`
       + `<h2>Pile digested — draft a card</h2>`
-      + `<p class="dim small">It joins your hand for free. You still pay its ⚡ / W·P to play it.</p>`
+      + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
       + `<div class="offerrow">${cards}</div>`
+      + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
+      + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
       + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
       + `</div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('.offercard').forEach((btn) => {
-      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
+      btn.onclick = () => this.armOffer(btn.dataset.name);
     });
+    const confirm = el.querySelector('#offerconfirm');
+    if (confirm) confirm.onclick = () => this.confirmOffer();
+    this._paintOffer();
+  }
+
+  // Highlight a draft choice (tap again to deselect); the "Draft Card" button
+  // then confirms it. No full rebuild — just repaint the selection + preview.
+  armOffer(name) {
+    this.armedOffer = this.armedOffer === name ? null : name;
+    this._paintOffer();
+  }
+  _paintOffer() {
+    const el = this.el.offer;
+    if (!el) return;
+    el.querySelectorAll('.offercard').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.name === this.armedOffer);
+    });
+    const confirm = el.querySelector('#offerconfirm');
+    if (confirm) confirm.disabled = !this.armedOffer;
+    const prev = el.querySelector('#offerpreview');
+    if (prev) {
+      // Preview what a +5 draw-engine card shuffles into the deck (name + effect).
+      const adds = this.armedOffer ? cardDeckAdditions(this.armedOffer) : null;
+      if (adds) {
+        const ac = CARD_BY_NAME[adds.name] || { effect: '' };
+        prev.innerHTML = `<div class="hplabel">Shuffles ${adds.count} × <b>${escapeHtml(adds.name)}</b> into your draw deck:</div>`
+          + `<div class="hpdesc">${escapeHtml(ac.effect || '')}</div>`;
+        prev.classList.remove('hidden');
+      } else {
+        prev.classList.add('hidden');
+        prev.innerHTML = '';
+      }
+    }
+  }
+  confirmOffer() {
+    if (!this.armedOffer) return;
+    const name = this.armedOffer;
+    this.armedOffer = null;
+    this.handlers.onChooseCard(name);
   }
 
   // --- select / play flow --------------------------------------------------

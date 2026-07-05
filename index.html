@@ -345,6 +345,17 @@
     .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
       box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75); }
     /* Confirm/preview overlay (play a card / draft a card) */
+    /* Draft selection + confirm */
+    .offercard.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
+    .offercard.selected:hover { transform: translateY(-3px); }
+    .offerpreview { margin: 14px auto 0; }
+    .offerfooter { display: flex; justify-content: center; margin-top: 16px; }
+    .offerfooter .btn.big { font-size: 14px; padding: 11px 24px; font-weight: 600; color: #06110a;
+      background: linear-gradient(180deg, #9bf0b8, #57cf8c); border-color: rgba(155,240,184,0.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 18px -5px rgba(127,230,163,0.7); }
+    .offerfooter .btn.big:hover:not(:disabled) { background: linear-gradient(180deg, #b6ffd0, #6ee0a0); }
+    .offerfooter .btn.big:disabled { opacity: 1; color: var(--ink-dim);
+      background: rgba(40,54,48,0.85); border-color: var(--panel-border); box-shadow: none; }
     .confirmbox { max-width: 560px; }
     .confirmbox .addslabel { margin-top: 14px; color: var(--accent); }
     .confirmbtns { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
