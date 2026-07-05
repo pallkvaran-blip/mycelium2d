@@ -63,15 +63,28 @@
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
     /* Action bar — glowing on-theme tray */
-    .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;
-      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw;
+    .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;
+      align-items: stretch; flex-wrap: nowrap; justify-content: space-between; width: min(600px, 94vw); padding: 8px 12px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 14px;
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
+    /* [Show Hand] left · [Draw][Skip] centre · [Play Card] right */
+    .actionbar .abgroup { display: flex; gap: 8px; align-items: stretch; }
+    /* Two-row action buttons: function on top, cost below (empty row for no-cost). */
+    .actionbar .abtn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; min-height: 50px; padding: 7px 16px; line-height: 1.15; white-space: nowrap; }
+    .actionbar .abtn .blabel { font-size: 13.5px; font-weight: 600; }
+    .actionbar .abtn .bcost { font-size: 11px; min-height: 13px; color: var(--accent); font-variant-numeric: tabular-nums; }
     .actionbar .handbtn { background: rgba(127,230,163,0.14); border-color: rgba(130,230,166,0.5); }
     .actionbar .handbtn:hover:not(:disabled) { background: rgba(127,230,163,0.24); }
-    .actionbar .handbtn .htcount { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
-    .actionbar .handbtn .htchev { color: var(--ink-dim); font-size: 10px; }
+    .actionbar .handbtn .htchev { color: var(--ink-dim); font-size: 11px; }
+    /* Play Card: bright accent when a card is selected; readable + dim when not. */
+    .actionbar .playbtn { background: var(--accent); border-color: var(--accent); }
+    .actionbar .playbtn:hover:not(:disabled) { background: #9bf0b8; }
+    .actionbar .playbtn .blabel, .actionbar .playbtn .bcost { color: #06110a; }
+    .actionbar .playbtn:disabled { opacity: 0.65; background: rgba(40,54,48,0.85); border-color: var(--panel-border); }
+    .actionbar .playbtn:disabled .blabel { color: var(--ink); }
+    .actionbar .playbtn:disabled .bcost { color: var(--ink-dim); }
     .btn { font-family: inherit; color: var(--ink); background: rgba(40,54,48,0.8);
       border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
       font-size: 13px; transition: background 0.15s, border 0.15s, transform 0.05s; white-space: nowrap; }
@@ -154,7 +167,7 @@
          collapses into a short 1–2 row strip instead of a tall block that
          covers the map. */
       .actionbar { left: 6px; right: 6px; transform: none;
-        max-width: none; gap: 5px; padding: 7px 8px; justify-content: center; }
+        width: auto; max-width: none; gap: 5px; padding: 7px 8px; justify-content: space-between; }
       .actionbar .btn { padding: 6px 9px; font-size: 12px; }
       .actionbar .btn .cost, .actionbar .btn .lvl { font-size: 10px; margin-left: 3px; }
       .actionbar .expr-group { padding: 3px 5px; gap: 3px; }
@@ -179,7 +192,7 @@
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
        glowing on-theme frame appears only when the carousel is open. */
-    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 0;
+    .handbar { bottom: 132px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 0;
       display: flex; flex-direction: column; gap: 8px; align-items: center;
       background: none; border: none; box-shadow: none; backdrop-filter: none; }
     .handbar.open { padding: 8px 10px;
@@ -221,20 +234,14 @@
     .fchip:hover { color: var(--ink); border-color: rgba(130,230,166,0.4); }
     .fchip.on { background: rgba(127,230,163,0.18); color: var(--accent); border-color: rgba(130,230,166,0.6); }
     .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
-    /* carousel wrapper + nav (nav hidden on desktop; it's a wrap grid there) */
-    .handcarousel { display: flex; align-items: center; gap: 6px; max-width: 100%; }
-    .handnav { display: none; flex: 0 0 auto; width: 30px; align-self: stretch; border: 1px solid var(--panel-border);
-      background: rgba(20,28,24,0.92); color: var(--accent); border-radius: 9px; font-size: 20px; line-height: 1;
-      cursor: pointer; font-family: inherit; }
-    .handnav:active { background: rgba(40,60,48,0.98); }
-    .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; max-height: 30vh; overflow-y: auto; }
-    /* carousel footer: play the highlighted card / cancel (minimize) */
-    .handfooter { display: flex; gap: 8px; justify-content: center; align-items: center; width: 100%; }
-    .handfooter .btn { font-size: 13px; padding: 9px 18px; }
-    .handfooter .playbtn { background: var(--accent); color: #06110a; border-color: var(--accent); font-weight: 700; }
-    .handfooter .playbtn:hover:not(:disabled) { background: #9bf0b8; }
-    .handfooter .playbtn:disabled { opacity: 0.4; background: rgba(127,230,163,0.25); color: #06110a; }
-    .handfooter .cancelbtn { background: rgba(255,255,255,0.06); color: var(--ink-dim); }
+    /* Carousel: a single horizontal drag-scroll row on every platform (no nav
+       buttons — you drag; Play Card lives in the bottom action bar). */
+    .handcarousel { display: flex; align-items: center; max-width: 100%; }
+    .handlist { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-start;
+      max-width: min(72vw, 860px); overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: none; scroll-snap-type: x proximity; cursor: grab; }
+    .handlist::-webkit-scrollbar { display: none; }
+    .handlist:active { cursor: grabbing; }
     /* text-only preview of what a draw-engine (+5) card shuffles into the deck */
     .handpreview { width: 100%; max-width: 520px; text-align: center; padding: 8px 12px; border-radius: 10px;
       background: rgba(10,16,13,0.6); border: 1px solid rgba(130,230,166,0.3); }
@@ -254,7 +261,7 @@
       cursor: pointer; text-align: left; font-family: inherit;
       box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75);
       transition: transform .08s, box-shadow .08s, border-color .08s; }
-    .cardbtn { width: 190px; }
+    .cardbtn { width: 190px; flex: 0 0 auto; scroll-snap-align: center; }
     .cardbtn:hover:not(.unaff), .offercard:hover { border-color: rgba(170,255,205,0.85);
       box-shadow: 0 0 14px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.28), 0 10px 22px -9px rgba(0,0,0,0.85); }
     .offercard:hover { transform: translateY(-3px); }
@@ -318,19 +325,19 @@
       .logdrop { max-width: min(80vw, 300px); }
       .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
-      .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
-      .actionbar .btn { padding: 6px 7px; font-size: 11px; }
-      .actionbar .deckbtn .deckn { display: none; }
-      .actionbar .ctrl { gap: 4px; }
-      .handbar { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
-      .handhead { display: flex; }              /* collapse toggle + selected chip visible on phone */
+      .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none;
+        width: auto; gap: 6px; padding: 6px 8px; flex-wrap: nowrap; justify-content: space-between; }
+      .actionbar .abtn { min-height: 44px; padding: 5px 8px; }
+      .actionbar .abtn .blabel { font-size: 12px; }
+      .actionbar .abtn .bcost { font-size: 10.5px; }
+      .handbar { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handhead { display: flex; }              /* selected/aiming chip visible on phone */
       .handbody { display: none; }              /* carousel hidden until the tray is expanded */
       .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
       .handcarousel { align-self: stretch; }
-      .handnav { display: flex; align-items: center; justify-content: center; }
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -358,11 +365,11 @@
       .hud { top: 6px; left: 6px; }
       .logdrop { max-width: min(60vw, 340px); }
       .logdrop .loglist { font-size: 9.5px; line-height: 1.35; max-height: 40vh; }
-      .actionbar { bottom: 6px; left: 6px; right: auto; transform: none; gap: 4px; padding: 4px 6px; flex-wrap: nowrap; }
-      .actionbar .btn { padding: 5px 7px; font-size: 11px; }
-      .actionbar .deckbtn .deckn { display: none; }
-      .actionbar .ctrl { gap: 4px; }
-      .handbar { bottom: 46px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .actionbar { bottom: 6px; left: 6px; right: 6px; transform: none; width: auto; gap: 5px; padding: 5px 7px; flex-wrap: nowrap; justify-content: space-between; }
+      .actionbar .abtn { min-height: 38px; padding: 4px 9px; }
+      .actionbar .abtn .blabel { font-size: 11.5px; }
+      .actionbar .abtn .bcost { font-size: 10px; }
+      .handbar { bottom: 58px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
       .handhead { display: flex; }
       .handbody { display: none; }
       .handbar.open .handbody { display: flex; }
@@ -370,7 +377,6 @@
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
       .handcarousel { align-self: stretch; }
-      .handnav { display: flex; align-items: center; justify-content: center; width: 26px; font-size: 17px; }
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
@@ -384,7 +390,6 @@
       .offercard { width: 116px; min-height: 0; }
       .offercard .cart { height: 60px; min-height: 0; flex: 0 0 auto; }
       .offercard .crules { font-size: 9px; flex: 0 0 auto; }
-      .handfooter .btn { font-size: 11px; padding: 6px 12px; }
       .handpreview { padding: 5px 9px; }
       .handpreview .hplabel, .handpreview .hpdesc { font-size: 10px; }
     }
@@ -393,8 +398,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1om9ydx";
-globalThis.__BUILD__ = "local 07-05 06:51";
+window.__ASSET_VER = "xe5m99";
+globalThis.__BUILD__ = "local 07-05 07:18";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5480,6 +5485,30 @@ class UI {
     }
   }
 
+  // Mouse drag-to-scroll for the carousel (touch already scrolls natively). A
+  // real drag suppresses the trailing click so it doesn't accidentally arm a card.
+  _enableDragScroll(el) {
+    if (!el) return;
+    let down = false, startX = 0, startScroll = 0, moved = 0;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return;   // let touch scroll natively
+      down = true; startX = e.clientX; startScroll = el.scrollLeft; moved = 0;
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - startX;
+      moved = Math.max(moved, Math.abs(dx));
+      el.scrollLeft = startScroll - dx;
+    });
+    const end = () => { down = false; };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointerleave', end);
+    // Capture-phase: cancel the click after a >6px drag before it reaches a card.
+    el.addEventListener('click', (e) => {
+      if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
+    }, true);
+  }
+
   // Small screens (phone portrait or short landscape) use the collapsible hand
   // tray + card-selection flow; desktop keeps the always-open hand.
   _isNarrow() {
@@ -5527,18 +5556,28 @@ class UI {
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
     } else {
-      // Draw + Skip drive the card round; Hand toggles the carousel.
-      const drawBtn = button('btn deckbtn', 'Draw');
-      drawBtn.onclick = () => this.handlers.onDraw();
-      const skipBtn = button('btn deckbtn', 'Skip');
-      skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
-      bar.appendChild(drawBtn); bar.appendChild(skipBtn);
-      const handBtn = button('btn handbtn', `<span class="htlabel">Hand</span> <span class="htcount" id="htcount">0</span> <span class="htchev">▴</span>`);
+      // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
+      // right. Every button is two rows — function on top, cost below.
+      const handBtn = button('btn handbtn abtn', `<span class="blabel">Show Hand</span><span class="bcost htchev">▴</span>`);
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
-      this.el.htcount = handBtn.querySelector('#htcount');
-      bar.appendChild(handBtn);
+
+      const drawBtn = button('btn deckbtn abtn', 'Draw');
+      drawBtn.onclick = () => this.handlers.onDraw();
+      const skipBtn = button('btn deckbtn abtn', 'Skip');
+      skipBtn.onclick = () => this.handlers.onSkip();
+      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
+
+      const playBtn = button('btn playbtn abtn', `<span class="blabel">Play Card</span><span class="bcost"></span>`);
+      playBtn.id = 'handplay';
+      playBtn.disabled = true;
+      playBtn.onclick = () => this.playArmed();
+      this.el.handplay = playBtn;
+
+      const left = div('abgroup left'); left.appendChild(handBtn);
+      const centre = div('abgroup centre'); centre.appendChild(drawBtn); centre.appendChild(skipBtn);
+      const right = div('abgroup right'); right.appendChild(playBtn);
+      bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
     }
 
     root.appendChild(bar);
@@ -5548,43 +5587,27 @@ class UI {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
         // Header (phone only): a chip showing which card is selected/aiming.
-        // The open/close toggle now lives in the bottom action bar (Hand button).
+        // The open/close toggle now lives in the bottom action bar (Show Hand).
         `<div class="handhead">`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
         + `<div class="handfilter" id="handfilter"></div>`
+        // Drag-to-scroll carousel (no nav buttons — drag on phone and desktop).
         + `<div class="handcarousel">`
-        + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
         + `<div class="handlist" id="handlist"></div>`
-        + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
-        // Footer: play the highlighted card, or cancel (minimize) the carousel.
-        + `<div class="handfooter">`
-        + `<button class="btn playbtn" id="handplay" disabled>Play Card</button>`
-        + `<button class="btn cancelbtn" id="handcancel">Cancel</button>`
-        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
       this.el.handpreview = hand.querySelector('#handpreview');
-      this.el.handplay = hand.querySelector('#handplay');
-      const scrollByCard = (dir) => {
-        const t = this.el.handlist; if (!t) return;
-        const card = t.querySelector('.cardbtn');
-        const step = card ? card.offsetWidth + 8 : t.clientWidth * 0.8;
-        t.scrollBy({ left: dir * step, behavior: 'smooth' });
-      };
-      hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
-      hand.querySelector('#handnext').onclick = () => scrollByCard(1);
-      this.el.handplay.onclick = () => this.playArmed();
-      hand.querySelector('#handcancel').onclick = () => { this.clearArmed(); this.collapseHand(); };
+      this._enableDragScroll(this.el.handlist);
       root.appendChild(hand);
-      this.setHandOpen(this.handOpen);   // sync the Hand button chevron + open class
+      this.setHandOpen(this.handOpen);   // sync the Show Hand chevron + open class
     }
 
     // ---- Hint line ----
@@ -5690,8 +5713,8 @@ class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray. The open/close toggle is the "Hand" button in the
-  // bottom action bar; this keeps its chevron + the tray's .open class in sync.
+  // Collapsible hand tray. The open/close toggle is the "Show Hand" button in
+  // the bottom action bar; this keeps its chevron + the tray's .open class in sync.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
@@ -5794,11 +5817,11 @@ class UI {
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
       const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
       if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `Draw ${drawN || (cc.drawCount || 1)} <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
+        this.el.drawBtn.innerHTML = `<span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${drawE}⚡</span>`;
         this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
       }
       if (this.el.skipBtn) {
-        this.el.skipBtn.innerHTML = `Skip <span class="cost">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipBtn.innerHTML = `<span class="blabel">Skip</span><span class="bcost">${cc.skipCostEnergy}⚡</span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
       this._renderOffer();
@@ -5824,7 +5847,6 @@ class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
-    if (this.el.htcount) this.el.htcount.textContent = s.cards.hand.length;
     this._renderHandSelection();
 
     // STACK: group identical cards by name; keep the first hand index to play.
@@ -5953,7 +5975,23 @@ class UI {
   _renderHandFooter() {
     const play = this.el.handplay, prev = this.el.handpreview;
     const armed = this.armed && this.armed.kind === 'hand' ? this.armed : null;
-    if (play) play.disabled = !armed;
+    if (play) {
+      play.disabled = !armed;
+      // Second row of the Play Card button shows the selected card's play cost.
+      const costEl = play.querySelector('.bcost');
+      if (costEl) {
+        let txt = '';
+        if (armed) {
+          const c = CARD_BY_NAME[armed.name] || { buyCostEnergy: 0, costW: 0, costP: 0 };
+          const parts = [];
+          if (c.buyCostEnergy) parts.push(`${c.buyCostEnergy}⚡`);
+          if (c.costW) parts.push(`${c.costW}W`);
+          if (c.costP) parts.push(`${c.costP}P`);
+          txt = parts.join(' ');   // basics cost nothing to play → row stays empty
+        }
+        costEl.textContent = txt;
+      }
+    }
     if (!prev) return;
     const adds = armed ? cardDeckAdditions(armed.name) : null;
     if (adds) {

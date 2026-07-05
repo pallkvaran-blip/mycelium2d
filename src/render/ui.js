@@ -52,6 +52,30 @@ export class UI {
     }
   }
 
+  // Mouse drag-to-scroll for the carousel (touch already scrolls natively). A
+  // real drag suppresses the trailing click so it doesn't accidentally arm a card.
+  _enableDragScroll(el) {
+    if (!el) return;
+    let down = false, startX = 0, startScroll = 0, moved = 0;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return;   // let touch scroll natively
+      down = true; startX = e.clientX; startScroll = el.scrollLeft; moved = 0;
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - startX;
+      moved = Math.max(moved, Math.abs(dx));
+      el.scrollLeft = startScroll - dx;
+    });
+    const end = () => { down = false; };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointerleave', end);
+    // Capture-phase: cancel the click after a >6px drag before it reaches a card.
+    el.addEventListener('click', (e) => {
+      if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
+    }, true);
+  }
+
   // Small screens (phone portrait or short landscape) use the collapsible hand
   // tray + card-selection flow; desktop keeps the always-open hand.
   _isNarrow() {
@@ -99,18 +123,28 @@ export class UI {
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
     } else {
-      // Draw + Skip drive the card round; Hand toggles the carousel.
-      const drawBtn = button('btn deckbtn', 'Draw');
-      drawBtn.onclick = () => this.handlers.onDraw();
-      const skipBtn = button('btn deckbtn', 'Skip');
-      skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
-      bar.appendChild(drawBtn); bar.appendChild(skipBtn);
-      const handBtn = button('btn handbtn', `<span class="htlabel">Hand</span> <span class="htcount" id="htcount">0</span> <span class="htchev">▴</span>`);
+      // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
+      // right. Every button is two rows — function on top, cost below.
+      const handBtn = button('btn handbtn abtn', `<span class="blabel">Show Hand</span><span class="bcost htchev">▴</span>`);
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
-      this.el.htcount = handBtn.querySelector('#htcount');
-      bar.appendChild(handBtn);
+
+      const drawBtn = button('btn deckbtn abtn', 'Draw');
+      drawBtn.onclick = () => this.handlers.onDraw();
+      const skipBtn = button('btn deckbtn abtn', 'Skip');
+      skipBtn.onclick = () => this.handlers.onSkip();
+      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
+
+      const playBtn = button('btn playbtn abtn', `<span class="blabel">Play Card</span><span class="bcost"></span>`);
+      playBtn.id = 'handplay';
+      playBtn.disabled = true;
+      playBtn.onclick = () => this.playArmed();
+      this.el.handplay = playBtn;
+
+      const left = div('abgroup left'); left.appendChild(handBtn);
+      const centre = div('abgroup centre'); centre.appendChild(drawBtn); centre.appendChild(skipBtn);
+      const right = div('abgroup right'); right.appendChild(playBtn);
+      bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
     }
 
     root.appendChild(bar);
@@ -120,43 +154,27 @@ export class UI {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
         // Header (phone only): a chip showing which card is selected/aiming.
-        // The open/close toggle now lives in the bottom action bar (Hand button).
+        // The open/close toggle now lives in the bottom action bar (Show Hand).
         `<div class="handhead">`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
         + `<div class="handfilter" id="handfilter"></div>`
+        // Drag-to-scroll carousel (no nav buttons — drag on phone and desktop).
         + `<div class="handcarousel">`
-        + `<button class="handnav prev" id="handprev" aria-label="Previous cards">‹</button>`
         + `<div class="handlist" id="handlist"></div>`
-        + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
-        // Footer: play the highlighted card, or cancel (minimize) the carousel.
-        + `<div class="handfooter">`
-        + `<button class="btn playbtn" id="handplay" disabled>Play Card</button>`
-        + `<button class="btn cancelbtn" id="handcancel">Cancel</button>`
-        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
       this.el.handpreview = hand.querySelector('#handpreview');
-      this.el.handplay = hand.querySelector('#handplay');
-      const scrollByCard = (dir) => {
-        const t = this.el.handlist; if (!t) return;
-        const card = t.querySelector('.cardbtn');
-        const step = card ? card.offsetWidth + 8 : t.clientWidth * 0.8;
-        t.scrollBy({ left: dir * step, behavior: 'smooth' });
-      };
-      hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
-      hand.querySelector('#handnext').onclick = () => scrollByCard(1);
-      this.el.handplay.onclick = () => this.playArmed();
-      hand.querySelector('#handcancel').onclick = () => { this.clearArmed(); this.collapseHand(); };
+      this._enableDragScroll(this.el.handlist);
       root.appendChild(hand);
-      this.setHandOpen(this.handOpen);   // sync the Hand button chevron + open class
+      this.setHandOpen(this.handOpen);   // sync the Show Hand chevron + open class
     }
 
     // ---- Hint line ----
@@ -262,8 +280,8 @@ export class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray. The open/close toggle is the "Hand" button in the
-  // bottom action bar; this keeps its chevron + the tray's .open class in sync.
+  // Collapsible hand tray. The open/close toggle is the "Show Hand" button in
+  // the bottom action bar; this keeps its chevron + the tray's .open class in sync.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
@@ -366,11 +384,11 @@ export class UI {
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
       const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
       if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `Draw ${drawN || (cc.drawCount || 1)} <span class="cost">${drawE}⚡</span> <span class="deckn">${s.cards.drawDeck.length} left</span>`;
+        this.el.drawBtn.innerHTML = `<span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${drawE}⚡</span>`;
         this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
       }
       if (this.el.skipBtn) {
-        this.el.skipBtn.innerHTML = `Skip <span class="cost">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipBtn.innerHTML = `<span class="blabel">Skip</span><span class="bcost">${cc.skipCostEnergy}⚡</span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
       this._renderOffer();
@@ -396,7 +414,6 @@ export class UI {
     const list = this.el.handlist;
     if (!list) return;
     const s = this.state, net = s.active;
-    if (this.el.htcount) this.el.htcount.textContent = s.cards.hand.length;
     this._renderHandSelection();
 
     // STACK: group identical cards by name; keep the first hand index to play.
@@ -525,7 +542,23 @@ export class UI {
   _renderHandFooter() {
     const play = this.el.handplay, prev = this.el.handpreview;
     const armed = this.armed && this.armed.kind === 'hand' ? this.armed : null;
-    if (play) play.disabled = !armed;
+    if (play) {
+      play.disabled = !armed;
+      // Second row of the Play Card button shows the selected card's play cost.
+      const costEl = play.querySelector('.bcost');
+      if (costEl) {
+        let txt = '';
+        if (armed) {
+          const c = CARD_BY_NAME[armed.name] || { buyCostEnergy: 0, costW: 0, costP: 0 };
+          const parts = [];
+          if (c.buyCostEnergy) parts.push(`${c.buyCostEnergy}⚡`);
+          if (c.costW) parts.push(`${c.costW}W`);
+          if (c.costP) parts.push(`${c.costP}P`);
+          txt = parts.join(' ');   // basics cost nothing to play → row stays empty
+        }
+        costEl.textContent = txt;
+      }
+    }
     if (!prev) return;
     const adds = armed ? cardDeckAdditions(armed.name) : null;
     if (adds) {
