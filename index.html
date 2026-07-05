@@ -79,10 +79,12 @@
     .actionbar .abtn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 2px; min-height: 50px; padding: 7px 16px; line-height: 1.15; white-space: nowrap; }
     .actionbar .abtn .blabel { font-size: 13.5px; font-weight: 600; }
-    .actionbar .abtn .bcost { font-size: 11px; min-height: 13px; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .actionbar .abtn .bcost { font-size: 11px; color: var(--accent); font-variant-numeric: tabular-nums; }
+    /* No cost (Show Hand, or Play Card with nothing selected) → drop the empty
+       row so the single label sits centred, not pushed to the top. */
+    .actionbar .abtn .bcost:empty { display: none; }
     .actionbar .handbtn { background: rgba(127,230,163,0.14); border-color: rgba(130,230,166,0.5); }
     .actionbar .handbtn:hover:not(:disabled) { background: rgba(127,230,163,0.24); }
-    .actionbar .handbtn .htchev { color: var(--ink-dim); font-size: 11px; }
     /* Play Card: bright accent when a card is selected; readable + dim when not. */
     .actionbar .playbtn { background: var(--accent); border-color: var(--accent); }
     .actionbar .playbtn:hover:not(:disabled) { background: #9bf0b8; }

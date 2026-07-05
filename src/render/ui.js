@@ -125,7 +125,7 @@ export class UI {
     } else {
       // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
       // right. Every button is two rows — function on top, cost below.
-      const handBtn = button('btn handbtn abtn', `<span class="blabel">Show Hand</span><span class="bcost htchev">▴</span>`);
+      const handBtn = button('btn handbtn abtn', `<span class="blabel">Show Hand</span>`);
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
 
@@ -285,8 +285,8 @@ export class UI {
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
-    const chev = this.el.handbtn && this.el.handbtn.querySelector('.htchev');
-    if (chev) chev.textContent = open ? '▾' : '▴';
+    const lab = this.el.handbtn && this.el.handbtn.querySelector('.blabel');
+    if (lab) lab.textContent = open ? 'Hide Hand' : 'Show Hand';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
 
