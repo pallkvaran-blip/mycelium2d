@@ -924,9 +924,14 @@ const ROCK_RECIPES = [
   ['rockRiver', 'rockSlate'],
 ];
 const ALL_ROCKS = ['rockSlate', 'rockBasalt', 'rockRiver', 'rockVeined', 'rockMossy'];
-let _rockState = null, _rockGroups = null;
+let _rockState = null, _rockGroups = null, _rockRev = -1;
 function rockGroups() {
-  if (_rockState === state) return _rockGroups;
+  // Cache per-map, but also recompute when rock cells change at runtime (a punch /
+  // dig clears a boulder) so a bored-through boulder's sprite actually disappears
+  // instead of lingering over the strand that now threads where it used to be.
+  const rev = state.substrate.rockRev | 0;
+  if (_rockState === state && _rockRev === rev) return _rockGroups;
+  _rockRev = rev;
   const sub = state.substrate;
   const haveAny = ALL_ROCKS.some(hasAsset);
   const groups = [];

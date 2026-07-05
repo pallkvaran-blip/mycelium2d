@@ -417,8 +417,13 @@ export const EFFECTS = {
     return { ok: false, message: 'Every food pile has already been reached — nothing new to lunge toward.' };
   }),
   'Appressorial Punch': targeted((s, c, ctx) => {
-    const n = s.active.digThrough(s.substrate, ctx.x, ctx.y, ['boulder']);
-    return n > 0 ? { ok: true, message: 'Bored through the boulder.' } : { ok: false, message: 'No boulder there to punch through.' };
+    if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+    if (n > 0) return { ok: true, message: `Bored through the boulder — threaded ${n} hyphae into the rock.` };
+    if (n < 0) return { ok: false, message: 'That boulder is out of range — grow closer first.' };
+    // No boulder at the tap: say whether they hit solid rock or empty ground.
+    if (s.active.rockNear(s.substrate, ctx.x, ctx.y)) return { ok: false, message: 'That is solid rock — Appressorial Punch only bores through loose boulders.' };
+    return { ok: false, message: 'No boulder there to punch through.' };
   }),
   'Rhizomorph Lance': targeted((s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
