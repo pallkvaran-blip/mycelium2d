@@ -1632,27 +1632,12 @@ function drawTargetingCursor(time) {
     ctx.restore();
   }
 
-  // Card awaiting a target: aim line from the nearest strand tip to the cursor + a
-  // marker. The source is the frontier tip closest to the cursor, so it matches
-  // where the play will actually originate (see dirFrom / growDirected).
-  if (ui && ui.pendingCard) {
-    const rect2 = canvas.getBoundingClientRect();
-    const wc = camera.screenToWorld(mouse.x - rect2.left, mouse.y - rect2.top);
-    const sp = camera.worldToScreen(wc.x, wc.y);
-    const fp = state.active && (state.active.nearestTip(wc.x, wc.y) || state.active.frontierPoint());
-    ctx.save();
-    if (fp) {
-      const a = camera.worldToScreen(fp.x, fp.y);
-      ctx.strokeStyle = 'rgba(127,230,163,0.7)';
-      ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(sp.x, sp.y); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    ctx.fillStyle = 'rgba(127,230,163,0.95)';
-    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-    return;
-  }
+  // Card awaiting a target: draw NO pre-click aim line — it would anchor a source
+  // before you've decided where to grow. The origin is chosen only when you tap:
+  // whichever living strand is closest to the tapped point grows toward it (see
+  // dirFrom). So targeting mode shows only the hint text / "Aiming" chip until you
+  // click.
+  if (ui && ui.pendingCard) return;
 
   const sel = ui && ui.selectedAction;
   if (!sel) return;

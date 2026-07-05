@@ -292,12 +292,14 @@ export function checkGoalReached(state) {
 }
 
 // --- shared effect helpers --------------------------------------------------
-// Aimed plays originate from the frontier TIP nearest the aim point (falling back
-// to the frontier centroid only if the network somehow has no tips). Returns the
-// source point `fp`, the source `tip` node (for growth to start from), and the unit-
-// ish direction from that source to the tapped point.
+// Aimed plays originate from the part of the ALIVE colony nearest the tapped
+// point (any node, not only a frontier tip — whichever strand is closest to
+// where you clicked), and grow from there toward the tap. Falls back to the
+// frontier centroid only if the network somehow has no nodes. Returns the source
+// point `fp`, the source `tip` node (for growth to start from), and the direction
+// from that source to the tapped point.
 function dirFrom(state, ctx) {
-  const tip = state.active.nearestTip(ctx.x, ctx.y);
+  const tip = state.active.nearestNode(ctx.x, ctx.y);
   const fp = tip ? { x: tip.x, y: tip.y } : (state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY });
   let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
