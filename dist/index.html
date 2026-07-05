@@ -469,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "13j5suh";
-globalThis.__BUILD__ = "local 07-05 16:48";
+window.__ASSET_VER = "144vl5m";
+globalThis.__BUILD__ = "local 07-05 16:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2543,10 +2543,10 @@ class Network {
     let dx = bcx - anchor.x, dy = bcy - anchor.y;
     if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
     const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
-    // Steps to cover: approach + the rock's far extent + emerge a bit past it.
+    // How far the rock reaches along the ray (from the anchor). Used to bore the
+    // channel and to bound the strand so it stops where the rock ends.
     let far = 0;
     for (const c of cells) { const proj = (c.x - anchor.x) * ux + (c.y - anchor.y) * uy; if (proj > far) far = proj; }
-    const steps = Math.min(60, Math.ceil((far + substrate.cellSize * 1.4) / g.segmentLength) + 1);
     // Bore a 1-cell channel along the ray: mark the rock cells the strand will
     // thread through as PASSABLE (bored) but leave them as rock, so the rock stays
     // drawn and the strand simply overlays it — nothing disappears. Only cells on
@@ -2556,20 +2556,24 @@ class Network {
       const cell = substrate.cellAtWorld(anchor.x + ux * t, anchor.y + uy * t);
       if (cell && cell.rock) cell.bored = true;
     }
-    // Thread a straight strand from the anchor through the cleared rock and out the
-    // far side. Grown inline (not via growDirected) so the count is JUST the visible
-    // through-strand — colonisation of any pile the strand now reaches happens after
-    // as a bonus, but doesn't inflate the "threaded N hyphae" report.
-    let parent = anchor, threaded = 0;
-    for (let i = 0; i < steps; i++) {
+    // Thread a straight strand from the anchor, through the rock, and STOP where
+    // the rock ends — grow only up to the rock's far edge (+ a hair so the tip
+    // clears it). It must NOT run on through the open ground beyond (that made the
+    // card OP); food sitting right on the far side is picked up by the colonisation
+    // pass below, not by over-growing. Distance-capped so a wide/irregular rock is
+    // fully crossed without stopping early on an internal gap.
+    const stopDist = far + substrate.cellSize * 0.75;
+    let parent = anchor, threaded = 0, dist = 0;
+    for (let i = 0; i < 80; i++) {
       if (this.nodes.length >= g.maxNodes) break;
+      dist += g.segmentLength;
+      if (dist > stopDist) break;                       // reached the far edge — stop
       const nx = parent.x + ux * g.segmentLength, ny = parent.y + uy * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) break;   // hit other (uncleared) rock/edge — stop
+      if (!this._placeOk(substrate, nx, ny)) break;     // hit an un-bored rock / edge — stop
       parent = this.addNode(nx, ny, parent);
       threaded++;
     }
-    // Guarantee a visible penetration even in the rare case the very first step is
-    // blocked by adjacent rock: drop a node in the (now-cleared) rock itself.
+    // Guarantee a visible penetration even if the very first step is blocked.
     if (threaded === 0) { this.addNode(bcx, bcy, anchor); threaded = 1; }
     this.colonizeReachablePiles(substrate, rng);
     this.recomputeVitality();
