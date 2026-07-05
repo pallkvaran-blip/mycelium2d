@@ -76,10 +76,10 @@ function begin(newState) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
-  // Keep the view inside the painted map rect (sky at y=0 down to worldHeight,
+  // Keep the view inside the painted map rect (sky at y=0 down to viewHeight,
   // x across the full world width) so panning/zooming never reveals the empty
-  // background beyond the map's edges.
-  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.worldHeight);
+  // background beyond the map's edges. viewHeight includes the bottom dirt buffer.
+  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.viewHeight);
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
     // pad the sides so the start (far left) and chest (far right) aren't jammed
@@ -87,10 +87,14 @@ function begin(newState) {
     camera.fitBounds({ minX: -160, minY: state.substrate.surfaceY - 30,
       maxX: state.substrate.worldWidth + 160, maxY: state.substrate.worldHeight }, 30);
   } else {
-    // Traversal level: frame the whole width so the left→right journey (entry,
-    // barriers, goal) reads at a glance — the player zooms in to work.
-    camera.fitBounds({ minX: -120, minY: state.substrate.surfaceY - 80,
-      maxX: state.substrate.worldWidth + 120, maxY: state.substrate.worldHeight }, 30);
+    // Start focused on the colony's entry point so the player sees their network
+    // immediately (they can zoom out / pan to survey the route). Centre on the
+    // colony root at a comfortable working zoom, then clamp back into bounds.
+    const root = state.networks[0] && state.networks[0].nodes[0];
+    camera.zoom = 0.85;
+    camera.x = root ? root.x : state.substrate.worldWidth * 0.08;
+    camera.y = state.substrate.surfaceY + 180;   // surface high in view, colony below it
+    camera.clamp();
   }
   uiDirty = true;
 }

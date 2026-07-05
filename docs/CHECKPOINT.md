@@ -208,14 +208,26 @@ Both menus are dark, on-theme, with glowing green borders.
   (media queries in `index.html`). The tray body shows via the `.handbar.open`
   class on every screen.
 - **Map view / camera clamp** — `main.js begin()` calls
-  `camera.setWorldBounds(0, 0, worldWidth, worldHeight)` (the painted map rect:
-  sky at `y=0` down to `worldHeight`, full world width). `Camera.clamp()` (run
+  `camera.setWorldBounds(0, 0, worldWidth, substrate.viewHeight)` (the painted map
+  rect: sky at `y=0` down to `viewHeight`, full world width). `Camera.clamp()` (run
   after every pan/zoom/viewport change) keeps the visible rect **inside** that
   box and enforces a `minZoomForBounds()` floor = `max(viewW/w, viewH/h)`, so you
   can neither pan nor zoom out far enough to reveal the empty `#05070d`
   background beyond the map. `fitBounds` clamps too, so refit/framing never
   over-zooms out. When the map is smaller than the view along an axis, that axis
   is centred.
+- **Initial view = the colony** — a fresh sandbox run centres the camera on the
+  colony's root node (`networks[0].nodes[0]`) at zoom ~0.85 (not the old whole-map
+  overview), so the player sees their network immediately. Puzzle mode still fits
+  the whole level.
+- **Bottom dirt buffer** — `substrate.worldHeight` is the CONTENT region (grid +
+  all generation/engine bounds stay inside it). `substrate.viewHeight =
+  worldHeight + config.world.bottomBuffer` (820) adds empty dirt below it that the
+  **camera + renderer** use, so the player can scroll the deepest content clear of
+  the bottom UI without minimizing the carousel. Nothing is generated in the
+  buffer; the renderer paints seamless deep-soil brown down through it and
+  `SubstrateRenderer._bakeBottomFade()` fades it to the void colour (`#05070d`,
+  solid at the deepest band) so the map's end reads clearly.
 
 ---
 
@@ -262,7 +274,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **(this change)** Three UX fixes: (1) `initCards` deals a **free 3-card opening
+- **(this change)** Map framing + bottom buffer: (1) a fresh run now **centres the
+  camera on the colony's entry** at zoom ~0.85 instead of the whole-map overview
+  (§6); (2) added a **content-free dirt buffer** below the map
+  (`config.world.bottomBuffer`, `substrate.viewHeight`) that **fades to black**, so
+  the deepest content can be scrolled clear of the bottom UI — no rocks/food/etc.
+  generate there (§5/§6). Verified via Playwright (camera-on-colony, buffer
+  scroll, fade screenshots) + `smoke.test.js` green.
+- **`f088229`** Three UX fixes: (1) `initCards` deals a **free 3-card opening
   hand** so the game no longer starts with an empty hand (§4, cards-design §18.1);
   (2) the **hand carousel is always visible** — removed all auto-minimize/expand
   (`collapseHand`/`expandHand`/`_isNarrow`/`_watchViewport`, the on-play/on-aim/

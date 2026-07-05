@@ -14,7 +14,10 @@ export const CONFIG = {
   //   y >= surfaceY  -> underground (the main play surface)
   world: {
     width: 2600,        // world width in units
-    height: 1500,       // world height in units (top = sky, bottom = deep ground)
+    height: 1500,       // CONTENT height (top = sky, bottom = deepest generated ground)
+    bottomBuffer: 820,  // extra empty dirt below the content that fades to black — lets
+                        //   you scroll the deepest content clear of the bottom UI. NO
+                        //   rocks/food/etc. are generated here; camera + renderer only.
     surfaceY: 380,      // y of the soil line; air above, underground below
     cellSize: 36,       // substrate grid cell size (square)
   },

@@ -16,7 +16,13 @@ export class Substrate {
     this.cellSize = cellSize;
     this.surfaceY = surfaceY;
     this.worldWidth = width;
+    // worldHeight is the CONTENT region: the grid + ALL generation/engine bounds
+    // stay inside it, so nothing spawns in the buffer below.
     this.worldHeight = height;
+    // viewHeight adds an empty dirt buffer below the content (fades to black) that
+    // the camera + renderer use, so the player can scroll the deepest content clear
+    // of the bottom UI. Engine code never uses this.
+    this.viewHeight = height + (config.world.bottomBuffer || 0);
     this.cols = Math.floor(width / cellSize);
     this.rows = Math.floor((height - surfaceY) / cellSize);
     // Flat cell array, indexed [row * cols + col].

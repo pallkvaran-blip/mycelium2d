@@ -400,8 +400,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "12v7qx2";
-globalThis.__BUILD__ = "local 07-05 08:22";
+window.__ASSET_VER = "bz3m2b";
+globalThis.__BUILD__ = "local 07-05 08:50";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -421,7 +421,10 @@ const CONFIG = {
   //   y >= surfaceY  -> underground (the main play surface)
   world: {
     width: 2600,        // world width in units
-    height: 1500,       // world height in units (top = sky, bottom = deep ground)
+    height: 1500,       // CONTENT height (top = sky, bottom = deepest generated ground)
+    bottomBuffer: 820,  // extra empty dirt below the content that fades to black — lets
+                        //   you scroll the deepest content clear of the bottom UI. NO
+                        //   rocks/food/etc. are generated here; camera + renderer only.
     surfaceY: 380,      // y of the soil line; air above, underground below
     cellSize: 36,       // substrate grid cell size (square)
   },
@@ -1511,7 +1514,13 @@ class Substrate {
     this.cellSize = cellSize;
     this.surfaceY = surfaceY;
     this.worldWidth = width;
+    // worldHeight is the CONTENT region: the grid + ALL generation/engine bounds
+    // stay inside it, so nothing spawns in the buffer below.
     this.worldHeight = height;
+    // viewHeight adds an empty dirt buffer below the content (fades to black) that
+    // the camera + renderer use, so the player can scroll the deepest content clear
+    // of the bottom UI. Engine code never uses this.
+    this.viewHeight = height + (config.world.bottomBuffer || 0);
     this.cols = Math.floor(width / cellSize);
     this.rows = Math.floor((height - surfaceY) / cellSize);
     // Flat cell array, indexed [row * cols + col].
@@ -4417,7 +4426,10 @@ class SubstrateRenderer {
     this.nutrientRef = config.substrate.foodCellNutrient;
 
     const W = Math.ceil(substrate.worldWidth);
-    const H = Math.ceil(substrate.worldHeight);
+    // Canvas spans the full VIEW height (content + bottom dirt buffer). Content
+    // features (veins/rocks/flecks/etc.) stay within substrate.worldHeight; the
+    // buffer below is plain brown fading to black.
+    const H = Math.ceil(substrate.viewHeight != null ? substrate.viewHeight : substrate.worldHeight);
     this.base = makeCanvas(W, H);
     this.baseCtx = this.base.getContext('2d');
     this.dyn = makeCanvas(W, H);
@@ -4462,6 +4474,32 @@ class SubstrateRenderer {
     this._bakeHazards();
     this._bakeWater();
     this._bakeSurface();
+    this._bakeBottomFade();
+  }
+
+  // The bottom dirt buffer: the earth (painted by _bakeEarth over the full canvas)
+  // is plain deep-soil brown down here; overlay a transparent→void gradient so it
+  // fades to black, signalling the map's end. Nothing else is drawn in this band.
+  _bakeBottomFade() {
+    const sub = this.substrate;
+    const top = sub.worldHeight;            // content bottom
+    const bot = this.base.height;           // view bottom (incl. buffer)
+    if (bot <= top + 1) return;
+    const octx = this.baseCtx;
+    octx.save();
+    octx.globalAlpha = 1;                    // defend against a stray alpha from a prior bake
+    octx.globalCompositeOperation = 'source-over';
+    // Transition band: deep earth brown → void over the top ~70% of the buffer…
+    const solidFrom = top + (bot - top) * 0.7;
+    const g = octx.createLinearGradient(0, top, 0, solidFrom);
+    g.addColorStop(0, 'rgba(5,7,13,0)');    // seamless with the deep earth
+    g.addColorStop(1, 'rgba(5,7,13,1)');
+    octx.fillStyle = g;
+    octx.fillRect(0, top, this.base.width, solidFrom - top);
+    // …then a solid void floor for the deepest band, so the map clearly ends in black.
+    octx.fillStyle = 'rgb(5,7,13)';
+    octx.fillRect(0, solidFrom, this.base.width, bot - solidFrom);
+    octx.restore();
   }
 
   _bakeSky() {
@@ -4494,7 +4532,11 @@ class SubstrateRenderer {
   _bakeEarth() {
     const sub = this.substrate;
     const r = this.config.render;
+    // Paint the FULL canvas column (content + buffer) so the buffer has brown dirt,
+    // but normalise the depth gradient to the CONTENT region — rows below it clamp
+    // to the deepest soil colour, which the bottom fade then darkens to black.
     const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const contentGh = Math.max(1, sub.worldHeight - sy);
     const scale = 4;
     const tw = Math.ceil(W / scale), th = Math.ceil(gh / scale);
     const tex = makeCanvas(tw, th);
@@ -4505,7 +4547,7 @@ class SubstrateRenderer {
 
     for (let ty = 0; ty < th; ty++) {
       const worldY = sy + (ty / th) * gh;
-      const depth = (worldY - sy) / gh;
+      const depth = (worldY - sy) / contentGh;
       const col = depth < 0.35
         ? lerpRgb(top, mid, depth / 0.35)
         : lerpRgb(mid, deep, (depth - 0.35) / 0.65);
@@ -4530,7 +4572,7 @@ class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, H = this.base.height;
+    const W = this.base.width, sy = sub.surfaceY, H = sub.worldHeight;   // content only
     octx.strokeStyle = r.vein;
     octx.lineCap = 'round';
     const veins = Math.max(4, Math.floor(W / 380));
@@ -4559,7 +4601,7 @@ class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const W = this.base.width, sy = sub.surfaceY, gh = sub.worldHeight - sy;   // content only
     const count = Math.floor((W * gh) / 26000);
     for (let i = 0; i < count; i++) {
       const x = this.rng() * W;
@@ -4594,7 +4636,7 @@ class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const W = this.base.width, sy = sub.surfaceY, gh = sub.worldHeight - sy;   // content only
     octx.fillStyle = r.fleck;
     const count = Math.floor((W * gh) / 2600);
     for (let i = 0; i < count; i++) {
@@ -4675,12 +4717,12 @@ class SubstrateRenderer {
       octx.stroke();
     }
     // top highlight -> bottom shadow across the whole formation
-    const gg = octx.createLinearGradient(0, sy, 0, this.base.height);
+    const gg = octx.createLinearGradient(0, sy, 0, sub.worldHeight);
     gg.addColorStop(0, 'rgba(255,255,255,0.10)');
     gg.addColorStop(0.5, 'rgba(0,0,0,0)');
     gg.addColorStop(1, 'rgba(0,0,0,0.28)');
     octx.fillStyle = gg;
-    octx.fillRect(0, sy, this.base.width, this.base.height - sy);
+    octx.fillRect(0, sy, this.base.width, sub.worldHeight - sy);
     octx.restore();
   }
 
@@ -6167,10 +6209,10 @@ function begin(newState) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
-  // Keep the view inside the painted map rect (sky at y=0 down to worldHeight,
+  // Keep the view inside the painted map rect (sky at y=0 down to viewHeight,
   // x across the full world width) so panning/zooming never reveals the empty
-  // background beyond the map's edges.
-  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.worldHeight);
+  // background beyond the map's edges. viewHeight includes the bottom dirt buffer.
+  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.viewHeight);
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
     // pad the sides so the start (far left) and chest (far right) aren't jammed
@@ -6178,10 +6220,14 @@ function begin(newState) {
     camera.fitBounds({ minX: -160, minY: state.substrate.surfaceY - 30,
       maxX: state.substrate.worldWidth + 160, maxY: state.substrate.worldHeight }, 30);
   } else {
-    // Traversal level: frame the whole width so the left→right journey (entry,
-    // barriers, goal) reads at a glance — the player zooms in to work.
-    camera.fitBounds({ minX: -120, minY: state.substrate.surfaceY - 80,
-      maxX: state.substrate.worldWidth + 120, maxY: state.substrate.worldHeight }, 30);
+    // Start focused on the colony's entry point so the player sees their network
+    // immediately (they can zoom out / pan to survey the route). Centre on the
+    // colony root at a comfortable working zoom, then clamp back into bounds.
+    const root = state.networks[0] && state.networks[0].nodes[0];
+    camera.zoom = 0.85;
+    camera.x = root ? root.x : state.substrate.worldWidth * 0.08;
+    camera.y = state.substrate.surfaceY + 180;   // surface high in view, colony below it
+    camera.clamp();
   }
   uiDirty = true;
 }

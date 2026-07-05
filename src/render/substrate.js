@@ -27,7 +27,10 @@ export class SubstrateRenderer {
     this.nutrientRef = config.substrate.foodCellNutrient;
 
     const W = Math.ceil(substrate.worldWidth);
-    const H = Math.ceil(substrate.worldHeight);
+    // Canvas spans the full VIEW height (content + bottom dirt buffer). Content
+    // features (veins/rocks/flecks/etc.) stay within substrate.worldHeight; the
+    // buffer below is plain brown fading to black.
+    const H = Math.ceil(substrate.viewHeight != null ? substrate.viewHeight : substrate.worldHeight);
     this.base = makeCanvas(W, H);
     this.baseCtx = this.base.getContext('2d');
     this.dyn = makeCanvas(W, H);
@@ -72,6 +75,32 @@ export class SubstrateRenderer {
     this._bakeHazards();
     this._bakeWater();
     this._bakeSurface();
+    this._bakeBottomFade();
+  }
+
+  // The bottom dirt buffer: the earth (painted by _bakeEarth over the full canvas)
+  // is plain deep-soil brown down here; overlay a transparent→void gradient so it
+  // fades to black, signalling the map's end. Nothing else is drawn in this band.
+  _bakeBottomFade() {
+    const sub = this.substrate;
+    const top = sub.worldHeight;            // content bottom
+    const bot = this.base.height;           // view bottom (incl. buffer)
+    if (bot <= top + 1) return;
+    const octx = this.baseCtx;
+    octx.save();
+    octx.globalAlpha = 1;                    // defend against a stray alpha from a prior bake
+    octx.globalCompositeOperation = 'source-over';
+    // Transition band: deep earth brown → void over the top ~70% of the buffer…
+    const solidFrom = top + (bot - top) * 0.7;
+    const g = octx.createLinearGradient(0, top, 0, solidFrom);
+    g.addColorStop(0, 'rgba(5,7,13,0)');    // seamless with the deep earth
+    g.addColorStop(1, 'rgba(5,7,13,1)');
+    octx.fillStyle = g;
+    octx.fillRect(0, top, this.base.width, solidFrom - top);
+    // …then a solid void floor for the deepest band, so the map clearly ends in black.
+    octx.fillStyle = 'rgb(5,7,13)';
+    octx.fillRect(0, solidFrom, this.base.width, bot - solidFrom);
+    octx.restore();
   }
 
   _bakeSky() {
@@ -104,7 +133,11 @@ export class SubstrateRenderer {
   _bakeEarth() {
     const sub = this.substrate;
     const r = this.config.render;
+    // Paint the FULL canvas column (content + buffer) so the buffer has brown dirt,
+    // but normalise the depth gradient to the CONTENT region — rows below it clamp
+    // to the deepest soil colour, which the bottom fade then darkens to black.
     const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const contentGh = Math.max(1, sub.worldHeight - sy);
     const scale = 4;
     const tw = Math.ceil(W / scale), th = Math.ceil(gh / scale);
     const tex = makeCanvas(tw, th);
@@ -115,7 +148,7 @@ export class SubstrateRenderer {
 
     for (let ty = 0; ty < th; ty++) {
       const worldY = sy + (ty / th) * gh;
-      const depth = (worldY - sy) / gh;
+      const depth = (worldY - sy) / contentGh;
       const col = depth < 0.35
         ? lerpRgb(top, mid, depth / 0.35)
         : lerpRgb(mid, deep, (depth - 0.35) / 0.65);
@@ -140,7 +173,7 @@ export class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, H = this.base.height;
+    const W = this.base.width, sy = sub.surfaceY, H = sub.worldHeight;   // content only
     octx.strokeStyle = r.vein;
     octx.lineCap = 'round';
     const veins = Math.max(4, Math.floor(W / 380));
@@ -169,7 +202,7 @@ export class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const W = this.base.width, sy = sub.surfaceY, gh = sub.worldHeight - sy;   // content only
     const count = Math.floor((W * gh) / 26000);
     for (let i = 0; i < count; i++) {
       const x = this.rng() * W;
@@ -204,7 +237,7 @@ export class SubstrateRenderer {
     const octx = this.baseCtx;
     const r = this.config.render;
     const sub = this.substrate;
-    const W = this.base.width, sy = sub.surfaceY, gh = this.base.height - sy;
+    const W = this.base.width, sy = sub.surfaceY, gh = sub.worldHeight - sy;   // content only
     octx.fillStyle = r.fleck;
     const count = Math.floor((W * gh) / 2600);
     for (let i = 0; i < count; i++) {
@@ -285,12 +318,12 @@ export class SubstrateRenderer {
       octx.stroke();
     }
     // top highlight -> bottom shadow across the whole formation
-    const gg = octx.createLinearGradient(0, sy, 0, this.base.height);
+    const gg = octx.createLinearGradient(0, sy, 0, sub.worldHeight);
     gg.addColorStop(0, 'rgba(255,255,255,0.10)');
     gg.addColorStop(0.5, 'rgba(0,0,0,0)');
     gg.addColorStop(1, 'rgba(0,0,0,0.28)');
     octx.fillStyle = gg;
-    octx.fillRect(0, sy, this.base.width, this.base.height - sy);
+    octx.fillRect(0, sy, this.base.width, sub.worldHeight - sy);
     octx.restore();
   }
 
