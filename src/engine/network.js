@@ -275,13 +275,25 @@ export class Network {
     return created;
   }
 
-  // Foraging Fan: every tip sprouts a FAN of new hyphae in all directions (a
-  // radial burst, no food needed) — the colony spreads outward everywhere at once,
-  // not just one step forward. `rays` candidates per tip, evenly around the circle;
-  // a min-spacing check drops the ones that fall back over the colony (and rock /
-  // edge / above-surface ones), so the frontier expands OUTWARD into open ground
-  // rather than piling up exponentially in place.
+  // Foraging Fan: the colony spreads outward everywhere at once (a radial burst,
+  // no food needed). One play = "1 step" = `foragingFanCells` (~3) cells outward in
+  // every direction, grown as that many successive frontier rings so the fan reads
+  // as a filled 3-cell expansion, not a single-cell nudge.
   growRadial(substrate, rng) {
+    const g = this.config.growth;
+    const cells = Math.max(1, g.foragingFanCells || 3);
+    let created = 0;
+    for (let ring = 0; ring < cells; ring++) created += this._fanRing(substrate, rng);
+    // Fanning out also fully colonises any substrate pile within reach, in one step.
+    created += this.colonizeReachablePiles(substrate, rng);
+    if (created) this.recomputeVitality();
+    return created;
+  }
+
+  // One ring of the fan: every current tip sprouts new hyphae around the circle;
+  // a min-spacing check drops candidates that fall back over the colony (and rock /
+  // edge / above-surface ones), so the frontier expands OUTWARD into open ground.
+  _fanRing(substrate, rng) {
     const g = this.config.growth;
     const rays = Math.max(3, g.foragingFanRays || 8);
     const key = (c, r) => c + ',' + r;
@@ -303,9 +315,6 @@ export class Network {
         created++;
       }
     }
-    // Fanning out also fully colonises any substrate pile within reach, in one step.
-    created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
     return created;
   }
 

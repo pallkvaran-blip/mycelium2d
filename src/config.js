@@ -123,9 +123,11 @@ export const CONFIG = {
     substrateSmall: 40,
     substrateMedium: 70,
     substrateLarge: 110,
-    reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
-    directionalSteps: 6,         // cells Apical Drive advances (2 "steps" — was 3 for 1 step)
-    lungeSegments: 15,           // cells Tropic Lunge dashes toward food (5 "steps" @ ~3 cells/step)
+    // Growth distances follow one convention: 1 "step" ≈ 3 cells.
+    reachSegments: 18,           // Rhizomorph Lance / Fruiting Vigil: "6 steps" forward (6 × 3)
+    directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)
+    lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
+    foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
