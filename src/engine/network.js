@@ -449,41 +449,44 @@ export class Network {
     return cleared.length;
   }
 
-  // Appressorial Punch: bore through the nearest LOOSE BOULDER near a tap and
-  // THREAD a visible strand from the colony, through the cleared rock, out the far
-  // side — so you actually see hyphae penetrate the boulder instead of the rock
-  // just vanishing. Boulders only (formations/columns are a heavier terrain tier).
-  // Returns: >0 nodes threaded on success; 0 if there's no boulder near the tap;
-  // -1 if a boulder is there but no colony strand is in range to reach it.
+  // Appressorial Punch: bore through the nearest ROCK near a tap and THREAD a
+  // visible strand from the colony, through the cleared rock, out the far side —
+  // so you actually see hyphae penetrate it. Works on ANY solid rock the colony
+  // must get past — loose boulders, big rock formations and path-blocking columns
+  // all read the same to the player, so they clear the same way (lakes/water are
+  // not rock and are left alone). The whole connected rock feature is cleared (up
+  // to a cap so one punch can't wipe out half the map).
+  // Returns: >0 nodes threaded on success; 0 if there's no rock near the tap;
+  // -1 if rock is there but no colony strand is in range to reach it.
   punchThrough(substrate, rng, x, y) {
     const g = this.config.growth;
-    const isBoulder = (cell) => cell && cell.rock && !cell.formation && !cell.column && !cell.water;
-    // nearest boulder cell to the tap (boulders render as sprites that spill well
-    // beyond their single cell, so search a generous radius around the click)
+    const isRock = (cell) => cell && cell.rock && !cell.water;
+    // nearest rock cell to the tap (rocks render as sprites that spill well beyond
+    // their cells, so search a generous radius around the click)
     const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
     let start = null;
     outer:
     for (let rad = 0; rad <= 8 && !start; rad++) {
       for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
         if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
-        if (isBoulder(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+        if (isRock(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
       }
     }
     if (!start) return 0;
-    // flood-fill the contiguous boulder
+    // flood-fill the contiguous rock feature
     const seen = new Set(), stack = [start], cells = [];
-    while (stack.length && cells.length < 90) {
+    while (stack.length && cells.length < 120) {
       const { col, row } = stack.pop();
       if (!substrate.inBounds(col, row)) continue;
       const idx = substrate.index(col, row);
       if (seen.has(idx)) continue; seen.add(idx);
-      if (!isBoulder(substrate.cells[idx])) continue;
+      if (!isRock(substrate.cells[idx])) continue;
       const ctr = substrate.cellCenter(col, row);
       cells.push({ col, row, x: ctr.x, y: ctr.y });
       stack.push({ col: col + 1, row }, { col: col - 1, row }, { col, row: row + 1 }, { col, row: row - 1 });
     }
     if (!cells.length) return 0;
-    // Anchor: the colony strand closest to the boulder. Require it to be in range
+    // Anchor: the colony strand closest to the rock. Require it to be in range
     // (within the colony's sensing/lit reach, + a cell of slack) — matches the
     // card's "in-range" and the lit area the player sees.
     let anchor = null, bestD = Infinity;
@@ -494,21 +497,22 @@ export class Network {
       if (d < bestD) { bestD = d; anchor = nn; }
     }
     if (!anchor) return -1;
-    if (bestD > g.sensingRadius + substrate.cellSize) return -1;   // boulder present but out of range
-    // Clear the boulder so a strand can pass (bump rockRev so the renderer drops
-    // the now-gone boulder sprite instead of leaving it hanging over the strand).
+    if (bestD > g.sensingRadius + substrate.cellSize) return -1;   // rock present but out of range
+    // Clear the rock so a strand can pass (bump rockRev so the renderer drops the
+    // now-gone sprite — boulder, formation OR column — instead of leaving it
+    // hanging over the strand).
     for (const cell of cells) { const c = substrate.cellAt(cell.col, cell.row); c.rock = false; c.formation = false; c.column = false; }
     substrate.rockRev = (substrate.rockRev | 0) + 1;
-    // Direction of travel: from the anchor through the boulder toward its far side.
+    // Direction of travel: from the anchor through the rock toward its far side.
     const bcx = cells.reduce((a, c) => a + c.x, 0) / cells.length;
     const bcy = cells.reduce((a, c) => a + c.y, 0) / cells.length;
     let dx = bcx - anchor.x, dy = bcy - anchor.y;
     if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
     const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
-    // Steps to cover: approach + the boulder's far extent + emerge a bit past it.
+    // Steps to cover: approach + the rock's far extent + emerge a bit past it.
     let far = 0;
     for (const c of cells) { const proj = (c.x - anchor.x) * ux + (c.y - anchor.y) * uy; if (proj > far) far = proj; }
-    const steps = Math.min(40, Math.ceil((far + substrate.cellSize * 1.4) / g.segmentLength) + 1);
+    const steps = Math.min(60, Math.ceil((far + substrate.cellSize * 1.4) / g.segmentLength) + 1);
     // Thread a straight strand from the anchor through the cleared rock and out the
     // far side. Grown inline (not via growDirected) so the count is JUST the visible
     // through-strand — colonisation of any pile the strand now reaches happens after
@@ -522,22 +526,11 @@ export class Network {
       threaded++;
     }
     // Guarantee a visible penetration even in the rare case the very first step is
-    // blocked by adjacent rock: drop a node in the (now-cleared) boulder itself.
+    // blocked by adjacent rock: drop a node in the (now-cleared) rock itself.
     if (threaded === 0) { this.addNode(bcx, bcy, anchor); threaded = 1; }
     this.colonizeReachablePiles(substrate, rng);
     this.recomputeVitality();
     return threaded;
-  }
-
-  // Is there any rock at all near a tap? (Distinguishes "clicked a rock formation
-  // Appressorial Punch can't bore" from "clicked empty ground".)
-  rockNear(substrate, x, y, radCells = 6) {
-    const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
-    for (let dr = -radCells; dr <= radCells; dr++) for (let dc = -radCells; dc <= radCells; dc++) {
-      const cell = substrate.cellAt(c0 + dc, r0 + dr);
-      if (cell && cell.rock) return true;
-    }
-    return false;
   }
 
   _tooClose(x, y, minDist, substrate, buckets, key, reach) {

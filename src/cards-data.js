@@ -159,7 +159,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow hyphae through one selected boulder in-range.",
+  "effect": "Grow hyphae through one selected rock in-range.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
