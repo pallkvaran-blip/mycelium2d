@@ -469,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "m0yxyo";
-globalThis.__BUILD__ = "local 07-05 14:48";
+window.__ASSET_VER = "oc3hau";
+globalThis.__BUILD__ = "local 07-05 14:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2350,14 +2350,27 @@ class Network {
     return false;
   }
 
+  // How many `steps` a straight runner from `node` toward (dx,dy) could place
+  // before rock/edge/surface stops it (a dry run — adds no nodes).
+  _reachableSteps(substrate, node, dx, dy, steps) {
+    const g = this.config.growth;
+    const len = Math.hypot(dx, dy) || 1; const ux = dx / len, uy = dy / len;
+    let px = node.x, py = node.y, n = 0;
+    for (let i = 0; i < steps; i++) {
+      const nx = px + ux * g.segmentLength, ny = py + uy * g.segmentLength;
+      if (!this._placeOk(substrate, nx, ny)) break;
+      px = nx; py = ny; n++;
+    }
+    return n;
+  }
+
   // Grow `steps` from the strand CLOSEST to any food cell, toward that food (works
   // anywhere on the map, even out of sensing range). Ties — strands equally near
-  // food — go to the one closest to the goal (goal band is on the far right → larger
-  // x). If a rock walls off the closest strand's path, we fall through to the next
-  // strand that CAN make progress, so the lunge grows as far as possible toward food
-  // (until an obstacle stops it) instead of doing nothing. Returns nodes grown; 0
-  // means either no food exists or every path to it is walled off (caller checks
-  // hasFood() to tell those apart).
+  // food — go to the one closer to the goal (goal band is on the far right → larger
+  // x). If the closest strand's path is walled by rock, we pick the closest strand
+  // that can lunge the FURTHEST (a full lunge from a strand with a clear path beats
+  // a 1-step stub from a strand jammed against rock). Returns nodes grown; 0 means
+  // either no food exists or every path is walled off (caller checks hasFood()).
   growToNearestFood(substrate, rng, steps) {
     const food = [];
     substrate.forEachCell((cell, col, row) => {
@@ -2377,13 +2390,17 @@ class Network {
     // the goal (larger x). Quantised distance keeps the comparator transitive.
     const EPS2 = 4;
     cand.sort((a, b) => { const qa = Math.round(a.nd / EPS2), qb = Math.round(b.nd / EPS2); return qa !== qb ? qa - qb : b.n.x - a.n.x; });
-    // Grow from the first strand that can advance toward its food (skips strands
-    // walled in immediately, so a blocked closest-strand doesn't abort the lunge).
+    // Pick the closest strand that can lunge the furthest: iterate nearest-first,
+    // keep the one with the longest clear path, and stop at the first that can go
+    // the full distance (so a rock jamming the closest strand doesn't cap the lunge
+    // at 1 — a farther strand with a clear run does the full lunge instead).
+    let best = null, bestReach = 0;
     for (const c of cand) {
-      const grew = this.growDirected(substrate, rng, c.nt.x - c.n.x, c.nt.y - c.n.y, steps, false, c.n);
-      if (grew > 0) return grew;
+      const reach = this._reachableSteps(substrate, c.n, c.nt.x - c.n.x, c.nt.y - c.n.y, steps);
+      if (reach > bestReach) { best = c; bestReach = reach; if (reach >= steps) break; }
     }
-    return 0;   // food exists but every path toward it is walled off
+    if (!best) return 0;   // food exists but every path toward it is walled off
+    return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
