@@ -463,8 +463,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "144vl5m";
-globalThis.__BUILD__ = "local 07-05 16:59";
+window.__ASSET_VER = "z4q5fo";
+globalThis.__BUILD__ = "local 07-05 17:14";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2400,46 +2400,63 @@ class Network {
     return n;
   }
 
-  // Grow `steps` from the frontier TIP CLOSEST to any food cell, toward that food
-  // (works anywhere on the map, even out of sensing range). This is where the lunge
-  // ALWAYS starts — the strand tip nearest the food, so a long strand reaching out
-  // toward food lunges from its own tip, not from the far-off base. Ties — tips
-  // equally near food — go to the one closer to the goal (far right → larger x). It
-  // grows as far as that tip can toward the food (until rock/edge stops it); only if
-  // the closest tip is walled off entirely do we fall through to the next-closest
-  // tip that can advance. Returns nodes grown; 0 means no food, or every tip's path
-  // is walled off (caller checks hasFood()).
+  // Grow `steps` from the frontier tip nearest to food, toward that food (works
+  // anywhere on the map, even out of sensing range). Considers EVERY (tip, food)
+  // pair ordered by distance and lunges from the first one that can actually
+  // advance — so the closest tip-to-food approach wins, but if that path is walled
+  // off by rock it falls through to the next-closest: a different tip, OR the same
+  // colony aiming at a different (slightly farther) food pile. This matters when the
+  // whole colony's nearest pile is boxed in — the lunge then heads for the next pile
+  // instead of giving up. Ties go to the tip closer to the goal (larger x). Returns
+  // nodes grown; 0 means no unreached food, or every approach is walled off.
   growToNearestFood(substrate, rng, steps) {
-    const food = [];
+    const g = this.config.growth;
+    const tips = this.tips();
+    if (!tips.length) return 0;
+    let food = [];
     substrate.forEachCell((cell, col, row) => {
       // Only NEW food the colony hasn't reached yet. Colonised cells still carry
       // nutrient (it drains over turns), so counting them would make the lunge
-      // chase the pile it's already sitting on — a tip right on a colonised cell
-      // has ~0 distance, so it always wins the sort and the colony grows back into
-      // its own interior instead of striking out toward fresh food elsewhere.
+      // chase the pile it's already sitting on.
       if (cell.nutrient > 0 && !cell.colonized && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
     });
     if (!food.length) return 0;
-    // For every frontier tip, its nearest food + distance.
-    const cand = [];
-    for (const t of this.tips()) {
-      let nd = Infinity, nt = null;
-      for (const f of food) { const d = (f.x - t.x) ** 2 + (f.y - t.y) ** 2; if (d < nd) { nd = d; nt = f; } }
-      if (nt) cand.push({ n: t, nt, nd });
+    // Bound the pair count on huge colonies: keep only the food cells nearest the
+    // colony centroid (the far ones are irrelevant while nearer food is reachable).
+    const cap = 80000;
+    if (tips.length * food.length > cap) {
+      let cx = 0, cy = 0; for (const t of tips) { cx += t.x; cy += t.y; } cx /= tips.length; cy /= tips.length;
+      const keep = Math.max(20, Math.floor(cap / tips.length));
+      food.sort((a, b) => ((a.x - cx) ** 2 + (a.y - cy) ** 2) - ((b.x - cx) ** 2 + (b.y - cy) ** 2));
+      food = food.slice(0, keep);
     }
-    if (!cand.length) return 0;
-    // Order by nearest-food distance; ties (within ~2px) go to the tip closer to the
-    // goal (larger x). Quantised distance keeps the comparator transitive.
+    // ALL (tip, food) pairs, nearest first.
+    const cand = [];
+    for (const t of tips) for (const f of food) cand.push({ n: t, nt: f, nd: (f.x - t.x) ** 2 + (f.y - t.y) ** 2 });
+    // Order by distance; ties (within ~2px) go to the tip closer to the goal (larger
+    // x). Quantised distance keeps the comparator transitive.
     const EPS2 = 4;
     cand.sort((a, b) => { const qa = Math.round(a.nd / EPS2), qb = Math.round(b.nd / EPS2); return qa !== qb ? qa - qb : b.n.x - a.n.x; });
-    // Grow from the CLOSEST tip that can advance at all (skip only tips walled in
-    // immediately), so the lunge starts from the tip nearest the food and goes as
-    // far as it can from there.
+    // Lunge from the closest approach that actually makes progress. An approach is
+    // "viable" only if the tip can REACH the food or get a full clear runway toward
+    // it — a tip that can merely nudge a step or two into a wall before stopping is
+    // treated as blocked, so we fall through to the next-closest approach (a
+    // different tip, or a different pile). Only if NOTHING is viable do we fall back
+    // to the furthest partial advance, so a genuinely half-walled path still lunges
+    // as far as it can rather than erroring.
+    let best = null, bestReach = 0;
     for (const c of cand) {
-      if (this._reachableSteps(substrate, c.n, c.nt.x - c.n.x, c.nt.y - c.n.y, steps) <= 0) continue;
-      return this.growDirected(substrate, rng, c.nt.x - c.n.x, c.nt.y - c.n.y, steps, false, c.n);
+      const dx = c.nt.x - c.n.x, dy = c.nt.y - c.n.y;
+      const reach = this._reachableSteps(substrate, c.n, dx, dy, steps);
+      if (reach <= 0) continue;   // walled in immediately toward this food
+      const need = Math.ceil(Math.sqrt(c.nd) / g.segmentLength);
+      if (reach >= Math.min(need, steps)) {   // reaches the food, or a full clear lunge
+        return this.growDirected(substrate, rng, dx, dy, steps, false, c.n);
+      }
+      if (reach > bestReach) { bestReach = reach; best = c; }   // remember the best partial
     }
-    return 0;   // food exists but every tip's path toward it is walled off
+    if (best) return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
+    return 0;   // unreached food exists but every approach to it is walled off
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
