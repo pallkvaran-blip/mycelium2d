@@ -12,6 +12,25 @@ import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
 import { cardDeckAdditions } from '../engine/cards.js';
 
+// Small self-contained line-icons for the action bar (inlined so they survive the
+// single-file bundle). Hidden on narrow phones via CSS so the bar stays uncluttered.
+const ICON_SVG = {
+  hand: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8" width="8.5" height="11.5" rx="1.4" transform="rotate(-13 7.75 13.75)"/><rect x="12" y="8" width="8.5" height="11.5" rx="1.4" transform="rotate(13 16.25 13.75)"/></svg>',
+  draw: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="10.5" rx="1.6"/><path d="M12 6.5v4.2m0 0l-2-2m2 2l2-2"/><path d="M6.5 18.5h11"/></svg>',
+  skip: '<svg class="ic" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5l7.2 6.5L5 18.5z"/><path d="M13 5.5l6 6.5-6 6.5z"/></svg>',
+  play: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5"/></svg>',
+};
+const ICON = (id) => ICON_SVG[id] || '';
+// Colour-coded resource cost: ⚡ energy (amber, the .bcost default), W water (cyan),
+// P phosphorus (violet). Returns inner HTML for a .bcost span.
+function costHTML(energy, w, p) {
+  const parts = [];
+  if (energy) parts.push(`${energy}⚡`);
+  if (w) parts.push(`<span class="w">${w}W</span>`);
+  if (p) parts.push(`<span class="p">${p}P</span>`);
+  return parts.join(' ');
+}
+
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
   'Does crossing left→right — dig under walls, manage sparse energy — make a satisfying journey?',
@@ -101,7 +120,7 @@ export class UI {
     } else {
       // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
       // right. Every button is two rows — function on top, cost below.
-      const handBtn = button('btn handbtn abtn', `<span class="blabel">Show Hand</span>`);
+      const handBtn = button('btn handbtn abtn', `${ICON('hand')}<span class="txt"><span class="blabel">Show Hand</span></span>`);
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
 
@@ -111,7 +130,7 @@ export class UI {
       skipBtn.onclick = () => this.handlers.onSkip();
       this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
 
-      const playBtn = button('btn playbtn abtn', `<span class="blabel">Play Card</span><span class="bcost"></span>`);
+      const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span><span class="bcost"></span></span>`);
       playBtn.id = 'handplay';
       playBtn.disabled = true;
       playBtn.onclick = () => this.playArmed();
@@ -357,11 +376,11 @@ export class UI {
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
       const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
       if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `<span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${drawE}⚡</span>`;
+        this.el.drawBtn.innerHTML = `${ICON('draw')}<span class="txt"><span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${costHTML(drawE, 0, 0)}</span></span>`;
         this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
       }
       if (this.el.skipBtn) {
-        this.el.skipBtn.innerHTML = `<span class="blabel">Skip</span><span class="bcost">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipBtn.innerHTML = `${ICON('skip')}<span class="txt"><span class="blabel">Skip</span><span class="bcost">${costHTML(cc.skipCostEnergy, 0, 0)}</span></span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
       this._renderOffer();
@@ -521,16 +540,9 @@ export class UI {
       // Second row of the Play Card button shows the selected card's play cost.
       const costEl = play.querySelector('.bcost');
       if (costEl) {
-        let txt = '';
-        if (armed) {
-          const c = CARD_BY_NAME[armed.name] || { buyCostEnergy: 0, costW: 0, costP: 0 };
-          const parts = [];
-          if (c.buyCostEnergy) parts.push(`${c.buyCostEnergy}⚡`);
-          if (c.costW) parts.push(`${c.costW}W`);
-          if (c.costP) parts.push(`${c.costP}P`);
-          txt = parts.join(' ');   // basics cost nothing to play → row stays empty
-        }
-        costEl.textContent = txt;
+        // basics cost nothing to play → row stays empty (:empty collapses it)
+        const c = armed ? (CARD_BY_NAME[armed.name] || { buyCostEnergy: 0, costW: 0, costP: 0 }) : null;
+        costEl.innerHTML = c ? costHTML(c.buyCostEnergy, c.costW, c.costP) : '';
       }
     }
     if (!prev) return;
