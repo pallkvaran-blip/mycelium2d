@@ -21,13 +21,22 @@ const ICON_SVG = {
   play: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5L19.5 6.5"/></svg>',
 };
 const ICON = (id) => ICON_SVG[id] || '';
-// Colour-coded resource cost: ⚡ energy (amber, the .bcost default), W water (cyan),
-// P phosphorus (violet). Returns inner HTML for a .bcost span.
+
+// Resource marks that replace the plain W/P letters (Water = solid drop,
+// Phosphorus = spark/shine). Self-contained inline SVGs so they survive the
+// single-file bundle; coloured by the surrounding context via currentColor.
+const RES_ICON = {
+  water: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 1 0 13 0C18.5 10 12 2.5 12 2.5Z" fill="currentColor"/></svg>',
+  phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
+};
+
+// Colour-coded resource cost: ⚡ energy (amber, the .bcost default), then water
+// (cyan drop) and phosphorus (violet spark). Returns inner HTML for a .bcost span.
 function costHTML(energy, w, p) {
   const parts = [];
   if (energy) parts.push(`${energy}⚡`);
-  if (w) parts.push(`<span class="w">${w}W</span>`);
-  if (p) parts.push(`<span class="p">${p}P</span>`);
+  if (w) parts.push(`<span class="w">${w}${RES_ICON.water}</span>`);
+  if (p) parts.push(`<span class="p">${p}${RES_ICON.phos}</span>`);
   return parts.join(' ');
 }
 
@@ -95,8 +104,8 @@ export class UI {
     const hud = div('panel hud');
     const resRow = cardsOn
       ? `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
-        + `<span class="res w"><span class="rk">W</span><span class="rv" id="hud-water">0</span></span>`
-        + `<span class="res p"><span class="rk">P</span><span class="rv" id="hud-phosphorus">0</span></span>`
+        + `<span class="res w">${RES_ICON.water}<span class="rv" id="hud-water">0</span></span>`
+        + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span></span>`
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     hud.innerHTML =
@@ -594,8 +603,8 @@ function cardGroup(c) {
 function gateChips(c) {
   const g = [];
   if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-  if (c.costW) g.push(`<span class="cc w">${c.costW}W</span>`);
-  if (c.costP) g.push(`<span class="cc p">${c.costP}P</span>`);
+  if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
+  if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);
   return g.join('');
 }
 // One portrait card face: framed art window + cost pips + name plate + FULL rules.
