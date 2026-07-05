@@ -86,7 +86,7 @@ export class NetworkRenderer {
   // unit line widths rasterise directly at native device resolution — no bitmap
   // upscale, no blur. `cull` is the visible world rect (+ decoration margin);
   // `detail` draws the sub-pixel cottony fuzz/fan only when it's big enough to see.
-  _strokeStructure(ctx, brightness, cull, detail) {
+  _strokeStructure(ctx, brightness, cull, detailAmt) {
     const network = this.network;
     const r = this.config.render;
     const fil = hexToRgb(r.filament);
@@ -102,10 +102,14 @@ export class NetworkRenderer {
       if (n.parentId == null) continue;
       const p = network.byId.get(n.parentId);
       if (!p) continue;
-      // Cull: skip strands with neither endpoint anywhere near the viewport.
+      // Cull by the STRAND's bounding box vs the viewport — not just its endpoints,
+      // so a long bridge strand (e.g. a dig-through that spans off-screen→off-screen
+      // across the view) is still drawn instead of vanishing.
+      const exlo = p.x < n.x ? p.x : n.x, exhi = p.x < n.x ? n.x : p.x;
+      const eylo = p.y < n.y ? p.y : n.y, eyhi = p.y < n.y ? n.y : p.y;
+      if (exhi < minX || exlo > maxX || eyhi < minY || eylo > maxY) continue;
+      // Decoration (fuzz/fan) hangs off the node itself; gate it on the node being in view.
       const nVis = n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY;
-      const pVis = p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-      if (!nVis && !pVis) continue;
       const s = this.subtreeSize.get(n.id) || 1;
       const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) || 1;
       const ux = dx / len, uy = dy / len, perpx = -uy, perpy = ux;
@@ -134,10 +138,10 @@ export class NetworkRenderer {
         ctx.stroke();
       }
 
-      // The cottony fuzz/fan is a few world units long; when the whole colony is
-      // small on screen it's sub-pixel, so skip it (invisible + costly). Also cull
-      // it to nodes actually in view.
-      if (!detail || !nVis) continue;
+      // The cottony fuzz/fan is a few world units long; skip it when it would be
+      // sub-pixel (zoomed out) or the colony is huge, and FADE it across those
+      // thresholds (detailAmt) so it doesn't pop on/off colony-wide in one frame.
+      if (detailAmt <= 0.02 || !nVis) continue;
 
       // cottony fuzz — short fine hyphae radiating out, denser as the strand ages
       const fuzz = isTip ? Math.round(ageF * 2) : Math.round(ageF * 5);
@@ -147,7 +151,7 @@ export class NetworkRenderer {
         const hl = 4 + 7 * nh(n.id, f + 23);
         const mx = n.x + Math.cos(a) * hl * 0.5 + perpx * (nh(n.id, f + 31) * 2 - 1) * 1.4;
         const my = n.y + Math.sin(a) * hl * 0.5 + perpy * (nh(n.id, f + 31) * 2 - 1) * 1.4;
-        ctx.globalAlpha = (0.3 + 0.2 * nh(n.id, f + 5)) * brightness;
+        ctx.globalAlpha = (0.3 + 0.2 * nh(n.id, f + 5)) * brightness * detailAmt;
         ctx.beginPath();
         ctx.moveTo(n.x, n.y);
         ctx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
@@ -156,7 +160,7 @@ export class NetworkRenderer {
 
       // exploratory feather-fan at the growing tip
       if (isTip) {
-        ctx.globalAlpha = 0.62 * brightness;
+        ctx.globalAlpha = 0.62 * brightness * detailAmt;
         ctx.lineWidth = 0.7;
         const fan = 4 + Math.floor(nh(n.id, 5) * 3);
         for (let f = 0; f < fan; f++) {
@@ -196,10 +200,11 @@ export class NetworkRenderer {
       minY: Math.min(c0.y, c1.y) - M, maxY: Math.max(c0.y, c1.y) + M,
     };
     // The cottony fuzz/fan is ~4-13 world units; only worth drawing when a world
-    // unit is at least ~half a CSS pixel on screen. Also drop it for very large
-    // colonies (where it reads as an indistinct haze anyway) to keep the per-frame
-    // stroke count bounded — culling already limits it heavily when zoomed in.
-    const detail = zoom >= 0.5 && net.nodes.length <= 1600;
+    // unit is a decent fraction of a screen pixel, and it reads as an indistinct
+    // haze on a huge colony (also costly). FADE it across both thresholds — via a
+    // smoothstep on zoom and on node count — so it never pops on/off colony-wide
+    // in a single frame; near 0 it's skipped entirely to keep strokes bounded.
+    const detailAmt = smoothstep(0.42, 0.62, zoom) * (1 - smoothstep(1400, 1900, net.nodes.length));
 
     // Static structure — drawn as crisp vectors in world space (transform composes
     // with the ctx's device-pixel-ratio transform, so lines are sharp at any zoom).
@@ -207,7 +212,7 @@ export class NetworkRenderer {
     ctx.translate(tl.x, tl.y);
     ctx.scale(zoom, zoom);
     ctx.lineCap = 'round';
-    this._strokeStructure(ctx, brightness, cull, detail);
+    this._strokeStructure(ctx, brightness, cull, detailAmt);
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
@@ -280,6 +285,8 @@ function hexToRgb(hex) {
 }
 // Stable per-node pseudo-random in [0,1) for decorative hyphae detail.
 function nh(id, k) { const v = Math.sin(id * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); }
+// Smooth 0→1 ramp between edges a and b (Hermite), for gradual LOD fades.
+function smoothstep(a, b, x) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
   return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
