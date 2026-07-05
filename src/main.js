@@ -76,6 +76,10 @@ function begin(newState) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
+  // Keep the view inside the painted map rect (sky at y=0 down to worldHeight,
+  // x across the full world width) so panning/zooming never reveals the empty
+  // background beyond the map's edges.
+  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.worldHeight);
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
     // pad the sides so the start (far left) and chest (far right) aren't jammed
@@ -175,8 +179,6 @@ const handlers = {
   // --- card layer ---
   onDraw() {
     resolveCardOp(drawCard(state));
-    // Surface the fresh cards on phones so you can pick right away.
-    ui.expandHand();
   },
   onSkip() { resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
@@ -191,7 +193,6 @@ const handlers = {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
-      ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
       return true;
     }

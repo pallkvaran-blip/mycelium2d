@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-05._
+_Living status + knowledge doc. Last updated: 2026-07-05 (opening hand · always-on carousel · camera clamp)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -133,9 +133,12 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   "No food within sensing range", Phosphate Tap off-rock, Constricting Ring with no
   worms) — `playCard` returns `{ok:false}`, logs the reason, and leaves the card in
   hand without charging. `main.js onPlayCard` returns the real `ok` so the UI only
-  minimizes/deselects on a genuine play.
+  deselects on a genuine play (the carousel stays visible either way).
 - **Targeted cards** (`EFFECTS[name].target`) need a map tap to aim; non-targeted
   resolve immediately.
+- **Opening hand:** `initCards` deals a free `drawCount` (3) off the top of the
+  draw deck so turn 1 starts with cards in hand (no Energy charged for it; deck
+  drops from 15 → 12). See `cards-design.md` §18.1.
 - **Starter deck:** built from `CARD_DATA[].startCopies` (e.g. 5× Acorn Cache).
   Basics have `buyCostEnergy: 0` (you pay Energy to *draw* them).
 - **Draw engines** (`DRAW_ENGINES` in cards.js): premium cards that shuffle 5
@@ -187,19 +190,32 @@ Both menus are dark, on-theme, with glowing green borders.
   (touch scrolls natively; mouse uses `_enableDragScroll`, which suppresses the
   click after a >6px drag so a drag never arms a card). **No ‹ › nav buttons.**
   Identical cards **stack** (grouped by name with a count). Filter chips above.
+  **Always visible by default** on every screen (`handOpen` starts `true`); the
+  game never auto-hides or auto-shows it — the only toggle is the **Show/Hide
+  Hand** button in the action bar (`toggleHand`). (The old
+  `collapseHand`/`expandHand`/`_isNarrow`/`_watchViewport` auto-minimize plumbing
+  was removed.)
 - **Select → play flow (name-based):** tapping a card **highlights** it
   (`armCard`, toggles by name — tap again to deselect). `Play Card` runs
   `playArmed`, which resolves the hand index **by name at play time** (never a
-  stored index, which can go stale after the hand splices). On a successful play
-  the carousel **minimizes** on phones (`collapseHand`) so the map result shows.
-  There is **no Cancel button**; the only popup is the +5 draw-engine text preview.
+  stored index, which can go stale after the hand splices). A successful play
+  **deselects** the card but leaves the carousel visible. There is **no Cancel
+  button**; the only popup is the +5 draw-engine text preview.
 - **Aiming chip** — when a targeted card is waiting for a map tap, a "Aiming: X ✕"
-  chip shows in the hand header; its ✕ cancels the aim.
+  chip shows in the hand header; its ✕ cancels the aim. (Aiming no longer hides
+  the carousel; tap the map anywhere outside the tray to aim, or Hide Hand first.)
 - **Responsive:** narrow = `max-width:760px` **or** landscape `max-height:520px`
-  (`_isNarrow`). Phones start with the hand collapsed; a `matchMedia` listener
-  re-opens it if the viewport crosses to wide. A collapsed handbar is
-  `pointer-events:none` (its aiming chip stays interactive) so it never eats map
-  taps.
+  (media queries in `index.html`). The tray body shows via the `.handbar.open`
+  class on every screen.
+- **Map view / camera clamp** — `main.js begin()` calls
+  `camera.setWorldBounds(0, 0, worldWidth, worldHeight)` (the painted map rect:
+  sky at `y=0` down to `worldHeight`, full world width). `Camera.clamp()` (run
+  after every pan/zoom/viewport change) keeps the visible rect **inside** that
+  box and enforces a `minZoomForBounds()` floor = `max(viewW/w, viewH/h)`, so you
+  can neither pan nor zoom out far enough to reveal the empty `#05070d`
+  background beyond the map. `fitBounds` clamps too, so refit/framing never
+  over-zooms out. When the map is smaller than the view along an axis, that axis
+  is centred.
 
 ---
 
@@ -246,6 +262,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **(this change)** Three UX fixes: (1) `initCards` deals a **free 3-card opening
+  hand** so the game no longer starts with an empty hand (§4, cards-design §18.1);
+  (2) the **hand carousel is always visible** — removed all auto-minimize/expand
+  (`collapseHand`/`expandHand`/`_isNarrow`/`_watchViewport`, the on-play/on-aim/
+  on-draw calls), leaving only the Show/Hide button (§6); (3) **camera clamp** —
+  `Camera.setWorldBounds` + `clamp()` + `minZoomForBounds()` stop panning/zooming
+  past the map edges so the empty background is never shown (§6). Verified
+  headlessly (14 Playwright checks) + `cards.test.js`/`smoke.test.js` green.
 - **`841cb38`** Show/Hide Hand toggle label (chevron removed); empty cost rows
   collapse so button text centres.
 - **`3d5cffb`** Bottom action-bar redesign: 3 groups (Show Hand · Draw/Skip ·

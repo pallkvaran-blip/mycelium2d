@@ -640,19 +640,23 @@ go card-dry with no energy and you die.
 - **Action-per-tick**: every draw/play/skip advances the world one step (matches the existing engine).
   A distinct multi-play "round" is deferred.
 - ~~**No pile drafting yet**~~ → **DONE in v9 (§18)**: finishing a map food pile now drafts a card. The
-  starting hand is empty; the draw deck + draw engines + pile drafts are the card flow.
+  draw deck + draw engines + pile drafts are the card flow. (**Superseded:** the hand no longer starts
+  empty — see §18.1 — but the acquisition loop is unchanged.)
 - **Action-type cards are one-shot** on play (they resolve immediately and discard) rather than
   installed-with-cooldown; Tap-Root is the one repeatable "engine" that clears on a timer.
 - **Defense effects are first-pass** (radius cure / snare / pile-seal); tuning pending playtests.
 
-## 18. v9 — pile drafting + empty starting hand (CURRENT — authoritative)
+## 18. v9 — pile drafting + opening hand (CURRENT — authoritative)
 
 The acquisition loop the earlier framework called for (§4 "food piles are the heartbeat") is now
 wired, in a simplified free-draft form.
 
 ### 18.1 The rule
-- **Start with only your draw deck; the hand is EMPTY.** (Deck = 5× Hyphal Extension + 5× Leaf Litter
-  Cache + 5× Condense.) You draw basics to act.
+- **Start with a free opening hand of `drawCount` (3) basics dealt off the top of the draw deck**, so
+  turn 1 already has cards to consider. (Deck built as 5× Hyphal Extension + 5× Leaf Litter Cache +
+  5× Condense = 15, then 3 are dealt to the opening hand → 12 left in the deck.) No Energy is charged
+  for this opening draw; you pay Energy to draw *more*. _(Earlier v9 dealt an EMPTY hand; changed by
+  request so the game doesn't open with a bare hand.)_
 - **Finishing (fully digesting) a MAP food pile drafts a card.** When a map-placed pile you have
   colonised is drained to zero, you pick **1 of 3 random cards from the tutorial set**. The card joins
   your hand **for free** — you still pay its ⚡ + W/P/N to *play* it later.
@@ -666,7 +670,8 @@ wired, in a simplified free-draft form.
   generator-placed caches (`drop`). Overlapping drops merge into one pile (one blob = one draft).
 - **`src/engine/cards.js`** — `checkPileRewards(state)` (fires the draft when a colonised map pile hits
   zero), `offerPileReward` (3 random tutorial-set cards into `state.cards.pendingOffers`), `chooseOffer`
-  (free add to hand). Card-dry death is suppressed while a draft is pending. `initCards` starts empty.
+  (free add to hand). Card-dry death is suppressed while a draft is pending. `initCards` deals a free
+  opening hand of `drawCount` off the top of the draw deck (§18.1).
 - **`src/engine/turn.js`** — `tickWorld` runs `checkPileRewards` after engines, before the win check.
 - **`src/render/ui.js` / `index.html` / `src/main.js`** — a modal draft overlay (`.offer`) showing the
   3 cards; tapping one drafts it (no world tick — it's a reward, not an action).

@@ -400,8 +400,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "2lflwa";
-globalThis.__BUILD__ = "local 07-05 07:43";
+window.__ASSET_VER = "12v7qx2";
+globalThis.__BUILD__ = "local 07-05 08:22";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3480,10 +3480,11 @@ function cardDeckAdditions(name) {
 }
 
 // --- setup ------------------------------------------------------------------
-// Build the starting deck. `mode`: 'tutorial' (default) starts with an EMPTY
-// hand — you draw basics from the deck, and DRAFT new premium cards by finishing
-// (fully digesting) the food piles the map placed. 'all' deals every premium
-// card to hand up-front (dev / free explore).
+// Build the starting deck. `mode`: 'tutorial' (default) deals a free OPENING
+// HAND of `drawCount` basics off the top of the draw deck (so turn 1 already has
+// cards to consider); you then draw more from the deck and DRAFT premium cards by
+// finishing (fully digesting) the food piles the map placed. 'all' deals every
+// premium card to hand up-front (dev / free explore).
 function initCards(state, mode = 'tutorial') {
   const cc = state.config.cards;
   const net = state.active;
@@ -3497,10 +3498,14 @@ function initCards(state, mode = 'tutorial') {
   const hand = [];
   if (mode === 'all') {
     for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
+  } else {
+    // Free opening draw so the hand isn't empty at game start (no Energy charged).
+    const opening = Math.min(cc.drawCount || 3, drawDeck.length);
+    for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
   state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
-  state.log('Card layer online: draw basics; finish a map food pile to draft a new card; reach the goal.', 'good');
+  state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
 
@@ -4176,9 +4181,42 @@ class Camera {
     this.maxZoom = 4;
     this.viewW = 1;
     this.viewH = 1;
+    this.bounds = null;  // {minX,minY,maxX,maxY}: the map rect the view is kept inside
   }
 
-  setViewport(w, h) { this.viewW = w; this.viewH = h; }
+  setViewport(w, h) { this.viewW = w; this.viewH = h; this.clamp(); }
+
+  // The map rectangle the camera must stay inside. Once set, panning and zooming
+  // can never reveal the empty background beyond the map's edges.
+  setWorldBounds(minX, minY, maxX, maxY) {
+    this.bounds = { minX, minY, maxX, maxY };
+    this.clamp();
+  }
+
+  // Smallest zoom that still fills the viewport with map in BOTH axes — below it
+  // the view would be wider/taller than the map and show empty space.
+  minZoomForBounds() {
+    if (!this.bounds) return this.minZoom;
+    const w = Math.max(1, this.bounds.maxX - this.bounds.minX);
+    const h = Math.max(1, this.bounds.maxY - this.bounds.minY);
+    return Math.max(this.minZoom, this.viewW / w, this.viewH / h);
+  }
+
+  // Enforce the zoom floor, then keep the visible rect inside the map bounds
+  // (centre a dimension when the map is smaller than the view along it).
+  clamp() {
+    this.zoom = Math.max(this.minZoomForBounds(), Math.min(this.maxZoom, this.zoom));
+    if (!this.bounds) return;
+    const { minX, minY, maxX, maxY } = this.bounds;
+    const halfW = this.viewW / (2 * this.zoom);
+    const halfH = this.viewH / (2 * this.zoom);
+    this.x = (maxX - minX) <= 2 * halfW
+      ? (minX + maxX) / 2
+      : Math.max(minX + halfW, Math.min(maxX - halfW, this.x));
+    this.y = (maxY - minY) <= 2 * halfH
+      ? (minY + maxY) / 2
+      : Math.max(minY + halfH, Math.min(maxY - halfH, this.y));
+  }
 
   worldToScreen(wx, wy) {
     return {
@@ -4196,18 +4234,22 @@ class Camera {
   panByScreen(dxScreen, dyScreen) {
     this.x -= dxScreen / this.zoom;
     this.y -= dyScreen / this.zoom;
+    this.clamp();
   }
 
-  // Zoom toward a screen anchor (keeps the world point under the cursor fixed).
+  // Zoom toward a screen anchor (keeps the world point under the cursor fixed),
+  // then re-clamp so a zoom-out at the edge slides back inside the map.
   zoomAt(sx, sy, factor) {
     const before = this.screenToWorld(sx, sy);
-    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * factor));
+    this.zoom = Math.max(this.minZoomForBounds(), Math.min(this.maxZoom, this.zoom * factor));
     const after = this.screenToWorld(sx, sy);
     this.x += before.x - after.x;
     this.y += before.y - after.y;
+    this.clamp();
   }
 
-  // Frame a world bounding box with padding.
+  // Frame a world bounding box with padding, then clamp so the framing never
+  // over-zooms out past the map edges.
   fitBounds(b, pad = 80) {
     if (!b) return;
     const w = Math.max(1, b.maxX - b.minX);
@@ -4217,6 +4259,7 @@ class Camera {
     const zx = this.viewW / (w + pad * 2);
     const zy = this.viewH / (h + pad * 2);
     this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(zx, zy)));
+    this.clamp();
   }
 }
 
@@ -5465,26 +5508,10 @@ class UI {
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.handFilter = 'all';          // active card-hand filter group key
-    this.handOpen = !this._isNarrow();// phones start with the hand tray collapsed
+    this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
-    this._watchViewport();
-  }
-
-  // Keep the hand tray consistent when the viewport crosses the narrow↔wide
-  // breakpoint (e.g. a desktop window dragged out from a narrow width). The tray
-  // is shown only via the .open class now, so widening past the breakpoint must
-  // re-open it or the carousel stays stuck hidden. Narrowing never force-closes.
-  _watchViewport() {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const onChange = () => { if (!this._isNarrow() && !this.handOpen) this.setHandOpen(true); };
-    const mqs = [window.matchMedia('(max-width: 760px)'),
-                 window.matchMedia('(orientation: landscape) and (max-height: 520px)')];
-    for (const mq of mqs) {
-      if (mq.addEventListener) mq.addEventListener('change', onChange);
-      else if (mq.addListener) mq.addListener(onChange);
-    }
   }
 
   // Mouse drag-to-scroll for the carousel (touch already scrolls natively). A
@@ -5509,14 +5536,6 @@ class UI {
     el.addEventListener('click', (e) => {
       if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
     }, true);
-  }
-
-  // Small screens (phone portrait or short landscape) use the collapsible hand
-  // tray + card-selection flow; desktop keeps the always-open hand.
-  _isNarrow() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(max-width: 760px)').matches
-        || window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
   }
 
   setState(state) { this.state = state; }
@@ -5735,12 +5754,9 @@ class UI {
     if (open) this._renderLog();
   }
   openLog() { this.setLogOpen(true); }
-  // Minimize the carousel so the map is visible (only meaningful on small screens).
-  collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
-  expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
 
   // The "selected card" chip in the hand header — makes it clear which card is
-  // armed while the carousel is minimized and you're aiming on the map.
+  // armed while you're aiming on the map.
   _renderHandSelection() {
     const el = this.el.handsel;
     if (!el) return;
@@ -5934,9 +5950,10 @@ class UI {
   }
 
   // --- select / play flow --------------------------------------------------
-  // Tapping a card just HIGHLIGHTS it (no popup). The footer "Play Card" button
-  // plays the highlighted card; "Cancel" minimizes the carousel. The only popup
-  // is a text preview of what a draw-engine (+5) card shuffles into your deck.
+  // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
+  // Card" button plays the highlighted card. The carousel stays visible whether
+  // or not a card is played — only the Show/Hide button toggles it. The only
+  // popup is a text preview of what a draw-engine (+5) card shuffles in.
   armCard(index, name) {
     // tap the already-selected card again to deselect it (match by NAME — the
     // stored index is a group firstIndex and can go stale as the hand mutates)
@@ -5958,7 +5975,7 @@ class UI {
     const idx = this.state.cards.hand.findIndex((h) => h.name === this.armed.name);
     if (idx < 0) { this.clearArmed(); return; }
     const ok = this.handlers.onPlayCard(idx);   // false if blocked (e.g. can't afford)
-    if (ok) { this.clearArmed(); this.collapseHand(); }   // minimize so the map result shows
+    if (ok) this.clearArmed();   // deselect on a real play; leave the carousel visible
   }
 
   // Highlight the selected (or aiming) card in the carousel without a full rebuild.
@@ -6150,6 +6167,10 @@ function begin(newState) {
   previewFruit = false;
   previewFruitPoints = [];
   resize();
+  // Keep the view inside the painted map rect (sky at y=0 down to worldHeight,
+  // x across the full world width) so panning/zooming never reveals the empty
+  // background beyond the map's edges.
+  camera.setWorldBounds(0, 0, state.substrate.worldWidth, state.substrate.worldHeight);
   if (state.mode === 'puzzle') {
     // show the whole level so the layout (rocks, food, chest, mould) reads;
     // pad the sides so the start (far left) and chest (far right) aren't jammed
@@ -6249,8 +6270,6 @@ const handlers = {
   // --- card layer ---
   onDraw() {
     resolveCardOp(drawCard(state));
-    // Surface the fresh cards on phones so you can pick right away.
-    ui.expandHand();
   },
   onSkip() { resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
@@ -6265,7 +6284,6 @@ const handlers = {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
-      ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
       return true;
     }

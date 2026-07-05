@@ -25,8 +25,8 @@ console.log('# Card economy + effects');
   const s = createState(clone(), 777); isolate(s); initCards(s);
   const net = s.active, cc = s.config.cards;
 
-  ok(s.cards.drawDeck.length === 15, `starting draw deck = 15 (5 HE/5 LLC/5 Condense), got ${s.cards.drawDeck.length}`);
-  ok(s.cards.hand.length === 0, `hand starts EMPTY (got ${s.cards.hand.length})`);
+  ok(s.cards.hand.length === cc.drawCount, `hand starts with a free opening draw of ${cc.drawCount} (got ${s.cards.hand.length})`);
+  ok(s.cards.drawDeck.length === 15 - cc.drawCount, `starting draw deck = ${15 - cc.drawCount} (15 built minus the ${cc.drawCount}-card opening hand), got ${s.cards.drawDeck.length}`);
   ok(net.water === cc.startWater && net.phosphorus === cc.startPhosphorus, 'starting W/P buffers set');
 
   // draw: −energy, +drawCount to hand, −drawCount from deck (check before the world tick)

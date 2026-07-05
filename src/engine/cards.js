@@ -58,10 +58,11 @@ export function cardDeckAdditions(name) {
 }
 
 // --- setup ------------------------------------------------------------------
-// Build the starting deck. `mode`: 'tutorial' (default) starts with an EMPTY
-// hand — you draw basics from the deck, and DRAFT new premium cards by finishing
-// (fully digesting) the food piles the map placed. 'all' deals every premium
-// card to hand up-front (dev / free explore).
+// Build the starting deck. `mode`: 'tutorial' (default) deals a free OPENING
+// HAND of `drawCount` basics off the top of the draw deck (so turn 1 already has
+// cards to consider); you then draw more from the deck and DRAFT premium cards by
+// finishing (fully digesting) the food piles the map placed. 'all' deals every
+// premium card to hand up-front (dev / free explore).
 export function initCards(state, mode = 'tutorial') {
   const cc = state.config.cards;
   const net = state.active;
@@ -75,10 +76,14 @@ export function initCards(state, mode = 'tutorial') {
   const hand = [];
   if (mode === 'all') {
     for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
+  } else {
+    // Free opening draw so the hand isn't empty at game start (no Energy charged).
+    const opening = Math.min(cc.drawCount || 3, drawDeck.length);
+    for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
   state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
-  state.log('Card layer online: draw basics; finish a map food pile to draft a new card; reach the goal.', 'good');
+  state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
 

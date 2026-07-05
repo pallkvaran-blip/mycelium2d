@@ -30,26 +30,10 @@ export class UI {
     this.pendingCard = null;          // {id, name} a card awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.handFilter = 'all';          // active card-hand filter group key
-    this.handOpen = !this._isNarrow();// phones start with the hand tray collapsed
+    this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
     this.el = {};
     this._build();
-    this._watchViewport();
-  }
-
-  // Keep the hand tray consistent when the viewport crosses the narrow↔wide
-  // breakpoint (e.g. a desktop window dragged out from a narrow width). The tray
-  // is shown only via the .open class now, so widening past the breakpoint must
-  // re-open it or the carousel stays stuck hidden. Narrowing never force-closes.
-  _watchViewport() {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const onChange = () => { if (!this._isNarrow() && !this.handOpen) this.setHandOpen(true); };
-    const mqs = [window.matchMedia('(max-width: 760px)'),
-                 window.matchMedia('(orientation: landscape) and (max-height: 520px)')];
-    for (const mq of mqs) {
-      if (mq.addEventListener) mq.addEventListener('change', onChange);
-      else if (mq.addListener) mq.addListener(onChange);
-    }
   }
 
   // Mouse drag-to-scroll for the carousel (touch already scrolls natively). A
@@ -74,14 +58,6 @@ export class UI {
     el.addEventListener('click', (e) => {
       if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; }
     }, true);
-  }
-
-  // Small screens (phone portrait or short landscape) use the collapsible hand
-  // tray + card-selection flow; desktop keeps the always-open hand.
-  _isNarrow() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(max-width: 760px)').matches
-        || window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
   }
 
   setState(state) { this.state = state; }
@@ -300,12 +276,9 @@ export class UI {
     if (open) this._renderLog();
   }
   openLog() { this.setLogOpen(true); }
-  // Minimize the carousel so the map is visible (only meaningful on small screens).
-  collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
-  expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
 
   // The "selected card" chip in the hand header — makes it clear which card is
-  // armed while the carousel is minimized and you're aiming on the map.
+  // armed while you're aiming on the map.
   _renderHandSelection() {
     const el = this.el.handsel;
     if (!el) return;
@@ -499,9 +472,10 @@ export class UI {
   }
 
   // --- select / play flow --------------------------------------------------
-  // Tapping a card just HIGHLIGHTS it (no popup). The footer "Play Card" button
-  // plays the highlighted card; "Cancel" minimizes the carousel. The only popup
-  // is a text preview of what a draw-engine (+5) card shuffles into your deck.
+  // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
+  // Card" button plays the highlighted card. The carousel stays visible whether
+  // or not a card is played — only the Show/Hide button toggles it. The only
+  // popup is a text preview of what a draw-engine (+5) card shuffles in.
   armCard(index, name) {
     // tap the already-selected card again to deselect it (match by NAME — the
     // stored index is a group firstIndex and can go stale as the hand mutates)
@@ -523,7 +497,7 @@ export class UI {
     const idx = this.state.cards.hand.findIndex((h) => h.name === this.armed.name);
     if (idx < 0) { this.clearArmed(); return; }
     const ok = this.handlers.onPlayCard(idx);   // false if blocked (e.g. can't afford)
-    if (ok) { this.clearArmed(); this.collapseHand(); }   // minimize so the map result shows
+    if (ok) this.clearArmed();   // deselect on a real play; leave the carousel visible
   }
 
   // Highlight the selected (or aiming) card in the carousel without a full rebuild.
