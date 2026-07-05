@@ -12,7 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, chooseOffer } from './engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -179,18 +179,24 @@ const handlers = {
     ui.expandHand();
   },
   onSkip() { resolveCardOp(skipRound(state)); },
+  // Returns true if the card was played or entered aiming; false if blocked
+  // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
     const entry = state.cards && state.cards.hand[index];
-    if (!entry) return;
+    if (!entry) return false;
+    // Can't afford / not allowed → surface why and drop the log down.
+    const reason = cardBlockedReason(state, entry.name);
+    if (reason) { state.log(reason, 'warn'); ui.setHint(reason); ui.openLog(); uiDirty = true; return false; }
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
       ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
-      return;
+      return true;
     }
     resolveCardOp(playCard(state, index));
+    return true;
   },
   onCancelCard() {
     ui.clearPendingCard();
@@ -201,7 +207,7 @@ const handlers = {
     // Drafting a pile reward is free and does NOT advance the world.
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
-    else if (res.message) { ui.setHint(res.message); uiDirty = true; }
+    else if (res.message) { ui.setHint(res.message); ui.openLog(); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -232,6 +238,7 @@ function resolveCardOp(res) {
     if (state.runOver) ui.showOverlay(state.runResult);
   } else if (res && res.message) {
     ui.setHint(res.message);
+    ui.openLog();   // an error (e.g. not enough energy) — drop the log down
   }
   uiDirty = true;
 }
@@ -825,8 +832,8 @@ function drawSubstrateLeaves() {
     const s = camera.worldToScreen(ctr.x, ctr.y);
     if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
     const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
-    const MAXP = isNut ? 4 : 11;                 // nuts sit sparser than leaf litter
-    const base = cs * (isNut ? 0.36 : 0.64);     // …and smaller, so they nestle in
+    const MAXP = isNut ? 8 : 11;                 // denser nut piles
+    const base = cs * (isNut ? 0.26 : 0.64);     // …with smaller pieces, so they read next to the leaves
     const count = Math.max(1, Math.round(MAXP * frac));
     // Pull this cell's pieces toward the local food centroid so a cluster reads
     // as ONE heaped pile (not a cross of separate cells). This also bundles

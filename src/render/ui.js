@@ -56,27 +56,23 @@ export class UI {
     const cardsOn = !!(this.state.config.cards && this.state.config.cards.enabled);
     this.cardsOn = cardsOn;
 
-    // ---- Top-left HUD ----
+    // ---- Top HUD: one compact resource row + a drop-down event log ----
     const hud = div('panel hud');
-    const resStats = cardsOn ? `
-        <div class="stat res-w"><span class="k">Water</span><span class="v" id="hud-water">0</span></div>
-        <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
-      : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
-    const build = (typeof globalThis !== 'undefined' && globalThis.__BUILD__) ? globalThis.__BUILD__ : 'dev';
-    hud.innerHTML = `
-      <div class="title">MYCELIUM <span class="sub">· cards · <span id="hud-build">${build}</span></span></div>
-      <div class="stats">
-        <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
-        ${resStats}
-        <div class="stat"><span class="k">Step</span><span class="v" id="hud-turn">1</span></div>
-      </div>
-      <div class="vitality"><span class="k">Healthy</span>
-        <div class="bar"><div class="fill" id="hud-vitality"></div></div>
-      </div>
-    `;
+    const resRow = cardsOn
+      ? `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
+        + `<span class="res w"><span class="rk">W</span><span class="rv" id="hud-water">0</span></span>`
+        + `<span class="res p"><span class="rk">P</span><span class="rv" id="hud-phosphorus">0</span></span>`
+      : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
+        + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
+    hud.innerHTML =
+      `<div class="resrow">${resRow}`
+      + `<button class="logbtn" id="logbtn" aria-label="Event log">Log <span class="lchev">▾</span></button>`
+      + `</div>`
+      + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
     root.appendChild(hud);
-
-    // (Map legend panel removed.)
+    this.el.logdrop = hud.querySelector('#logdrop');
+    this.el.loglist = hud.querySelector('#loglist');
+    hud.querySelector('#logbtn').onclick = () => this.toggleLog();
 
     // ---- Bottom action bar ----
     const bar = div('panel actionbar');
@@ -87,24 +83,19 @@ export class UI {
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
     } else {
-      // Draw + Skip drive the card round.
+      // Draw + Skip drive the card round; Hand toggles the carousel.
       const drawBtn = button('btn deckbtn', 'Draw');
       drawBtn.onclick = () => this.handlers.onDraw();
       const skipBtn = button('btn deckbtn', 'Skip');
       skipBtn.onclick = () => this.handlers.onSkip();
       this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
       bar.appendChild(drawBtn); bar.appendChild(skipBtn);
+      const handBtn = button('btn handbtn', `<span class="htlabel">Hand</span> <span class="htcount" id="htcount">0</span> <span class="htchev">▴</span>`);
+      handBtn.onclick = () => this.toggleHand();
+      this.el.handbtn = handBtn;
+      this.el.htcount = handBtn.querySelector('#htcount');
+      bar.appendChild(handBtn);
     }
-
-    // New map + puzzle (no End Turn — there are no turns; you just keep acting)
-    const ctrl = div('ctrl');
-    const restartBtn = button('btn restart', 'New Map ↻');
-    restartBtn.onclick = () => this.handlers.onRestart();
-    const puzzleBtn = button('btn restart', 'Puzzle 🧩');
-    puzzleBtn.onclick = () => this.handlers.onPuzzle();
-    ctrl.appendChild(restartBtn);
-    ctrl.appendChild(puzzleBtn);
-    bar.appendChild(ctrl);
 
     root.appendChild(bar);
 
@@ -112,12 +103,9 @@ export class UI {
     if (cardsOn) {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
-        // Header (phone only): tap to expand/collapse the carousel + a chip
-        // showing which card is currently selected/aiming.
+        // Header (phone only): a chip showing which card is selected/aiming.
+        // The open/close toggle now lives in the bottom action bar (Hand button).
         `<div class="handhead">`
-        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide your hand">`
-        + `<span class="htchev">${this.handOpen ? '▾' : '▴'}</span><span class="htlabel">Hand</span>`
-        + `<span class="htcount" id="htcount">0</span></button>`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
@@ -139,7 +127,6 @@ export class UI {
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
-      this.el.htcount = hand.querySelector('#htcount');
       this.el.handpreview = hand.querySelector('#handpreview');
       this.el.handplay = hand.querySelector('#handplay');
       const scrollByCard = (dir) => {
@@ -150,10 +137,10 @@ export class UI {
       };
       hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
       hand.querySelector('#handnext').onclick = () => scrollByCard(1);
-      hand.querySelector('#handtoggle').onclick = () => this.toggleHand();
       this.el.handplay.onclick = () => this.playArmed();
       hand.querySelector('#handcancel').onclick = () => { this.clearArmed(); this.collapseHand(); };
       root.appendChild(hand);
+      this.setHandOpen(this.handOpen);   // sync the Hand button chevron + open class
     }
 
     // ---- Hint line ----
@@ -164,13 +151,7 @@ export class UI {
     this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
-    // ---- Right column: event log ----
-    const logPanel = div('panel logpanel');
-    logPanel.innerHTML = `<div class="title">Event Log</div><div class="loglist" id="loglist"></div>`;
-    root.appendChild(logPanel);
-    this.el.loglist = logPanel.querySelector('#loglist');
-
-    // ("What we're testing" panel removed.)
+    // (Event log now lives in the top HUD drop-down; see above.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
     if (this.state.config.dev.enabled) {
@@ -265,14 +246,26 @@ export class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray (phones). Desktop keeps it open and hides the toggle.
+  // Collapsible hand tray. The open/close toggle is the "Hand" button in the
+  // bottom action bar; this keeps its chevron + the tray's .open class in sync.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
-    const chev = this.el.handbar && this.el.handbar.querySelector('.htchev');
+    const chev = this.el.handbtn && this.el.handbtn.querySelector('.htchev');
     if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
+
+  // Event-log drop-down (top HUD). Auto-opens on an error (openLog).
+  toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
+  setLogOpen(open) {
+    if (!this.el.logdrop) return;
+    this.el.logdrop.classList.toggle('hidden', !open);
+    const chev = document.querySelector('.logbtn .lchev');
+    if (chev) chev.textContent = open ? '▴' : '▾';
+    if (open) this._renderLog();
+  }
+  openLog() { this.setLogOpen(true); }
   // Minimize the carousel so the map is visible (only meaningful on small screens).
   collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
   expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
@@ -347,12 +340,6 @@ export class UI {
     const net = s.active;
     text('hud-energy', Math.floor(net.energy));
     text('hud-spores', Math.floor(s.spores));
-    text('hud-turn', s.turn);
-    const vfill = document.getElementById('hud-vitality');
-    if (vfill) {
-      vfill.style.width = `${Math.round(net.vitality * 100)}%`;
-      vfill.style.background = vitalityColor(net.vitality);
-    }
 
     // Card layer: resources, hand, draw/skip.
     if (this.cardsOn && s.cards) {
@@ -501,8 +488,9 @@ export class UI {
     // stored index, which can be stale after the hand splices (e.g. a pending
     // targeted card resolving on the map shifts every later index down).
     const idx = this.state.cards.hand.findIndex((h) => h.name === this.armed.name);
-    this.clearArmed();
-    if (idx >= 0) this.handlers.onPlayCard(idx);
+    if (idx < 0) { this.clearArmed(); return; }
+    const ok = this.handlers.onPlayCard(idx);   // false if blocked (e.g. can't afford)
+    if (ok) { this.clearArmed(); this.collapseHand(); }   // minimize so the map result shows
   }
 
   // Highlight the selected (or aiming) card in the carousel without a full rebuild.

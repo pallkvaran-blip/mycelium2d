@@ -36,25 +36,47 @@
     .title .chev { margin-left: auto; color: var(--ink-dim); font-size: 11px; }
     .title .warn { color: var(--warn); font-size: 10px; font-weight: 400; }
 
-    /* HUD */
-    .hud { top: 14px; left: 14px; min-width: 210px; }
-    .hud .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
-    .stat { display: flex; justify-content: space-between; align-items: baseline; }
-    .stat .k { color: var(--ink-dim); font-size: 11px; }
-    .stat .v { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; }
-    .vitality { margin-top: 10px; }
-    .vitality .k { color: var(--ink-dim); font-size: 11px; }
-    .vitality .bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-top: 3px; }
-    .vitality .fill { height: 100%; width: 100%; transition: width 0.4s ease, background 0.4s; }
+    /* HUD — one compact glowing resource row + a drop-down event log */
+    .hud { top: 14px; left: 14px; min-width: 0; padding: 0; background: none; border: none;
+      box-shadow: none; backdrop-filter: none; }
+    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
+      background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
+      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px); }
+    .res { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 4px; }
+    .res .rk { font-size: 11px; font-weight: 700; opacity: 0.85; }
+    .res .rv { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; }
+    .res.e .rk, .res.e .rv { color: var(--accent); }
+    .res.w .rk, .res.w .rv { color: #7fd0e0; }
+    .res.p .rk, .res.p .rv { color: #c79be6; }
+    .logbtn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
+      background: rgba(127,230,163,0.12); border: 1px solid rgba(130,230,166,0.4); border-radius: 999px;
+      padding: 4px 11px; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; gap: 4px; }
+    .logbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .logbtn .lchev { font-size: 9px; color: var(--ink-dim); }
+    .logdrop { margin-top: 8px; max-width: 340px; padding: 8px 12px;
+      background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
+      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6); backdrop-filter: blur(6px); }
+    .logdrop.hidden { display: none; }
+    .logdrop .loglist { max-height: 34vh; overflow-y: auto; }
     .traits { display: flex; gap: 6px; margin-top: 10px; }
     .traits .tr { font-size: 11px; color: var(--ink-dim); background: rgba(255,255,255,0.05);
       padding: 2px 7px; border-radius: 6px; }
     .traits .tr.on { color: var(--accent); background: rgba(127,230,163,0.12); }
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
-    /* Action bar */
+    /* Action bar — glowing on-theme tray */
     .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;
-      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw;
+      background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 14px;
+      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
+    .actionbar .handbtn { background: rgba(127,230,163,0.14); border-color: rgba(130,230,166,0.5); }
+    .actionbar .handbtn:hover:not(:disabled) { background: rgba(127,230,163,0.24); }
+    .actionbar .handbtn .htcount { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .actionbar .handbtn .htchev { color: var(--ink-dim); font-size: 10px; }
     .btn { font-family: inherit; color: var(--ink); background: rgba(40,54,48,0.8);
       border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
       font-size: 13px; transition: background 0.15s, border 0.15s, transform 0.05s; white-space: nowrap; }
@@ -160,11 +182,20 @@
     .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
-    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 8px 10px;
-      display: flex; flex-direction: column; gap: 8px; align-items: center; }
-    /* hand header (collapse toggle + selected-card chip) — phone only; desktop keeps the hand open */
+    /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
+       glowing on-theme frame appears only when the carousel is open. */
+    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 0;
+      display: flex; flex-direction: column; gap: 8px; align-items: center;
+      background: none; border: none; box-shadow: none; backdrop-filter: none; }
+    .handbar.open { padding: 8px 10px;
+      background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
+      border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
+      box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px); }
+    /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
-    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handbar.open .handbody { display: flex; }   /* Hand button toggles this on every screen */
     .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
       padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
@@ -282,18 +313,10 @@
       /* hide the hint here too — the carousel layout (lowered controls) starts at 760px,
          so leaving it at ≤720px let it overlap + swallow taps in the 721-760px band */
       .hint { display: none; }
-      /* HUD + Event Log share the top as equal, non-overlapping halves of matched height */
-      .hud { top: 8px; left: 8px; right: auto; min-width: 0; width: 56%; max-width: 240px;
-        height: 122px; padding: 8px 10px; overflow: hidden; }
-      .hud .title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .hud .sub { font-size: 9px; }
-      .hud .stats { gap: 3px 10px; }
-      .hud .stat .v { font-size: 15px; }
-      .hud .vitality { margin-top: 8px; }
-      .logpanel { top: 8px; right: 8px; left: auto; width: 40%; max-width: 200px;
-        height: 122px; max-height: none; padding: 8px 10px; }
-      .logpanel .title { font-size: 12px; }
-      .loglist { font-size: 9.5px; line-height: 1.4; }
+      /* Compact top HUD (resource pill); the log drops down from it */
+      .hud { top: 8px; left: 8px; right: auto; }
+      .logdrop { max-width: min(80vw, 300px); }
+      .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
       .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 6px 7px; font-size: 11px; }
@@ -332,15 +355,9 @@
     /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
       .hint { display: none; }
-      .hud { top: 6px; left: 6px; min-width: 0; width: 36%; max-width: 300px; height: 104px; padding: 6px 9px; overflow: hidden; }
-      .hud .title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .hud .sub { font-size: 8px; }
-      .hud .stats { gap: 2px 8px; }
-      .hud .stat .v { font-size: 14px; }
-      .hud .vitality { margin-top: 5px; }
-      .logpanel { top: 6px; right: 6px; left: auto; width: 34%; max-width: 320px; height: 104px; max-height: none; padding: 6px 9px; }
-      .logpanel .title { font-size: 12px; }
-      .loglist { font-size: 9px; line-height: 1.35; }
+      .hud { top: 6px; left: 6px; }
+      .logdrop { max-width: min(60vw, 340px); }
+      .logdrop .loglist { font-size: 9.5px; line-height: 1.35; max-height: 40vh; }
       .actionbar { bottom: 6px; left: 6px; right: auto; transform: none; gap: 4px; padding: 4px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 5px 7px; font-size: 11px; }
       .actionbar .deckbtn .deckn { display: none; }

@@ -31,25 +31,47 @@
     .title .chev { margin-left: auto; color: var(--ink-dim); font-size: 11px; }
     .title .warn { color: var(--warn); font-size: 10px; font-weight: 400; }
 
-    /* HUD */
-    .hud { top: 14px; left: 14px; min-width: 210px; }
-    .hud .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
-    .stat { display: flex; justify-content: space-between; align-items: baseline; }
-    .stat .k { color: var(--ink-dim); font-size: 11px; }
-    .stat .v { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; }
-    .vitality { margin-top: 10px; }
-    .vitality .k { color: var(--ink-dim); font-size: 11px; }
-    .vitality .bar { height: 8px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-top: 3px; }
-    .vitality .fill { height: 100%; width: 100%; transition: width 0.4s ease, background 0.4s; }
+    /* HUD — one compact glowing resource row + a drop-down event log */
+    .hud { top: 14px; left: 14px; min-width: 0; padding: 0; background: none; border: none;
+      box-shadow: none; backdrop-filter: none; }
+    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
+      background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
+      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px); }
+    .res { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 4px; }
+    .res .rk { font-size: 11px; font-weight: 700; opacity: 0.85; }
+    .res .rv { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; }
+    .res.e .rk, .res.e .rv { color: var(--accent); }
+    .res.w .rk, .res.w .rv { color: #7fd0e0; }
+    .res.p .rk, .res.p .rv { color: #c79be6; }
+    .logbtn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
+      background: rgba(127,230,163,0.12); border: 1px solid rgba(130,230,166,0.4); border-radius: 999px;
+      padding: 4px 11px; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; gap: 4px; }
+    .logbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .logbtn .lchev { font-size: 9px; color: var(--ink-dim); }
+    .logdrop { margin-top: 8px; max-width: 340px; padding: 8px 12px;
+      background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
+      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6); backdrop-filter: blur(6px); }
+    .logdrop.hidden { display: none; }
+    .logdrop .loglist { max-height: 34vh; overflow-y: auto; }
     .traits { display: flex; gap: 6px; margin-top: 10px; }
     .traits .tr { font-size: 11px; color: var(--ink-dim); background: rgba(255,255,255,0.05);
       padding: 2px 7px; border-radius: 6px; }
     .traits .tr.on { color: var(--accent); background: rgba(127,230,163,0.12); }
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
-    /* Action bar */
+    /* Action bar — glowing on-theme tray */
     .actionbar { bottom: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;
-      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
+      align-items: stretch; flex-wrap: wrap; justify-content: center; max-width: 94vw;
+      background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 14px;
+      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
+    .actionbar .handbtn { background: rgba(127,230,163,0.14); border-color: rgba(130,230,166,0.5); }
+    .actionbar .handbtn:hover:not(:disabled) { background: rgba(127,230,163,0.24); }
+    .actionbar .handbtn .htcount { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .actionbar .handbtn .htchev { color: var(--ink-dim); font-size: 10px; }
     .btn { font-family: inherit; color: var(--ink); background: rgba(40,54,48,0.8);
       border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; cursor: pointer;
       font-size: 13px; transition: background 0.15s, border 0.15s, transform 0.05s; white-space: nowrap; }
@@ -155,11 +177,20 @@
     .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
-    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 8px 10px;
-      display: flex; flex-direction: column; gap: 8px; align-items: center; }
-    /* hand header (collapse toggle + selected-card chip) — phone only; desktop keeps the hand open */
+    /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
+       glowing on-theme frame appears only when the carousel is open. */
+    .handbar { bottom: 100px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 0;
+      display: flex; flex-direction: column; gap: 8px; align-items: center;
+      background: none; border: none; box-shadow: none; backdrop-filter: none; }
+    .handbar.open { padding: 8px 10px;
+      background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
+      border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
+      box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px); }
+    /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
-    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+    .handbar.open .handbody { display: flex; }   /* Hand button toggles this on every screen */
     .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
       padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
@@ -277,18 +308,10 @@
       /* hide the hint here too — the carousel layout (lowered controls) starts at 760px,
          so leaving it at ≤720px let it overlap + swallow taps in the 721-760px band */
       .hint { display: none; }
-      /* HUD + Event Log share the top as equal, non-overlapping halves of matched height */
-      .hud { top: 8px; left: 8px; right: auto; min-width: 0; width: 56%; max-width: 240px;
-        height: 122px; padding: 8px 10px; overflow: hidden; }
-      .hud .title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .hud .sub { font-size: 9px; }
-      .hud .stats { gap: 3px 10px; }
-      .hud .stat .v { font-size: 15px; }
-      .hud .vitality { margin-top: 8px; }
-      .logpanel { top: 8px; right: 8px; left: auto; width: 40%; max-width: 200px;
-        height: 122px; max-height: none; padding: 8px 10px; }
-      .logpanel .title { font-size: 12px; }
-      .loglist { font-size: 9.5px; line-height: 1.4; }
+      /* Compact top HUD (resource pill); the log drops down from it */
+      .hud { top: 8px; left: 8px; right: auto; }
+      .logdrop { max-width: min(80vw, 300px); }
+      .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
       .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 4px; padding: 5px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 6px 7px; font-size: 11px; }
@@ -327,15 +350,9 @@
     /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
       .hint { display: none; }
-      .hud { top: 6px; left: 6px; min-width: 0; width: 36%; max-width: 300px; height: 104px; padding: 6px 9px; overflow: hidden; }
-      .hud .title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .hud .sub { font-size: 8px; }
-      .hud .stats { gap: 2px 8px; }
-      .hud .stat .v { font-size: 14px; }
-      .hud .vitality { margin-top: 5px; }
-      .logpanel { top: 6px; right: 6px; left: auto; width: 34%; max-width: 320px; height: 104px; max-height: none; padding: 6px 9px; }
-      .logpanel .title { font-size: 12px; }
-      .loglist { font-size: 9px; line-height: 1.35; }
+      .hud { top: 6px; left: 6px; }
+      .logdrop { max-width: min(60vw, 340px); }
+      .logdrop .loglist { font-size: 9.5px; line-height: 1.35; max-height: 40vh; }
       .actionbar { bottom: 6px; left: 6px; right: auto; transform: none; gap: 4px; padding: 4px 6px; flex-wrap: nowrap; }
       .actionbar .btn { padding: 5px 7px; font-size: 11px; }
       .actionbar .deckbtn .deckn { display: none; }
@@ -371,8 +388,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1m0ifgy";
-globalThis.__BUILD__ = "local 07-05 05:47";
+window.__ASSET_VER = "jfiom";
+globalThis.__BUILD__ = "local 07-05 06:15";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5462,27 +5479,23 @@ class UI {
     const cardsOn = !!(this.state.config.cards && this.state.config.cards.enabled);
     this.cardsOn = cardsOn;
 
-    // ---- Top-left HUD ----
+    // ---- Top HUD: one compact resource row + a drop-down event log ----
     const hud = div('panel hud');
-    const resStats = cardsOn ? `
-        <div class="stat res-w"><span class="k">Water</span><span class="v" id="hud-water">0</span></div>
-        <div class="stat res-p"><span class="k">Phos</span><span class="v" id="hud-phosphorus">0</span></div>`
-      : `<div class="stat"><span class="k">Spores</span><span class="v" id="hud-spores">0</span></div>`;
-    const build = (typeof globalThis !== 'undefined' && globalThis.__BUILD__) ? globalThis.__BUILD__ : 'dev';
-    hud.innerHTML = `
-      <div class="title">MYCELIUM <span class="sub">· cards · <span id="hud-build">${build}</span></span></div>
-      <div class="stats">
-        <div class="stat"><span class="k">Energy</span><span class="v" id="hud-energy">0</span></div>
-        ${resStats}
-        <div class="stat"><span class="k">Step</span><span class="v" id="hud-turn">1</span></div>
-      </div>
-      <div class="vitality"><span class="k">Healthy</span>
-        <div class="bar"><div class="fill" id="hud-vitality"></div></div>
-      </div>
-    `;
+    const resRow = cardsOn
+      ? `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
+        + `<span class="res w"><span class="rk">W</span><span class="rv" id="hud-water">0</span></span>`
+        + `<span class="res p"><span class="rk">P</span><span class="rv" id="hud-phosphorus">0</span></span>`
+      : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
+        + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
+    hud.innerHTML =
+      `<div class="resrow">${resRow}`
+      + `<button class="logbtn" id="logbtn" aria-label="Event log">Log <span class="lchev">▾</span></button>`
+      + `</div>`
+      + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
     root.appendChild(hud);
-
-    // (Map legend panel removed.)
+    this.el.logdrop = hud.querySelector('#logdrop');
+    this.el.loglist = hud.querySelector('#loglist');
+    hud.querySelector('#logbtn').onclick = () => this.toggleLog();
 
     // ---- Bottom action bar ----
     const bar = div('panel actionbar');
@@ -5493,24 +5506,19 @@ class UI {
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
     } else {
-      // Draw + Skip drive the card round.
+      // Draw + Skip drive the card round; Hand toggles the carousel.
       const drawBtn = button('btn deckbtn', 'Draw');
       drawBtn.onclick = () => this.handlers.onDraw();
       const skipBtn = button('btn deckbtn', 'Skip');
       skipBtn.onclick = () => this.handlers.onSkip();
       this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
       bar.appendChild(drawBtn); bar.appendChild(skipBtn);
+      const handBtn = button('btn handbtn', `<span class="htlabel">Hand</span> <span class="htcount" id="htcount">0</span> <span class="htchev">▴</span>`);
+      handBtn.onclick = () => this.toggleHand();
+      this.el.handbtn = handBtn;
+      this.el.htcount = handBtn.querySelector('#htcount');
+      bar.appendChild(handBtn);
     }
-
-    // New map + puzzle (no End Turn — there are no turns; you just keep acting)
-    const ctrl = div('ctrl');
-    const restartBtn = button('btn restart', 'New Map ↻');
-    restartBtn.onclick = () => this.handlers.onRestart();
-    const puzzleBtn = button('btn restart', 'Puzzle 🧩');
-    puzzleBtn.onclick = () => this.handlers.onPuzzle();
-    ctrl.appendChild(restartBtn);
-    ctrl.appendChild(puzzleBtn);
-    bar.appendChild(ctrl);
 
     root.appendChild(bar);
 
@@ -5518,12 +5526,9 @@ class UI {
     if (cardsOn) {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
-        // Header (phone only): tap to expand/collapse the carousel + a chip
-        // showing which card is currently selected/aiming.
+        // Header (phone only): a chip showing which card is selected/aiming.
+        // The open/close toggle now lives in the bottom action bar (Hand button).
         `<div class="handhead">`
-        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide your hand">`
-        + `<span class="htchev">${this.handOpen ? '▾' : '▴'}</span><span class="htlabel">Hand</span>`
-        + `<span class="htcount" id="htcount">0</span></button>`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
@@ -5545,7 +5550,6 @@ class UI {
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
-      this.el.htcount = hand.querySelector('#htcount');
       this.el.handpreview = hand.querySelector('#handpreview');
       this.el.handplay = hand.querySelector('#handplay');
       const scrollByCard = (dir) => {
@@ -5556,10 +5560,10 @@ class UI {
       };
       hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
       hand.querySelector('#handnext').onclick = () => scrollByCard(1);
-      hand.querySelector('#handtoggle').onclick = () => this.toggleHand();
       this.el.handplay.onclick = () => this.playArmed();
       hand.querySelector('#handcancel').onclick = () => { this.clearArmed(); this.collapseHand(); };
       root.appendChild(hand);
+      this.setHandOpen(this.handOpen);   // sync the Hand button chevron + open class
     }
 
     // ---- Hint line ----
@@ -5570,13 +5574,7 @@ class UI {
     this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
-    // ---- Right column: event log ----
-    const logPanel = div('panel logpanel');
-    logPanel.innerHTML = `<div class="title">Event Log</div><div class="loglist" id="loglist"></div>`;
-    root.appendChild(logPanel);
-    this.el.loglist = logPanel.querySelector('#loglist');
-
-    // ("What we're testing" panel removed.)
+    // (Event log now lives in the top HUD drop-down; see above.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
     if (this.state.config.dev.enabled) {
@@ -5671,14 +5669,26 @@ class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray (phones). Desktop keeps it open and hides the toggle.
+  // Collapsible hand tray. The open/close toggle is the "Hand" button in the
+  // bottom action bar; this keeps its chevron + the tray's .open class in sync.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
-    const chev = this.el.handbar && this.el.handbar.querySelector('.htchev');
+    const chev = this.el.handbtn && this.el.handbtn.querySelector('.htchev');
     if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
+
+  // Event-log drop-down (top HUD). Auto-opens on an error (openLog).
+  toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
+  setLogOpen(open) {
+    if (!this.el.logdrop) return;
+    this.el.logdrop.classList.toggle('hidden', !open);
+    const chev = document.querySelector('.logbtn .lchev');
+    if (chev) chev.textContent = open ? '▴' : '▾';
+    if (open) this._renderLog();
+  }
+  openLog() { this.setLogOpen(true); }
   // Minimize the carousel so the map is visible (only meaningful on small screens).
   collapseHand() { if (this._isNarrow()) this.setHandOpen(false); }
   expandHand() { if (this._isNarrow()) this.setHandOpen(true); }
@@ -5753,12 +5763,6 @@ class UI {
     const net = s.active;
     text('hud-energy', Math.floor(net.energy));
     text('hud-spores', Math.floor(s.spores));
-    text('hud-turn', s.turn);
-    const vfill = document.getElementById('hud-vitality');
-    if (vfill) {
-      vfill.style.width = `${Math.round(net.vitality * 100)}%`;
-      vfill.style.background = vitalityColor(net.vitality);
-    }
 
     // Card layer: resources, hand, draw/skip.
     if (this.cardsOn && s.cards) {
@@ -5907,8 +5911,9 @@ class UI {
     // stored index, which can be stale after the hand splices (e.g. a pending
     // targeted card resolving on the map shifts every later index down).
     const idx = this.state.cards.hand.findIndex((h) => h.name === this.armed.name);
-    this.clearArmed();
-    if (idx >= 0) this.handlers.onPlayCard(idx);
+    if (idx < 0) { this.clearArmed(); return; }
+    const ok = this.handlers.onPlayCard(idx);   // false if blocked (e.g. can't afford)
+    if (ok) { this.clearArmed(); this.collapseHand(); }   // minimize so the map result shows
   }
 
   // Highlight the selected (or aiming) card in the carousel without a full rebuild.
@@ -6011,7 +6016,7 @@ const __m_main = (function () {
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { spawnNematodeAt } = __m_engine_nematodes;
   const { tickWorld } = __m_engine_turn;
-  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, chooseOffer } = __m_engine_cards;
+  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer } = __m_engine_cards;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
@@ -6187,18 +6192,24 @@ const handlers = {
     ui.expandHand();
   },
   onSkip() { resolveCardOp(skipRound(state)); },
+  // Returns true if the card was played or entered aiming; false if blocked
+  // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
     const entry = state.cards && state.cards.hand[index];
-    if (!entry) return;
+    if (!entry) return false;
+    // Can't afford / not allowed → surface why and drop the log down.
+    const reason = cardBlockedReason(state, entry.name);
+    if (reason) { state.log(reason, 'warn'); ui.setHint(reason); ui.openLog(); uiDirty = true; return false; }
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(`Tap the map to aim/target ${entry.name}.`);
       ui.collapseHand();   // minimize the carousel so the map is visible for aiming
       uiDirty = true;
-      return;
+      return true;
     }
     resolveCardOp(playCard(state, index));
+    return true;
   },
   onCancelCard() {
     ui.clearPendingCard();
@@ -6209,7 +6220,7 @@ const handlers = {
     // Drafting a pile reward is free and does NOT advance the world.
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
-    else if (res.message) { ui.setHint(res.message); uiDirty = true; }
+    else if (res.message) { ui.setHint(res.message); ui.openLog(); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -6240,6 +6251,7 @@ function resolveCardOp(res) {
     if (state.runOver) ui.showOverlay(state.runResult);
   } else if (res && res.message) {
     ui.setHint(res.message);
+    ui.openLog();   // an error (e.g. not enough energy) — drop the log down
   }
   uiDirty = true;
 }
@@ -6833,8 +6845,8 @@ function drawSubstrateLeaves() {
     const s = camera.worldToScreen(ctr.x, ctr.y);
     if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
     const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
-    const MAXP = isNut ? 4 : 11;                 // nuts sit sparser than leaf litter
-    const base = cs * (isNut ? 0.36 : 0.64);     // …and smaller, so they nestle in
+    const MAXP = isNut ? 8 : 11;                 // denser nut piles
+    const base = cs * (isNut ? 0.26 : 0.64);     // …with smaller pieces, so they read next to the leaves
     const count = Math.max(1, Math.round(MAXP * frac));
     // Pull this cell's pieces toward the local food centroid so a cluster reads
     // as ONE heaped pile (not a cross of separate cells). This also bundles
