@@ -309,10 +309,20 @@ export class Network {
     return created;
   }
 
+  // Any food left on the map? (For distinguishing "no food" from "blocked".)
+  hasFood(substrate) {
+    for (const cell of substrate.cells) if (cell.nutrient > 0 && !cell.rock && !cell.hazard) return true;
+    return false;
+  }
+
   // Grow `steps` from the strand CLOSEST to any food cell, toward that food (works
   // anywhere on the map, even out of sensing range). Ties — strands equally near
-  // food — go to the one closest to the goal (the goal band is on the far right, so
-  // larger x = closer to the goal).
+  // food — go to the one closest to the goal (goal band is on the far right → larger
+  // x). If a rock walls off the closest strand's path, we fall through to the next
+  // strand that CAN make progress, so the lunge grows as far as possible toward food
+  // (until an obstacle stops it) instead of doing nothing. Returns nodes grown; 0
+  // means either no food exists or every path to it is walled off (caller checks
+  // hasFood() to tell those apart).
   growToNearestFood(substrate, rng, steps) {
     const food = [];
     substrate.forEachCell((cell, col, row) => {
@@ -328,11 +338,17 @@ export class Network {
       if (nt) cand.push({ n, nt, nd });
     }
     if (!cand.length) return 0;
-    let min = Infinity; for (const c of cand) if (c.nd < min) min = c.nd;
-    const EPS2 = 4;   // ~2px slop so genuinely-equal distances count as a tie
-    let best = null;
-    for (const c of cand) if (c.nd <= min + EPS2 && (!best || c.n.x > best.n.x)) best = c;
-    return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
+    // Order by nearest-food distance; ties (within ~2px) go to the strand closer to
+    // the goal (larger x). Quantised distance keeps the comparator transitive.
+    const EPS2 = 4;
+    cand.sort((a, b) => { const qa = Math.round(a.nd / EPS2), qb = Math.round(b.nd / EPS2); return qa !== qb ? qa - qb : b.n.x - a.n.x; });
+    // Grow from the first strand that can advance toward its food (skips strands
+    // walled in immediately, so a blocked closest-strand doesn't abort the lunge).
+    for (const c of cand) {
+      const grew = this.growDirected(substrate, rng, c.nt.x - c.n.x, c.nt.y - c.n.y, steps, false, c.n);
+      if (grew > 0) return grew;
+    }
+    return 0;   // food exists but every path toward it is walled off
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
