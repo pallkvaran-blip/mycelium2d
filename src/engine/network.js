@@ -252,8 +252,8 @@ export class Network {
     const tips = this.tips();
     if (!tips.length) return 0;
     let parent;
-    if (startTip && !startTip.infected && startTip.children.length === 0) {
-      parent = startTip;
+    if (startTip && !startTip.infected) {
+      parent = startTip;   // grow from the given node (a branch, even if it isn't a tip)
     } else {
       parent = tips[0]; let bestProj = -Infinity;
       for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
@@ -309,20 +309,30 @@ export class Network {
     return created;
   }
 
-  // Grow `steps` toward the nearest food cell anywhere on the map (even out of range).
+  // Grow `steps` from the strand CLOSEST to any food cell, toward that food (works
+  // anywhere on the map, even out of sensing range). Ties — strands equally near
+  // food — go to the one closest to the goal (the goal band is on the far right, so
+  // larger x = closer to the goal).
   growToNearestFood(substrate, rng, steps) {
-    const fp = this.frontierPoint();
-    if (!fp) return 0;
-    let target = null, best = Infinity;
+    const food = [];
     substrate.forEachCell((cell, col, row) => {
-      if (cell.nutrient > 0 && !cell.rock) {
-        const c = substrate.cellCenter(col, row);
-        const d = (c.x - fp.x) ** 2 + (c.y - fp.y) ** 2;
-        if (d < best) { best = d; target = c; }
-      }
+      if (cell.nutrient > 0 && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
     });
-    if (!target) return 0;
-    return this.growDirected(substrate, rng, target.x - fp.x, target.y - fp.y, steps, false);
+    if (!food.length) return 0;
+    // For every living strand, its nearest food + distance.
+    const cand = [];
+    for (const n of this.nodes) {
+      if (n.infected) continue;
+      let nd = Infinity, nt = null;
+      for (const f of food) { const d = (f.x - n.x) ** 2 + (f.y - n.y) ** 2; if (d < nd) { nd = d; nt = f; } }
+      if (nt) cand.push({ n, nt, nd });
+    }
+    if (!cand.length) return 0;
+    let min = Infinity; for (const c of cand) if (c.nd < min) min = c.nd;
+    const EPS2 = 4;   // ~2px slop so genuinely-equal distances count as a tie
+    let best = null;
+    for (const c of cand) if (c.nd <= min + EPS2 && (!best || c.n.x > best.n.x)) best = c;
+    return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point

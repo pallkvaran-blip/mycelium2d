@@ -463,8 +463,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "of9uro";
-globalThis.__BUILD__ = "local 07-05 14:03";
+window.__ASSET_VER = "mb6w5x";
+globalThis.__BUILD__ = "local 07-05 14:11";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2281,8 +2281,8 @@ class Network {
     const tips = this.tips();
     if (!tips.length) return 0;
     let parent;
-    if (startTip && !startTip.infected && startTip.children.length === 0) {
-      parent = startTip;
+    if (startTip && !startTip.infected) {
+      parent = startTip;   // grow from the given node (a branch, even if it isn't a tip)
     } else {
       parent = tips[0]; let bestProj = -Infinity;
       for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
@@ -2338,20 +2338,30 @@ class Network {
     return created;
   }
 
-  // Grow `steps` toward the nearest food cell anywhere on the map (even out of range).
+  // Grow `steps` from the strand CLOSEST to any food cell, toward that food (works
+  // anywhere on the map, even out of sensing range). Ties — strands equally near
+  // food — go to the one closest to the goal (the goal band is on the far right, so
+  // larger x = closer to the goal).
   growToNearestFood(substrate, rng, steps) {
-    const fp = this.frontierPoint();
-    if (!fp) return 0;
-    let target = null, best = Infinity;
+    const food = [];
     substrate.forEachCell((cell, col, row) => {
-      if (cell.nutrient > 0 && !cell.rock) {
-        const c = substrate.cellCenter(col, row);
-        const d = (c.x - fp.x) ** 2 + (c.y - fp.y) ** 2;
-        if (d < best) { best = d; target = c; }
-      }
+      if (cell.nutrient > 0 && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
     });
-    if (!target) return 0;
-    return this.growDirected(substrate, rng, target.x - fp.x, target.y - fp.y, steps, false);
+    if (!food.length) return 0;
+    // For every living strand, its nearest food + distance.
+    const cand = [];
+    for (const n of this.nodes) {
+      if (n.infected) continue;
+      let nd = Infinity, nt = null;
+      for (const f of food) { const d = (f.x - n.x) ** 2 + (f.y - n.y) ** 2; if (d < nd) { nd = d; nt = f; } }
+      if (nt) cand.push({ n, nt, nd });
+    }
+    if (!cand.length) return 0;
+    let min = Infinity; for (const c of cand) if (c.nd < min) min = c.nd;
+    const EPS2 = 4;   // ~2px slop so genuinely-equal distances count as a tie
+    let best = null;
+    for (const c of cand) if (c.nd <= min + EPS2 && (!best || c.n.x > best.n.x)) best = c;
+    return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
   }
 
   // Clear the contiguous rock feature (of an allowed class) nearest a tapped point
@@ -3646,6 +3656,18 @@ const DRAW_ENGINES = {
   'Leaf Fall': 'Leaf Litter Cache',
 };
 
+// Archived cards — not part of the game for now (kept in the data/design docs so
+// they're easy to bring back). Filtered out of the draw deck, drafts and dealt
+// hands, so they never enter play. To un-archive a card, remove it from this set.
+const ARCHIVED = new Set([
+  // Non-Acorn substrate placement (Acorn Cache stays) + their draw-engine extenders.
+  'Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat',
+  'Leaf Fall', 'Humus Cache', 'Symbiont Weave',
+  // Digestion is fast enough now that an active digest card is redundant.
+  'Saprotrophic Digest', 'Enzyme Priming',
+]);
+const isArchived = (name) => ARCHIVED.has(name);
+
 function shuffle(arr, rng) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -3657,13 +3679,14 @@ function shuffle(arr, rng) {
 // The "tutorial set": the pool a finished food pile drafts 3 random cards from.
 // Basics are EXCLUDED — drafts hand out premium cards / draw-engines only (you
 // already get basics from the draw deck), so a pile reward always feels premium.
-const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic').map((c) => c.name);
+const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic' && !isArchived(c.name)).map((c) => c.name);
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
-// Returns { name, count } or null for non-engine cards.
+// Returns { name, count } or null for non-engine (or archived) cards.
 function cardDeckAdditions(name) {
+  if (isArchived(name)) return null;
   const basic = DRAW_ENGINES[name];
-  return basic ? { name: basic, count: 5 } : null;
+  return basic && !isArchived(basic) ? { name: basic, count: 5 } : null;
 }
 
 // --- setup ------------------------------------------------------------------
@@ -3678,7 +3701,7 @@ function initCards(state, mode = 'tutorial') {
   net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
 
   const drawDeck = [];
-  for (const c of CARD_DATA) for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name);
+  for (const c of CARD_DATA) { if (isArchived(c.name)) continue; for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name); }
   shuffle(drawDeck, state.rng);
 
   let seq = 0;
@@ -3688,13 +3711,13 @@ function initCards(state, mode = 'tutorial') {
     // main.js) to restore the normal opening hand. Deals 5× of every playable card
     // and tops up resources so each one can actually be played and verified.
     for (const c of CARD_DATA) {
-      if (!EFFECTS[c.name]) continue;              // only cards with a wired effect
+      if (!EFFECTS[c.name] || isArchived(c.name)) continue;   // only playable, non-archived cards
       for (let i = 0; i < 5; i++) hand.push({ id: seq++, name: c.name });
     }
-    net.energy = 99999; net.water = 999; net.phosphorus = 999;
+    net.energy = 300; net.water = 300; net.phosphorus = 300;
     // === END TEMP =============================================================
   } else if (mode === 'all') {
-    for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
+    for (const c of CARD_DATA) { if (c.type === 'basic' || isArchived(c.name)) continue; hand.push({ id: seq++, name: c.name }); }
   } else {
     // Free opening draw so the hand isn't empty at game start (no Energy charged).
     const opening = Math.min(cc.drawCount || 3, drawDeck.length);

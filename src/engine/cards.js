@@ -37,6 +37,18 @@ const DRAW_ENGINES = {
   'Leaf Fall': 'Leaf Litter Cache',
 };
 
+// Archived cards — not part of the game for now (kept in the data/design docs so
+// they're easy to bring back). Filtered out of the draw deck, drafts and dealt
+// hands, so they never enter play. To un-archive a card, remove it from this set.
+const ARCHIVED = new Set([
+  // Non-Acorn substrate placement (Acorn Cache stays) + their draw-engine extenders.
+  'Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat',
+  'Leaf Fall', 'Humus Cache', 'Symbiont Weave',
+  // Digestion is fast enough now that an active digest card is redundant.
+  'Saprotrophic Digest', 'Enzyme Priming',
+]);
+const isArchived = (name) => ARCHIVED.has(name);
+
 function shuffle(arr, rng) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
@@ -48,13 +60,14 @@ function shuffle(arr, rng) {
 // The "tutorial set": the pool a finished food pile drafts 3 random cards from.
 // Basics are EXCLUDED — drafts hand out premium cards / draw-engines only (you
 // already get basics from the draw deck), so a pile reward always feels premium.
-const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic').map((c) => c.name);
+const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic' && !isArchived(c.name)).map((c) => c.name);
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
-// Returns { name, count } or null for non-engine cards.
+// Returns { name, count } or null for non-engine (or archived) cards.
 export function cardDeckAdditions(name) {
+  if (isArchived(name)) return null;
   const basic = DRAW_ENGINES[name];
-  return basic ? { name: basic, count: 5 } : null;
+  return basic && !isArchived(basic) ? { name: basic, count: 5 } : null;
 }
 
 // --- setup ------------------------------------------------------------------
@@ -69,7 +82,7 @@ export function initCards(state, mode = 'tutorial') {
   net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
 
   const drawDeck = [];
-  for (const c of CARD_DATA) for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name);
+  for (const c of CARD_DATA) { if (isArchived(c.name)) continue; for (let i = 0; i < (c.startCopies || 0); i++) drawDeck.push(c.name); }
   shuffle(drawDeck, state.rng);
 
   let seq = 0;
@@ -79,13 +92,13 @@ export function initCards(state, mode = 'tutorial') {
     // main.js) to restore the normal opening hand. Deals 5× of every playable card
     // and tops up resources so each one can actually be played and verified.
     for (const c of CARD_DATA) {
-      if (!EFFECTS[c.name]) continue;              // only cards with a wired effect
+      if (!EFFECTS[c.name] || isArchived(c.name)) continue;   // only playable, non-archived cards
       for (let i = 0; i < 5; i++) hand.push({ id: seq++, name: c.name });
     }
-    net.energy = 99999; net.water = 999; net.phosphorus = 999;
+    net.energy = 300; net.water = 300; net.phosphorus = 300;
     // === END TEMP =============================================================
   } else if (mode === 'all') {
-    for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
+    for (const c of CARD_DATA) { if (c.type === 'basic' || isArchived(c.name)) continue; hand.push({ id: seq++, name: c.name }); }
   } else {
     // Free opening draw so the hand isn't empty at game start (no Energy charged).
     const opening = Math.min(cc.drawCount || 3, drawDeck.length);
