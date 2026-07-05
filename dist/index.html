@@ -406,8 +406,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "14ctu9v";
-globalThis.__BUILD__ = "local 07-05 09:06";
+window.__ASSET_VER = "1q7tlqf";
+globalThis.__BUILD__ = "local 07-05 09:18";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5135,10 +5135,11 @@ class NetworkRenderer {
     this.network = network;
     this.config = config;
     this.structureDirty = true;
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = Math.ceil(config.world.width);
-    this.canvas.height = Math.ceil(config.world.height);
-    this.octx = this.canvas.getContext('2d');
+    // The structure is drawn per-frame as VECTORS under a world→screen transform
+    // (below), so the fine hyphae stay crisp at any zoom / device-pixel-ratio.
+    // (It used to bake to a world-resolution canvas and upscale that bitmap by
+    //  zoom×DPR, which made the bright threads look grainy/blurry when zoomed in
+    //  or on high-DPI phones.) Only the topology caches are rebuilt on change.
     this.edges = [];   // cached for pulse animation
     this.tips = [];    // cached for sensing rings / tip glow
   }
@@ -5198,14 +5199,19 @@ class NetworkRenderer {
     }
   }
 
-  bakeStructure() {
-    this._rebuildCaches();
-    const { octx, network } = this;
+  // Draw the mycelial structure as crisp vectors. The caller has already applied
+  // a world→screen transform (translate to the map origin, scale by camera.zoom)
+  // on top of the device-pixel-ratio transform, so world coordinates and world-
+  // unit line widths rasterise directly at native device resolution — no bitmap
+  // upscale, no blur. `cull` is the visible world rect (+ decoration margin);
+  // `detail` draws the sub-pixel cottony fuzz/fan only when it's big enough to see.
+  _strokeStructure(ctx, brightness, cull, detail) {
+    const network = this.network;
     const r = this.config.render;
-    octx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    octx.lineCap = 'round';
     const fil = hexToRgb(r.filament);
+    const cream = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
     const AGE_FULL = 7;
+    const { minX, maxX, minY, maxY } = cull;
 
     // Petri-dish mycelium: fine meandering hyphae plus an age-driven cottony
     // "fuzz" of short hyphae that thickens as the colony matures — dense at the
@@ -5215,6 +5221,10 @@ class NetworkRenderer {
       if (n.parentId == null) continue;
       const p = network.byId.get(n.parentId);
       if (!p) continue;
+      // Cull: skip strands with neither endpoint anywhere near the viewport.
+      const nVis = n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY;
+      const pVis = p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
+      if (!nVis && !pVis) continue;
       const s = this.subtreeSize.get(n.id) || 1;
       const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) || 1;
       const ux = dx / len, uy = dy / len, perpx = -uy, perpy = ux;
@@ -5223,7 +5233,7 @@ class NetworkRenderer {
       const ageF = Math.min(1, n.age / AGE_FULL);
       // Infected strands render green (overrun by mould); otherwise constant
       // cream (look is independent of vitality/health).
-      octx.strokeStyle = n.infected ? r.infected : `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+      ctx.strokeStyle = n.infected ? r.infected : cream;
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere.
       // Narrower spread between trunk and fine strands: thinner main cords, a
@@ -5235,54 +5245,57 @@ class NetworkRenderer {
         const o = (k - (strands - 1) / 2) * 1.2;
         const mx = (p.x + n.x) / 2 + perpx * (o + meander);
         const my = (p.y + n.y) / 2 + perpy * (o + meander);
-        octx.lineWidth = baseW * (0.8 + 0.4 * nh(n.id, k + 2));
-        octx.globalAlpha = 0.95;
-        octx.beginPath();
-        octx.moveTo(p.x + perpx * o, p.y + perpy * o);
-        octx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
-        octx.stroke();
+        ctx.lineWidth = baseW * (0.8 + 0.4 * nh(n.id, k + 2));
+        ctx.globalAlpha = 0.95 * brightness;
+        ctx.beginPath();
+        ctx.moveTo(p.x + perpx * o, p.y + perpy * o);
+        ctx.quadraticCurveTo(mx, my, n.x + perpx * o, n.y + perpy * o);
+        ctx.stroke();
       }
+
+      // The cottony fuzz/fan is a few world units long; when the whole colony is
+      // small on screen it's sub-pixel, so skip it (invisible + costly). Also cull
+      // it to nodes actually in view.
+      if (!detail || !nVis) continue;
 
       // cottony fuzz — short fine hyphae radiating out, denser as the strand ages
       const fuzz = isTip ? Math.round(ageF * 2) : Math.round(ageF * 5);
-      octx.lineWidth = 0.7;
+      ctx.lineWidth = 0.7;
       for (let f = 0; f < fuzz; f++) {
         const a = nh(n.id, f + 11) * 6.283;
         const hl = 4 + 7 * nh(n.id, f + 23);
         const mx = n.x + Math.cos(a) * hl * 0.5 + perpx * (nh(n.id, f + 31) * 2 - 1) * 1.4;
         const my = n.y + Math.sin(a) * hl * 0.5 + perpy * (nh(n.id, f + 31) * 2 - 1) * 1.4;
-        octx.globalAlpha = 0.3 + 0.2 * nh(n.id, f + 5);
-        octx.beginPath();
-        octx.moveTo(n.x, n.y);
-        octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
-        octx.stroke();
+        ctx.globalAlpha = (0.3 + 0.2 * nh(n.id, f + 5)) * brightness;
+        ctx.beginPath();
+        ctx.moveTo(n.x, n.y);
+        ctx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
+        ctx.stroke();
       }
 
       // exploratory feather-fan at the growing tip
       if (isTip) {
-        octx.globalAlpha = 0.62;
-        octx.lineWidth = 0.7;
+        ctx.globalAlpha = 0.62 * brightness;
+        ctx.lineWidth = 0.7;
         const fan = 4 + Math.floor(nh(n.id, 5) * 3);
         for (let f = 0; f < fan; f++) {
           const a = baseAng + (f / (fan - 1) - 0.5) * 1.5 + (nh(n.id, f + 50) - 0.5) * 0.3;
           const hl = 5 + 6 * nh(n.id, f + 60);
           const mx = n.x + Math.cos(a) * hl * 0.55 + perpx * (nh(n.id, f) * 2 - 1) * 1.5;
           const my = n.y + Math.sin(a) * hl * 0.55 + perpy * (nh(n.id, f) * 2 - 1) * 1.5;
-          octx.beginPath();
-          octx.moveTo(n.x, n.y);
-          octx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
-          octx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(n.x, n.y);
+          ctx.quadraticCurveTo(mx, my, n.x + Math.cos(a) * hl, n.y + Math.sin(a) * hl);
+          ctx.stroke();
         }
       }
     }
-    octx.globalAlpha = 1;
-
-    this.structureDirty = false;
+    ctx.globalAlpha = 1;
   }
 
   // brightnessScale: extra multiplier for elders later (default 1).
   draw(ctx, camera, time, brightnessScale = 1) {
-    if (this.structureDirty) this.bakeStructure();
+    if (this.structureDirty) { this._rebuildCaches(); this.structureDirty = false; }
     const r = this.config.render;
     const net = this.network;
     // Steady brightness — no global "breathing" (the constant brightening/dimming
@@ -5290,15 +5303,30 @@ class NetworkRenderer {
     // INDEPENDENT of vitality (that stays a HUD/gameplay stat only), so the
     // mycelium never dims or browns as health drops.
     const brightness = brightnessScale;
-
-    // Static structure (baked), dimmed by vitality.
+    const zoom = camera.zoom;
     const tl = camera.worldToScreen(0, 0);
+
+    // Visible world rect (+ a margin for decoration overhang) for culling.
+    const c0 = camera.screenToWorld(0, 0);
+    const c1 = camera.screenToWorld(camera.viewW, camera.viewH);
+    const M = 28;
+    const cull = {
+      minX: Math.min(c0.x, c1.x) - M, maxX: Math.max(c0.x, c1.x) + M,
+      minY: Math.min(c0.y, c1.y) - M, maxY: Math.max(c0.y, c1.y) + M,
+    };
+    // The cottony fuzz/fan is ~4-13 world units; only worth drawing when a world
+    // unit is at least ~half a CSS pixel on screen. Also drop it for very large
+    // colonies (where it reads as an indistinct haze anyway) to keep the per-frame
+    // stroke count bounded — culling already limits it heavily when zoomed in.
+    const detail = zoom >= 0.5 && net.nodes.length <= 1600;
+
+    // Static structure — drawn as crisp vectors in world space (transform composes
+    // with the ctx's device-pixel-ratio transform, so lines are sharp at any zoom).
     ctx.save();
-    ctx.globalAlpha = brightness;
-    ctx.drawImage(
-      this.canvas, 0, 0, this.canvas.width, this.canvas.height,
-      tl.x, tl.y, this.canvas.width * camera.zoom, this.canvas.height * camera.zoom,
-    );
+    ctx.translate(tl.x, tl.y);
+    ctx.scale(zoom, zoom);
+    ctx.lineCap = 'round';
+    this._strokeStructure(ctx, brightness, cull, detail);
     ctx.restore();
 
     // --- Dynamic layer (screen space) ---
