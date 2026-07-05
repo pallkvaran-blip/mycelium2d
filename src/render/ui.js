@@ -30,6 +30,11 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// Warning glyph for the error toast (self-contained so it survives the bundle;
+// coloured via currentColor). A rounded warning triangle — reads as "can't do
+// that" without shouting.
+const WARN_SVG = '<svg class="tk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.2 2.6 20h18.8L12 4.2Z"/><path d="M12 10.3v4"/><circle cx="12" cy="17.1" r="0.35" fill="currentColor" stroke="none"/></svg>';
+
 // Colour-coded resource cost: ⚡ energy (amber, the .bcost default), then water
 // (cyan drop) and phosphorus (violet spark). Returns inner HTML for a .bcost span.
 function costHTML(energy, w, p) {
@@ -190,6 +195,13 @@ export class UI {
     this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
+    // ---- Error toast (transient) ----
+    // A blocked play surfaces here — a themed banner that fades in and auto-clears,
+    // instead of yanking the whole event-log open.
+    this.el.toast = div('toast hidden');
+    root.appendChild(this.el.toast);
+    this._toastHide = null;
+
     // (Event log now lives in the top HUD drop-down; see above.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
@@ -295,7 +307,9 @@ export class UI {
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
 
-  // Event-log drop-down (top HUD). Auto-opens on an error (openLog).
+  // Event-log drop-down (top HUD). Opened/closed only by the player tapping the
+  // Log button now — errors surface as a transient toast (see toast()), not by
+  // yanking the whole log open.
   toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
   setLogOpen(open) {
     if (!this.el.logdrop) return;
@@ -328,6 +342,24 @@ export class UI {
 
   setHint(text) { this.el.hint.textContent = text; }
   resetHint() { this.el.hint.textContent = this.defaultHint; }
+
+  // Transient error banner — shown when a play is blocked (can't afford, no
+  // target in range, …). Fades in near the top, then auto-clears after a beat.
+  // Non-blocking (pointer-events off) so it never gets in the way of the map.
+  toast(message, kind = 'warn') {
+    const el = this.el.toast;
+    if (!el || !message) return;
+    el.className = `toast ${kind}`;   // clears .hidden and .in (base = faded out)
+    el.innerHTML = `<span class="tk-wrap">${WARN_SVG}</span><span class="tmsg"></span>`;
+    el.querySelector('.tmsg').textContent = message;
+    void el.offsetWidth;             // reflow so the fade-in restarts even if one is up
+    el.classList.add('in');
+    if (this._toastHide) clearTimeout(this._toastHide);
+    this._toastHide = setTimeout(() => {
+      el.classList.remove('in');
+      this._toastHide = setTimeout(() => el.classList.add('hidden'), 240);
+    }, 2600);
+  }
 
   showOverlay(result) {
     const o = this.el.overlay;

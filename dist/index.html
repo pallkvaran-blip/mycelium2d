@@ -144,6 +144,27 @@
       font-size: 12px; color: var(--ink-dim); background: rgba(10,14,22,0.7); padding: 5px 12px;
       border-radius: 14px; max-width: 80vw; text-align: center; }
 
+    /* Error toast — transient banner near the top, on-theme dark glass with a
+       warning-amber edge + glow. Non-blocking; fades in then auto-clears. */
+    .toast { position: absolute; top: 74px; left: 50%;
+      display: flex; align-items: center; gap: 9px; max-width: min(82vw, 430px);
+      padding: 10px 15px 10px 13px; border-radius: 13px; font-size: 13px; line-height: 1.35;
+      color: var(--ink); background: rgba(22, 17, 14, 0.92);
+      border: 1px solid rgba(224,168,90,0.45);
+      box-shadow: 0 8px 26px rgba(0,0,0,0.5), 0 0 22px rgba(224,168,90,0.12), inset 0 0 0 1px rgba(224,168,90,0.08);
+      -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+      pointer-events: none; z-index: 60;
+      opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.97);
+      transition: opacity .2s ease, transform .24s cubic-bezier(.2,.85,.3,1.25); }
+    .toast.in { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    .toast.hidden { display: none; }
+    .toast .tk-wrap { display: flex; flex: 0 0 auto; color: var(--warn); }
+    .toast .tk { width: 19px; height: 19px; }
+    .toast .tmsg { min-width: 0; }
+    .toast.error { border-color: rgba(224,106,106,0.5); box-shadow: 0 8px 26px rgba(0,0,0,0.5), 0 0 22px rgba(224,106,106,0.14), inset 0 0 0 1px rgba(224,106,106,0.08); }
+    .toast.error .tk-wrap { color: var(--danger); }
+    @media (max-width: 560px) { .toast { top: 64px; font-size: 12px; padding: 8px 12px; } .toast .tk { width: 17px; height: 17px; } }
+
     /* Legend */
     .legend { top: 168px; left: 14px; width: 210px; }
     .legend.collapsed .legend-body { display: none; }
@@ -448,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1arznsi";
-globalThis.__BUILD__ = "local 07-05 12:56";
+window.__ASSET_VER = "1ide5g1";
+globalThis.__BUILD__ = "local 07-05 13:30";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5779,6 +5800,11 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// Warning glyph for the error toast (self-contained so it survives the bundle;
+// coloured via currentColor). A rounded warning triangle — reads as "can't do
+// that" without shouting.
+const WARN_SVG = '<svg class="tk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.2 2.6 20h18.8L12 4.2Z"/><path d="M12 10.3v4"/><circle cx="12" cy="17.1" r="0.35" fill="currentColor" stroke="none"/></svg>';
+
 // Colour-coded resource cost: ⚡ energy (amber, the .bcost default), then water
 // (cyan drop) and phosphorus (violet spark). Returns inner HTML for a .bcost span.
 function costHTML(energy, w, p) {
@@ -5939,6 +5965,13 @@ class UI {
     this.el.hint.textContent = this.defaultHint;
     root.appendChild(this.el.hint);
 
+    // ---- Error toast (transient) ----
+    // A blocked play surfaces here — a themed banner that fades in and auto-clears,
+    // instead of yanking the whole event-log open.
+    this.el.toast = div('toast hidden');
+    root.appendChild(this.el.toast);
+    this._toastHide = null;
+
     // (Event log now lives in the top HUD drop-down; see above.)
 
     // ---- Dev panel (cheats + sliders), clearly marked ----
@@ -6044,7 +6077,9 @@ class UI {
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
 
-  // Event-log drop-down (top HUD). Auto-opens on an error (openLog).
+  // Event-log drop-down (top HUD). Opened/closed only by the player tapping the
+  // Log button now — errors surface as a transient toast (see toast()), not by
+  // yanking the whole log open.
   toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
   setLogOpen(open) {
     if (!this.el.logdrop) return;
@@ -6077,6 +6112,24 @@ class UI {
 
   setHint(text) { this.el.hint.textContent = text; }
   resetHint() { this.el.hint.textContent = this.defaultHint; }
+
+  // Transient error banner — shown when a play is blocked (can't afford, no
+  // target in range, …). Fades in near the top, then auto-clears after a beat.
+  // Non-blocking (pointer-events off) so it never gets in the way of the map.
+  toast(message, kind = 'warn') {
+    const el = this.el.toast;
+    if (!el || !message) return;
+    el.className = `toast ${kind}`;   // clears .hidden and .in (base = faded out)
+    el.innerHTML = `<span class="tk-wrap">${WARN_SVG}</span><span class="tmsg"></span>`;
+    el.querySelector('.tmsg').textContent = message;
+    void el.offsetWidth;             // reflow so the fade-in restarts even if one is up
+    el.classList.add('in');
+    if (this._toastHide) clearTimeout(this._toastHide);
+    this._toastHide = setTimeout(() => {
+      el.classList.remove('in');
+      this._toastHide = setTimeout(() => el.classList.add('hidden'), 240);
+    }, 2600);
+  }
 
   showOverlay(result) {
     const o = this.el.overlay;
@@ -6632,7 +6685,7 @@ const handlers = {
     if (!entry) return false;
     // Can't afford / not allowed → surface why and drop the log down.
     const reason = cardBlockedReason(state, entry.name);
-    if (reason) { state.log(reason, 'warn'); ui.setHint(reason); ui.openLog(); uiDirty = true; return false; }
+    if (reason) { state.log(reason, 'warn'); ui.toast(reason); uiDirty = true; return false; }
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
@@ -6656,7 +6709,7 @@ const handlers = {
     // Drafting a pile reward is free and does NOT advance the world.
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
-    else if (res.message) { ui.setHint(res.message); ui.openLog(); uiDirty = true; }
+    else if (res.message) { ui.toast(res.message); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -6686,8 +6739,7 @@ function resolveCardOp(res) {
     rendererFor(state.active).markStructureDirty();
     if (state.runOver) ui.showOverlay(state.runResult);
   } else if (res && res.message) {
-    ui.setHint(res.message);
-    ui.openLog();   // an error (e.g. not enough energy) — drop the log down
+    ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
   }
   uiDirty = true;
 }

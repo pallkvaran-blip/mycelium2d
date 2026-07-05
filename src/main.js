@@ -208,7 +208,7 @@ const handlers = {
     if (!entry) return false;
     // Can't afford / not allowed → surface why and drop the log down.
     const reason = cardBlockedReason(state, entry.name);
-    if (reason) { state.log(reason, 'warn'); ui.setHint(reason); ui.openLog(); uiDirty = true; return false; }
+    if (reason) { state.log(reason, 'warn'); ui.toast(reason); uiDirty = true; return false; }
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
@@ -232,7 +232,7 @@ const handlers = {
     // Drafting a pile reward is free and does NOT advance the world.
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
-    else if (res.message) { ui.setHint(res.message); ui.openLog(); uiDirty = true; }
+    else if (res.message) { ui.toast(res.message); uiDirty = true; }
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -262,8 +262,7 @@ function resolveCardOp(res) {
     rendererFor(state.active).markStructureDirty();
     if (state.runOver) ui.showOverlay(state.runResult);
   } else if (res && res.message) {
-    ui.setHint(res.message);
-    ui.openLog();   // an error (e.g. not enough energy) — drop the log down
+    ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
   }
   uiDirty = true;
 }

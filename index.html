@@ -143,6 +143,27 @@
       font-size: 12px; color: var(--ink-dim); background: rgba(10,14,22,0.7); padding: 5px 12px;
       border-radius: 14px; max-width: 80vw; text-align: center; }
 
+    /* Error toast — transient banner near the top, on-theme dark glass with a
+       warning-amber edge + glow. Non-blocking; fades in then auto-clears. */
+    .toast { position: absolute; top: 74px; left: 50%;
+      display: flex; align-items: center; gap: 9px; max-width: min(82vw, 430px);
+      padding: 10px 15px 10px 13px; border-radius: 13px; font-size: 13px; line-height: 1.35;
+      color: var(--ink); background: rgba(22, 17, 14, 0.92);
+      border: 1px solid rgba(224,168,90,0.45);
+      box-shadow: 0 8px 26px rgba(0,0,0,0.5), 0 0 22px rgba(224,168,90,0.12), inset 0 0 0 1px rgba(224,168,90,0.08);
+      -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+      pointer-events: none; z-index: 60;
+      opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.97);
+      transition: opacity .2s ease, transform .24s cubic-bezier(.2,.85,.3,1.25); }
+    .toast.in { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    .toast.hidden { display: none; }
+    .toast .tk-wrap { display: flex; flex: 0 0 auto; color: var(--warn); }
+    .toast .tk { width: 19px; height: 19px; }
+    .toast .tmsg { min-width: 0; }
+    .toast.error { border-color: rgba(224,106,106,0.5); box-shadow: 0 8px 26px rgba(0,0,0,0.5), 0 0 22px rgba(224,106,106,0.14), inset 0 0 0 1px rgba(224,106,106,0.08); }
+    .toast.error .tk-wrap { color: var(--danger); }
+    @media (max-width: 560px) { .toast { top: 64px; font-size: 12px; padding: 8px 12px; } .toast .tk { width: 17px; height: 17px; } }
+
     /* Legend */
     .legend { top: 168px; left: 14px; width: 210px; }
     .legend.collapsed .legend-body { display: none; }
