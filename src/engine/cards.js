@@ -74,7 +74,17 @@ export function initCards(state, mode = 'tutorial') {
 
   let seq = 0;
   const hand = [];
-  if (mode === 'all') {
+  if (mode === 'testall') {
+    // === TEMP (card testing) — remove this branch (and the 'testall' arg in
+    // main.js) to restore the normal opening hand. Deals 5× of every playable card
+    // and tops up resources so each one can actually be played and verified.
+    for (const c of CARD_DATA) {
+      if (!EFFECTS[c.name]) continue;              // only cards with a wired effect
+      for (let i = 0; i < 5; i++) hand.push({ id: seq++, name: c.name });
+    }
+    net.energy = 99999; net.water = 999; net.phosphorus = 999;
+    // === END TEMP =============================================================
+  } else if (mode === 'all') {
     for (const c of CARD_DATA) { if (c.type === 'basic') continue; hand.push({ id: seq++, name: c.name }); }
   } else {
     // Free opening draw so the hand isn't empty at game start (no Energy charged).
