@@ -389,8 +389,10 @@ export const EFFECTS = {
     return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'No room to fan out.' };
   }),
   'Tropic Lunge': grow((s) => {
-    const n = s.active.growToNearestFood(s.substrate, s.rng, 3);
-    return n > 0 ? { ok: true, message: `Lunged ${n} toward the nearest food.` } : { ok: false, message: 'No food sensed anywhere.' };
+    // Lunge from the strand closest to ANY food, toward that food — regardless of
+    // range (the closest food on the whole map, even far out of sensing range).
+    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.reachSegments);
+    return n > 0 ? { ok: true, message: `Lunged ${n} toward the nearest food.` } : { ok: false, message: 'No food anywhere on the map.' };
   }),
   'Appressorial Punch': targeted((s, c, ctx) => {
     const n = s.active.digThrough(s.substrate, ctx.x, ctx.y, ['boulder']);

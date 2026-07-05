@@ -83,9 +83,15 @@ export class Lighting {
       if (!net.alive && !net.fruited) continue;
       const rend = networkRenderers && networkRenderers.get(net.id);
       const tips = rend && rend.frontierTips;
-      if (!tips) continue;
+      if (!tips || !tips.length) continue;
+      // The aura builds up where many frontier tips overlap; with only a few tips
+      // (the seed strand at game start) a lone aura is faint and its lit edge falls
+      // well short of the true range. Scale each tip's alpha up when the frontier is
+      // sparse so the lit area reaches the real reach from the very first turn.
+      const sparseBoost = Math.min(2.6, Math.max(1, 5 / tips.length));
+      const senseAlpha = 0.12 * breath * sparseBoost;
       for (const t of tips) {
-        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, 0.12 * breath, W, H);
+        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, senseAlpha, W, H);
       }
     }
 

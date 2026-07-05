@@ -469,8 +469,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "mb6w5x";
-globalThis.__BUILD__ = "local 07-05 14:11";
+window.__ASSET_VER = "dihx14";
+globalThis.__BUILD__ = "local 07-05 14:20";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4014,8 +4014,10 @@ const EFFECTS = {
     return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'No room to fan out.' };
   }),
   'Tropic Lunge': grow((s) => {
-    const n = s.active.growToNearestFood(s.substrate, s.rng, 3);
-    return n > 0 ? { ok: true, message: `Lunged ${n} toward the nearest food.` } : { ok: false, message: 'No food sensed anywhere.' };
+    // Lunge from the strand closest to ANY food, toward that food — regardless of
+    // range (the closest food on the whole map, even far out of sensing range).
+    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.reachSegments);
+    return n > 0 ? { ok: true, message: `Lunged ${n} toward the nearest food.` } : { ok: false, message: 'No food anywhere on the map.' };
   }),
   'Appressorial Punch': targeted((s, c, ctx) => {
     const n = s.active.digThrough(s.substrate, ctx.x, ctx.y, ['boulder']);
@@ -5746,9 +5748,15 @@ class Lighting {
       if (!net.alive && !net.fruited) continue;
       const rend = networkRenderers && networkRenderers.get(net.id);
       const tips = rend && rend.frontierTips;
-      if (!tips) continue;
+      if (!tips || !tips.length) continue;
+      // The aura builds up where many frontier tips overlap; with only a few tips
+      // (the seed strand at game start) a lone aura is faint and its lit edge falls
+      // well short of the true range. Scale each tip's alpha up when the frontier is
+      // sparse so the lit area reaches the real reach from the very first turn.
+      const sparseBoost = Math.min(2.6, Math.max(1, 5 / tips.length));
+      const senseAlpha = 0.12 * breath * sparseBoost;
       for (const t of tips) {
-        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, 0.12 * breath, W, H);
+        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, senseAlpha, W, H);
       }
     }
 
