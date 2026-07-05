@@ -95,7 +95,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 3 steps toward the nearest food source, even if out of range.",
+  "effect": "Grow 5 steps toward the nearest food source, even if out of range.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0

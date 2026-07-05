@@ -107,7 +107,7 @@
   "playCostEnergy": 0,
   "playCostWater": 2,
   "playCostPhosphorus": 0,
-  "effect": "Grow 3 steps toward the nearest food source, even if out of range.",
+  "effect": "Grow 5 steps toward the nearest food source, even if out of range.",
   "timing": "mid",
   "repayRounds": 0,
   "axis": "tempo",

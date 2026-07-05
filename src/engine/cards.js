@@ -394,7 +394,7 @@ export const EFFECTS = {
     // Lunge from the strand closest to ANY food, toward that food — regardless of
     // range (the closest food on the whole map, even far out of sensing range). If a
     // rock walls off the path it still grows as far as it can toward the food.
-    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.reachSegments);
+    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
     if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
     return { ok: false, message: 'No food left anywhere on the map.' };

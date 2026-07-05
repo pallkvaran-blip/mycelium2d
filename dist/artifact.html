@@ -463,8 +463,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "oc3hau";
-globalThis.__BUILD__ = "local 07-05 14:59";
+window.__ASSET_VER = "hsj5xb";
+globalThis.__BUILD__ = "local 07-05 15:05";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -595,6 +595,7 @@ const CONFIG = {
     substrateLarge: 110,
     reachSegments: 6,            // cells a "reach/extend N" card lays in a direction
     directionalSteps: 6,         // cells Apical Drive advances (2 "steps" — was 3 for 1 step)
+    lungeSegments: 15,           // cells Tropic Lunge dashes toward food (5 "steps" @ ~3 cells/step)
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -949,7 +950,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 3 steps toward the nearest food source, even if out of range.",
+  "effect": "Grow 5 steps toward the nearest food source, even if out of range.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -4046,7 +4047,7 @@ const EFFECTS = {
     // Lunge from the strand closest to ANY food, toward that food — regardless of
     // range (the closest food on the whole map, even far out of sensing range). If a
     // rock walls off the path it still grows as far as it can toward the food.
-    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.reachSegments);
+    const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
     if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
     return { ok: false, message: 'No food left anywhere on the map.' };
