@@ -344,9 +344,11 @@ export class Network {
     return 'rock';
   }
 
-  // Any food left on the map? (For distinguishing "no food" from "blocked".)
+  // Any NEW (unreached) food left on the map? Colonised cells are excluded to
+  // match growToNearestFood — the lunge only targets food it hasn't reached yet,
+  // so this distinguishes "blocked by rock" from "nothing new to lunge toward".
   hasFood(substrate) {
-    for (const cell of substrate.cells) if (cell.nutrient > 0 && !cell.rock && !cell.hazard) return true;
+    for (const cell of substrate.cells) if (cell.nutrient > 0 && !cell.colonized && !cell.rock && !cell.hazard) return true;
     return false;
   }
 
@@ -376,7 +378,12 @@ export class Network {
   growToNearestFood(substrate, rng, steps) {
     const food = [];
     substrate.forEachCell((cell, col, row) => {
-      if (cell.nutrient > 0 && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
+      // Only NEW food the colony hasn't reached yet. Colonised cells still carry
+      // nutrient (it drains over turns), so counting them would make the lunge
+      // chase the pile it's already sitting on — a tip right on a colonised cell
+      // has ~0 distance, so it always wins the sort and the colony grows back into
+      // its own interior instead of striking out toward fresh food elsewhere.
+      if (cell.nutrient > 0 && !cell.colonized && !cell.rock && !cell.hazard) food.push(substrate.cellCenter(col, row));
     });
     if (!food.length) return 0;
     // For every frontier tip, its nearest food + distance.

@@ -405,14 +405,16 @@ export const EFFECTS = {
     return { ok: false, message: 'Rock walls the colony in on every side — nowhere to fan out.' };
   }),
   'Tropic Lunge': grow((s) => {
-    // Lunge from the strand closest to ANY food, toward that food — regardless of
-    // range (the closest food on the whole map, even far out of sensing range). If a
-    // rock walls off the path it still grows as far as it can toward the food.
+    // Lunge from the strand closest to ANY food it hasn't reached yet, toward that
+    // food — regardless of range (the nearest UNREACHED food on the whole map, even
+    // far out of sensing range). Already-colonised piles don't count, so the lunge
+    // strikes out toward fresh food instead of doubling back over what it already
+    // holds. If a rock walls off the path it still grows as far as it can.
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
     if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
-    return { ok: false, message: 'No food left anywhere on the map.' };
+    return { ok: false, message: 'Every food pile has already been reached — nothing new to lunge toward.' };
   }),
   'Appressorial Punch': targeted((s, c, ctx) => {
     const n = s.active.digThrough(s.substrate, ctx.x, ctx.y, ['boulder']);
