@@ -698,7 +698,8 @@ The three-resource model (Water/Nitrogen/Phosphorus) collapses to **two**:
 Per-card reassignment of the old Nitrogen cost (my call): substrate (Leaf Litter Cache / Humus Bed /
 Mycorrhizal Mat) → **Water**; Saprotrophic Digest, Fruiting Vigil → **Phosphorus**; N production/gains
 (Mineralizing Saprobe, Constricting Ring) → **Phosphorus**. Config: `startWater 7`, `startPhosphorus 3`,
-`softCapWater 20`, `softCapPhosphorus 10` (no more `*Nitrogen`).
+`softCapWater 999`, `softCapPhosphorus 999` (no more `*Nitrogen`). **Caps raised from 20/10 → 999** so
+harvest/income always pays off and you can bank for big plays (see §20.4).
 
 ### 19.2 Draw 3
 `Draw` now pulls **`cards.drawCount` (=3)** cards at once for **`drawCostEnergy` (=16)** (was 1 for 8).
@@ -725,3 +726,54 @@ Deck-underflow safe (pulls what's left). `drawDiscount` (Septal Pore Flux) still
   in the tutorial draft pool, so the dup is invisible for now — differentiate or cut when the pool widens.
 - Balance: Water now carries grow **and** substrate; Phosphorus is rock-gated. Watch early-game Water
   pressure and whether P is reachable before the first rock contact; tune start buffers / harvest if needed.
+
+---
+
+## 20. Grow-card mechanic tuning (CURRENT — authoritative for these cards)
+
+Behaviour clarifications/fixes for the grow + dig + harvest cards. Runtime lives in
+`src/engine/network.js` (sim primitives) and `src/engine/cards.js` (effects). All verified
+headlessly + in-browser. Growth convention throughout: **1 "step" ≈ 3 cells** (`segmentLength` 17,
+`cellSize` 36); Apical Drive 2 steps, Tropic Lunge 5 steps, Rhizomorph Lance / Fruiting Vigil 6 steps,
+Foraging Fan 1 step (= `foragingFanCells` 3 rings). Hard size cap `growth.maxNodes = 6000`; all grow
+cards report "The colony has reached its maximum size." at the cap.
+
+### 20.1 Foraging Fan (`growRadial` / `_fanRing`)
+- **Radial burst, no food needed** — every frontier tip sprouts `foragingFanRays` (8) hyphae around the
+  circle, grown as `foragingFanCells` (3) successive rings; min-spacing (`minTipSpacing`) drops candidates
+  that fall back over the colony so the frontier expands outward.
+- **Partial growth always succeeds** — tips with open ground fan out even if rock walls off other tips.
+  Only when *no* tip anywhere can advance does it fail, naming the reason: at-cap / walled-in by rock /
+  packed too tightly.
+- **Fair distribution** — `_fanRing` **shuffles the tips and fans ray-by-ray** (one ray per tip per pass),
+  so the burst spreads across the *whole* frontier. (Old bug: it iterated tips in node-array order and did
+  all of a tip's rays before moving on, so near the cap the older/denser near-side ate the node budget and
+  the far frontier grew nothing.)
+
+### 20.2 Tropic Lunge (`growToNearestFood`)
+- Lunges `lungeSegments` (15) toward the nearest food, from the tip nearest that food, **regardless of
+  sensing range**.
+- Targets only **unreached** food — food cells with `colonized > 0` are excluded (they keep nutrient while
+  it drains), so the lunge strikes out toward fresh food instead of doubling back onto the pile it holds.
+- Considers **all (tip, food) pairs** ordered by distance and lunges from the closest that can actually
+  make progress (reaches the food, or has a full clear runway). A walled nearest pile falls through to the
+  next-closest approach — a different tip **or** a different pile — before failing. Distinct messages for
+  "blocked by rock" vs "every food pile already reached".
+
+### 20.3 Appressorial Punch (`punchThrough`)
+- Bores through **any rock** — loose boulders, big formations, and path-blocking columns all read as
+  "rock" and clear the same way (lakes/water excluded).
+- **Overlay, not removal** — the rock stays drawn; the strand threads *over* it. Cells on the strand's
+  path get a `bored` flag (passable but still `rock`); `_placeOk` treats bored cells as open ground. No
+  render-cache invalidation needed since nothing is removed.
+- **Aims in the chosen direction** — the channel runs from the colony toward the **clicked point**, and
+  stops at the clicked feature's far edge **along that ray** (was aiming at the centroid + boring the whole
+  feature, which dragged the strand down a long column's length). Range-gated to the colony's sensing
+  reach. Food sitting right on the far side is claimed by the normal colonisation pass.
+
+### 20.4 Resource harvest / income never drops a pool
+- `gain(cur, amt, cap) = max(cur, min(cap, cur+amt))` in `cards.js` — adds up to the soft cap but **never
+  reduces** a pool already above it. Used by Condense, Hyphal Imbibition, Phosphate Tap, Constricting Ring,
+  and per-round engine income. (Old bug: `min(cap, cur+amt)` slashed Water/P down to the cap.)
+- Soft caps raised to **999** (§19.1) so harvest keeps paying off; harvest cards report the actual gain and
+  refuse ("… is already full") at the cap so the card isn't wasted.

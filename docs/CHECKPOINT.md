@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-05 (opening hand · always-on carousel · camera clamp)._
+_Living status + knowledge doc. Last updated: 2026-07-05 (grow-card mechanic fixes · batched renderer LOD · raised resource + node caps)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -124,9 +124,15 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   - **Energy (⚡)** — the action currency. **Draw** costs `drawCostEnergy` (16) and
     pulls `drawCount` (3) cards; **Skip** costs `skipCostEnergy` (12) and advances
     the world without drawing. Passive income from occupied substrate + engines.
-  - **Water (W)** — gates growth + substrate cards. Starts at 7, soft cap 20.
-  - **Phosphorus (P)** — gates digest/defense/work cards. Starts at 3, soft cap 10;
+  - **Water (W)** — gates growth + substrate cards. Starts at 7, soft cap **999**.
+  - **Phosphorus (P)** — gates digest/defense/work cards. Starts at 3, soft cap **999**;
     harvested from rock via Phosphate Tap.
+  - **Soft caps** (`config.cards.softCapWater/Phosphorus`, both 999) are applied via a
+    `gain(cur, amt, cap)` helper in `cards.js` = `max(cur, min(cap, cur+amt))` — it adds
+    up to the cap but **never reduces** a pool that's already above it (a plain
+    `min(cap, …)` used to slash Water/P down to the cap; that was the "Imbibition
+    dropped my Water to 20" bug). Harvest cards report the *actual* gain and refuse
+    ("… is already full") at the cap so the card isn't wasted.
   - (Spores exist in the pre-card mode only.)
 - **Playing a card:** `cardBlockedReason` gates on run-over / dead / affordability
   only. Some effects are **affordable but can still no-op** (e.g. Hyphal Extension
@@ -279,7 +285,31 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **(this change)** Map framing + bottom buffer: (1) a fresh run now **centres the
+- **Grow-card mechanic fixes + perf + caps** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  Card behaviour now owned by `cards-design.md` where it overlaps; the runtime lives in
+  `engine/network.js` + `engine/cards.js`:
+  - **Renderer perf (LOD):** big colonies were ~250ms/frame stroking one path *per node*.
+    `NetworkRenderer` now bakes the structure into a few batched `Path2D`s (per width
+    bucket + infected) and strokes them in ~4 calls when zoomed out / large (the batched
+    path self-heals if the node count drifts from the cache). Network draw JS ≈ 0ms.
+  - **maxNodes 2500 → 6000** with a clear "colony has reached its maximum size" message on
+    all grow cards at the cap.
+  - **Foraging Fan:** grows **partial** (every open frontier tip fans out even if rock
+    walls off others); `_fanRing` now **shuffles tips + fans ray-by-ray** so the burst
+    spreads across the *whole* frontier instead of the near/dense side hogging the node
+    budget; honest failure messages (at-cap / walled-in / packed-too-tight).
+  - **Tropic Lunge:** targets only **unreached** food (excludes `colonized` cells so it
+    doesn't chase the pile it's on); considers **all (tip, food) pairs** and lunges from
+    the closest approach that can actually reach the food or get a full clear runway — so a
+    walled nearest pile falls through to the next tip *or* the next pile instead of erroring.
+  - **Appressorial Punch:** works on **any rock** (boulder / formation / column; not
+    lakes); bores a **passable channel** — rock stays drawn, the strand overlays it
+    (cell `bored` flag; `_placeOk` treats bored cells as open); aims toward the **clicked
+    point** (not the rock centroid) and stops at the clicked feature's far edge **along
+    that ray** (was following a column's whole length). Food right on the far side is
+    picked up by the colonisation pass.
+  - **Resource caps → 999 + never-drop harvest** (see §4 currencies).
+- **(earlier)** Map framing + bottom buffer: (1) a fresh run now **centres the
   camera on the colony's entry** at zoom ~0.85 instead of the whole-map overview
   (§6); (2) added a **content-free dirt buffer** below the map
   (`config.world.bottomBuffer`, `substrate.viewHeight`) that **fades to black**, so
@@ -313,6 +343,11 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **TEMP test scaffolding — REVERT before release.** For card testing the run boots with
+  (1) `initCards(state, 'testall')` in `main.js` `begin()` — a hand of **5× of every
+  non-archived card** — and (2) **300 of each resource** (Water/Energy/Phosphorus set in
+  the `'testall'` branch of `initCards`). Revert to `initCards(state)` and remove the
+  `'testall'` branch to restore normal starting hand + resources.
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to
