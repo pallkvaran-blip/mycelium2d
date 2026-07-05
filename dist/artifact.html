@@ -463,8 +463,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "mfv8ax";
-globalThis.__BUILD__ = "local 07-05 18:51";
+window.__ASSET_VER = "z5e724";
+globalThis.__BUILD__ = "local 07-05 19:30";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3841,6 +3841,12 @@ const __m_engine_cards = (function () {
 // =============================================================================
 
 
+// Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
+// already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over
+// the cap, so a harvest/income card would REDUCE your resource instead of raising
+// it. gain() only ever adds, and stops adding once you're at/over the cap.)
+const gain = (cur, amt, cap) => Math.max(cur, Math.min(cap, cur + amt));
+
 // Draw-engine card -> the basic it seeds (5 copies).
 const DRAW_ENGINES = {
   'Leading Cord': 'Apical Drive',
@@ -4064,8 +4070,8 @@ function produceCardEngines(state) {
     }
     if (due) {
       if (e.energy) energySum += e.energy;
-      if (e.water) net.water = Math.min(cc.softCapWater, net.water + e.water);
-      if (e.phosphorus) net.phosphorus = Math.min(cc.softCapPhosphorus, net.phosphorus + e.phosphorus);
+      if (e.water) net.water = gain(net.water, e.water, cc.softCapWater);
+      if (e.phosphorus) net.phosphorus = gain(net.phosphorus, e.phosphorus, cc.softCapPhosphorus);
     }
     if (e.digEvery) {
       e._t = (e._t || 0) + 1;
@@ -4279,16 +4285,25 @@ const EFFECTS = {
   }),
 
   // --- harvest ---
-  'Condense': grow((s) => { const cc = s.config.cards; s.active.water = Math.min(cc.softCapWater, s.active.water + 3); return { ok: true, message: '+3 Water.' }; }),
+  'Condense': grow((s) => {
+    const cc = s.config.cards, before = s.active.water;
+    s.active.water = gain(s.active.water, 3, cc.softCapWater);
+    const got = s.active.water - before;
+    return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
+  }),
   'Hyphal Imbibition': grow((s) => {
     const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
-    s.active.water = Math.min(cc.softCapWater, s.active.water + amt);
-    return { ok: true, message: `+${amt} Water${amt === cc.harvestWaterLake ? ' (lake)' : ''}.` };
+    const before = s.active.water;
+    s.active.water = gain(s.active.water, amt, cc.softCapWater);
+    const got = s.active.water - before;
+    return got > 0 ? { ok: true, message: `+${got} Water${amt === cc.harvestWaterLake ? ' (lake)' : ''}.` } : { ok: false, message: 'Water is already full.' };
   }),
   'Phosphate Tap': grow((s) => {
     if (!touchesMineral(s)) return { ok: false, message: 'Not in contact with mineral rock.' };
-    const cc = s.config.cards; s.active.phosphorus = Math.min(cc.softCapPhosphorus, s.active.phosphorus + cc.harvestPhosphorus);
-    return { ok: true, message: `+${cc.harvestPhosphorus} Phosphorus.` };
+    const cc = s.config.cards, before = s.active.phosphorus;
+    s.active.phosphorus = gain(s.active.phosphorus, cc.harvestPhosphorus, cc.softCapPhosphorus);
+    const got = s.active.phosphorus - before;
+    return got > 0 ? { ok: true, message: `+${got} Phosphorus.` } : { ok: false, message: 'Phosphorus is already full.' };
   }),
 
   // --- energy ---
@@ -4326,7 +4341,7 @@ const EFFECTS = {
     let idx = 0, bd = Infinity;
     worms.forEach((w, i) => { const d = (w.x - fp.x) ** 2 + (w.y - fp.y) ** 2; if (d < bd) { bd = d; idx = i; } });
     worms.splice(idx, 1);
-    s.active.phosphorus = Math.min(s.config.cards.softCapPhosphorus, s.active.phosphorus + 2);
+    s.active.phosphorus = gain(s.active.phosphorus, 2, s.config.cards.softCapPhosphorus);
     return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
   }),
   'Sclerotial Seal': targeted((s, c, ctx) => {
