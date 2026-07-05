@@ -222,12 +222,17 @@ Both menus are dark, on-theme, with glowing green borders.
   the whole level.
 - **Bottom dirt buffer** — `substrate.worldHeight` is the CONTENT region (grid +
   all generation/engine bounds stay inside it). `substrate.viewHeight =
-  worldHeight + config.world.bottomBuffer` (820) adds empty dirt below it that the
+  worldHeight + config.world.bottomBuffer` (1800) adds empty dirt below it that the
   **camera + renderer** use, so the player can scroll the deepest content clear of
-  the bottom UI without minimizing the carousel. Nothing is generated in the
-  buffer; the renderer paints seamless deep-soil brown down through it and
-  `SubstrateRenderer._bakeBottomFade()` fades it to the void colour (`#05070d`,
-  solid at the deepest band) so the map's end reads clearly.
+  the bottom UI without minimizing the carousel. It's sized deliberately: on a
+  phone portrait "fully zoomed out" is a *height-limited* min-zoom with no vertical
+  scroll, so the buffer must be tall enough that, at that zoom, the buffer alone
+  fills the carousel-covered band — leaving ALL content above the carousel. (Rule:
+  `buffer ≥ worldHeight · bottomUIHeight / (viewportH − bottomUIHeight)`; worst
+  measured case ~1406 on a 360×740 phone, so 1800 clears every phone with margin.)
+  Nothing is generated in the buffer; the renderer paints seamless deep-soil brown
+  down through it and `SubstrateRenderer._bakeBottomFade()` fades it to the void
+  colour (`#05070d`, solid at the deepest band) so the map's end reads clearly.
 
 ---
 
