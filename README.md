@@ -4,10 +4,13 @@ A 2D roguelike **engine-builder** themed on the real life of a fungal colony. Yo
 steer a living, semi-autonomous **mycelial network** through underground
 substrate — shaping where its hunger goes, defending it, and fruiting it.
 
-This repository is **Phase 1**: the basic-action backbone, fully playable, with
-**no cards** (cards, the generational cycle, meta-progression and the 3D view
-come in later phases). It is built with the production architecture so later
-phases extend it rather than replace it.
+This repository is **Phase 1**: the basic-action backbone, fully playable, built
+with the production architecture so later phases extend it rather than replace it.
+A **card layer** now sits on top of that backbone (Water/Phosphorus economy,
+draw/skip, a draggable hand carousel, map food-pile drafting, reach-the-goal win).
+For the current state, systems, and conventions see **[`docs/CHECKPOINT.md`](docs/CHECKPOINT.md)**
+— this README's "Playing" section below describes the older pre-card basic actions.
+(The generational cycle, meta-progression and the 3D view come in later phases.)
 
 ## Play it (hosted)
 
