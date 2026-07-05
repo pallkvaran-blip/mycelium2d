@@ -15,7 +15,7 @@ export const CONFIG = {
   world: {
     width: 2600,        // world width in units
     height: 1500,       // CONTENT height (top = sky, bottom = deepest generated ground)
-    bottomBuffer: 1800, // extra empty dirt below the content that fades to black — lets
+    bottomBuffer: 2160, // extra empty dirt below the content that fades to black — lets
                         //   you scroll the deepest content clear of the bottom UI. Sized so
                         //   that even fully zoomed out on a phone portrait (height-limited
                         //   min-zoom, no vertical scroll), the buffer alone fills the
