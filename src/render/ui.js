@@ -10,7 +10,7 @@
 import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
-import { cardDeckAdditions, cardNeedsTarget } from '../engine/cards.js';
+import { cardDeckAdditions } from '../engine/cards.js';
 
 const TESTING_QUESTIONS = [
   'Is steering the semi-autonomous growth (Grow + Add Substrate + Amputate) satisfying — do I feel like I\'m shaping a living thing?',
@@ -127,12 +127,21 @@ export class UI {
         + `<div class="handlist" id="handlist"></div>`
         + `<button class="handnav next" id="handnext" aria-label="More cards">›</button>`
         + `</div>`
+        // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
+        + `<div class="handpreview hidden" id="handpreview"></div>`
+        // Footer: play the highlighted card, or cancel (minimize) the carousel.
+        + `<div class="handfooter">`
+        + `<button class="btn playbtn" id="handplay" disabled>Play Card</button>`
+        + `<button class="btn cancelbtn" id="handcancel">Cancel</button>`
+        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
       this.el.htcount = hand.querySelector('#htcount');
+      this.el.handpreview = hand.querySelector('#handpreview');
+      this.el.handplay = hand.querySelector('#handplay');
       const scrollByCard = (dir) => {
         const t = this.el.handlist; if (!t) return;
         const card = t.querySelector('.cardbtn');
@@ -142,6 +151,8 @@ export class UI {
       hand.querySelector('#handprev').onclick = () => scrollByCard(-1);
       hand.querySelector('#handnext').onclick = () => scrollByCard(1);
       hand.querySelector('#handtoggle').onclick = () => this.toggleHand();
+      this.el.handplay.onclick = () => this.playArmed();
+      hand.querySelector('#handcancel').onclick = () => { this.clearArmed(); this.collapseHand(); };
       root.appendChild(hand);
     }
 
@@ -217,10 +228,6 @@ export class UI {
     if (cardsOn) {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
-      // Confirm/preview overlay: arm a card (hand or draft) → see what it does
-      // (incl. any cards it shuffles into your deck) → Confirm to commit.
-      this.el.confirm = div('offer confirm hidden');
-      root.appendChild(this.el.confirm);
     }
   }
 
@@ -398,6 +405,10 @@ export class UI {
     });
     const all = [...groups.values()];
 
+    // Drop a stale selection if that card is no longer in hand (e.g. after a draw).
+    if (this.armed && !groups.has(this.armed.name)) this.armed = null;
+    this._renderHandFooter();
+
     // FILTER chips (built from the groups present), then apply the active filter.
     this._renderHandFilter(all);
     const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroup(g.card).key === this.handFilter);
@@ -414,6 +425,7 @@ export class UI {
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');
       const b = button(cls, cardFaceHTML(g.name, c, g.count));
+      b.setAttribute('data-name', g.name);
       b.title = c.effect;
       b.onclick = () => this.armCard(g.firstIndex, g.name);
       list.appendChild(b);
@@ -457,54 +469,61 @@ export class UI {
       + `</div>`;
     el.classList.remove('hidden');
     el.querySelectorAll('.offercard').forEach((btn) => {
-      btn.onclick = () => this.armOffer(btn.dataset.name);
+      btn.onclick = () => this.handlers.onChooseCard(btn.dataset.name);
     });
-    this._renderConfirm();
   }
 
-  // --- arm / confirm flow --------------------------------------------------
-  // Clicking a card (hand or draft) ARMS it: a confirm overlay shows what it
-  // does — including any cards it shuffles into your deck — before you commit.
-  armCard(index, name) { this.armed = { kind: 'hand', index, name }; this._renderConfirm(); this._renderHand(); }
-  armOffer(name) { this.armed = { kind: 'offer', name }; this._renderConfirm(); }
+  // --- select / play flow --------------------------------------------------
+  // Tapping a card just HIGHLIGHTS it (no popup). The footer "Play Card" button
+  // plays the highlighted card; "Cancel" minimizes the carousel. The only popup
+  // is a text preview of what a draw-engine (+5) card shuffles into your deck.
+  armCard(index, name) {
+    // tap the already-selected card again to deselect it
+    if (this.armed && this.armed.index === index) { this.clearArmed(); return; }
+    this.armed = { kind: 'hand', index, name };
+    this._paintArmed();
+    this._renderHandFooter();
+  }
   clearArmed() {
     this.armed = null;
-    if (this.el.confirm) { this.el.confirm.classList.add('hidden'); this.el.confirm.innerHTML = ''; }
-    this._renderHand();
+    this._paintArmed();
+    this._renderHandFooter();
+  }
+  playArmed() {
+    if (!this.armed) return;
+    const index = this.armed.index;
+    this.clearArmed();
+    this.handlers.onPlayCard(index);
   }
 
-  _renderConfirm() {
-    const el = this.el.confirm;
-    if (!el) return;
-    if (!this.armed) { el.classList.add('hidden'); el.innerHTML = ''; return; }
-    const name = this.armed.name;
-    const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-    const isOffer = this.armed.kind === 'offer';
-    const adds = cardDeckAdditions(name);
-    let addHTML = '';
+  // Highlight the selected (or aiming) card in the carousel without a full rebuild.
+  _paintArmed() {
+    const list = this.el.handlist;
+    if (!list) return;
+    list.querySelectorAll('.cardbtn').forEach((btn) => {
+      const nm = btn.getAttribute('data-name');
+      const on = (this.armed && this.armed.name === nm) || (this.pendingCard && this.pendingCard.name === nm);
+      btn.classList.toggle('selected', !!on);
+    });
+  }
+
+  // Footer state: enable Play when a card is selected, and show the text-only
+  // deck-additions preview for draw-engine (+5) cards.
+  _renderHandFooter() {
+    const play = this.el.handplay, prev = this.el.handpreview;
+    const armed = this.armed && this.armed.kind === 'hand' ? this.armed : null;
+    if (play) play.disabled = !armed;
+    if (!prev) return;
+    const adds = armed ? cardDeckAdditions(armed.name) : null;
     if (adds) {
-      const ac = CARD_BY_NAME[adds.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      addHTML = `<p class="dim small addslabel">Shuffles ${adds.count} of these into your draw deck:</p>`
-        + `<div class="offerrow"><div class="offercard static">${cardFaceHTML(adds.name, ac, adds.count)}</div></div>`;
+      const ac = CARD_BY_NAME[adds.name] || { effect: '' };
+      prev.innerHTML = `<div class="hplabel">Shuffles ${adds.count} × <b>${escapeHtml(adds.name)}</b> into your draw deck:</div>`
+        + `<div class="hpdesc">${escapeHtml(ac.effect || '')}</div>`;
+      prev.classList.remove('hidden');
+    } else {
+      prev.classList.add('hidden');
+      prev.innerHTML = '';
     }
-    const doLabel = isOffer ? 'Take card' : (cardNeedsTarget(name) ? 'Aim on map' : 'Play card');
-    el.innerHTML = `<div class="offerbox confirmbox">`
-      + `<h2>${isOffer ? 'Draft this card?' : 'Play this card?'}</h2>`
-      + `<div class="offerrow"><div class="offercard static">${cardFaceHTML(name, c, isOffer ? 0 : 0)}</div></div>`
-      + addHTML
-      + `<div class="confirmbtns"><button class="btn big confirmyes">${doLabel}</button>`
-      + `<button class="btn confirmno">Cancel</button></div>`
-      + `</div>`;
-    el.classList.remove('hidden');
-    el.onclick = (e) => { if (e.target === el) this.clearArmed(); };  // tap backdrop = cancel
-    el.querySelector('.confirmyes').onclick = () => {
-      const armed = this.armed;
-      this.clearArmed();
-      if (!armed) return;
-      if (armed.kind === 'offer') this.handlers.onChooseCard(armed.name);
-      else this.handlers.onPlayCard(armed.index);
-    };
-    el.querySelector('.confirmno').onclick = () => this.clearArmed();
   }
 
   _renderLog() {

@@ -197,6 +197,20 @@
       cursor: pointer; font-family: inherit; }
     .handnav:active { background: rgba(40,60,48,0.98); }
     .handlist { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; max-height: 30vh; overflow-y: auto; }
+    /* carousel footer: play the highlighted card / cancel (minimize) */
+    .handfooter { display: flex; gap: 8px; justify-content: center; align-items: center; width: 100%; }
+    .handfooter .btn { font-size: 13px; padding: 9px 18px; }
+    .handfooter .playbtn { background: var(--accent); color: #06110a; border-color: var(--accent); font-weight: 700; }
+    .handfooter .playbtn:hover:not(:disabled) { background: #9bf0b8; }
+    .handfooter .playbtn:disabled { opacity: 0.4; background: rgba(127,230,163,0.25); color: #06110a; }
+    .handfooter .cancelbtn { background: rgba(255,255,255,0.06); color: var(--ink-dim); }
+    /* text-only preview of what a draw-engine (+5) card shuffles into the deck */
+    .handpreview { width: 100%; max-width: 520px; text-align: center; padding: 8px 12px; border-radius: 10px;
+      background: rgba(10,16,13,0.6); border: 1px solid rgba(130,230,166,0.3); }
+    .handpreview.hidden { display: none; }
+    .handpreview .hplabel { font-size: 12px; color: var(--accent); }
+    .handpreview .hplabel b { color: #eafff2; }
+    .handpreview .hpdesc { font-size: 12px; color: var(--ink); margin-top: 3px; line-height: 1.4; }
     /* stack count badge (×N) */
     .stackn { position: absolute; top: 6px; right: 6px; z-index: 6; font-weight: 700; font-size: 11px; color: #eafff2;
       background: rgba(6,12,9,0.82); border: 1px solid rgba(130,230,166,0.5); border-radius: 10px; padding: 1px 6px;
@@ -298,18 +312,22 @@
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      /* proper portrait card ratio (~1.5): narrower width + a vw-based min-height,
-         with the art window growing to fill it so short-rule cards aren't squares */
-      .cardbtn { width: 54vw; max-width: 230px; min-height: 80vw; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: auto; min-height: 42vw; max-height: none; flex: 1 1 auto; }
+      /* Portrait cards: ~25% smaller than before, and a UNIFORM (fixed) picture on
+         every card. The rules box flex-grows to fill the card's min-height, so
+         short-rule cards just get extra space rather than a bigger picture. Fonts
+         are unchanged — only the picture shrank. min()/caps keep it sane on wide phones. */
+      .cardbtn { width: min(40vw, 172px); min-height: min(60vw, 258px); flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: min(30vw, 128px); min-height: 0; max-height: none; flex: 0 0 auto; }
+      .cardbtn .crules { flex: 1 1 auto; }
       .cardbtn .cplate .cn { font-size: 14px; }
       .cardbtn .crules { font-size: 11px; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
         scroll-snap-type: x mandatory; scrollbar-width: none; }
       .offerrow::-webkit-scrollbar { display: none; }
-      .offercard { width: 58vw; max-width: 244px; min-height: 84vw; flex: 0 0 auto; scroll-snap-align: center; }
-      .offercard .cart { height: auto; min-height: 44vw; max-height: none; flex: 1 1 auto; }
+      .offercard { width: min(52vw, 220px); min-height: min(78vw, 330px); flex: 0 0 auto; scroll-snap-align: center; }
+      .offercard .cart { height: min(38vw, 160px); min-height: 0; max-height: none; flex: 0 0 auto; }
+      .offercard .crules { flex: 1 1 auto; }
     }
     /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
@@ -339,15 +357,19 @@
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      /* reset the portrait vw min-heights (small landscape phones match both blocks) */
-      .cardbtn { width: 148px; min-height: 0; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 78px; min-height: 0; flex: 0 0 auto; }
+      /* ~25% smaller than before + a uniform (fixed) picture; resets the portrait
+         vw sizes for small landscape phones that match both media blocks. */
+      .cardbtn { width: 112px; min-height: 0; flex: 0 0 auto; scroll-snap-align: center; }
+      .cardbtn .cart { height: 58px; min-height: 0; flex: 0 0 auto; }
       .cardbtn .cplate { padding: 5px 7px 2px; }
       .cardbtn .cplate .cn { font-size: 12px; }
-      .cardbtn .crules { font-size: 9px; margin: 3px 6px 6px; padding: 5px 7px; line-height: 1.35; }
-      .offercard { width: 150px; min-height: 0; }
-      .offercard .cart { height: 80px; min-height: 0; flex: 0 0 auto; }
-      .offercard .crules { font-size: 9px; }
+      .cardbtn .crules { font-size: 9px; margin: 3px 6px 6px; padding: 5px 7px; line-height: 1.35; flex: 0 0 auto; }
+      .offercard { width: 116px; min-height: 0; }
+      .offercard .cart { height: 60px; min-height: 0; flex: 0 0 auto; }
+      .offercard .crules { font-size: 9px; flex: 0 0 auto; }
+      .handfooter .btn { font-size: 11px; padding: 6px 12px; }
+      .handpreview { padding: 5px 9px; }
+      .handpreview .hplabel, .handpreview .hpdesc { font-size: 10px; }
     }
   </style>
 </head>
