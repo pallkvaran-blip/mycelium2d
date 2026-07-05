@@ -363,7 +363,7 @@ export const EFFECTS = {
   }),
   'Foraging Fan': grow((s) => {
     const n = s.active.growRadial(s.substrate, s.rng);
-    return n > 0 ? { ok: true, message: `Fanned out ${n} tips.` } : { ok: false, message: 'No room to fan out.' };
+    return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'No room to fan out.' };
   }),
   'Tropic Lunge': grow((s) => {
     const n = s.active.growToNearestFood(s.substrate, s.rng, 3);
@@ -394,8 +394,8 @@ export const EFFECTS = {
   // --- digest (Phosphorus) ---
   'Saprotrophic Digest': grow((s) => {
     const net = s.active, sub = s.substrate;
-    const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
-    if (!cells.length) return { ok: false, message: 'No occupied substrate to digest.' };
+    const cells = sub.cells.filter((c) => c.colonized > 0 && c.nutrient > 0 && !c.hazard);
+    if (!cells.length) return { ok: false, message: 'No colonised substrate to digest.' };
     const d = s.config.actions.digest;
     let gained = 0;
     for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; gained += take; }

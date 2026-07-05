@@ -71,13 +71,15 @@ export function tickWorld(state) {
   state.turn += 1;   // a step counter (each action advances the world one step)
 }
 
-// Draw nutrient from every occupied cell, plus the baseline trickle.
+// Draw nutrient from every COLONISED food cell, plus the baseline trickle.
+// (Growing into a pile claims the WHOLE pile — colonised=1 on every cell — so a
+// pile you've reached digests fully, even far cells no strand physically sits in.)
 function resolveIncome(net, substrate, config) {
   const e = config.energy;
-  const cells = net.collectOccupiedCells(substrate);
+  net.collectOccupiedCells(substrate);   // refresh cell.held (Trichoderma resistance)
   let nutrientDrawn = 0;
-  for (const cell of cells) {
-    // You only digest substrate you've colonised — income ramps with the mat.
+  for (const cell of substrate.cells) {
+    if (cell.colonized <= 0 || cell.nutrient <= 0 || cell.hazard) continue;
     const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
     nutrientDrawn += take;

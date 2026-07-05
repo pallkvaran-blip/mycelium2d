@@ -96,8 +96,8 @@ export const ACTIONS = {
       const d = state.config.actions.digest;
       const net = state.active;
       const sub = state.substrate;
-      const cells = net.collectOccupiedCells(sub).filter((c) => c.nutrient > 0);
-      if (cells.length === 0) return { ok: false, message: 'No occupied substrate to digest.' };
+      const cells = sub.cells.filter((c) => c.colonized > 0 && c.nutrient > 0 && !c.hazard);
+      if (cells.length === 0) return { ok: false, message: 'No colonised substrate to digest.' };
       // Drain a fixed fraction of EACH occupied cell — 2 uses fully digests a
       // pile of any size, at no loss (you get its full Energy value, just now).
       let gained = 0;

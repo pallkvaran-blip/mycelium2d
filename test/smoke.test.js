@@ -539,11 +539,21 @@ console.log('# Puzzle mode: builds a fixed level and is navigable to the chest')
   const path = [[8, 4], [12, 5], [16, 5], [20, 5], [24, 9], [28, 12], [31, 13], [35, 11],
     [39, 9], [43, 7], [46, 8], [50, 10], [53, 12], [55, 14], [58, 11], [59, 9], [63, 9],
     [67, 9], [70, 9], [73, 9]];
+  // Drive the frontier along the path with DIRECTIONAL growth toward each waypoint
+  // (food-pull growth no longer bridges >sensing-range gaps now that reaching a
+  // pile colonises + digests it in one step; this checks the route is growable,
+  // which is what matters — rocks don't wall it off and the chest is reachable).
   for (const [c, r] of path) {
     const ctr = s.substrate.cellCenter(c, r);
     s.active.energy = 9999;
     performAction(s, 'addSubstrate', { x: ctr.x, y: ctr.y });
-    for (let g = 0; g < 6 && !s.won; g++) { s.active.energy = 9999; performAction(s, 'grow'); }
+    for (let g = 0; g < 6 && !s.won; g++) {
+      s.active.energy = 9999;
+      const fp = s.active.frontierPoint() || { x: ctr.x, y: ctr.y };
+      s.active.growDirected(s.substrate, s.rng, ctr.x - fp.x, ctr.y - fp.y, 4, false);
+      s.active.grow(s.substrate, s.rng);          // fan/colonise around the new reach
+      tickWorld(s);                               // advances world + checks the puzzle goal
+    }
     if (s.won) break;
   }
   const reach = Math.max(...s.active.nodes.map((n) => s.substrate.colAtX(n.x)));

@@ -102,9 +102,8 @@ export class Network {
       created += this._growStep(substrate, rng);
       if (this.nodes.length >= g.maxNodes) break;
     }
-    // Each Grow also branches the mycelium within the substrate it occupies,
-    // colonising it denser over successive growth cycles.
-    created += this._colonizeStep(substrate, rng);
+    // Growing also fully colonises any substrate pile now within reach.
+    created += this.colonizeReachablePiles(substrate, rng);
     if (created > 0) this.recomputeVitality();
     return created;
   }
@@ -200,7 +199,10 @@ export class Network {
   // Uninfected tip nodes (the advancing frontier).
   tips() {
     const t = [];
-    for (const n of this.nodes) if (!n.infected && n.children.length === 0) t.push(n);
+    // Exclude `colon` mat hyphae (dense fill sprayed into claimed food piles):
+    // they aren't the advancing frontier and would skew aim / growth direction /
+    // the frontier centroid.
+    for (const n of this.nodes) if (!n.infected && !n.colon && n.children.length === 0) t.push(n);
     return t.length ? t : this.nodes.filter((n) => !n.infected);
   }
   // Nearest uninfected node to a world point.
@@ -267,6 +269,8 @@ export class Network {
       parent = this.addNode(nx, ny, parent);
       created++;
     }
+    // Directed growth also colonises any substrate pile it brought within reach.
+    created += this.colonizeReachablePiles(substrate, rng);
     if (created) this.recomputeVitality();
     return created;
   }
@@ -287,6 +291,8 @@ export class Network {
       this.addNode(nx, ny, t);
       created++;
     }
+    // Fanning out also fully colonises any substrate pile within reach, in one step.
+    created += this.colonizeReachablePiles(substrate, rng);
     if (created) this.recomputeVitality();
     return created;
   }
@@ -418,61 +424,136 @@ export class Network {
     return income;
   }
 
-  // --- Colonisation (per Grow cycle): branch within occupied substrate ------
-  // Each Grow, every substrate cell the network sits in (that isn't yet fully
-  // colonised) sprouts a fresh branch or two of real hyphae and advances its
-  // colonisation. Over several growth cycles the pocket fills with a dense,
-  // genuinely branched mycelial network — the look comes from real structure.
-  _colonizeStep(substrate, rng) {
+  // --- Colonisation: fully claim every substrate pile within reach ------------
+  // Called after every grow. For each CONNECTED substrate pile (a blob of food
+  // cells) with any cell within sensing/reach range of a living strand — you grew
+  // into its edge, or it simply sits inside your lit reach — the WHOLE pile is
+  // claimed in one step, even the cells that were out of range on the far side:
+  // a thin runner is grown from the nearest strand into the pile (so the mat stays
+  // attached), colonised=1 is set on every cell (income then digests the whole
+  // pile), and a dense burst of hyphae is sprayed through each cell so the pocket
+  // reads as fully, densely colonised. Piles walled off by rock (no runner can
+  // reach them) are left alone. Every node this spawns is flagged `colon` so it
+  // never counts as the growth frontier (aim / direction / centroid stay clean),
+  // and the node cost stays bounded by the map's small food footprint.
+  // Returns the number of hyphae created.
+  colonizeReachablePiles(substrate, rng) {
     const g = this.config.growth;
-    const step = this.config.substrate.colonizeRate;
     if (this.nodes.length >= g.maxNodes) return 0;
-
-    // Group the network's nodes by the (uncolonised) substrate cell they sit in.
-    // Any uninfected strand colonises (including cut-loose healthy fragments).
-    const byCell = new Map();
-    for (const n of this.nodes) {
-      if (n.infected) continue;                 // infected strands can't colonise
-      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
-      if (!substrate.inBounds(col, row)) continue;
-      const idx = substrate.index(col, row);
-      const cell = substrate.cells[idx];
-      if (cell.maxNutrient <= 0 || cell.rock || cell.hazard || cell.colonized >= 1) continue;
-      let e = byCell.get(idx);
-      if (!e) byCell.set(idx, (e = { cell, nodes: [] }));
-      e.nodes.push(n);
-    }
-
     const cs = substrate.cellSize;
+    const cols = substrate.cols;
+    const burst = this.config.substrate.entryBurst || 9;
+    const reach2 = g.sensingRadius * g.sensingRadius;
+    const reachCells = Math.ceil(g.sensingRadius / cs) + 1;
+    const key = (c, r) => c + ',' + r;
+
+    // Bucket living strands by cell for a bounded nearest-node search.
+    const buckets = new Map();
+    let liveCount = 0;
+    for (const n of this.nodes) {
+      if (n.infected) continue;
+      liveCount++;
+      const b = key(substrate.colAtX(n.x), substrate.rowAtY(n.y));
+      let arr = buckets.get(b); if (!arr) buckets.set(b, (arr = [])); arr.push(n);
+    }
+    if (!liveCount) return 0;
+
+    const isFood = (cell) => cell && cell.maxNutrient > 0 && !cell.rock && !cell.hazard;
+    const seen = new Set();
     let created = 0;
-    for (const { cell, nodes } of byCell.values()) {
-      if (this.nodes.length >= g.maxNodes) break;
-      // FIRST entry into a fresh pocket: disperse a full burst that fans out
-      // across the cell (and into its food neighbours) so the pocket reads as
-      // fully colonised at once, and jump colonisation straight to 1 (so income
-      // digests it at full rate — a pile clears in ~2 steps). Later visits just
-      // thicken it a little.
-      const firstEntry = cell.colonized <= 0;
-      const branches = firstEntry ? (this.config.substrate.entryBurst || 9) : (1 + (rng() < 0.6 ? 1 : 0));
-      let lastParent = nodes[0];
-      for (let b = 0; b < branches; b++) {
-        const parent = nodes[Math.floor(rng() * nodes.length)];
-        lastParent = parent;
-        const dist = firstEntry
-          ? cs * (0.25 + rng() * 0.7)                          // fan across the pocket + into neighbours
-          : g.segmentLength * (0.85 + cell.colonized * 0.7) * (0.7 + rng() * 0.6);
-        const ang = rng() * Math.PI * 2;
-        const nx = parent.x + Math.cos(ang) * dist;
-        const ny = parent.y + Math.sin(ang) * dist;
-        if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
-        const tc = substrate.cellAtWorld(nx, ny);
-        if (tc && (tc.rock || tc.antTrail)) continue;
-        this.addNode(nx, ny, parent);
-        created++;
+    for (let idx = 0; idx < substrate.cells.length; idx++) {
+      if (seen.has(idx)) continue;
+      seen.add(idx);
+      if (!isFood(substrate.cells[idx])) continue;
+      // Flood-fill the whole connected pile (8-connectivity).
+      const pile = [idx];
+      const stack = [idx];
+      while (stack.length) {
+        const i = stack.pop();
+        const c = i % cols, r = (i - c) / cols;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+          if (!dr && !dc) continue;
+          const nc = c + dc, nr = r + dr;
+          if (!substrate.inBounds(nc, nr)) continue;
+          const ni = substrate.index(nc, nr);
+          if (seen.has(ni)) continue;
+          seen.add(ni);
+          if (isFood(substrate.cells[ni])) { pile.push(ni); stack.push(ni); }
+        }
       }
-      cell.colonized = firstEntry ? 1 : Math.min(1, cell.colonized + step * lastParent.health);
+      if (pile.every((i) => substrate.cells[i].colonized >= 1)) continue;   // already dense
+      // Nearest living strand to the pile (and the cell it should enter at).
+      let best = null, bd = reach2, entry = null;
+      for (const i of pile) {
+        const c = i % cols, r = (i - c) / cols;
+        const ctr = substrate.cellCenter(c, r);
+        for (let rr = r - reachCells; rr <= r + reachCells; rr++)
+          for (let cc = c - reachCells; cc <= c + reachCells; cc++) {
+            const arr = buckets.get(key(cc, rr)); if (!arr) continue;
+            for (const n of arr) {
+              const d = (n.x - ctr.x) ** 2 + (n.y - ctr.y) ** 2;
+              if (d < bd) { bd = d; best = n; entry = ctr; }
+            }
+          }
+      }
+      if (!best) continue;                                    // pile out of reach — leave it
+      const bridge = this._bridgeInto(substrate, best, entry);
+      if (!bridge.reached) continue;                          // walled off by rock — can't claim it
+      created += bridge.created;
+      // Fill nearest-to-the-entry-cell first so runners stay short/connected.
+      const order = pile
+        .filter((i) => substrate.cells[i].colonized < 1)
+        .map((i) => { const c = i % cols, r = (i - c) / cols; return { i, ctr: substrate.cellCenter(c, r) }; })
+        .sort((a, b) => ((a.ctr.x - entry.x) ** 2 + (a.ctr.y - entry.y) ** 2) - ((b.ctr.x - entry.x) ** 2 + (b.ctr.y - entry.y) ** 2));
+      for (const o of order) {
+        if (this.nodes.length >= g.maxNodes) break;
+        const parent = this.nearestNode(o.ctr.x, o.ctr.y);
+        if (!parent) continue;
+        for (let b = 0; b < burst; b++) {
+          if (this.nodes.length >= g.maxNodes) break;
+          const ang = rng() * Math.PI * 2;
+          const rad = cs * (0.15 + rng() * 0.55);
+          const nx = o.ctr.x + Math.cos(ang) * rad;
+          const ny = o.ctr.y + Math.sin(ang) * rad;
+          if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
+          if (nx <= 2 || nx >= substrate.worldWidth - 2) continue;
+          const tc = substrate.cellAtWorld(nx, ny);
+          if (tc && (tc.rock || tc.antTrail)) continue;
+          this.addNode(nx, ny, parent).colon = true;   // mat hyphae: not a growth frontier
+          created++;
+        }
+        substrate.cells[o.i].colonized = 1;
+      }
     }
     return created;
+  }
+
+  // Plan a straight runner from `node` toward `target` (a pile cell centre) and
+  // commit it ONLY if it actually reaches the pile edge (rock in the way → it
+  // reaches nothing and adds no nodes, so a walled-off pile is never claimed and
+  // never leaks half-runners on repeat grows). Runner nodes are flagged `colon`
+  // so they don't count as the growth frontier. Returns {created, reached}.
+  _bridgeInto(substrate, node, target) {
+    const g = this.config.growth;
+    const pts = [];
+    let px = node.x, py = node.y, reached = false;
+    for (let guard = 0; guard < 24; guard++) {
+      const dx = target.x - px, dy = target.y - py, dist = Math.hypot(dx, dy);
+      if (dist <= substrate.cellSize) { reached = true; break; }   // at the pile edge
+      const ux = dx / dist, uy = dy / dist;
+      px += ux * g.segmentLength; py += uy * g.segmentLength;
+      if (!this._placeOk(substrate, px, py)) break;                 // rock / edge blocks it
+      pts.push({ x: px, y: py });
+    }
+    if (!reached) return { created: 0, reached: false };
+    let parent = node, created = 0;
+    for (const pt of pts) {
+      if (this.nodes.length >= g.maxNodes) break;
+      parent = this.addNode(pt.x, pt.y, parent);
+      parent.colon = true;
+      created++;
+    }
+    return { created, reached: true };
   }
 
   // Age every strand a step each turn — older mycelium fills in denser (used by

@@ -133,27 +133,39 @@ console.log('# Winnable: route to the goal by playing cards');
   const cheat = () => { net.energy = 9999; net.water = 99; net.phosphorus = 99; };
   const clearRow = (col) => { for (let r = 0; r < sub.rows; r++) { const c = sub.cellAt(col, r); if (c && !c.rock && !c.water) return r; } return -1; };
 
+  // Aim from the LEADING edge (right-most living strand) toward the goal — that's
+  // how a player routes. (The frontier centroid now lags the leading edge, because
+  // reaching a food pile colonises + digests it in one step rather than letting
+  // food-seeking growth keep spreading the whole colony forward.)
+  const leadNode = () => {
+    let best = null;
+    for (const n of net.nodes) if (!n.infected && (!best || n.x > best.x)) best = n;
+    return best || net.nodes[0];
+  };
   let guard = 0; const budget = 900;
   while (!s.won && !s.runOver && guard++ < budget) {
     cheat();
-    const fp = net.frontierPoint(); if (!fp) break;
-    const fcol = sub.colAtX(fp.x);
+    const lead = leadNode(); const lcol = sub.colAtX(lead.x);
     // aim at a shallow clear cell a few columns toward the goal (or up to surface once in the goal band)
     let target;
-    if (fcol >= goalStart) target = { x: fp.x, y: sub.surfaceY + 18 };
+    if (lcol >= goalStart) target = { x: lead.x, y: sub.surfaceY + 18 };
     else {
-      let tcol = Math.min(sub.cols - 1, fcol + 3), tr = clearRow(tcol);
-      if (tr < 0) { tcol = Math.min(sub.cols - 1, fcol + 1); tr = clearRow(tcol); }
-      target = tr >= 0 ? sub.cellCenter(tcol, tr) : { x: fp.x + 100, y: fp.y };
+      let tcol = Math.min(sub.cols - 1, lcol + 3), tr = clearRow(tcol);
+      if (tr < 0) { tcol = Math.min(sub.cols - 1, lcol + 1); tr = clearRow(tcol); }
+      target = tr >= 0 ? sub.cellCenter(tcol, tr) : { x: lead.x + 100, y: lead.y };
     }
-    const before = net.nodes.length;
+    // Track the forward FRONTIER (max column), not the node count: growing into a
+    // pile now colonises it (spawning mat nodes), so "node count unchanged" no
+    // longer means "the lance was blocked". If the frontier didn't advance, dig.
+    const reachBefore = Math.max(...net.nodes.map((n) => sub.colAtX(n.x)));
     const idx = ensureHand(s, 'Rhizomorph Lance'); cheat();
     const r = playCard(s, idx, { x: target.x, y: target.y });
     if (r.ok) tickWorld(s);
-    if (!s.won && net.nodes.length === before) {
-      // blocked by rock: dig straight ahead toward the target, then step
-      const dx = Math.sign(target.x - fp.x) || 1;
-      net.digThrough(sub, fp.x + dx * sub.cellSize, (fp.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
+    const reachAfter = Math.max(...net.nodes.map((n) => sub.colAtX(n.x)));
+    if (!s.won && reachAfter <= reachBefore) {
+      // blocked by rock: dig straight ahead from the leading edge, then step
+      const dx = Math.sign(target.x - lead.x) || 1;
+      net.digThrough(sub, lead.x + dx * sub.cellSize, (lead.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
       tickWorld(s);
     }
   }
