@@ -463,8 +463,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "z4q5fo";
-globalThis.__BUILD__ = "local 07-05 17:14";
+window.__ASSET_VER = "1pos2lg";
+globalThis.__BUILD__ = "local 07-05 17:46";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2548,32 +2548,41 @@ class Network {
     }
     if (!anchor) return -1;
     if (bestD > g.sensingRadius + substrate.cellSize) return -1;   // rock present but out of range
-    // Direction of travel: from the anchor through the rock toward its far side.
-    const bcx = cells.reduce((a, c) => a + c.x, 0) / cells.length;
-    const bcy = cells.reduce((a, c) => a + c.y, 0) / cells.length;
-    let dx = bcx - anchor.x, dy = bcy - anchor.y;
+    // Direction of travel: from the anchor toward the point the PLAYER AIMED AT, so
+    // the strand bores ACROSS the rock in the chosen direction and emerges on that
+    // side. (Aiming at the rock's centroid instead dragged the strand down a long
+    // column's whole length rather than out the side you picked.)
+    const cs = substrate.cellSize;
+    let dx = x - anchor.x, dy = y - anchor.y;
     if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
     const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
-    // How far the rock reaches along the ray (from the anchor). Used to bore the
-    // channel and to bound the strand so it stops where the rock ends.
-    let far = 0;
-    for (const c of cells) { const proj = (c.x - anchor.x) * ux + (c.y - anchor.y) * uy; if (proj > far) far = proj; }
-    // Bore a 1-cell channel along the ray: mark the rock cells the strand will
-    // thread through as PASSABLE (bored) but leave them as rock, so the rock stays
-    // drawn and the strand simply overlays it — nothing disappears. Only cells on
-    // the ray are opened, so the rock still blocks everywhere else.
-    const maxT = far + substrate.cellSize * 1.5;
-    for (let t = 0; t <= maxT; t += substrate.cellSize / 3) {
+    // The rock ends, ALONG THE AIM DIRECTION, at the far edge of the CLICKED
+    // feature. Walk the ray and track the last point that lands in THIS feature, so
+    // we cross the whole feature and emerge on the chosen side — not stop at the
+    // centroid, follow a long column's length, or halt on some other rock we pass
+    // through on the way.
+    const featSet = new Set(cells.map((c) => substrate.index(c.col, c.row)));
+    let maxCellDist = 0;
+    for (const c of cells) { const d = Math.hypot(c.x - anchor.x, c.y - anchor.y); if (d > maxCellDist) maxCellDist = d; }
+    let far = 0, reached = false;
+    for (let t = 0; t <= maxCellDist + cs * 2; t += cs / 3) {
+      const cc = substrate.colAtX(anchor.x + ux * t), rr = substrate.rowAtY(anchor.y + uy * t);
+      if (!substrate.inBounds(cc, rr)) continue;
+      if (featSet.has(substrate.index(cc, rr))) { far = t; reached = true; }
+    }
+    if (!reached) far = Math.min(maxCellDist, Math.hypot(x - anchor.x, y - anchor.y));
+    // Bore a passable channel along the ray up to that exit — any rock on the way
+    // (the feature itself, or something we pass through to reach it) is opened but
+    // stays drawn as rock, so the strand overlays it instead of the rock vanishing.
+    for (let t = 0; t <= far + cs * 0.5; t += cs / 3) {
       const cell = substrate.cellAtWorld(anchor.x + ux * t, anchor.y + uy * t);
       if (cell && cell.rock) cell.bored = true;
     }
-    // Thread a straight strand from the anchor, through the rock, and STOP where
-    // the rock ends — grow only up to the rock's far edge (+ a hair so the tip
-    // clears it). It must NOT run on through the open ground beyond (that made the
-    // card OP); food sitting right on the far side is picked up by the colonisation
-    // pass below, not by over-growing. Distance-capped so a wide/irregular rock is
-    // fully crossed without stopping early on an internal gap.
-    const stopDist = far + substrate.cellSize * 0.75;
+    // Thread a straight strand from the anchor, through the rock, and STOP where the
+    // rock ends on the chosen side (+ a hair so the tip clears it). It must NOT run
+    // on through the open ground beyond (that made the card OP); food right on the
+    // far side is picked up by the colonisation pass below, not by over-growing.
+    const stopDist = far + cs * 0.75;
     let parent = anchor, threaded = 0, dist = 0;
     for (let i = 0; i < 80; i++) {
       if (this.nodes.length >= g.maxNodes) break;
@@ -2585,7 +2594,7 @@ class Network {
       threaded++;
     }
     // Guarantee a visible penetration even if the very first step is blocked.
-    if (threaded === 0) { this.addNode(bcx, bcy, anchor); threaded = 1; }
+    if (threaded === 0) { const sc = substrate.cellCenter(start.col, start.row); this.addNode(sc.x, sc.y, anchor); threaded = 1; }
     this.colonizeReachablePiles(substrate, rng);
     this.recomputeVitality();
     return threaded;
