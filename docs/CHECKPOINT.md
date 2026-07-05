@@ -6,6 +6,25 @@ A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
 context. Update the "Recent work log" and "Backlog" sections as work lands.
 
+This doc covers **architecture, UI/interaction, operations, and status**. It does
+**not** own the game-design decisions — those live in the docs below, which remain
+authoritative. Where they overlap, defer to them.
+
+### Related docs (where each kind of decision lives)
+
+| Doc | Owns |
+| --- | --- |
+| **[`docs/cards-design.md`](cards-design.md)** | **Authoritative** card-system design: vision, core loop, §2 *Locked design decisions*, rules/balance framework, versioned rulings (current: **v10**, two-resource W/P). The source of truth for card behaviour & economy. |
+| [`docs/cards-review.md`](cards-review.md) | Rolling per-card playtest verdicts (👍/👎) and the cross-cutting rulings (R1–R12) they generated. |
+| `docs/cards.json` / `docs/cards.csv` | Card **data** (source). `src/cards-data.js` is generated from `cards.json`. |
+| [`docs/STYLE_GUIDE.md`](STYLE_GUIDE.md) | Art direction (bioluminescent deep-earth): mood, palette, lighting, prompt prefix. |
+| [`docs/ASSETS.md`](ASSETS.md) | Asset spec sheet + per-asset prompts + generation status. |
+| **this doc** | Architecture, file map, UI/interaction model, conventions, testing, work log, caveats, backlog. |
+
+When a **card-design** decision is made, record it in `cards-design.md` (and
+`cards-review.md` if it's a per-card verdict), not here. Record **UI/interaction,
+architecture, or process** decisions here.
+
 ---
 
 ## 1. What it is
@@ -18,9 +37,10 @@ modules** (no framework, no build-time deps for the game itself).
 
 - **Hosted:** https://pallkvaran-blip.github.io/mycelium2d/ (auto-deploys on every
   push to the dev branch via `.github/workflows/pages.yml`).
-- **Status:** Phase 1 backbone **plus a working card layer** on top. (The root
-  `README.md` still describes the pre-card "no cards" Phase 1 — it is stale on
-  that point; this doc is the current source of truth for the card layer & UI.)
+- **Status:** Phase 1 backbone **plus a working card layer** on top (design owned by
+  [`cards-design.md`](cards-design.md), v10). The root `README.md` still describes
+  the pre-card "no cards" Phase 1 — it is stale on that point; this doc is the
+  current source of truth for **architecture & UI**.
 
 ---
 
@@ -91,7 +111,11 @@ used by Playwright tests and self-play. Not shown on screen.
 
 ---
 
-## 4. Card layer (the current gameplay model)
+## 4. Card layer — runtime summary
+
+> **Design authority: [`docs/cards-design.md`](cards-design.md) (v10).** This section
+> is a quick *implementation/runtime* map for the code, not the design spec. If the
+> two ever disagree, `cards-design.md` wins and this should be corrected.
 
 Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 **replaces** the six basic action buttons.
