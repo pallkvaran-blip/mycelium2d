@@ -275,21 +275,33 @@ export class Network {
     return created;
   }
 
-  // Grow one segment outward from every tip (radial spread; no attractor needed).
+  // Foraging Fan: every tip sprouts a FAN of new hyphae in all directions (a
+  // radial burst, no food needed) — the colony spreads outward everywhere at once,
+  // not just one step forward. `rays` candidates per tip, evenly around the circle;
+  // a min-spacing check drops the ones that fall back over the colony (and rock /
+  // edge / above-surface ones), so the frontier expands OUTWARD into open ground
+  // rather than piling up exponentially in place.
   growRadial(substrate, rng) {
     const g = this.config.growth;
+    const rays = Math.max(3, g.foragingFanRays || 8);
+    const key = (c, r) => c + ',' + r;
+    const buckets = new Map();
+    const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
+    for (const n of this.nodes) if (!n.infected) bucket(n);
     let created = 0;
     for (const t of this.tips()) {
       if (this.nodes.length >= g.maxNodes) break;
-      const par = t.parentId != null ? this.byId.get(t.parentId) : null;
-      let hx = par ? t.x - par.x : 0, hy = par ? t.y - par.y : 1;
-      const l = Math.hypot(hx, hy) || 1; hx /= l; hy /= l;
-      const ang = Math.atan2(hy, hx) + rng.range(-g.branchJitter, g.branchJitter);
-      const nx = t.x + Math.cos(ang) * g.segmentLength;
-      const ny = t.y + Math.sin(ang) * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) continue;
-      this.addNode(nx, ny, t);
-      created++;
+      for (let k = 0; k < rays; k++) {
+        if (this.nodes.length >= g.maxNodes) break;
+        const ang = (k / rays) * Math.PI * 2 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
+        const nx = t.x + Math.cos(ang) * g.segmentLength;
+        const ny = t.y + Math.sin(ang) * g.segmentLength;
+        if (!this._placeOk(substrate, nx, ny)) continue;                         // rock / edge / above surface
+        if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, 1)) continue;  // already occupied
+        const child = this.addNode(nx, ny, t);
+        bucket(child);
+        created++;
+      }
     }
     // Fanning out also fully colonises any substrate pile within reach, in one step.
     created += this.colonizeReachablePiles(substrate, rng);

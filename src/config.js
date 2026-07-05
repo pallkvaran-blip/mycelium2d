@@ -136,6 +136,7 @@ export const CONFIG = {
     maxNodes: 2500,              // safety cap on network size (a colony now spans the whole level)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
+    foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
     startDepth: 130,             // initial seed depth below the surface line
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
   },
