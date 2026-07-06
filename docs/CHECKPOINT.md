@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-05 (grow-card mechanic fixes · batched renderer LOD · raised resource + node caps)._
+_Living status + knowledge doc. Last updated: 2026-07-05 (grow-card mechanic fixes · batched renderer LOD · raised caps · engine-HUD design + game-vision note §21)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -363,9 +363,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
+**Agreed sequencing (planning note):** _polish what exists first_ — more **UI design + bug
+testing on the CURRENT content** (current cards, enemy/ant/mould behavior, the installed-
+engines HUD once built) — **then** build out more cards toward the game vision in
+[`cards-design.md` §21](cards-design.md). Don't start net-new card content before the
+current layer is solid.
+
+- **Installed-engines HUD** — design explored (3 options; recommended = "Mycelial Ledger"
+  hybrid: on-pill per-round deltas + resource-grouped drawer + O(1) collapsed strip on
+  phone). Not yet implemented in `render/ui.js`. Engines live in `state.cards.engines[]`.
+- Continue UI polish + bug-testing pass on current cards / enemy behavior / ants / mould.
 - Refresh `README.md` to describe the card layer (or point to this doc).
 - Broader card-art coverage / consistency pass across the full active deck.
 - Balance pass on the card economy (draw/skip costs, engine clamps, win rate).
-- Later phases (per original design): generational cycle, autonomous decay,
-  meta-progression, 3D view — the state already holds a **list of networks** so
-  these extend rather than replace.
+- **Game vision (cards-design.md §21, not built):** many distinct ENGINES = parallel routes
+  to each map's goal, chosen at draft (TM-style); mushroom **species** = corp bonuses;
+  **Survival mode first** (campaign + 1v1 later); escalating maps; ants as a food-supply
+  modifier; between-map retention (engines + X others); CCG meta — keep 1 card between runs
+  to bring into the next draft.
+- Later phases (per original design): generational cycle, autonomous decay, 3D view — the
+  state already holds a **list of networks** so these extend rather than replace.

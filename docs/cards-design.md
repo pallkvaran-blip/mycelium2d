@@ -777,3 +777,44 @@ cards report "The colony has reached its maximum size." at the cap.
   and per-round engine income. (Old bug: `min(cap, cur+amt)` slashed Water/P down to the cap.)
 - Soft caps raised to **999** (§19.1) so harvest keeps paying off; harvest cards report the actual gain and
   refuse ("… is already full") at the cap so the card isn't wasted.
+
+---
+
+## 21. Design direction — routes to victory, species, meta-progression, run structure (VISION, not built yet)
+
+_Captured from a planning note. This is the intended shape of the full game; NONE of it is implemented yet.
+Record refinements here. **Sequencing:** finish polishing what exists first — more UI design + bug testing on
+the CURRENT content (current cards, enemy/ant/mould behavior, the engine-display HUD) — THEN build out more
+cards toward the vision below._
+
+### 21.1 Core pillar: many engines, a route chosen at draft (the Terraforming Mars decision)
+The defining decision TM gives you: **at the start of a game, based on the cards you happen to draft, you
+commit to a strategy** — usually ~2 point-generating focuses plus 2–3 resource-generating things that feed
+them (cities/greenery, heat, microbe combos, energy→points, money, ore, titanium, …). We want the SAME
+opening decision. There must be **many distinct ENGINES, each a viable route to the map's end point** (our
+victory-point equivalent = reaching/completing the map goal), and the player decides **what to focus on
+this run based on the initial draft**. Today there is essentially one route (grow → goal); the work is to
+add several parallel engine archetypes so the draft is a real strategic fork, not a fixed path.
+
+### 21.2 CCG meta-progression (player influence over the draft)
+It's a collectible card game, so give the player some agency over the fork: **after every run, keep ONE
+card**; at the next run's initial draft, you may **bring that one kept card with you**. (A small, TM-does-
+not-have-this lever that lets a player steer toward a favored route across runs.)
+
+### 21.3 Run structure & modes
+- **Modes:** ship **Survival first**; **Campaign** and **online 1v1** later.
+- **Species = corporations.** Each run you pick a **mushroom species** (the TM "corp" analogue) that grants
+  **small starting bonuses** for that run. Then the draft happens.
+- **Escalating maps:** you travel map → map, each **harder than the last (more enemies each round/map)**.
+- **Ants = food-supply modifier:** the more colonies present on a map, the **less food** there is (ants
+  compete for / drain the shared supply). Ties enemy pressure to the resource economy.
+- **Between-map card retention:** you **keep the ENGINE cards you played** on each map, but only **X** of the
+  other cards. (Open option: keep the **unused cards left in hand + X** of the rest.) Tunable X; the intent
+  is that your persistent power is the engine you built, with limited carryover of one-shots.
+
+### 21.4 Open questions / to resolve when we get here
+- What are the concrete engine archetypes (our cities/heat/microbes analogues) and how does each "score" the
+  map? Needs a list of 5+ routes with distinct resource + payoff loops.
+- Exact retention rule (engines + X others vs unused-hand + X) and the value of X.
+- How the one kept card interacts with species bonuses and the draft pool.
+- Scoring model per map (binary goal-reached vs a points total that rewards over-building).
