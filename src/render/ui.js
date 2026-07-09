@@ -78,22 +78,41 @@ export class UI {
     this._build();
   }
 
-  // Mouse drag-to-scroll for the carousel (touch already scrolls natively). A
-  // real drag suppresses the trailing click so it doesn't accidentally arm a card.
+  // Mouse drag-to-scroll for the carousel (touch already scrolls natively, with
+  // momentum). We add inertial glide on release so a mouse drag feels as smooth as
+  // a phone swipe. A real drag suppresses the trailing click so it doesn't
+  // accidentally arm a card.
   _enableDragScroll(el) {
     if (!el) return;
     let down = false, startX = 0, startScroll = 0, moved = 0;
+    let lastX = 0, lastT = 0, vel = 0, raf = 0;
+    const stopGlide = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
     el.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'touch') return;   // let touch scroll natively
+      if (e.pointerType === 'touch') return;   // touch scrolls natively
+      stopGlide();
       down = true; startX = e.clientX; startScroll = el.scrollLeft; moved = 0;
+      lastX = e.clientX; lastT = performance.now(); vel = 0;
     });
     el.addEventListener('pointermove', (e) => {
       if (!down) return;
       const dx = e.clientX - startX;
       moved = Math.max(moved, Math.abs(dx));
       el.scrollLeft = startScroll - dx;
+      const t = performance.now(), dt = t - lastT;
+      if (dt > 0) { vel = (e.clientX - lastX) / dt; lastX = e.clientX; lastT = t; }   // px/ms
     });
-    const end = () => { down = false; };
+    const end = () => {
+      if (!down) return;
+      down = false;
+      // Inertia: glide on after release, decelerating — mimics touch momentum.
+      let v = -vel * 16;   // px/ms (screen) → px/frame; scroll moves opposite the drag
+      if (Math.abs(v) < 1) return;
+      const step = () => {
+        el.scrollLeft += v; v *= 0.93;
+        raf = Math.abs(v) > 0.3 ? requestAnimationFrame(step) : 0;
+      };
+      raf = requestAnimationFrame(step);
+    };
     el.addEventListener('pointerup', end);
     el.addEventListener('pointerleave', end);
     // Capture-phase: cancel the click after a >6px drag before it reaches a card.
@@ -135,15 +154,19 @@ export class UI {
     // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
     // and the ACTIONS menu (top-right). Both only exist with the card layer on.
     if (cardsOn) {
+      // Both corner panels start OPEN on desktop (pinned by default) and CLOSED on
+      // a phone; either way, clicking the pill / Actions button collapses & expands.
+      if (this.ledgerOpen == null) this.ledgerOpen = window.innerWidth >= 760;
+      if (this.actionsOpen == null) this.actionsOpen = window.innerWidth >= 760;
       const led = div('engledger hidden');
       led.id = 'engledger';
       hud.appendChild(led);
       this.el.engledger = led;
-      // On a phone the ledger is collapsed; tapping the pill row (not the Log
-      // button) drops it. Desktop keeps it pinned open (see _renderEngines).
+      // Clicking the resource pill (anywhere but the Log button) collapses/expands
+      // the income ledger — on every screen size now.
       hud.querySelector('.resrow').addEventListener('click', (e) => {
         if (e.target.closest('#logbtn')) return;
-        if (window.innerWidth < 760) this.toggleLedger();
+        this.toggleLedger();
       });
 
       const dock = div('actionsdock hidden');
@@ -208,9 +231,12 @@ export class UI {
         + `</div>`
         + `<div class="handbody" id="handbody">`
         + `<div class="handfilter" id="handfilter"></div>`
-        // Drag-to-scroll carousel (no nav buttons — drag on phone and desktop).
+        // Drag-to-scroll carousel. Phones swipe; browsers also get ‹ › nav arrows
+        // (hidden by CSS on phones, and auto-hidden when the hand doesn't overflow).
         + `<div class="handcarousel">`
+        + `<button class="handnav prev" id="handprev" aria-label="Scroll cards left" hidden>‹</button>`
         + `<div class="handlist" id="handlist"></div>`
+        + `<button class="handnav next" id="handnext" aria-label="Scroll cards right" hidden>›</button>`
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
@@ -220,6 +246,11 @@ export class UI {
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
       this.el.handpreview = hand.querySelector('#handpreview');
+      this.el.handprev = hand.querySelector('#handprev');
+      this.el.handnext = hand.querySelector('#handnext');
+      const nav = (dir) => { const l = this.el.handlist; if (l) l.scrollBy({ left: dir * Math.max(220, l.clientWidth * 0.8), behavior: 'smooth' }); };
+      if (this.el.handprev) this.el.handprev.onclick = () => nav(-1);
+      if (this.el.handnext) this.el.handnext.onclick = () => nav(1);
       this._enableDragScroll(this.el.handlist);
       root.appendChild(hand);
       this.setHandOpen(this.handOpen);   // sync the Show Hand chevron + open class
@@ -425,8 +456,7 @@ export class UI {
     // abilities (e.g. Tap-Root Rhizomorph) render in the Actions menu instead, so
     // the ledger hides when the only install is one of those.
     const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
-    const wide = window.innerWidth >= 760;
-    const show = !!hasLeft && (wide || this.ledgerOpen);
+    const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
     const rangeStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
@@ -462,8 +492,7 @@ export class UI {
     if (!hasAny) { menu.innerHTML = ''; return; }
     const ready = actions.filter((a) => actionUsable(this.state, a)).length;   // player-usable now (autos don't count)
     badge.textContent = ready; badge.classList.toggle('zero', ready === 0);
-    const wide = window.innerWidth >= 760;
-    const show = wide || this.actionsOpen;
+    const show = this.actionsOpen;   // collapsible via the Actions pill on every screen
     btn.classList.toggle('open', show);
     menu.classList.toggle('hidden', !show);
     if (!show) { menu.innerHTML = ''; return; }
@@ -664,6 +693,16 @@ export class UI {
       list.appendChild(b);
     });
     list.scrollLeft = prevScroll;   // keep carousel position across a re-render
+    this._updateHandNav();
+  }
+
+  // Show the ‹ › carousel arrows only when the hand actually overflows its width
+  // (browser only — CSS hides them on phones regardless).
+  _updateHandNav() {
+    const l = this.el.handlist, prev = this.el.handprev, next = this.el.handnext;
+    if (!l || !prev || !next) return;
+    const overflow = l.scrollWidth > l.clientWidth + 4;
+    prev.hidden = !overflow; next.hidden = !overflow;
   }
 
   // Filter chips: All + one per card group present in hand (with counts).

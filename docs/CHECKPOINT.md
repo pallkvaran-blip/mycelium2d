@@ -193,9 +193,14 @@ Both menus are dark, on-theme, with glowing green borders.
   - Every button is **two rows** (function on top, cost below). Empty cost rows
     collapse (`.bcost:empty { display:none }`) so single-label buttons stay centred.
 - **Hand carousel** — a horizontal **drag-scroll** row on phone *and* desktop
-  (touch scrolls natively; mouse uses `_enableDragScroll`, which suppresses the
-  click after a >6px drag so a drag never arms a card). **No ‹ › nav buttons.**
-  Identical cards **stack** (grouped by name with a count). Filter chips above.
+  (touch scrolls natively; mouse uses `_enableDragScroll`, which now adds **inertial
+  momentum** on release so a mouse drag glides like a phone swipe, and suppresses the
+  click after a >6px drag so a drag never arms a card). Browser view also has **‹ ›
+  nav arrows** flanking the row (`_updateHandNav` shows them only when the hand
+  overflows; CSS hides them on phones). Desktop shows **~7–8 cards** (cards 150px,
+  list capped at `min(88vw,1400px)`). Identical cards **stack** (grouped by name with
+  a count). Filter chips above. The hand + bottom action bar sit **at the bottom**
+  (`.handbar` ~98px, `.actionbar` 16px) on desktop, matching the phone layout.
   **Always visible by default** on every screen (`handOpen` starts `true`); the
   game never auto-hides or auto-shows it — the only toggle is the **Show/Hide
   Hand** button in the action bar (`toggleHand`). (The old
@@ -285,6 +290,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Browser HUD polish** (branch `claude/mycelium-phase-1-build-urvq5e`): (1) hand + bottom
+  action bar moved **all the way to the bottom** on desktop (matches phone); (2) mouse
+  carousel drag now has **inertial momentum** so it glides like a phone swipe (+ desktop
+  **‹ › nav arrows**, auto-hidden when the hand doesn't overflow); (3) carousel widened to
+  show **~7–8 cards** (was ~4.5) — cards 150px, list `min(88vw,1400px)`; (4) the top-left
+  resource pill and top-right Actions pill are now **collapsible on click** on every screen
+  (both start open on desktop, closed on phone; `ledgerOpen`/`actionsOpen` drive the panels).
 - **Action cards route to the Actions menu as installed abilities** (branch `claude/mycelium-phase-1-build-urvq5e`).
   Wired the two HUD corners to the real card taxonomy (cards-design §14 types):
   - **`engine` → left ledger** = resource income (energy/water/phosphorus ranges) +
