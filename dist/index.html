@@ -43,7 +43,7 @@
        drop-downs overlay cleanly instead of being clipped by it (below toast/overlay). */
     .hud { top: 14px; left: 14px; min-width: 0; padding: 0; background: none; border: none;
       box-shadow: none; backdrop-filter: none; z-index: 30; }
-    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
+    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 40px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
@@ -243,14 +243,15 @@
     .actionsdock { top: 14px; right: 14px; position: absolute; display: flex;
       flex-direction: column; align-items: flex-end; gap: 8px; max-width: calc(100vw - 28px);
       background: none; border: none; box-shadow: none; backdrop-filter: none; padding: 0; z-index: 30; }
-    .actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 12px;
+    /* Same height as the resource pill (both 40px) so the two corners read as a pair. */
+    .actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; height: 40px;
       border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 700; color: var(--ink);
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5);
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); cursor: pointer; white-space: nowrap; }
     .actbtn:hover { border-color: rgba(170,255,205,0.7); }
-    .actbtn .pk { color: var(--accent); font-size: 13px; line-height: 1; }
+    .actbtn .pk { width: 18px; height: 18px; color: var(--danger); flex: 0 0 auto; }
     .actbtn .abadge { font-size: 10px; font-weight: 800; color: #06120c; background: var(--accent);
       border-radius: 999px; padding: 1px 6px; box-shadow: 0 0 8px rgba(127,230,163,0.5); font-variant-numeric: tabular-nums; }
     .actbtn .abadge.zero { color: var(--ink-dim); background: rgba(120,140,130,0.18); box-shadow: none; }
@@ -573,8 +574,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "6t141";
-globalThis.__BUILD__ = "local 07-09 08:07";
+window.__ASSET_VER = "19wxzci";
+globalThis.__BUILD__ = "local 07-09 08:30";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6358,6 +6359,11 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
+// the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
+// many devices (Android) and ignores `color`, so it could never be reliably red.
+const PICK_SVG = '<svg class="pk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9C8 4.5 16 4.5 20.5 9"/><path d="M12 6 12 20"/></svg>';
+
 // Warning glyph for the error toast (self-contained so it survives the bundle;
 // coloured via currentColor). A rounded warning triangle — reads as "can't do
 // that" without shouting.
@@ -6467,9 +6473,11 @@ class UI {
       });
 
       const dock = div('actionsdock hidden');
+      // Just the (red) pickaxe + ready-count badge + chevron — no "Actions" label, so
+      // the pill stays compact and never crowds the resource pill in portrait.
       dock.innerHTML =
         `<button class="actbtn" id="actbtn" aria-label="Colony actions">`
-        + `<span class="pk" aria-hidden="true">⛏</span><span class="albl">Actions</span>`
+        + PICK_SVG
         + `<span class="abadge" id="actbadge">0</span><span class="achev">▾</span></button>`
         + `<div class="actmenu hidden" id="actmenu"></div>`;
       root.appendChild(dock);
@@ -6617,6 +6625,29 @@ class UI {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
     }
+
+    // ---- Tap-away: close any open drop-down when tapping elsewhere ----------
+    // On a phone the Log / ledger / Actions drop-downs float over the map; a tap
+    // on the map, a card, the bottom bar — anything outside the open panel and its
+    // own toggle — dismisses them. Desktop keeps the corner panels pinned, so this
+    // only acts on phone widths. (Capture phase so it runs before the tapped
+    // control's own handler, e.g. arming a card.)
+    if (this._onTapAway) document.removeEventListener('pointerdown', this._onTapAway, true);
+    this._onTapAway = (e) => {
+      if (window.innerWidth >= 760) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const inHud = t.closest('.hud');            // resource pill + Log + engine ledger
+      const inDock = t.closest('.actionsdock');   // Actions button + menu
+      let changed = false;
+      if (!inHud) {
+        if (this.ledgerOpen) { this.ledgerOpen = false; changed = true; }
+        if (this.el.logdrop && !this.el.logdrop.classList.contains('hidden')) this.setLogOpen(false);
+      }
+      if (!inDock && this.actionsOpen) { this.actionsOpen = false; changed = true; }
+      if (changed) { this._renderEngines(); this._renderActions(); this._syncPanelHeights(); }
+    };
+    document.addEventListener('pointerdown', this._onTapAway, true);
   }
 
   _actionButton(name) {

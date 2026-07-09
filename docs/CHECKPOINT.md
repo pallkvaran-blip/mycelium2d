@@ -307,6 +307,12 @@ Both menus are dark, on-theme, with glowing green borders.
     heights; a phone taps the pill to drop the ledger and the Actions button to drop the
     menu, with **Log / ledger / Actions mutually exclusive** (one drop-down at a time).
     Corner panels sit at `z-index:30` so they overlay the hand carousel cleanly.
+    The Actions pill is **icon-only** — a **red inline-SVG pickaxe** (`PICK_SVG`, not the
+    `⛏` emoji, which renders as a fixed-colour glyph and ignores CSS `color` on Android) —
+    and is **locked to the resource pill's height** (both `40px`) so they read as a pair
+    and never crowd each other in portrait. **Tap-away:** on a phone, a `pointerdown`
+    anywhere outside an open drop-down and its toggle (the map, a card, the bottom bar)
+    dismisses it (`_onTapAway`, capture phase).
     CSS in `index.html` (`.engledger` / `.actionsdock` / `.actmenu` etc.). Verified via
     Playwright (desktop + phone screenshots; Use-button flips to disabled + badge decrements
     after activation) and both test suites green.

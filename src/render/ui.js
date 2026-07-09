@@ -30,6 +30,11 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
+// the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
+// many devices (Android) and ignores `color`, so it could never be reliably red.
+const PICK_SVG = '<svg class="pk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9C8 4.5 16 4.5 20.5 9"/><path d="M12 6 12 20"/></svg>';
+
 // Warning glyph for the error toast (self-contained so it survives the bundle;
 // coloured via currentColor). A rounded warning triangle — reads as "can't do
 // that" without shouting.
@@ -139,9 +144,11 @@ export class UI {
       });
 
       const dock = div('actionsdock hidden');
+      // Just the (red) pickaxe + ready-count badge + chevron — no "Actions" label, so
+      // the pill stays compact and never crowds the resource pill in portrait.
       dock.innerHTML =
         `<button class="actbtn" id="actbtn" aria-label="Colony actions">`
-        + `<span class="pk" aria-hidden="true">⛏</span><span class="albl">Actions</span>`
+        + PICK_SVG
         + `<span class="abadge" id="actbadge">0</span><span class="achev">▾</span></button>`
         + `<div class="actmenu hidden" id="actmenu"></div>`;
       root.appendChild(dock);
@@ -289,6 +296,29 @@ export class UI {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
     }
+
+    // ---- Tap-away: close any open drop-down when tapping elsewhere ----------
+    // On a phone the Log / ledger / Actions drop-downs float over the map; a tap
+    // on the map, a card, the bottom bar — anything outside the open panel and its
+    // own toggle — dismisses them. Desktop keeps the corner panels pinned, so this
+    // only acts on phone widths. (Capture phase so it runs before the tapped
+    // control's own handler, e.g. arming a card.)
+    if (this._onTapAway) document.removeEventListener('pointerdown', this._onTapAway, true);
+    this._onTapAway = (e) => {
+      if (window.innerWidth >= 760) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const inHud = t.closest('.hud');            // resource pill + Log + engine ledger
+      const inDock = t.closest('.actionsdock');   // Actions button + menu
+      let changed = false;
+      if (!inHud) {
+        if (this.ledgerOpen) { this.ledgerOpen = false; changed = true; }
+        if (this.el.logdrop && !this.el.logdrop.classList.contains('hidden')) this.setLogOpen(false);
+      }
+      if (!inDock && this.actionsOpen) { this.actionsOpen = false; changed = true; }
+      if (changed) { this._renderEngines(); this._renderActions(); this._syncPanelHeights(); }
+    };
+    document.addEventListener('pointerdown', this._onTapAway, true);
   }
 
   _actionButton(name) {

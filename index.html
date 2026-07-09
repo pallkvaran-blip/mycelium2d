@@ -42,7 +42,7 @@
        drop-downs overlay cleanly instead of being clipped by it (below toast/overlay). */
     .hud { top: 14px; left: 14px; min-width: 0; padding: 0; background: none; border: none;
       box-shadow: none; backdrop-filter: none; z-index: 30; }
-    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
+    .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 40px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
@@ -242,14 +242,15 @@
     .actionsdock { top: 14px; right: 14px; position: absolute; display: flex;
       flex-direction: column; align-items: flex-end; gap: 8px; max-width: calc(100vw - 28px);
       background: none; border: none; box-shadow: none; backdrop-filter: none; padding: 0; z-index: 30; }
-    .actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 12px;
+    /* Same height as the resource pill (both 40px) so the two corners read as a pair. */
+    .actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; height: 40px;
       border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 700; color: var(--ink);
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5);
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); cursor: pointer; white-space: nowrap; }
     .actbtn:hover { border-color: rgba(170,255,205,0.7); }
-    .actbtn .pk { color: var(--accent); font-size: 13px; line-height: 1; }
+    .actbtn .pk { width: 18px; height: 18px; color: var(--danger); flex: 0 0 auto; }
     .actbtn .abadge { font-size: 10px; font-weight: 800; color: #06120c; background: var(--accent);
       border-radius: 999px; padding: 1px 6px; box-shadow: 0 0 8px rgba(127,230,163,0.5); font-variant-numeric: tabular-nums; }
     .actbtn .abadge.zero { color: var(--ink-dim); background: rgba(120,140,130,0.18); box-shadow: none; }
