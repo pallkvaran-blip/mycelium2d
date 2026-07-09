@@ -277,9 +277,10 @@
       color: var(--ink-dim); margin-top: 2px; }
     .acost { font-weight: 700; }
     .acost.e { color: var(--accent); } .acost.w { color: #7fd0e0; } .acost.p { color: #c79be6; }
-    .use { font-family: inherit; font-size: 11.5px; font-weight: 700; color: #06120c; background: var(--accent);
-      border: 1px solid var(--accent); border-radius: 8px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
-      box-shadow: 0 0 10px rgba(127,230,163,0.28); align-self: center; }
+    /* Red to match the Actions pickaxe + badge (white label). Disabled stays dim grey. */
+    .use { font-family: inherit; font-size: 11.5px; font-weight: 700; color: #fff; background: #d64a4a;
+      border: 1px solid #e06a6a; border-radius: 8px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 0 10px rgba(224,106,106,0.3); align-self: center; }
     .use:hover:not(.off) { filter: brightness(1.08); }
     .use.off { color: var(--ink-dim); background: rgba(120,140,130,0.14); border-color: var(--panel-border);
       box-shadow: none; cursor: not-allowed; }
