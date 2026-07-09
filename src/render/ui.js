@@ -33,7 +33,9 @@ const RES_ICON = {
 // Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
 // the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
 // many devices (Android) and ignores `color`, so it could never be reliably red.
-const PICK_SVG = '<svg class="pk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9C8 4.5 16 4.5 20.5 9"/><path d="M12 6 12 20"/></svg>';
+// A proper tilted pickaxe (Lucide "pickaxe", ISC-licensed): diagonal handle + a
+// curved double-point head, which reads far more like a pickaxe than a plain arc.
+const PICK_SVG = '<svg class="pk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg>';
 
 // Warning glyph for the error toast (self-contained so it survives the bundle;
 // coloured via currentColor). A rounded warning triangle — reads as "can't do

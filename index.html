@@ -250,9 +250,10 @@
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); cursor: pointer; white-space: nowrap; }
     .actbtn:hover { border-color: rgba(170,255,205,0.7); }
-    .actbtn .pk { width: 18px; height: 18px; color: var(--danger); flex: 0 0 auto; }
-    .actbtn .abadge { font-size: 10px; font-weight: 800; color: #06120c; background: var(--accent);
-      border-radius: 999px; padding: 1px 6px; box-shadow: 0 0 8px rgba(127,230,163,0.5); font-variant-numeric: tabular-nums; }
+    .actbtn .pk { width: 19px; height: 19px; color: var(--danger); flex: 0 0 auto; }
+    /* Red badge with a white count — reads as "attention / actions" and stays legible. */
+    .actbtn .abadge { font-size: 10px; font-weight: 800; color: #fff; background: #d64a4a;
+      border-radius: 999px; padding: 1px 6px; box-shadow: 0 0 8px rgba(224,106,106,0.5); font-variant-numeric: tabular-nums; }
     .actbtn .abadge.zero { color: var(--ink-dim); background: rgba(120,140,130,0.18); box-shadow: none; }
     .actbtn .achev { font-size: 8px; color: var(--ink-dim); transition: transform 0.15s; }
     .actbtn.open .achev { transform: rotate(180deg); }
