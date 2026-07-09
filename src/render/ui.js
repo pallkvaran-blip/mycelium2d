@@ -934,7 +934,7 @@ export function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-
 // through. Loaded eagerly (not lazy) and preloaded at boot (main.js) so the faces
 // don't pop in one by one when a draft or the hand opens.
 function cardArt(name) {
-  return `<span class="cart"><img class="caimg" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
+  return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
 }
 // Card -> filter group (bucket). Used for the hand filter chips + stacking view.
 const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
