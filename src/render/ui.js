@@ -68,6 +68,7 @@ export class UI {
     this.handlers = handlers;
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
+    this.pendingAction = null;        // index into cards.actions[] awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
     this.handFilter = 'all';          // active card-hand filter group key
@@ -406,6 +407,14 @@ export class UI {
     if (this.actionsOpen && window.innerWidth < 760) { this.ledgerOpen = false; this.setLogOpen(false); }
     this._renderActions(); this._renderEngines(); this._syncPanelHeights();
   }
+
+  // A targeted installed action (e.g. Suberin Wall) is armed and awaiting a map
+  // tap. On a phone, drop the Actions menu so the map is tappable underneath.
+  setPendingAction(i) {
+    this.pendingAction = i;
+    if (window.innerWidth < 760 && this.actionsOpen) { this.actionsOpen = false; this._renderActions(); this._syncPanelHeights(); }
+  }
+  clearPendingAction() { this.pendingAction = null; }
 
   _renderEngines() {
     const led = this.el.engledger; if (!led) return;

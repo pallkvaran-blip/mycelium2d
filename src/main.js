@@ -232,6 +232,15 @@ const handlers = {
     // Using an installed action does NOT advance the world (it happens within the
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
+    if (res && res.needTarget) {
+      // Targeted ability (e.g. Suberin Wall) — arm it for a map tap, like a card.
+      ui.clearPendingCard();
+      ui.setSelectedAction(null);
+      ui.setPendingAction(i);
+      ui.setHint(res.message);
+      uiDirty = true;
+      return;
+    }
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
@@ -393,6 +402,23 @@ function setupInput() {
       if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
       return;
     }
+    // A targeted installed action (Actions menu) is awaiting its point: apply it.
+    if (ui.pendingAction != null) {
+      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const idx = ui.pendingAction;
+      ui.clearPendingAction();
+      ui.resetHint();
+      const res = activateAction(state, idx, { x: w.x, y: w.y });
+      if (res && res.ok) {
+        substrateRenderer.markDirty();
+        rendererFor(state.active).markStructureDirty();
+        if (state.runOver) ui.showOverlay(state.runResult);
+      } else if (res && res.message) {
+        ui.toast(res.message);
+      }
+      uiDirty = true;
+      return;
+    }
     if (!ui.selectedAction) {
       // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
@@ -419,7 +445,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 

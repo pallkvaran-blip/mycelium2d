@@ -253,8 +253,8 @@
     .actmenu { width: 266px; max-width: calc(100vw - 28px); padding: 4px 8px 8px;
       font-size: 12px; color: var(--ink);
       background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
-      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
-      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
+      border: 1px solid rgba(224,106,106,0.4); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(224,106,106,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
       backdrop-filter: blur(6px);
       max-height: 62vh; overflow-y: auto; overflow-x: hidden;
       scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
@@ -568,8 +568,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "cpmmrj";
-globalThis.__BUILD__ = "local 07-09 08:57";
+window.__ASSET_VER = "33ased";
+globalThis.__BUILD__ = "local 07-09 09:25";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4071,7 +4071,6 @@ function initCards(state, mode = 'tutorial') {
   }
 
   state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
-  if (mode === 'testall') seedDemoActions(state);   // TEMP: populate the Actions menu for testing
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -4186,6 +4185,12 @@ function playCard(state, handIndex, ctx = {}) {
     res.install.name = entry.name;
     C.engines.push(res.install);
     if (res.install.drawDiscount) C.drawDiscount = (C.drawDiscount || 0) + res.install.drawDiscount;
+  } else if (res.installAction) {
+    // Action cards graduate to a repeatable ability in the Actions menu (right).
+    const a = res.installAction;
+    a.name = entry.name;
+    a.used = 0; a.cd = 0;   // ready on install (cooldown/uses tick with the world)
+    C.actions.push(a);
   } else {
     C.discard.push(entry.name);
   }
@@ -4241,7 +4246,7 @@ function actionUsable(state, a) {
   if (a.cost && (net[a.res] || 0) < a.cost) return false;
   return true;
 }
-function activateAction(state, i) {
+function activateAction(state, i, ctx) {
   const C = state.cards; if (!C) return { ok: false };
   const a = C.actions && C.actions[i]; if (!a) return { ok: false };
   const net = state.active;
@@ -4252,33 +4257,17 @@ function activateAction(state, i) {
     else if (a.cost && (net[a.res] || 0) < a.cost) msg = `Need ${a.cost - Math.floor(net[a.res] || 0)} more ${RES_LABEL[a.res] || a.res}.`;
     return { ok: false, message: msg };
   }
-  const res = a.apply ? a.apply(state) : { ok: true, message: `${a.name}.` };
+  // Targeted abilities need a map point. The first call (from the Use button) has
+  // no ctx → ask the caller to aim; the second call (map tap) carries {x,y}. Cost
+  // and cooldown are only spent once the effect actually resolves, below.
+  if (a.target && (!ctx || ctx.x == null)) return { ok: false, needTarget: true, index: i, message: `Tap a target for ${a.name}.` };
+  const res = a.apply ? a.apply(state, ctx) : { ok: true, message: `${a.name}.` };
   if (!res || !res.ok) return { ok: false, message: (res && res.message) || 'Nothing happened.' };
   if (a.cost) net[a.res] -= a.cost;      // pay the price
   if (a.per) a.used = (a.used || 0) + 1;  // spend a use
   if (a.every) a.cd = a.every;            // start the cooldown
   state.log(`Action: ${a.name}. ${res.message || ''}`, 'action');
   return { ok: true, message: res.message };
-}
-
-// TEMP (testall only): demo actions so the Actions menu is testable before real
-// action cards exist. Real action cards will push objects of this same shape.
-function seedDemoActions(state) {
-  const cc = state.config.cards;
-  state.cards.actions = [
-    { name: 'Enzyme Surge', effect: 'grow two steps toward food', res: 'phosphorus', cost: 3,
-      apply: (s) => { let n = 0; for (let k = 0; k < 2; k++) n += s.active.grow(s.substrate, s.rng); return { ok: true, message: `Grew ${n}.` }; } },
-    { name: 'Turgor Push', effect: 'nudge the frontier outward', per: 3, used: 0,
-      apply: (s) => { const n = s.active.grow(s.substrate, s.rng); return { ok: true, message: `Pushed ${n}.` }; } },
-    { name: 'Sclerotial Burst', effect: 'clear infection across the colony', every: 3, cd: 0,
-      apply: (s) => { let h = 0; for (const nd of s.active.nodes) if (nd.infected) { nd.infected = false; h++; } return { ok: true, message: h ? `Cleared ${h} strands.` : 'No infection to clear.' }; } },
-    { name: 'Deep Siphon', effect: 'draw a gulp of water', res: 'water', cost: 9,
-      apply: (s) => { const b = s.active.water; s.active.water = gain(s.active.water, 4, cc.softCapWater); return { ok: true, message: `+${Math.round(s.active.water - b)} Water.` }; } },
-    { name: 'Spore Lob', effect: 'seed a spore pocket', res: 'water', cost: 1, per: 2, used: 0,
-      apply: () => ({ ok: true, message: 'Lobbed a spore pocket.' }) },
-    { name: 'Mycelial Recall', effect: 'reclaim spent energy', every: 5, cd: 0,
-      apply: (s) => { s.active.energy += 8; return { ok: true, message: '+8⚡.' }; } },
-  ];
 }
 
 // --- WIN: a strand reaches the goal zone; LOSE: card-dry & broke ------------
@@ -4401,6 +4390,14 @@ function cureRadius(state, ctx, r) {
 const grow = (fn) => ({ apply: fn });
 const targeted = (fn) => ({ target: true, apply: fn });
 const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
+// action(): a card that, when PLAYED, installs a repeatable ability into the
+// Actions menu (right) instead of firing once. `spec` holds the activation gating —
+// `every` (once-per-N-rounds cooldown), `cost`+`res` (resource price per use),
+// `per` (uses per round), `target` (aim a point on the map) — plus a short `effect`
+// label for the menu row. `run(state, ctx)` is the ability's effect. The card's
+// buy/W/P cost is the one-time INSTALL price (charged by playCard); per-activation
+// costs come from `spec.cost`.
+const action = (spec, run) => ({ apply: () => ({ ok: true, installAction: { ...spec, apply: run }, message: 'Installed — added to your Actions menu.' }) });
 // The colony is at its hard node cap — growth can't add more. Grow cards check
 // this first so they report the real reason instead of a misleading "no room".
 const maxedOut = (s) => s.active.nodes.length >= s.config.growth.maxNodes;
@@ -4518,8 +4515,9 @@ const EFFECTS = {
   // --- dig engine (Phosphorus install) ---
   'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
 
-  // --- utility ---
-  'Nutrient Transmutation': grow((s) => {
+  // --- utility (installed ACTION → Actions menu, right) ---
+  // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
+  'Nutrient Transmutation': action({ effect: 'convert 2 of one resource → 1 of the other', per: 1 }, (s) => {
     const net = s.active;
     const pools = [['water', net.water], ['phosphorus', net.phosphorus]];
     pools.sort((a, b) => b[1] - a[1]);
@@ -4530,20 +4528,27 @@ const EFFECTS = {
   }),
 
   // --- defense (best-effort v1) ---
+  // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
   'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
-  'Suberin Wall': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 80); return { ok: true, message: h ? `Cured ${h} infected strands.` : 'No infection in range (walled off).' }; }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
-  'Constricting Ring': grow((s) => {
+  // --- installed ACTIONS (→ Actions menu, right) ---
+  // Suberin Wall: every 3 rounds, tap a point → cure mould in radius 80.
+  'Suberin Wall': action({ effect: 'cure mould in an area', every: 3, target: true }, (s, ctx) => {
+    const h = cureRadius(s, ctx, 80);
+    return { ok: true, message: h ? `Cured ${h} infected strands.` : 'Walled the area off against mould.' };
+  }),
+  // Constricting Ring: every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
+  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
     const worms = s.nematodes || [];
-    if (!worms.length) return { ok: false, message: 'No nematodes to snare.' };
-    const fp = s.active.frontierPoint() || { x: 0, y: 0 };
+    if (!worms.length) return { ok: false, message: 'No nematodes on the map to snare.' };
     let idx = 0, bd = Infinity;
-    worms.forEach((w, i) => { const d = (w.x - fp.x) ** 2 + (w.y - fp.y) ** 2; if (d < bd) { bd = d; idx = i; } });
+    worms.forEach((w, i) => { const d = (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2; if (d < bd) { bd = d; idx = i; } });
     worms.splice(idx, 1);
     s.active.phosphorus = gain(s.active.phosphorus, 2, s.config.cards.softCapPhosphorus);
     return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
   }),
-  'Sclerotial Seal': targeted((s, c, ctx) => {
+  // Sclerotial Seal: spend 1 Phosphorus, once per 3 rounds, tap a food pile → ant-proof it for 3 rounds.
+  'Sclerotial Seal': action({ effect: 'seal a food pile from ants (3 rounds)', every: 3, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
     s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });
@@ -6391,6 +6396,7 @@ class UI {
     this.handlers = handlers;
     this.selectedAction = null;
     this.pendingCard = null;          // {id, name} a card awaiting a map target
+    this.pendingAction = null;        // index into cards.actions[] awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
     this.handFilter = 'all';          // active card-hand filter group key
@@ -6729,6 +6735,14 @@ class UI {
     if (this.actionsOpen && window.innerWidth < 760) { this.ledgerOpen = false; this.setLogOpen(false); }
     this._renderActions(); this._renderEngines(); this._syncPanelHeights();
   }
+
+  // A targeted installed action (e.g. Suberin Wall) is armed and awaiting a map
+  // tap. On a phone, drop the Actions menu so the map is tappable underneath.
+  setPendingAction(i) {
+    this.pendingAction = i;
+    if (window.innerWidth < 760 && this.actionsOpen) { this.actionsOpen = false; this._renderActions(); this._syncPanelHeights(); }
+  }
+  clearPendingAction() { this.pendingAction = null; }
 
   _renderEngines() {
     const led = this.el.engledger; if (!led) return;
@@ -7459,6 +7473,15 @@ const handlers = {
     // Using an installed action does NOT advance the world (it happens within the
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
+    if (res && res.needTarget) {
+      // Targeted ability (e.g. Suberin Wall) — arm it for a map tap, like a card.
+      ui.clearPendingCard();
+      ui.setSelectedAction(null);
+      ui.setPendingAction(i);
+      ui.setHint(res.message);
+      uiDirty = true;
+      return;
+    }
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
@@ -7620,6 +7643,23 @@ function setupInput() {
       if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
       return;
     }
+    // A targeted installed action (Actions menu) is awaiting its point: apply it.
+    if (ui.pendingAction != null) {
+      const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const idx = ui.pendingAction;
+      ui.clearPendingAction();
+      ui.resetHint();
+      const res = activateAction(state, idx, { x: w.x, y: w.y });
+      if (res && res.ok) {
+        substrateRenderer.markDirty();
+        rendererFor(state.active).markStructureDirty();
+        if (state.runOver) ui.showOverlay(state.runResult);
+      } else if (res && res.message) {
+        ui.toast(res.message);
+      }
+      uiDirty = true;
+      return;
+    }
     if (!ui.selectedAction) {
       // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
@@ -7646,7 +7686,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
