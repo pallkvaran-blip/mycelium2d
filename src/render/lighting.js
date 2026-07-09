@@ -21,12 +21,12 @@ export class Lighting {
     this.spriteNetwork = makeGlowSprite(r.networkLight);
     this.spriteFood = makeGlowSprite(r.foodLight);
     this.spriteHazard = makeGlowSprite(r.hazardLight);
-    // The sensing aura uses a FULLER falloff than the point-lights: it holds its
-    // brightness almost all the way out, then drops to nothing right at the edge.
-    // Drawn at senseR = sensingRadius, this makes the VISIBLE lit area reach the
-    // colony's actual reach range (a steep gradient would fade out well short of
-    // it and read as a much smaller sensing circle than the colony really has).
-    this.spriteSense = makeGlowSprite(r.senseLight, [[0, 1], [0.62, 0.92], [0.84, 0.62], [0.95, 0.28], [1, 0]]);
+    // The sensing aura is a SMOOTH radial falloff (no bright plateau). A plateau
+    // held full brightness out to ~62% then dropped sharply, so its hard disc edge
+    // read as a SECOND lit circle sitting inside the colony's own glow. A smooth
+    // gradient blends with the network glow into one soft lantern while still
+    // reaching most of the sensing range.
+    this.spriteSense = makeGlowSprite(r.senseLight, [[0, 0.95], [0.4, 0.6], [0.68, 0.3], [0.86, 0.12], [1, 0]]);
   }
 
   // Dim the scene already drawn to `ctx` and add the colony's light back in.
