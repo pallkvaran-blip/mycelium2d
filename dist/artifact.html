@@ -428,7 +428,9 @@
       background: rgba(6,12,9,0.82); border: 1px solid rgba(130,230,166,0.5); border-radius: 10px; padding: 1px 6px;
       box-shadow: 0 0 6px rgba(0,0,0,0.6); }
     /* Portrait CCG card face: framed art window + name plate + full-text rules box.
-       Card height is AUTO so the whole description always shows (no clamping). */
+       Card size is a FIXED 5:7 aspect (below); the rules font/box are tuned so every
+       current card's full text fits (verified). Keep new cards' text within ~110
+       chars or they'll clip against the fixed box. */
     /* Every card is a FIXED CCG shape (5:7) on every screen — size scales with the
        width but the proportions, the art window, and the text box never change. This
        takes priority over how many cards fit on screen. */
@@ -601,8 +603,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1f63mfm";
-globalThis.__BUILD__ = "local 07-09 17:43";
+window.__ASSET_VER = "q7k4n3";
+globalThis.__BUILD__ = "local 07-09 17:56";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2478,7 +2480,7 @@ class Network {
       const ang = straight ? baseAng : baseAng + rng.range(-g.branchJitter, g.branchJitter);
       const nx = parent.x + Math.cos(ang) * g.segmentLength;
       const ny = parent.y + Math.sin(ang) * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) break;   // blocked (rock/edge)
+      if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // blocked — rock/edge anywhere along the segment, not just its end
       parent = this.addNode(nx, ny, parent);
       created++;
     }
@@ -2580,10 +2582,25 @@ class Network {
     let px = node.x, py = node.y, n = 0;
     for (let i = 0; i < steps; i++) {
       const nx = px + ux * g.segmentLength, ny = py + uy * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) break;
+      if (!this._segmentClear(substrate, px, py, nx, ny)) break;
       px = nx; py = ny; n++;
     }
     return n;
+  }
+
+  // True only if the WHOLE segment from (x0,y0) to (x1,y1) is placeable — sampled
+  // every ~third of a cell. Endpoint-only checks let a strand hop over or graze a
+  // rock cell (a segment whose ends land in adjacent free cells but whose line
+  // clips the rock between them), which read as "grew through the rock". Only a
+  // punch/dig (which marks cells `bored`) may cross rock; _placeOk allows those.
+  _segmentClear(substrate, x0, y0, x1, y1) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (substrate.cellSize / 3)));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (!this._placeOk(substrate, x0 + dx * t, y0 + dy * t)) return false;
+    }
+    return true;
   }
 
   // Grow `steps` from the frontier tip nearest to food, toward that food (works
@@ -4593,13 +4610,17 @@ const EFFECTS = {
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
   'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80, (cl) => { cl.mouldProof = 2; });
+    // Ward a hair wider than the cure (cure tests node position, the ward tests cell
+    // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 2; });
     return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
   'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
     const r = s.substrate.cellSize * 2.5;
+    const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
+    if (!cell || cell.rock) return { ok: false, message: 'Set the trap on open ground (not rock).' };
     const worms = s.nematodes || [];
     if (worms.some((w) => (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2 <= r * r)) {
       return { ok: false, message: 'A nematode is already there — set the trap on empty ground.' };
@@ -4657,10 +4678,12 @@ function tickWorld(state) {
   // The threats all act on every step.
   spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
   stepAnts(state);            // ants harvest their target food, RETARGET when it empties, re-stamp trails
+  // Snapshot worm positions BEFORE they move so a trap can test the swept path
+  // (a fast worm can step clear across a trap's radius between ticks otherwise).
+  const wormPrev = new Map();
+  for (const w of (state.nematodes || [])) wormPrev.set(w, { x: w.x, y: w.y });
   stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
-  resolveTraps(state);        // Constricting Ring traps digest a worm that wandered in
-  // Age reinfection wards (Suberin Wall) down one step per round.
-  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+  resolveTraps(state, wormPrev);   // Constricting Ring traps digest a worm that crossed one
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -4694,6 +4717,10 @@ function tickWorld(state) {
     }
   }
 
+  // Age reinfection wards (Suberin Wall) AFTER infection resolves this tick, so a
+  // ward set to N protects for N full rounds (check-then-age, like antProof).
+  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+
   // Card layer (only when active): installed engines produce, then the goal /
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
   if (state.cards) {
@@ -4709,15 +4736,26 @@ function tickWorld(state) {
 // Constricting Ring traps: a one-shot snare on empty ground. When any nematode
 // wanders within a trap's radius it's digested (removed) for a Phosphorus reward,
 // and the trap is spent. Runs after the worms have moved this step.
-function resolveTraps(state) {
+function resolveTraps(state, wormPrev) {
   const traps = state.traps;
   if (!traps || !traps.length) return;
   const worms = state.nematodes;
   if (!worms || !worms.length) return;
   const net = state.active, cap = state.config.cards.softCapPhosphorus;
+  // Squared distance from a trap centre to the worm's swept path this tick (its
+  // previous → current position), so a worm that crossed the radius is still caught.
+  const sweptD2 = (w, tr) => {
+    const p = wormPrev && wormPrev.get(w);
+    if (!p) return (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2;
+    const vx = w.x - p.x, vy = w.y - p.y, len2 = vx * vx + vy * vy;
+    let t = len2 ? ((tr.x - p.x) * vx + (tr.y - p.y) * vy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = p.x + vx * t, cy = p.y + vy * t;
+    return (cx - tr.x) ** 2 + (cy - tr.y) ** 2;
+  };
   for (let i = traps.length - 1; i >= 0; i--) {
     const tr = traps[i];
-    const wi = worms.findIndex((w) => (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2 <= tr.r * tr.r);
+    const wi = worms.findIndex((w) => sweptD2(w, tr) <= tr.r * tr.r);
     if (wi < 0) continue;
     worms.splice(wi, 1);
     const r = tr.reward || 2;
@@ -7102,7 +7140,12 @@ class UI {
 
     filtered.forEach((g) => {
       const c = g.card;
-      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      // Action cards install for Energy only (their W/P is a per-activation cost),
+      // so don't grey them for W/P you don't need to play them — matches cardBlockedReason.
+      const isAction = c.type === 'action';
+      const affordable = net.energy >= c.buyCostEnergy
+        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
+        && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');

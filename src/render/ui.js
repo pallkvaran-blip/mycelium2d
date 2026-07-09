@@ -690,7 +690,12 @@ export class UI {
 
     filtered.forEach((g) => {
       const c = g.card;
-      const affordable = net.energy >= c.buyCostEnergy && net.water >= c.costW && net.phosphorus >= c.costP && !s.runOver && net.alive;
+      // Action cards install for Energy only (their W/P is a per-activation cost),
+      // so don't grey them for W/P you don't need to play them — matches cardBlockedReason.
+      const isAction = c.type === 'action';
+      const affordable = net.energy >= c.buyCostEnergy
+        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
+        && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');

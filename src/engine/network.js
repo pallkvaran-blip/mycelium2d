@@ -267,7 +267,7 @@ export class Network {
       const ang = straight ? baseAng : baseAng + rng.range(-g.branchJitter, g.branchJitter);
       const nx = parent.x + Math.cos(ang) * g.segmentLength;
       const ny = parent.y + Math.sin(ang) * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) break;   // blocked (rock/edge)
+      if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // blocked — rock/edge anywhere along the segment, not just its end
       parent = this.addNode(nx, ny, parent);
       created++;
     }
@@ -369,10 +369,25 @@ export class Network {
     let px = node.x, py = node.y, n = 0;
     for (let i = 0; i < steps; i++) {
       const nx = px + ux * g.segmentLength, ny = py + uy * g.segmentLength;
-      if (!this._placeOk(substrate, nx, ny)) break;
+      if (!this._segmentClear(substrate, px, py, nx, ny)) break;
       px = nx; py = ny; n++;
     }
     return n;
+  }
+
+  // True only if the WHOLE segment from (x0,y0) to (x1,y1) is placeable — sampled
+  // every ~third of a cell. Endpoint-only checks let a strand hop over or graze a
+  // rock cell (a segment whose ends land in adjacent free cells but whose line
+  // clips the rock between them), which read as "grew through the rock". Only a
+  // punch/dig (which marks cells `bored`) may cross rock; _placeOk allows those.
+  _segmentClear(substrate, x0, y0, x1, y1) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (substrate.cellSize / 3)));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (!this._placeOk(substrate, x0 + dx * t, y0 + dy * t)) return false;
+    }
+    return true;
   }
 
   // Grow `steps` from the frontier tip nearest to food, toward that food (works

@@ -295,6 +295,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Growth-through-rock fix + review hardening** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Directed growth (Tropic Lunge, Rhizomorph Lance, Apical Drive, …) no longer crosses
+    rock.** Growth checked only each segment's *endpoint* cell, so a strand could hop over
+    or graze a rock cell (ends in adjacent free cells, line clips the rock between). New
+    `Network._segmentClear` samples the whole segment (~⅓-cell steps) and is used by
+    `growDirected` + `_reachableSteps`, so only a punch/dig (`bored` cells) may cross rock.
+  - From an adversarial review of the 4-card change: **Suberin Wall ward off-by-one** — the
+    `mouldProof` decrement ran *before* `infectNetwork`, so a "2 round" ward protected only 1;
+    moved the decrement to *after* infection resolves (check-then-age, like `antProof`).
+    **Constricting Ring**: trap now rejects placement on rock/out-of-bounds, and `resolveTraps`
+    tests the worm's **swept path** (prev→current) so a fast worm can't step across the
+    radius uncaught. **Ward rim**: Suberin wards a hair wider than it cures so no cured node
+    is left unwarded. **Action-card affordability**: the hand no longer greys an action card
+    for W/P it doesn't need to install (installs for Energy only; matches `cardBlockedReason`).
 - **Fixed CCG card shape + 4 card redefinitions** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Card shape:** every card (hand + draft offer) is now a **fixed 5:7 CCG shape** on phone
     AND desktop (`.cardbtn`/`.offercard` `aspect-ratio:5/7`), with a **uniform 3:2 art window**

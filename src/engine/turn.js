@@ -25,10 +25,12 @@ export function tickWorld(state) {
   // The threats all act on every step.
   spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
   stepAnts(state);            // ants harvest their target food, RETARGET when it empties, re-stamp trails
+  // Snapshot worm positions BEFORE they move so a trap can test the swept path
+  // (a fast worm can step clear across a trap's radius between ticks otherwise).
+  const wormPrev = new Map();
+  for (const w of (state.nematodes || [])) wormPrev.set(w, { x: w.x, y: w.y });
   stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
-  resolveTraps(state);        // Constricting Ring traps digest a worm that wandered in
-  // Age reinfection wards (Suberin Wall) down one step per round.
-  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+  resolveTraps(state, wormPrev);   // Constricting Ring traps digest a worm that crossed one
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -62,6 +64,10 @@ export function tickWorld(state) {
     }
   }
 
+  // Age reinfection wards (Suberin Wall) AFTER infection resolves this tick, so a
+  // ward set to N protects for N full rounds (check-then-age, like antProof).
+  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+
   // Card layer (only when active): installed engines produce, then the goal /
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
   if (state.cards) {
@@ -77,15 +83,26 @@ export function tickWorld(state) {
 // Constricting Ring traps: a one-shot snare on empty ground. When any nematode
 // wanders within a trap's radius it's digested (removed) for a Phosphorus reward,
 // and the trap is spent. Runs after the worms have moved this step.
-function resolveTraps(state) {
+function resolveTraps(state, wormPrev) {
   const traps = state.traps;
   if (!traps || !traps.length) return;
   const worms = state.nematodes;
   if (!worms || !worms.length) return;
   const net = state.active, cap = state.config.cards.softCapPhosphorus;
+  // Squared distance from a trap centre to the worm's swept path this tick (its
+  // previous → current position), so a worm that crossed the radius is still caught.
+  const sweptD2 = (w, tr) => {
+    const p = wormPrev && wormPrev.get(w);
+    if (!p) return (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2;
+    const vx = w.x - p.x, vy = w.y - p.y, len2 = vx * vx + vy * vy;
+    let t = len2 ? ((tr.x - p.x) * vx + (tr.y - p.y) * vy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = p.x + vx * t, cy = p.y + vy * t;
+    return (cx - tr.x) ** 2 + (cy - tr.y) ** 2;
+  };
   for (let i = traps.length - 1; i >= 0; i--) {
     const tr = traps[i];
-    const wi = worms.findIndex((w) => (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2 <= tr.r * tr.r);
+    const wi = worms.findIndex((w) => sweptD2(w, tr) <= tr.r * tr.r);
     if (wi < 0) continue;
     worms.splice(wi, 1);
     const r = tr.reward || 2;

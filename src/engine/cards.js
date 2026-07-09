@@ -592,13 +592,17 @@ export const EFFECTS = {
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
   'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80, (cl) => { cl.mouldProof = 2; });
+    // Ward a hair wider than the cure (cure tests node position, the ward tests cell
+    // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 2; });
     return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
   'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
     const r = s.substrate.cellSize * 2.5;
+    const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
+    if (!cell || cell.rock) return { ok: false, message: 'Set the trap on open ground (not rock).' };
     const worms = s.nematodes || [];
     if (worms.some((w) => (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2 <= r * r)) {
       return { ok: false, message: 'A nematode is already there — set the trap on empty ground.' };
