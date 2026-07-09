@@ -574,8 +574,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1j18r91";
-globalThis.__BUILD__ = "local 07-09 08:52";
+window.__ASSET_VER = "cpmmrj";
+globalThis.__BUILD__ = "local 07-09 08:57";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6554,11 +6554,15 @@ class UI {
     }
 
     // ---- Hint line ----
+    // No persistent hint in card mode — the bar shows only for transient, contextual
+    // hints (e.g. "Tap the map to aim …" while a targeted card is armed) and hides
+    // itself when empty (see setHint), so there's no always-on paragraph.
     this.el.hint = div('hint');
     this.defaultHint = cardsOn
-      ? 'Draw pulls 3 basics (⚡). Playing a premium card costs its ⚡ + any W/P gate. Water = grow + substrate · Phosphorus = digest/defense/actions (harvest it from rocks). Finish a food pile to draft a card. Reach the goal to win.'
+      ? ''
       : 'Hover an action for details. Grow extends the network toward sensed food.';
     this.el.hint.textContent = this.defaultHint;
+    this.el.hint.style.display = this.defaultHint ? '' : 'none';
     root.appendChild(this.el.hint);
 
     // ---- Error toast (transient) ----
@@ -6817,8 +6821,8 @@ class UI {
     }
   }
 
-  setHint(text) { this.el.hint.textContent = text; }
-  resetHint() { this.el.hint.textContent = this.defaultHint; }
+  setHint(text) { const el = this.el.hint; if (!el) return; el.textContent = text || ''; el.style.display = text ? '' : 'none'; }
+  resetHint() { this.setHint(this.defaultHint); }
 
   // Transient error banner — shown when a play is blocked (can't afford, no
   // target in range, …). Fades in near the top, then auto-clears after a beat.
