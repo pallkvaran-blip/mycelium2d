@@ -71,6 +71,7 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     networks,              // list-of-networks (A5-ready); one active in Phase 1
     active: networks[0],
     spores: 0,             // run-wide Spore total (summed across networks later)
+    traps: [],             // Constricting Ring traps: {x,y,r,reward} — digest a worm on contact
     turn: 1,
     runOver: false,
     runResult: null,

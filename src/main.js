@@ -525,10 +525,32 @@ function frame(time) {
   drawCloudSight();
   drawAnts(time);
   drawNematodes(time);
+  drawTraps(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
+}
+
+// Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
+// a snare is set (the next nematode to enter it is digested).
+function drawTraps(time) {
+  const traps = state.traps;
+  if (!traps || !traps.length) return;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.005);
+  for (const tr of traps) {
+    const s = camera.worldToScreen(tr.x, tr.y);
+    const r = tr.r * camera.zoom;
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(199,155,230,${0.55 + 0.35 * pulse})`;   // phosphorus violet
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(199,155,230,${0.10 + 0.08 * pulse})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // Puzzle mode: the treasure chest goal. Made deliberately easy to find — a

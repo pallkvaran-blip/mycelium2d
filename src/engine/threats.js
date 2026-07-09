@@ -264,9 +264,9 @@ export function infectNetwork(net, state) {
       touched = true;                          // in contact with the colony
       if (!n.infected && d < best) { best = d; hit = n; }
     }
-    if (hit && rng() < t.contactChance) {
+    if (hit && !cellProofed(sub, hit) && rng() < t.contactChance) {
       hit.infected = true;
-      infectAround(net, hit, t.contactChunk, 1, rng);
+      infectAround(net, hit, t.contactChunk, 1, rng, sub);
     }
     if (touched) cloud.dying = true;           // reached you — now it fades out, infected or not
   }
@@ -274,24 +274,32 @@ export function infectNetwork(net, state) {
   // 2) Internal spread — the rot races along the filaments from the whole front.
   const front = [];
   for (const n of net.nodes) if (n.infected) front.push(n);
-  for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng);
+  for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
+}
+
+// A node sitting on a cell warded by Suberin Wall (cell.mouldProof > 0) is immune
+// to fresh infection for the duration of the ward.
+function cellProofed(sub, n) {
+  if (!sub) return false;
+  const c = sub.cellAtWorld(n.x, n.y);
+  return !!(c && c.mouldProof > 0);
 }
 
 // Flood infection outward from `seed` up to `depth` rings along the graph
 // (parent + children each step). chance 1 = guaranteed (an instant chunk);
 // < 1 = an organic race that may stall short of `depth`.
-function infectAround(network, seed, depth, chance, rng) {
+function infectAround(network, seed, depth, chance, rng, sub) {
   let frontier = [seed];
   for (let d = 0; d < depth && frontier.length; d++) {
     const next = [];
     for (const n of frontier) {
       if (n.parentId != null) {
         const p = network.byId.get(n.parentId);
-        if (p && !p.infected && (chance >= 1 || rng() < chance)) { p.infected = true; next.push(p); }
+        if (p && !p.infected && !cellProofed(sub, p) && (chance >= 1 || rng() < chance)) { p.infected = true; next.push(p); }
       }
       for (const cid of n.children) {
         const c = network.byId.get(cid);
-        if (c && !c.infected && (chance >= 1 || rng() < chance)) { c.infected = true; next.push(c); }
+        if (c && !c.infected && !cellProofed(sub, c) && (chance >= 1 || rng() < chance)) { c.infected = true; next.push(c); }
       }
     }
     frontier = next;

@@ -26,6 +26,9 @@ export function tickWorld(state) {
   spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
   stepAnts(state);            // ants harvest their target food, RETARGET when it empties, re-stamp trails
   stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
+  resolveTraps(state);        // Constricting Ring traps digest a worm that wandered in
+  // Age reinfection wards (Suberin Wall) down one step per round.
+  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -69,6 +72,27 @@ export function tickWorld(state) {
 
   checkPuzzleGoal(state);
   state.turn += 1;   // a step counter (each action advances the world one step)
+}
+
+// Constricting Ring traps: a one-shot snare on empty ground. When any nematode
+// wanders within a trap's radius it's digested (removed) for a Phosphorus reward,
+// and the trap is spent. Runs after the worms have moved this step.
+function resolveTraps(state) {
+  const traps = state.traps;
+  if (!traps || !traps.length) return;
+  const worms = state.nematodes;
+  if (!worms || !worms.length) return;
+  const net = state.active, cap = state.config.cards.softCapPhosphorus;
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const tr = traps[i];
+    const wi = worms.findIndex((w) => (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2 <= tr.r * tr.r);
+    if (wi < 0) continue;
+    worms.splice(wi, 1);
+    const r = tr.reward || 2;
+    if (net) net.phosphorus = Math.max(net.phosphorus, Math.min(cap, net.phosphorus + r));   // never drop below current
+    traps.splice(i, 1);
+    state.log(`A constricting trap digested a nematode: +${r} Phosphorus.`, 'good');
+  }
 }
 
 // Draw nutrient from every COLONISED food cell, plus the baseline trickle.

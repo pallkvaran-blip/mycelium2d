@@ -295,6 +295,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fixed CCG card shape + 4 card redefinitions** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Card shape:** every card (hand + draft offer) is now a **fixed 5:7 CCG shape** on phone
+    AND desktop (`.cardbtn`/`.offercard` `aspect-ratio:5/7`), with a **uniform 3:2 art window**
+    (`.cart aspect-ratio:3/2`) and a rules box that flex-fills and **always shows all text**
+    (`align-self:flex-start` stops the flex row stretching cards; width/font tuned so the
+    longest card doesn't clip). Shape takes priority over how many cards fit (desktop now ~6).
+  - **4 cards' text shortened + mechanics realigned to the new text** (src/engine/cards.js,
+    src/cards-data.js, docs/cards.json):
+    - **Tap-Root Rhizomorph** — was an *auto* dig-engine; now an installed **action** (type
+      engine→action): once per 5 rounds, pay **2 P**, tap an in-range rock → bore through it
+      (`punchThrough`). Shows a Use button (no longer an AUTO row).
+    - **Constricting Ring** — now a **trap** (free, once per 6): tap empty ground → lay a snare;
+      the first nematode to enter is digested for **+2 P** (`state.traps` + `resolveTraps` in
+      turn.js, rendered as a pulsing ring by `drawTraps`).
+    - **Sclerotial Seal** — cooldown 3→**4**; 1 P; seal a food pile from ants.
+    - **Suberin Wall** — once per 3: clear all infection in radius 80 **and ward the cells
+      against reinfection for 2 rounds** (`cell.mouldProof`; `threats.js` `cellProofed` skips
+      warded nodes in both infection vectors; turn.js decrements the ward each tick). This
+      implements the previously-deferred reinfection clause.
 - **HUD refinements** (branch `claude/mycelium-phase-1-build-urvq5e`): (1) dropped the icons
   from the bottom action buttons on every screen (text-only, matches phone); (2) **desktop**
   action bar is now a **vertical tray to the right of the carousel** (phone keeps the
@@ -433,9 +452,11 @@ Both menus are dark, on-theme, with glowing green borders.
   `'testall'` branch to restore the normal opening hand + resources. (The old
   `seedDemoActions` demo-abilities scaffold has been **removed** — the Actions menu is now
   populated by playing real `action`-type cards.)
-- **Suberin Wall's "block reinfection for 2 rounds" clause is not implemented** (pre-existing;
-  its cure was always radius-only). Would need a `cell.mouldProof` timer in `substrate.js` +
-  the mould step honouring it (mirror the `antProof` pattern). Backlogged — see §11.
+- **Suberin Wall's "block reinfection for 2 rounds"** is now implemented via `cell.mouldProof`
+  (set in radius 80, decremented each tick; `threats.js cellProofed` skips warded nodes in both
+  the contact and the along-filament spread vectors). Note it wards the AREA's nodes against
+  fresh infection — the rot can still creep in from an adjacent *unwarded* node, so it's
+  strong-but-not-absolute protection for the 2 rounds (acceptable v1).
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to

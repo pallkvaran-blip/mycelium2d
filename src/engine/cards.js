@@ -562,8 +562,14 @@ export const EFFECTS = {
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
 
-  // --- dig engine (Phosphorus install) ---
-  'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
+  // --- installed ACTION: bore through an in-range rock on a cooldown ---
+  // (Was an auto dig-engine; now a player-triggered ability per the card text.)
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 5, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+    if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
+    if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
+    return { ok: false, message: 'No rock there to grow through.' };
+  }),
 
   // --- utility (installed ACTION → Actions menu, right) ---
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
@@ -582,23 +588,26 @@ export const EFFECTS = {
   'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 3 rounds, tap a point → cure mould in radius 80.
-  'Suberin Wall': action({ effect: 'cure mould in an area', every: 3, target: true }, (s, ctx) => {
+  // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
+  // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
+  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
-    return { ok: true, message: h ? `Cured ${h} infected strands.` : 'Walled the area off against mould.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80, (cl) => { cl.mouldProof = 2; });
+    return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
   }),
-  // Constricting Ring: spend 1 Phosphorus, every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
-  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
+  // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
+  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+    const r = s.substrate.cellSize * 2.5;
     const worms = s.nematodes || [];
-    if (!worms.length) return { ok: false, message: 'No nematodes on the map to snare.' };
-    let idx = 0, bd = Infinity;
-    worms.forEach((w, i) => { const d = (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2; if (d < bd) { bd = d; idx = i; } });
-    worms.splice(idx, 1);
-    s.active.phosphorus = gain(s.active.phosphorus, 2, s.config.cards.softCapPhosphorus);
-    return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
+    if (worms.some((w) => (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2 <= r * r)) {
+      return { ok: false, message: 'A nematode is already there — set the trap on empty ground.' };
+    }
+    (s.traps || (s.traps = [])).push({ x: ctx.x, y: ctx.y, r, reward: 2 });
+    return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
-  // Sclerotial Seal: spend 1 Phosphorus, once per 3 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'seal a food pile from ants (3 rounds)', every: 3, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
+  'Sclerotial Seal': action({ effect: 'seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
     s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });

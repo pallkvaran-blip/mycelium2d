@@ -326,7 +326,7 @@ export const CARD_DATA = [
  },
  {
   "name": "Tap-Root Rhizomorph",
-  "type": "engine",
+  "type": "action",
   "category": "routing",
   "buyCostEnergy": 12,
   "costW": 0,
@@ -335,7 +335,7 @@ export const CARD_DATA = [
   "repay": 4,
   "threat": "none",
   "produces": "+1 cleared formation/column per round it has a target (~5 energy-equiv of barrier bypass)",
-  "effect": "Install (2 Phosphorus to play). Every 5 rounds, you may clear an in-range rock formation or column.",
+  "effect": "Once per 5 rounds: Pay 2 P to grow through an in-range rock.",
   "family": "growth",
   "tutorial": false,
   "startCopies": 0
@@ -351,7 +351,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "worm",
   "produces": "",
-  "effect": "Install. Action (once per 6 rounds): tap a point where no nematode is within range; the next nematode to enter a small radius is snared and digested for +2 Phosphorus.",
+  "effect": "Once per 6 rounds: tap a point where no nematode is within range; the first to enter is digested for +2 P.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -655,7 +655,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Install. Action (spend 1 P, once per 3 rounds): tap a food pile; for 3 rounds ants cannot harvest any leaves from it.",
+  "effect": "Once per 4 rounds: Pay 1 P to seal any food pile from ant access.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -671,7 +671,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Install. Action (once per 3 rounds): tap a point; cure all mould infection within radius 80 and block reinfection there for 2 rounds.",
+  "effect": "Once per 3 rounds: tap a point to clear all infection and protect from reinfection for 2 rounds.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0

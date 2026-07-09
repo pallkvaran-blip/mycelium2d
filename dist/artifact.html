@@ -428,32 +428,39 @@
       box-shadow: 0 0 6px rgba(0,0,0,0.6); }
     /* Portrait CCG card face: framed art window + name plate + full-text rules box.
        Card height is AUTO so the whole description always shows (no clamping). */
+    /* Every card is a FIXED CCG shape (5:7) on every screen — size scales with the
+       width but the proportions, the art window, and the text box never change. This
+       takes priority over how many cards fit on screen. */
     .cardbtn, .offercard { position: relative; display: flex; flex-direction: column; align-items: stretch;
+      aspect-ratio: 5 / 7;
       padding: 0; overflow: hidden; background: linear-gradient(158deg, #101a15, #070c0a 72%);
       border: 2px solid rgba(130,230,166,0.5); border-radius: 14px; color: var(--ink);
       cursor: pointer; text-align: left; font-family: inherit;
       box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75);
       transition: transform .08s, box-shadow .08s, border-color .08s; }
-    .cardbtn { width: 150px; flex: 0 0 auto; scroll-snap-align: center; }
+    .cardbtn { width: 172px; flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
     .cardbtn:hover:not(.unaff), .offercard:hover { border-color: rgba(170,255,205,0.85);
       box-shadow: 0 0 14px -1px rgba(130,230,166,0.7), inset 0 0 0 1px rgba(130,230,166,0.28), 0 10px 22px -9px rgba(0,0,0,0.85); }
     .offercard:hover { transform: translateY(-3px); }
     .cardbtn.unaff { opacity: 0.5; cursor: not-allowed; }
     .cardbtn.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
-    /* art window — inset so the dark frame shows around it, with an arched bottom */
-    .cart { position: relative; margin: 6px 6px 0; height: 132px; overflow: hidden;
+    /* art window — inset so the dark frame shows around it, with an arched bottom.
+       Fixed 3:2 aspect so every card's picture is the same size. */
+    .cart { position: relative; margin: 6px 6px 0; aspect-ratio: 3 / 2; flex: 0 0 auto; overflow: hidden;
       border-radius: 10px 10px 30px 30px / 10px 10px 16px 16px;
       background: radial-gradient(circle at 50% 40%, #16241c, #060f0b);
       box-shadow: inset 0 0 0 1px rgba(130,230,166,0.28), inset 0 -14px 20px -12px rgba(4,7,6,0.9); }
     .caimg { width: 100%; height: 100%; object-fit: cover; display: block; }
     .pips { position: absolute; top: 12px; left: 12px; z-index: 6; display: flex; flex-direction: column; gap: 4px; }
-    .cplate { text-align: center; padding: 7px 9px 3px; }
-    .cplate .cn { font-family: var(--serif); font-size: 14px; font-weight: 600; line-height: 1.12; color: #eaf4ee;
+    .cplate { text-align: center; padding: 5px 9px 2px; flex: 0 0 auto; }
+    .cplate .cn { font-family: var(--serif); font-size: 13.5px; font-weight: 600; line-height: 1.1; color: #eaf4ee;
       text-shadow: 0 1px 6px rgba(0,0,0,0.6); display: block; }
-    .cplate .ct { font-size: 8px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 3px; display: block; }
-    .crules { margin: 3px 8px 9px; padding: 7px 9px; border: 1px solid rgba(130,230,166,0.16); border-radius: 9px;
+    .cplate .ct { font-size: 8px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.14em; margin-top: 2px; display: block; }
+    /* rules box fills the remaining fixed height; text is sized to always fit. */
+    .crules { margin: 2px 7px 8px; padding: 5px 8px; flex: 1 1 auto; min-height: 0; overflow: hidden;
+      display: flex; align-items: flex-start; border: 1px solid rgba(130,230,166,0.16); border-radius: 9px;
       background: linear-gradient(180deg, rgba(10,16,13,0.5), rgba(6,10,8,0.68));
-      font-size: 10.5px; line-height: 1.4; color: #d3e2da; }
+      font-size: 10px; line-height: 1.3; color: #d3e2da; }
     .cc { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 5px; }
     .cc.e { color: var(--accent); background: rgba(127,230,163,0.14); }
     .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
@@ -473,10 +480,9 @@
     .offerbox p.dim { color: var(--ink-dim); }
     .offerbox p.small { font-size: 12px; }
     .offerrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
-    .offercard { width: 200px; }
-    .offercard .cart { height: 148px; }
+    .offercard { width: 210px; align-self: flex-start; }
     .offercard .cplate .cn { font-size: 15px; }
-    .offercard .crules { font-size: 11px; }
+    .offercard .crules { font-size: 11px; line-height: 1.34; }
     /* a static (non-interactive) card face inside the confirm/preview overlay */
     .offercard.static { cursor: default; }
     .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
@@ -535,22 +541,20 @@
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory;
         -webkit-overflow-scrolling: touch; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      /* Portrait cards: ~25% smaller than before, and a UNIFORM (fixed) picture on
-         every card. The rules box flex-grows to fill the card's min-height, so
-         short-rule cards just get extra space rather than a bigger picture. Fonts
-         are unchanged — only the picture shrank. min()/caps keep it sane on wide phones. */
-      .cardbtn { width: min(40vw, 172px); min-height: min(60vw, 258px); flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: min(30vw, 128px); min-height: 0; max-height: none; flex: 0 0 auto; }
-      .cardbtn .crules { flex: 1 1 auto; }
-      .cardbtn .cplate .cn { font-size: 14px; }
-      .cardbtn .crules { font-size: 11px; }
+      /* Portrait cards keep the SAME fixed 5:7 shape as desktop (aspect-ratio from the
+         base rule) — only the width scales. Uniform 3:2 picture, all text shown. */
+      .cardbtn { width: min(46vw, 172px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+      .cardbtn .cart { height: auto; flex: 0 0 auto; }
+      .cardbtn .crules { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+      .cardbtn .cplate .cn { font-size: 13.5px; }
+      .cardbtn .crules { font-size: 10.5px; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
         scroll-snap-type: x mandatory; scrollbar-width: none; }
       .offerrow::-webkit-scrollbar { display: none; }
-      .offercard { width: min(52vw, 220px); min-height: min(78vw, 330px); flex: 0 0 auto; scroll-snap-align: center; }
-      .offercard .cart { height: min(38vw, 160px); min-height: 0; max-height: none; flex: 0 0 auto; }
-      .offercard .crules { flex: 1 1 auto; }
+      .offercard { width: min(56vw, 220px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+      .offercard .cart { height: auto; flex: 0 0 auto; }
+      .offercard .crules { flex: 1 1 auto; min-height: 0; overflow: hidden; }
     }
     /* PHONE LANDSCAPE: almost no height — compact top panels, short card carousel. */
     @media (orientation: landscape) and (max-height: 520px) {
@@ -575,16 +579,16 @@
       .handlist { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
         justify-content: flex-start; max-height: none; max-width: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
       .handlist::-webkit-scrollbar { display: none; }
-      /* ~25% smaller than before + a uniform (fixed) picture; resets the portrait
-         vw sizes for small landscape phones that match both media blocks. */
-      .cardbtn { width: 112px; min-height: 0; flex: 0 0 auto; scroll-snap-align: center; }
-      .cardbtn .cart { height: 58px; min-height: 0; flex: 0 0 auto; }
-      .cardbtn .cplate { padding: 5px 7px 2px; }
+      /* Landscape phones: same fixed 5:7 shape, just a smaller width so a card fits
+         the short viewport; text kept small so it still all shows. */
+      .cardbtn { width: 132px; flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+      .cardbtn .cart { height: auto; flex: 0 0 auto; }
+      .cardbtn .cplate { padding: 4px 7px 1px; }
       .cardbtn .cplate .cn { font-size: 12px; }
-      .cardbtn .crules { font-size: 9px; margin: 3px 6px 6px; padding: 5px 7px; line-height: 1.35; flex: 0 0 auto; }
-      .offercard { width: 116px; min-height: 0; }
-      .offercard .cart { height: 60px; min-height: 0; flex: 0 0 auto; }
-      .offercard .crules { font-size: 9px; flex: 0 0 auto; }
+      .cardbtn .crules { font-size: 8.5px; margin: 2px 6px 6px; padding: 4px 6px; line-height: 1.28; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+      .offercard { width: 150px; align-self: flex-start; }
+      .offercard .cart { height: auto; flex: 0 0 auto; }
+      .offercard .crules { font-size: 9px; flex: 1 1 auto; min-height: 0; overflow: hidden; line-height: 1.3; }
       .handpreview { padding: 5px 9px; }
       .handpreview .hplabel, .handpreview .hpdesc { font-size: 10px; }
     }
@@ -593,8 +597,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "11th450";
-globalThis.__BUILD__ = "local 07-09 16:10";
+window.__ASSET_VER = "lhf2k5";
+globalThis.__BUILD__ = "local 07-09 17:13";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1314,7 +1318,7 @@ const CARD_DATA = [
  },
  {
   "name": "Tap-Root Rhizomorph",
-  "type": "engine",
+  "type": "action",
   "category": "routing",
   "buyCostEnergy": 12,
   "costW": 0,
@@ -1323,7 +1327,7 @@ const CARD_DATA = [
   "repay": 4,
   "threat": "none",
   "produces": "+1 cleared formation/column per round it has a target (~5 energy-equiv of barrier bypass)",
-  "effect": "Install (2 Phosphorus to play). Every 5 rounds, you may clear an in-range rock formation or column.",
+  "effect": "Once per 5 rounds: Pay 2 P to grow through an in-range rock.",
   "family": "growth",
   "tutorial": false,
   "startCopies": 0
@@ -1339,7 +1343,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "worm",
   "produces": "",
-  "effect": "Install. Action (once per 6 rounds): tap a point where no nematode is within range; the next nematode to enter a small radius is snared and digested for +2 Phosphorus.",
+  "effect": "Once per 6 rounds: tap a point where no nematode is within range; the first to enter is digested for +2 P.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -1643,7 +1647,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Install. Action (spend 1 P, once per 3 rounds): tap a food pile; for 3 rounds ants cannot harvest any leaves from it.",
+  "effect": "Once per 4 rounds: Pay 1 P to seal any food pile from ant access.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1659,7 +1663,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Install. Action (once per 3 rounds): tap a point; cure all mould infection within radius 80 and block reinfection there for 2 rounds.",
+  "effect": "Once per 3 rounds: tap a point to clear all infection and protect from reinfection for 2 rounds.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1727,7 +1731,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, bored: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, foodKind: '' };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -3553,9 +3557,9 @@ function infectNetwork(net, state) {
       touched = true;                          // in contact with the colony
       if (!n.infected && d < best) { best = d; hit = n; }
     }
-    if (hit && rng() < t.contactChance) {
+    if (hit && !cellProofed(sub, hit) && rng() < t.contactChance) {
       hit.infected = true;
-      infectAround(net, hit, t.contactChunk, 1, rng);
+      infectAround(net, hit, t.contactChunk, 1, rng, sub);
     }
     if (touched) cloud.dying = true;           // reached you — now it fades out, infected or not
   }
@@ -3563,24 +3567,32 @@ function infectNetwork(net, state) {
   // 2) Internal spread — the rot races along the filaments from the whole front.
   const front = [];
   for (const n of net.nodes) if (n.infected) front.push(n);
-  for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng);
+  for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
+}
+
+// A node sitting on a cell warded by Suberin Wall (cell.mouldProof > 0) is immune
+// to fresh infection for the duration of the ward.
+function cellProofed(sub, n) {
+  if (!sub) return false;
+  const c = sub.cellAtWorld(n.x, n.y);
+  return !!(c && c.mouldProof > 0);
 }
 
 // Flood infection outward from `seed` up to `depth` rings along the graph
 // (parent + children each step). chance 1 = guaranteed (an instant chunk);
 // < 1 = an organic race that may stall short of `depth`.
-function infectAround(network, seed, depth, chance, rng) {
+function infectAround(network, seed, depth, chance, rng, sub) {
   let frontier = [seed];
   for (let d = 0; d < depth && frontier.length; d++) {
     const next = [];
     for (const n of frontier) {
       if (n.parentId != null) {
         const p = network.byId.get(n.parentId);
-        if (p && !p.infected && (chance >= 1 || rng() < chance)) { p.infected = true; next.push(p); }
+        if (p && !p.infected && !cellProofed(sub, p) && (chance >= 1 || rng() < chance)) { p.infected = true; next.push(p); }
       }
       for (const cid of n.children) {
         const c = network.byId.get(cid);
-        if (c && !c.infected && (chance >= 1 || rng() < chance)) { c.infected = true; next.push(c); }
+        if (c && !c.infected && !cellProofed(sub, c) && (chance >= 1 || rng() < chance)) { c.infected = true; next.push(c); }
       }
     }
     frontier = next;
@@ -3952,6 +3964,7 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     networks,              // list-of-networks (A5-ready); one active in Phase 1
     active: networks[0],
     spores: 0,             // run-wide Spore total (summed across networks later)
+    traps: [],             // Constricting Ring traps: {x,y,r,reward} — digest a worm on contact
     turn: 1,
     runOver: false,
     runResult: null,
@@ -4546,8 +4559,14 @@ const EFFECTS = {
   'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
 
-  // --- dig engine (Phosphorus install) ---
-  'Tap-Root Rhizomorph': engine({ digEvery: 5, digClasses: ['formation', 'column'] }, 'Installed: clears a formation/column every 5 rounds.'),
+  // --- installed ACTION: bore through an in-range rock on a cooldown ---
+  // (Was an auto dig-engine; now a player-triggered ability per the card text.)
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 5, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+    if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
+    if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
+    return { ok: false, message: 'No rock there to grow through.' };
+  }),
 
   // --- utility (installed ACTION → Actions menu, right) ---
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
@@ -4566,23 +4585,26 @@ const EFFECTS = {
   'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 3 rounds, tap a point → cure mould in radius 80.
-  'Suberin Wall': action({ effect: 'cure mould in an area', every: 3, target: true }, (s, ctx) => {
+  // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
+  // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
+  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
-    return { ok: true, message: h ? `Cured ${h} infected strands.` : 'Walled the area off against mould.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80, (cl) => { cl.mouldProof = 2; });
+    return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
   }),
-  // Constricting Ring: spend 1 Phosphorus, every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
-  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
+  // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
+  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+    const r = s.substrate.cellSize * 2.5;
     const worms = s.nematodes || [];
-    if (!worms.length) return { ok: false, message: 'No nematodes on the map to snare.' };
-    let idx = 0, bd = Infinity;
-    worms.forEach((w, i) => { const d = (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2; if (d < bd) { bd = d; idx = i; } });
-    worms.splice(idx, 1);
-    s.active.phosphorus = gain(s.active.phosphorus, 2, s.config.cards.softCapPhosphorus);
-    return { ok: true, message: 'Snared a nematode: +2 Phosphorus.' };
+    if (worms.some((w) => (w.x - ctx.x) ** 2 + (w.y - ctx.y) ** 2 <= r * r)) {
+      return { ok: false, message: 'A nematode is already there — set the trap on empty ground.' };
+    }
+    (s.traps || (s.traps = [])).push({ x: ctx.x, y: ctx.y, r, reward: 2 });
+    return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
-  // Sclerotial Seal: spend 1 Phosphorus, once per 3 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'seal a food pile from ants (3 rounds)', every: 3, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
+  'Sclerotial Seal': action({ effect: 'seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
     s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });
@@ -4632,6 +4654,9 @@ function tickWorld(state) {
   spreadTrichoderma(state);   // clouds creep toward food/you and devour what they pass
   stepAnts(state);            // ants harvest their target food, RETARGET when it empties, re-stamp trails
   stepNematodes(state);       // worms crawl in, eat strands whole, and multiply
+  resolveTraps(state);        // Constricting Ring traps digest a worm that wandered in
+  // Age reinfection wards (Suberin Wall) down one step per round.
+  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
 
   for (const net of state.networks) {
     if (!net.alive) continue;
@@ -4675,6 +4700,27 @@ function tickWorld(state) {
 
   checkPuzzleGoal(state);
   state.turn += 1;   // a step counter (each action advances the world one step)
+}
+
+// Constricting Ring traps: a one-shot snare on empty ground. When any nematode
+// wanders within a trap's radius it's digested (removed) for a Phosphorus reward,
+// and the trap is spent. Runs after the worms have moved this step.
+function resolveTraps(state) {
+  const traps = state.traps;
+  if (!traps || !traps.length) return;
+  const worms = state.nematodes;
+  if (!worms || !worms.length) return;
+  const net = state.active, cap = state.config.cards.softCapPhosphorus;
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const tr = traps[i];
+    const wi = worms.findIndex((w) => (w.x - tr.x) ** 2 + (w.y - tr.y) ** 2 <= tr.r * tr.r);
+    if (wi < 0) continue;
+    worms.splice(wi, 1);
+    const r = tr.reward || 2;
+    if (net) net.phosphorus = Math.max(net.phosphorus, Math.min(cap, net.phosphorus + r));   // never drop below current
+    traps.splice(i, 1);
+    state.log(`A constricting trap digested a nematode: +${r} Phosphorus.`, 'good');
+  }
 }
 
 // Draw nutrient from every COLONISED food cell, plus the baseline trickle.
@@ -7871,10 +7917,32 @@ function frame(time) {
   drawCloudSight();
   drawAnts(time);
   drawNematodes(time);
+  drawTraps(time);
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
+}
+
+// Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
+// a snare is set (the next nematode to enter it is digested).
+function drawTraps(time) {
+  const traps = state.traps;
+  if (!traps || !traps.length) return;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.005);
+  for (const tr of traps) {
+    const s = camera.worldToScreen(tr.x, tr.y);
+    const r = tr.r * camera.zoom;
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(199,155,230,${0.55 + 0.35 * pulse})`;   // phosphorus violet
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(199,155,230,${0.10 + 0.08 * pulse})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // Puzzle mode: the treasure chest goal. Made deliberately easy to find — a
