@@ -86,6 +86,10 @@ function begin(newState) {
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
+  // Clear any armed aim/selection so a stale index never carries into the new run.
+  if (ui.clearPendingCard) ui.clearPendingCard();
+  if (ui.clearPendingAction) ui.clearPendingAction();
+  if (ui.clearArmed) ui.clearArmed();
   previewFruit = false;
   previewFruitPoints = [];
   resize();
@@ -198,9 +202,10 @@ const handlers = {
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
   onDraw() {
+    cancelAiming();
     resolveCardOp(drawCard(state));
   },
-  onSkip() { resolveCardOp(skipRound(state)); },
+  onSkip() { cancelAiming(); resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
   // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
@@ -209,6 +214,8 @@ const handlers = {
     // Can't afford / not allowed → surface why and drop the log down.
     const reason = cardBlockedReason(state, entry.name);
     if (reason) { state.log(reason, 'warn'); ui.toast(reason); uiDirty = true; return false; }
+    // Playing/aiming a card cancels any pending targeted-action aim (mutually exclusive).
+    if (ui.clearPendingAction) ui.clearPendingAction();
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
@@ -225,6 +232,11 @@ const handlers = {
   },
   onCancelCard() {
     ui.clearPendingCard();
+    ui.resetHint();
+    uiDirty = true;
+  },
+  onCancelAction() {
+    if (ui.clearPendingAction) ui.clearPendingAction();
     ui.resetHint();
     uiDirty = true;
   },
@@ -263,6 +275,15 @@ const handlers = {
     if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
   },
 };
+
+// Cancel any in-progress map aim (a targeted card OR a targeted installed action)
+// and restore the default hint. Called whenever a new op starts so a stale aim
+// can never survive to fire on an unrelated later tap.
+function cancelAiming() {
+  if (ui.clearPendingCard) ui.clearPendingCard();
+  if (ui.clearPendingAction) ui.clearPendingAction();
+  ui.resetHint();
+}
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
@@ -399,6 +420,7 @@ function setupInput() {
       const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
       const idx = state.cards.hand.findIndex((h) => h.id === ui.pendingCard.id);
       ui.clearPendingCard();
+      if (ui.clearPendingAction) ui.clearPendingAction();   // never leave an action aim stranded
       if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
       return;
     }

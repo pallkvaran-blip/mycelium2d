@@ -168,6 +168,13 @@ export function cardBlockedReason(state, name) {
   const c = CARD_BY_NAME[name];
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
+  // Action cards pay only their Energy buy price to INSTALL; any W/P shown on the
+  // card is the per-activation cost (spent on each Use from the menu), not a gate
+  // on installing — so don't require it here.
+  if (c.type === 'action') {
+    if (state.cards && state.cards.actions && state.cards.actions.some((a) => a.name === name)) return 'Already installed — it’s in your Actions menu.';
+    return null;
+  }
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
   return null;
@@ -219,8 +226,10 @@ export function playCard(state, handIndex, ctx = {}) {
   // Charge the card's Energy cost + its resource gate, only on success.
   // (Premium cards carry a buyCostEnergy; basics are 0 — you paid Energy to draw them.
   //  Until food-pile drafting exists, that Energy cost is paid here, at play time.)
+  // Action cards pay only Energy to install; their W/P is a per-activation cost
+  // (charged by activateAction on each Use), not an install gate.
   net.energy -= c.buyCostEnergy;
-  net.water -= c.costW; net.phosphorus -= c.costP;
+  if (!res.installAction) { net.water -= c.costW; net.phosphorus -= c.costP; }
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
@@ -578,8 +587,8 @@ export const EFFECTS = {
     const h = cureRadius(s, ctx, 80);
     return { ok: true, message: h ? `Cured ${h} infected strands.` : 'Walled the area off against mould.' };
   }),
-  // Constricting Ring: every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
-  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+  // Constricting Ring: spend 1 Phosphorus, every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
+  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const worms = s.nematodes || [];
     if (!worms.length) return { ok: false, message: 'No nematodes on the map to snare.' };
     let idx = 0, bd = Infinity;

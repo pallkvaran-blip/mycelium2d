@@ -568,8 +568,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "33ased";
-globalThis.__BUILD__ = "local 07-09 09:25";
+window.__ASSET_VER = "19me17e";
+globalThis.__BUILD__ = "local 07-09 09:58";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4127,6 +4127,13 @@ function cardBlockedReason(state, name) {
   const c = CARD_BY_NAME[name];
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
+  // Action cards pay only their Energy buy price to INSTALL; any W/P shown on the
+  // card is the per-activation cost (spent on each Use from the menu), not a gate
+  // on installing — so don't require it here.
+  if (c.type === 'action') {
+    if (state.cards && state.cards.actions && state.cards.actions.some((a) => a.name === name)) return 'Already installed — it’s in your Actions menu.';
+    return null;
+  }
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
   return null;
@@ -4178,8 +4185,10 @@ function playCard(state, handIndex, ctx = {}) {
   // Charge the card's Energy cost + its resource gate, only on success.
   // (Premium cards carry a buyCostEnergy; basics are 0 — you paid Energy to draw them.
   //  Until food-pile drafting exists, that Energy cost is paid here, at play time.)
+  // Action cards pay only Energy to install; their W/P is a per-activation cost
+  // (charged by activateAction on each Use), not an install gate.
   net.energy -= c.buyCostEnergy;
-  net.water -= c.costW; net.phosphorus -= c.costP;
+  if (!res.installAction) { net.water -= c.costW; net.phosphorus -= c.costP; }
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
@@ -4537,8 +4546,8 @@ const EFFECTS = {
     const h = cureRadius(s, ctx, 80);
     return { ok: true, message: h ? `Cured ${h} infected strands.` : 'Walled the area off against mould.' };
   }),
-  // Constricting Ring: every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
-  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+  // Constricting Ring: spend 1 Phosphorus, every 6 rounds, tap near a nematode → snare it for +2 Phosphorus.
+  'Constricting Ring': action({ effect: 'snare a nematode → +2✦', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const worms = s.nematodes || [];
     if (!worms.length) return { ok: false, message: 'No nematodes on the map to snare.' };
     let idx = 0, bd = Infinity;
@@ -6741,8 +6750,9 @@ class UI {
   setPendingAction(i) {
     this.pendingAction = i;
     if (window.innerWidth < 760 && this.actionsOpen) { this.actionsOpen = false; this._renderActions(); this._syncPanelHeights(); }
+    this._renderHandSelection();   // show the "Aiming … ✕" chip (phone) so it can be cancelled
   }
-  clearPendingAction() { this.pendingAction = null; }
+  clearPendingAction() { this.pendingAction = null; this._renderHandSelection(); }
 
   _renderEngines() {
     const led = this.el.engledger; if (!led) return;
@@ -6814,14 +6824,19 @@ class UI {
   _renderHandSelection() {
     const el = this.el.handsel;
     if (!el) return;
-    if (this.pendingCard) {
+    // A targeted card OR a targeted installed action can be aiming (mutually
+    // exclusive). Show whichever is armed, with a ✕ to cancel it.
+    const act = (!this.pendingCard && this.pendingAction != null && this.state.cards && this.state.cards.actions[this.pendingAction]) || null;
+    const name = this.pendingCard ? this.pendingCard.name : (act ? act.name : null);
+    if (name) {
       el.classList.remove('hidden');
       el.innerHTML = `<span class="hslabel">Aiming</span><span class="hsname"></span>`
         + `<button class="hscancel" aria-label="Cancel selection">✕</button>`;
-      el.querySelector('.hsname').textContent = this.pendingCard.name;
+      el.querySelector('.hsname').textContent = name;
+      const cancel = this.pendingCard ? this.handlers.onCancelCard : this.handlers.onCancelAction;
       el.querySelector('.hscancel').onclick = (e) => {
         e.stopPropagation();
-        if (this.handlers.onCancelCard) this.handlers.onCancelCard();
+        if (cancel) cancel();
       };
     } else {
       el.classList.add('hidden');
@@ -7217,8 +7232,12 @@ function cardGroup(c) {
 function gateChips(c) {
   const g = [];
   if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-  if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
-  if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);
+  // Action cards install for Energy only; their W/P is a per-activation cost shown
+  // in the Actions menu (not an install gate), so don't imply it on the card face.
+  if (c.type !== 'action') {
+    if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
+    if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);
+  }
   return g.join('');
 }
 // One portrait card face: framed art window + cost pips + name plate + FULL rules.
@@ -7327,6 +7346,10 @@ function begin(newState) {
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
   ui.setSelectedAction(null);
+  // Clear any armed aim/selection so a stale index never carries into the new run.
+  if (ui.clearPendingCard) ui.clearPendingCard();
+  if (ui.clearPendingAction) ui.clearPendingAction();
+  if (ui.clearArmed) ui.clearArmed();
   previewFruit = false;
   previewFruitPoints = [];
   resize();
@@ -7439,9 +7462,10 @@ const handlers = {
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
   onDraw() {
+    cancelAiming();
     resolveCardOp(drawCard(state));
   },
-  onSkip() { resolveCardOp(skipRound(state)); },
+  onSkip() { cancelAiming(); resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
   // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
@@ -7450,6 +7474,8 @@ const handlers = {
     // Can't afford / not allowed → surface why and drop the log down.
     const reason = cardBlockedReason(state, entry.name);
     if (reason) { state.log(reason, 'warn'); ui.toast(reason); uiDirty = true; return false; }
+    // Playing/aiming a card cancels any pending targeted-action aim (mutually exclusive).
+    if (ui.clearPendingAction) ui.clearPendingAction();
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
@@ -7466,6 +7492,11 @@ const handlers = {
   },
   onCancelCard() {
     ui.clearPendingCard();
+    ui.resetHint();
+    uiDirty = true;
+  },
+  onCancelAction() {
+    if (ui.clearPendingAction) ui.clearPendingAction();
     ui.resetHint();
     uiDirty = true;
   },
@@ -7504,6 +7535,15 @@ const handlers = {
     if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
   },
 };
+
+// Cancel any in-progress map aim (a targeted card OR a targeted installed action)
+// and restore the default hint. Called whenever a new op starts so a stale aim
+// can never survive to fire on an unrelated later tap.
+function cancelAiming() {
+  if (ui.clearPendingCard) ui.clearPendingCard();
+  if (ui.clearPendingAction) ui.clearPendingAction();
+  ui.resetHint();
+}
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
@@ -7640,6 +7680,7 @@ function setupInput() {
       const w = camera.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
       const idx = state.cards.hand.findIndex((h) => h.id === ui.pendingCard.id);
       ui.clearPendingCard();
+      if (ui.clearPendingAction) ui.clearPendingAction();   // never leave an action aim stranded
       if (idx >= 0) resolveCardOp(playCard(state, idx, { x: w.x, y: w.y }));
       return;
     }

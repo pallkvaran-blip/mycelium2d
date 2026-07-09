@@ -413,8 +413,9 @@ export class UI {
   setPendingAction(i) {
     this.pendingAction = i;
     if (window.innerWidth < 760 && this.actionsOpen) { this.actionsOpen = false; this._renderActions(); this._syncPanelHeights(); }
+    this._renderHandSelection();   // show the "Aiming … ✕" chip (phone) so it can be cancelled
   }
-  clearPendingAction() { this.pendingAction = null; }
+  clearPendingAction() { this.pendingAction = null; this._renderHandSelection(); }
 
   _renderEngines() {
     const led = this.el.engledger; if (!led) return;
@@ -486,14 +487,19 @@ export class UI {
   _renderHandSelection() {
     const el = this.el.handsel;
     if (!el) return;
-    if (this.pendingCard) {
+    // A targeted card OR a targeted installed action can be aiming (mutually
+    // exclusive). Show whichever is armed, with a ✕ to cancel it.
+    const act = (!this.pendingCard && this.pendingAction != null && this.state.cards && this.state.cards.actions[this.pendingAction]) || null;
+    const name = this.pendingCard ? this.pendingCard.name : (act ? act.name : null);
+    if (name) {
       el.classList.remove('hidden');
       el.innerHTML = `<span class="hslabel">Aiming</span><span class="hsname"></span>`
         + `<button class="hscancel" aria-label="Cancel selection">✕</button>`;
-      el.querySelector('.hsname').textContent = this.pendingCard.name;
+      el.querySelector('.hsname').textContent = name;
+      const cancel = this.pendingCard ? this.handlers.onCancelCard : this.handlers.onCancelAction;
       el.querySelector('.hscancel').onclick = (e) => {
         e.stopPropagation();
-        if (this.handlers.onCancelCard) this.handlers.onCancelCard();
+        if (cancel) cancel();
       };
     } else {
       el.classList.add('hidden');
@@ -889,8 +895,12 @@ function cardGroup(c) {
 function gateChips(c) {
   const g = [];
   if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
-  if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
-  if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);
+  // Action cards install for Energy only; their W/P is a per-activation cost shown
+  // in the Actions menu (not an install gate), so don't imply it on the card face.
+  if (c.type !== 'action') {
+    if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
+    if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);
+  }
   return g.join('');
 }
 // One portrait card face: framed art window + cost pips + name plate + FULL rules.

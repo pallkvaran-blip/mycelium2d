@@ -285,6 +285,30 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Action cards route to the Actions menu as installed abilities** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  Wired the two HUD corners to the real card taxonomy (cards-design §14 types):
+  - **`engine` → left ledger** (passive income/timed/modifier) — unchanged.
+  - **`action` → right Actions menu**, now **installed as repeatable abilities** (was
+    wrongly one-shot). A new `action(spec, run)` helper in `cards.js` returns
+    `{installAction}`; `playCard` pushes it into `state.cards.actions[]`. Gating per the
+    card's effect text: **Constricting Ring** (1✦, every 6, tap a nematode → +2✦),
+    **Nutrient Transmutation** (once/round, convert 2→1, instant), **Sclerotial Seal**
+    (1✦, every 3, tap a pile → ant-proof 3 rds), **Suberin Wall** (every 3, tap → cure mould).
+  - **`event`/`basic`/`extender` → one-shot** (play → discard/shuffle) — unchanged.
+  - **Activation-time targeting:** `activateAction(state, i, ctx)` returns `{needTarget}`
+    on the first call (Use button) so `main.js` arms a map-aim (`ui.pendingAction`); the
+    map tap resolves it. Cost/cooldown/per-round-use are spent **only on a successful
+    resolve**. `produceCardEngines` resets `used=0` and ticks `cd` down each world tick.
+  - **Install cost model:** action cards pay **Energy only** to install; their W/P is a
+    **per-activation** cost (in the spec), not an install gate — so `playCard`/`cardBlockedReason`
+    skip W/P for `action`-type cards, and the card face hides W/P pips for them.
+  - **Guards (from an adversarial review pass):** aim states are mutually exclusive and
+    cleared on Draw/Skip/Play/restart + the card-resolve tap (no stranded action firing on a
+    later tap); duplicate action installs are blocked (`Already installed`) so cooldowns
+    can't be bypassed; the phone "Aiming … ✕" chip + Escape cancel a pending action.
+  - Removed the demo `seedDemoActions` scaffolding — the menu reflects the real deck.
+    Verified via Playwright (routing, targeted activation, per-activation P, dup-block,
+    stale-aim) + both suites green.
 - **Engine ledger (top-left) + Actions menu (top-right)** (branch `claude/mycelium-phase-1-build-urvq5e`).
   Installed engine cards now have a **permanent, on-theme home**, and player-triggered
   abilities get their own menu. Both live only with the card layer on.
@@ -377,13 +401,13 @@ Both menus are dark, on-theme, with glowing green borders.
 - **TEMP test scaffolding — REVERT before release.** For card testing the run boots with
   (1) `initCards(state, 'testall')` in `main.js` `begin()` — a hand of **5× of every
   non-archived card** — and (2) **300 of each resource** (Water/Energy/Phosphorus set in
-  the `'testall'` branch of `initCards`), and (3) **`seedDemoActions(state)`** — six demo
-  abilities (Enzyme Surge, Turgor Push, Sclerotial Burst, Deep Siphon, Spore Lob, Mycelial
-  Recall) pushed into `state.cards.actions` so the Actions menu is populated before real
-  action cards exist. Revert to `initCards(state)`, remove the `'testall'` branch **and**
-  the `seedDemoActions` call/function to restore the normal opening. Real action cards will
-  push objects of the same shape (`name`, `effect`, optional `res`+`cost`, `per`, `every`,
-  `apply(state)`), so the Actions-menu render path stays as-is.
+  the `'testall'` branch of `initCards`). Revert to `initCards(state)` and remove the
+  `'testall'` branch to restore the normal opening hand + resources. (The old
+  `seedDemoActions` demo-abilities scaffold has been **removed** — the Actions menu is now
+  populated by playing real `action`-type cards.)
+- **Suberin Wall's "block reinfection for 2 rounds" clause is not implemented** (pre-existing;
+  its cure was always radius-only). Would need a `cell.mouldProof` timer in `substrate.js` +
+  the mould step honouring it (mirror the `antProof` pattern). Backlogged — see §11.
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to
