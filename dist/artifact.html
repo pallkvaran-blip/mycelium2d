@@ -277,6 +277,11 @@
     .use:hover:not(.off) { filter: brightness(1.08); }
     .use.off { color: var(--ink-dim); background: rgba(120,140,130,0.14); border-color: var(--panel-border);
       box-shadow: none; cursor: not-allowed; }
+    /* Automatic ability (timed dig): an amber "auto" tag instead of a Use button. */
+    .actrow.auto .acttxt { opacity: 0.92; }
+    .autotag { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--warn); background: rgba(224,168,90,0.14); border: 1px solid rgba(224,168,90,0.4);
+      border-radius: 8px; padding: 5px 9px; white-space: nowrap; align-self: center; }
 
     /* Testing panel */
     .testing { bottom: 14px; left: 14px; width: 320px; }
@@ -568,8 +573,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "19me17e";
-globalThis.__BUILD__ = "local 07-09 09:58";
+window.__ASSET_VER = "fvpeb5";
+globalThis.__BUILD__ = "local 07-09 15:42";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6757,11 +6762,15 @@ class UI {
   _renderEngines() {
     const led = this.el.engledger; if (!led) return;
     const C = this.state.cards; const engines = (C && C.engines) || [];
+    const sum = summarizeEngines(engines);
+    // The left ledger is only resource income + economy modifiers. Timed dig
+    // abilities (e.g. Tap-Root Rhizomorph) render in the Actions menu instead, so
+    // the ledger hides when the only install is one of those.
+    const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
     const wide = window.innerWidth >= 760;
-    const show = engines.length > 0 && (wide || this.ledgerOpen);
+    const show = !!hasLeft && (wide || this.ledgerOpen);
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
-    const sum = summarizeEngines(engines);
     const rangeStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
     const block = (key, label, glyph) => {
       const g = sum[key]; if (!g.rows.size) return '';
@@ -6775,12 +6784,7 @@ class UI {
         + `<span class="lgsub">${rangeStr(g)} / round</span></div>${rows}</div>`;
     };
     let h = block('energy', 'Energy', '⚡') + block('phosphorus', 'Phosphorus', '✦') + block('water', 'Water', '💧');
-    if (sum.timed.length) {
-      h += '<div class="lgdiv"></div>' + sum.timed.map((t) =>
-        `<div class="lgblock"><div class="lghead t"><span>⛏ Timed</span></div>`
-        + `<div class="erow t"><span class="edot t"></span><span class="enm">${t.name}</span>`
-        + `<span class="eval">${t.left} left</span></div></div>`).join('');
-    }
+    // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
         + sum.mods.map((m) => `<div class="erow"><span class="enm dim">${m.name} · ${m.text}</span></div>`).join('') + '</div>';
@@ -6792,16 +6796,21 @@ class UI {
     const dock = this.el.actdock, menu = this.el.actmenu, btn = this.el.actbtn, badge = this.el.actbadge;
     if (!dock) return;
     const C = this.state.cards; const actions = (C && C.actions) || [];
-    dock.classList.toggle('hidden', actions.length === 0);
-    if (!actions.length) { menu.innerHTML = ''; return; }
-    const ready = actions.filter((a) => actionUsable(this.state, a)).length;
+    // Timed dig engines (e.g. Tap-Root Rhizomorph) are automatic abilities that act
+    // on the world, so they belong here (right) rather than the resource ledger.
+    const timed = summarizeEngines((C && C.engines) || []).timed;
+    const hasAny = actions.length > 0 || timed.length > 0;
+    dock.classList.toggle('hidden', !hasAny);
+    if (!hasAny) { menu.innerHTML = ''; return; }
+    const ready = actions.filter((a) => actionUsable(this.state, a)).length;   // player-usable now (autos don't count)
     badge.textContent = ready; badge.classList.toggle('zero', ready === 0);
     const wide = window.innerWidth >= 760;
     const show = wide || this.actionsOpen;
     btn.classList.toggle('open', show);
     menu.classList.toggle('hidden', !show);
     if (!show) { menu.innerHTML = ''; return; }
-    menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('');
+    menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('')
+      + timed.map((t) => autoActionRowHTML(t)).join('');
     menu.querySelectorAll('.use:not(.off)').forEach((b) => { b.onclick = () => this.handlers.onActivateAction(+b.dataset.i); });
   }
 
@@ -7203,6 +7212,16 @@ function actionRowHTML(a, i, state) {
     + (meta ? `<div class="actmeta">${meta}</div>` : '')
     + `</div>`
     + `<button class="use${usable ? '' : ' off'}" data-i="${i}"${usable ? '' : ' disabled'}>Use</button></div>`;
+}
+// An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
+// its own cadence, so it shows a countdown and an "auto" tag instead of a Use button.
+function autoActionRowHTML(t) {
+  return `<div class="actrow auto">`
+    + `<span class="edot t"></span>`
+    + `<div class="acttxt"><div class="actnm">${escapeHtml(t.name)}</div>`
+    + `<div class="acteff">clears a rock formation/column</div>`
+    + `<div class="actmeta">auto · every ${t.every}${t.left != null ? ` · in ${t.left}` : ''}</div></div>`
+    + `<span class="autotag">auto</span></div>`;
 }
 // Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
 function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }

@@ -287,7 +287,11 @@ Both menus are dark, on-theme, with glowing green borders.
 
 - **Action cards route to the Actions menu as installed abilities** (branch `claude/mycelium-phase-1-build-urvq5e`).
   Wired the two HUD corners to the real card taxonomy (cards-design §14 types):
-  - **`engine` → left ledger** (passive income/timed/modifier) — unchanged.
+  - **`engine` → left ledger** = resource income (energy/water/phosphorus ranges) +
+    economy modifiers (draw discount). Its **timed dig abilities** (Tap-Root Rhizomorph)
+    render in the **Actions menu** instead — they act on the world, so they read as an
+    ability, shown as an **auto** row (amber `AUTO` tag + `every N · in M` countdown, no
+    Use button since they fire on their own cadence).
   - **`action` → right Actions menu**, now **installed as repeatable abilities** (was
     wrongly one-shot). A new `action(spec, run)` helper in `cards.js` returns
     `{installAction}`; `playCard` pushes it into `state.cards.actions[]`. Gating per the

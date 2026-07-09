@@ -282,6 +282,11 @@
     .use:hover:not(.off) { filter: brightness(1.08); }
     .use.off { color: var(--ink-dim); background: rgba(120,140,130,0.14); border-color: var(--panel-border);
       box-shadow: none; cursor: not-allowed; }
+    /* Automatic ability (timed dig): an amber "auto" tag instead of a Use button. */
+    .actrow.auto .acttxt { opacity: 0.92; }
+    .autotag { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--warn); background: rgba(224,168,90,0.14); border: 1px solid rgba(224,168,90,0.4);
+      border-radius: 8px; padding: 5px 9px; white-space: nowrap; align-self: center; }
 
     /* Testing panel */
     .testing { bottom: 14px; left: 14px; width: 320px; }
