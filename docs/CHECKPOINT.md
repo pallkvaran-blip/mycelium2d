@@ -181,10 +181,15 @@ Leaf/humus cards are defined but **shelved** (kept out of the active decks).
 All UI is built in `src/render/ui.js`; all CSS is inline in `index.html`.
 Both menus are dark, on-theme, with glowing green borders.
 
-- **Top HUD** — one compact glowing **resource pill** (⚡ / W / P). A **Log**
-  button drops the event log down; it **auto-opens on player errors** (`openLog()`,
-  e.g. insufficient resources). No turn/step/vitality rows.
-- **Bottom action bar** — three groups, one row, glowing frame:
+- **Top HUD** — one compact glowing **resource pill** (⚡ / W / P), each with an
+  inline SVG mark (bolt / drop / spark, same size, centre-aligned) and its **per-round
+  income range** beside the stock, e.g. `265 +4` · `301 +0–1` · `302 +1`. A **Log**
+  button drops the event log down; it **auto-opens on player errors** (`openLog()`).
+  No turn/step/vitality rows.
+- **Bottom action bar** — the Show Hand · Draw · Skip · Play Card controls, text-only
+  (icons dropped). **Desktop:** a **vertical tray to the right of the carousel**
+  (`flex-direction: column`, pinned bottom-right). **Phone:** a horizontal one-row
+  strip across the bottom. Legacy zone structure (below) still describes the grouping:
   - **left:** `Show Hand` ⇄ `Hide Hand` toggle (label reflects state; no chevron,
     no card-count badge).
   - **centre:** `Draw 3` / `16⚡` and `Skip` / `12⚡`.
@@ -290,6 +295,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **HUD refinements** (branch `claude/mycelium-phase-1-build-urvq5e`): (1) dropped the icons
+  from the bottom action buttons on every screen (text-only, matches phone); (2) **desktop**
+  action bar is now a **vertical tray to the right of the carousel** (phone keeps the
+  horizontal bottom strip); (3) the resource-pill icons are now all same-size, centre-aligned
+  SVGs (energy bolt added to match the water drop / phosphorus spark); (4) the pill shows each
+  resource's **per-round income range** beside the stock (`265 +4`, `301 +0–1`, …) via
+  `summarizeEngines` in `update()`.
 - **Browser HUD polish** (branch `claude/mycelium-phase-1-build-urvq5e`): (1) hand + bottom
   action bar moved **all the way to the bottom** on desktop (matches phone); (2) mouse
   carousel drag now has **inertial momentum** so it glides like a phone swipe (+ desktop

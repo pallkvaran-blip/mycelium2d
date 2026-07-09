@@ -42,15 +42,20 @@
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
-    .res { display: inline-flex; align-items: baseline; gap: 4px; padding: 0 4px; }
+    /* Icon + number + income-delta all vertically CENTRED so the three resources
+       read as one coherent row (energy/water/phosphorus now all use same-size SVGs). */
+    .res { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px; }
     .res .rk { font-size: 11px; font-weight: 700; opacity: 0.85; }
-    .res .rv { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; }
-    .res.e .rk, .res.e .rv { color: var(--accent); }
-    .res.w .rk, .res.w .rv, .res.w .ri { color: #7fd0e0; }
-    .res.p .rk, .res.p .rv, .res.p .ri { color: #c79be6; }
-    /* Resource marks (water drop / phosphorus spark) — inherit currentColor. */
+    .res .rv { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; line-height: 1; }
+    /* per-round income shown next to the stock, e.g. "200 +1–3" */
+    .res .rd { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.82; margin-left: 1px; }
+    .res .rd:empty { display: none; }
+    .res.e .rk, .res.e .rv, .res.e .ri, .res.e .rd { color: var(--accent); }
+    .res.w .rk, .res.w .rv, .res.w .ri, .res.w .rd { color: #7fd0e0; }
+    .res.p .rk, .res.p .rv, .res.p .ri, .res.p .rd { color: #c79be6; }
+    /* Resource marks (bolt / water drop / phosphorus spark) — inherit currentColor. */
     .ri { display: inline-block; width: 1em; height: 1em; flex: 0 0 auto; vertical-align: -0.14em; }
-    .res .ri { width: 15px; height: 15px; align-self: center; }
+    .res .ri { width: 16px; height: 16px; align-self: center; }
     .logbtn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
       background: rgba(127,230,163,0.12); border: 1px solid rgba(130,230,166,0.4); border-radius: 999px;
       padding: 4px 11px; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; gap: 4px; }
@@ -68,14 +73,16 @@
     .traits .tr.on { color: var(--accent); background: rgba(127,230,163,0.12); }
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
-    /* Action bar — glowing on-theme tray */
-    .actionbar { bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;
-      align-items: stretch; flex-wrap: nowrap; justify-content: space-between; width: min(600px, 94vw); padding: 8px 12px;
+    /* Action bar — glowing on-theme tray. DESKTOP: a vertical column pinned to the
+       bottom-right, beside the card carousel. (Phone restores a horizontal bottom
+       strip in the media queries below.) */
+    .actionbar { bottom: 16px; right: 12px; left: auto; transform: none; display: flex; flex-direction: column; gap: 8px;
+      align-items: stretch; flex-wrap: nowrap; width: 164px; padding: 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 14px;
       box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
-    /* [Show Hand] left · [Draw][Skip] centre · [Play Card] right */
-    .actionbar .abgroup { display: flex; gap: 8px; align-items: stretch; }
+    /* Buttons stack vertically (Show Hand · Draw · Skip · Play Card), each full-width. */
+    .actionbar .abgroup { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; }
     /* Action buttons — "Lumen": a bioluminescent frosted-glass finish. An icon,
        then a stacked function/cost; a top light-line + depth shadow; the mint rim
        wakes on hover. Icon hides on narrow phones (media query below). */
@@ -85,7 +92,8 @@
       border: 1px solid rgba(130,230,166,0.26);
       box-shadow: inset 0 1px 0 rgba(198,255,224,0.10), 0 6px 16px -10px rgba(0,0,0,0.9);
       transition: background .16s, border-color .16s, box-shadow .16s, transform .06s; }
-    .actionbar .abtn .ic { width: 19px; height: 19px; flex: 0 0 auto; color: var(--accent); }
+    /* Icons removed from the bottom bar on every screen — text-only buttons (matches phone). */
+    .actionbar .abtn .ic { display: none; }
     .actionbar .abtn .txt { display: inline-flex; flex-direction: column; align-items: flex-start; }
     .actionbar .abtn .blabel { font-size: 13px; font-weight: 600; letter-spacing: .005em; color: var(--ink); }
     .actionbar .abtn .bcost { font-size: 11px; margin-top: 2px; color: #e6b45c; font-variant-numeric: tabular-nums;
@@ -348,8 +356,8 @@
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
     /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
        glowing on-theme frame appears only when the carousel is open. */
-    .handbar { bottom: 98px; left: 50%; transform: translateX(-50%); max-width: 96vw; padding: 0;
-      display: flex; flex-direction: column; gap: 8px; align-items: center;
+    .handbar { bottom: 16px; left: 12px; right: 192px; transform: none; max-width: none; padding: 0;
+      display: flex; flex-direction: column; gap: 8px; align-items: stretch;
       background: none; border: none; box-shadow: none; backdrop-filter: none; }
     .handbar.open { padding: 8px 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
@@ -393,7 +401,7 @@
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
     .handcarousel { display: flex; align-items: center; gap: 8px; max-width: 100%; }
-    .handlist { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-start;
+    .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start;
       max-width: min(88vw, 1400px); overflow-x: auto; overflow-y: hidden;
       scrollbar-width: none; scroll-snap-type: none; cursor: grab; }
     .handlist::-webkit-scrollbar { display: none; }
@@ -509,7 +517,8 @@
       .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
       .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none;
-        width: auto; gap: 6px; padding: 6px 8px; flex-wrap: nowrap; justify-content: space-between; }
+        flex-direction: row; width: auto; gap: 6px; padding: 6px 8px; flex-wrap: nowrap; justify-content: space-between; }
+      .actionbar .abgroup { flex-direction: row; width: auto; }
       .actionbar .abtn { min-height: 44px; padding: 5px 8px; }
       .actionbar .abtn .blabel { font-size: 12px; }
       .actionbar .abtn .bcost { font-size: 10.5px; }
@@ -549,7 +558,8 @@
       .hud { top: 6px; left: 6px; }
       .logdrop { max-width: min(60vw, 340px); }
       .logdrop .loglist { font-size: 9.5px; line-height: 1.35; max-height: 40vh; }
-      .actionbar { bottom: 6px; left: 6px; right: 6px; transform: none; width: auto; gap: 5px; padding: 5px 7px; flex-wrap: nowrap; justify-content: space-between; }
+      .actionbar { bottom: 6px; left: 6px; right: 6px; transform: none; flex-direction: row; width: auto; gap: 5px; padding: 5px 7px; flex-wrap: nowrap; justify-content: space-between; }
+      .actionbar .abgroup { flex-direction: row; width: auto; }
       .actionbar .abtn { min-height: 38px; padding: 4px 9px; }
       .actionbar .abtn .blabel { font-size: 11.5px; }
       .actionbar .abtn .bcost { font-size: 10px; }
@@ -583,8 +593,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "7wjdyt";
-globalThis.__BUILD__ = "local 07-09 15:59";
+window.__ASSET_VER = "11th450";
+globalThis.__BUILD__ = "local 07-09 16:10";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6378,6 +6388,7 @@ const ICON = (id) => ICON_SVG[id] || '';
 // Phosphorus = spark/shine). Self-contained inline SVGs so they survive the
 // single-file bundle; coloured by the surrounding context via currentColor.
 const RES_ICON = {
+  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="currentColor"/></svg>',
   water: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 1 0 13 0C18.5 10 12 2.5 12 2.5Z" fill="currentColor"/></svg>',
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
@@ -6488,9 +6499,9 @@ class UI {
     // ---- Top HUD: one compact resource row + a drop-down event log ----
     const hud = div('panel hud');
     const resRow = cardsOn
-      ? `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
-        + `<span class="res w">${RES_ICON.water}<span class="rv" id="hud-water">0</span></span>`
-        + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span></span>`
+      ? `<span class="res e">${RES_ICON.energy}<span class="rv" id="hud-energy">0</span><span class="rd" id="hud-energy-inc"></span></span>`
+        + `<span class="res w">${RES_ICON.water}<span class="rv" id="hud-water">0</span><span class="rd" id="hud-water-inc"></span></span>`
+        + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span><span class="rd" id="hud-phosphorus-inc"></span></span>`
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     hud.innerHTML =
@@ -6965,6 +6976,13 @@ class UI {
     if (this.cardsOn && s.cards) {
       text('hud-water', Math.floor(net.water || 0));
       text('hud-phosphorus', Math.floor(net.phosphorus || 0));
+      // Per-round income shown on the pill next to each stock (e.g. "200 +1–3"):
+      // steady producers set the floor, cadenced ones (every N) add the ceiling.
+      const inc = summarizeEngines(s.cards.engines || []);
+      const incStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; if (mx <= 0) return ''; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
+      text('hud-energy-inc', incStr(inc.energy));
+      text('hud-water-inc', incStr(inc.water));
+      text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));

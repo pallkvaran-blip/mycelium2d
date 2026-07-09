@@ -26,6 +26,7 @@ const ICON = (id) => ICON_SVG[id] || '';
 // Phosphorus = spark/shine). Self-contained inline SVGs so they survive the
 // single-file bundle; coloured by the surrounding context via currentColor.
 const RES_ICON = {
+  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="currentColor"/></svg>',
   water: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 1 0 13 0C18.5 10 12 2.5 12 2.5Z" fill="currentColor"/></svg>',
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
@@ -136,9 +137,9 @@ export class UI {
     // ---- Top HUD: one compact resource row + a drop-down event log ----
     const hud = div('panel hud');
     const resRow = cardsOn
-      ? `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
-        + `<span class="res w">${RES_ICON.water}<span class="rv" id="hud-water">0</span></span>`
-        + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span></span>`
+      ? `<span class="res e">${RES_ICON.energy}<span class="rv" id="hud-energy">0</span><span class="rd" id="hud-energy-inc"></span></span>`
+        + `<span class="res w">${RES_ICON.water}<span class="rv" id="hud-water">0</span><span class="rd" id="hud-water-inc"></span></span>`
+        + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span><span class="rd" id="hud-phosphorus-inc"></span></span>`
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     hud.innerHTML =
@@ -613,6 +614,13 @@ export class UI {
     if (this.cardsOn && s.cards) {
       text('hud-water', Math.floor(net.water || 0));
       text('hud-phosphorus', Math.floor(net.phosphorus || 0));
+      // Per-round income shown on the pill next to each stock (e.g. "200 +1–3"):
+      // steady producers set the floor, cadenced ones (every N) add the ceiling.
+      const inc = summarizeEngines(s.cards.engines || []);
+      const incStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; if (mx <= 0) return ''; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
+      text('hud-energy-inc', incStr(inc.energy));
+      text('hud-water-inc', incStr(inc.water));
+      text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
       const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
