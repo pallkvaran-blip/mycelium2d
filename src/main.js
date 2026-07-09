@@ -12,7 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer } from './engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer, activateAction } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -226,6 +226,19 @@ const handlers = {
   onCancelCard() {
     ui.clearPendingCard();
     ui.resetHint();
+    uiDirty = true;
+  },
+  onActivateAction(i) {
+    // Using an installed action does NOT advance the world (it happens within the
+    // round); it may reshape the colony, so refresh the renderers on success.
+    const res = activateAction(state, i);
+    if (res && res.ok) {
+      substrateRenderer.markDirty();
+      rendererFor(state.active).markStructureDirty();
+      if (state.runOver) ui.showOverlay(state.runResult);
+    } else if (res && res.message) {
+      ui.toast(res.message);
+    }
     uiDirty = true;
   },
   onChooseCard(name) {

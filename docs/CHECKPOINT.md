@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-05 (grow-card mechanic fixes · batched renderer LOD · raised caps · engine-HUD design + game-vision note §21)._
+_Living status + knowledge doc. Last updated: 2026-07-09 (engine ledger + actions menu shipped · grow-card mechanic fixes · batched renderer LOD · raised caps · game-vision note §21)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -285,6 +285,31 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Engine ledger (top-left) + Actions menu (top-right)** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  Installed engine cards now have a **permanent, on-theme home**, and player-triggered
+  abilities get their own menu. Both live only with the card layer on.
+  - **Engine ledger** — hangs under the resource pill. Groups installed engines by output
+    resource and shows per-round income as a **range** when cadences mix: steady producers
+    set the floor, cadenced ones (`every N`) add the ceiling — e.g. `+1/rd` plus
+    `+1 every 2` reads **+1–2**; all-steady reads a single number; cadenced-only reads
+    from its floor (**+0–1**). Duplicate engines collapse to `×N` rows; `⛏ Timed`
+    (dig engines) and `Modifiers` (draw discount) get their own footer blocks.
+    (`_renderEngines` + `summarizeEngines` in `render/ui.js`.)
+  - **Actions menu** — a top-right dock: a `⛏ Actions` pill button with a mint **ready-count
+    badge**, dropping a list of installed abilities, each with a **Use** button. An action
+    (`state.cards.actions[]`) is gated by a **cooldown** (`every N` → `cd` counts down), a
+    **resource price** (`cost` of `res`), and/or **uses per round** (`per`/`used`). Using one
+    does **not** tick the world; a world tick (draw/skip/play → `produceCardEngines`) resets
+    `used=0` and decrements `cd`. Runtime: `actionUsable` / `activateAction` in
+    `engine/cards.js`; handler `onActivateAction` in `main.js`; render `_renderActions` +
+    `actionRowHTML` in `render/ui.js`.
+  - **Layout:** desktop pins both corners open and `_syncPanelHeights()` equalises their
+    heights; a phone taps the pill to drop the ledger and the Actions button to drop the
+    menu, with **Log / ledger / Actions mutually exclusive** (one drop-down at a time).
+    Corner panels sit at `z-index:30` so they overlay the hand carousel cleanly.
+    CSS in `index.html` (`.engledger` / `.actionsdock` / `.actmenu` etc.). Verified via
+    Playwright (desktop + phone screenshots; Use-button flips to disabled + badge decrements
+    after activation) and both test suites green.
 - **Grow-card mechanic fixes + perf + caps** (branch `claude/mycelium-phase-1-build-urvq5e`).
   Card behaviour now owned by `cards-design.md` where it overlaps; the runtime lives in
   `engine/network.js` + `engine/cards.js`:
@@ -346,8 +371,13 @@ Both menus are dark, on-theme, with glowing green borders.
 - **TEMP test scaffolding — REVERT before release.** For card testing the run boots with
   (1) `initCards(state, 'testall')` in `main.js` `begin()` — a hand of **5× of every
   non-archived card** — and (2) **300 of each resource** (Water/Energy/Phosphorus set in
-  the `'testall'` branch of `initCards`). Revert to `initCards(state)` and remove the
-  `'testall'` branch to restore normal starting hand + resources.
+  the `'testall'` branch of `initCards`), and (3) **`seedDemoActions(state)`** — six demo
+  abilities (Enzyme Surge, Turgor Push, Sclerotial Burst, Deep Siphon, Spore Lob, Mycelial
+  Recall) pushed into `state.cards.actions` so the Actions menu is populated before real
+  action cards exist. Revert to `initCards(state)`, remove the `'testall'` branch **and**
+  the `seedDemoActions` call/function to restore the normal opening. Real action cards will
+  push objects of the same shape (`name`, `effect`, optional `res`+`cost`, `per`, `every`,
+  `apply(state)`), so the Actions-menu render path stays as-is.
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to

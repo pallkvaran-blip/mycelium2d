@@ -38,8 +38,10 @@
     .title .warn { color: var(--warn); font-size: 10px; font-weight: 400; }
 
     /* HUD — one compact glowing resource row + a drop-down event log */
+    /* z-index lifts the pill + log + engine ledger above the hand carousel so the
+       drop-downs overlay cleanly instead of being clipped by it (below toast/overlay). */
     .hud { top: 14px; left: 14px; min-width: 0; padding: 0; background: none; border: none;
-      box-shadow: none; backdrop-filter: none; }
+      box-shadow: none; backdrop-filter: none; z-index: 30; }
     .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
       border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
@@ -183,6 +185,102 @@
     .le.turn { color: #7fb0e6; }
     .le.warn { color: var(--warn); }
     .le.dev { color: #c07fe6; }
+
+    /* ===== Installed-engine ledger (top-left) + Actions menu (top-right) =====
+       Both exist only with the card layer on. The ledger hangs under the resource
+       pill (it's a child of .hud, in normal flow); the Actions dock sits in the
+       opposite corner. Both share the HUD's dark-glass, mint-rimmed look and
+       scroll internally when they grow tall. _syncPanelHeights() may set an
+       explicit height to match the two corners; the max-height here is the
+       single-panel fallback. */
+    .engledger.hidden, .actionsdock.hidden, .actmenu.hidden { display: none; }
+
+    .engledger { margin-top: 8px; width: 238px; max-width: calc(100vw - 28px);
+      padding: 9px 11px; font-size: 12px; color: var(--ink);
+      background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
+      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      max-height: 62vh; overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
+    .engledger::-webkit-scrollbar, .actmenu::-webkit-scrollbar { width: 5px; }
+    .engledger::-webkit-scrollbar-thumb, .actmenu::-webkit-scrollbar-thumb {
+      background: rgba(127,230,163,0.35); border-radius: 5px; }
+    .lgblock { margin-bottom: 7px; }
+    .lgblock:last-child { margin-bottom: 0; }
+    .lghead { display: flex; align-items: baseline; gap: 6px; font-family: var(--serif);
+      font-weight: 600; margin-bottom: 3px; }
+    .lghead .lgsub { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 11.5px; }
+    .lghead.energy, .lghead.energy .lgsub { color: var(--accent); }
+    .lghead.water, .lghead.water .lgsub { color: #7fd0e0; }
+    .lghead.phosphorus, .lghead.phosphorus .lgsub { color: #c79be6; }
+    .lghead.t { color: var(--warn); }
+    .lghead.m { color: var(--ink-dim); }
+    .erow { display: flex; align-items: center; gap: 7px; padding: 2px 0 2px 4px; }
+    .erow .enm { color: var(--ink-dim); font-size: 11.5px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+    .erow .exn { color: var(--ink); font-weight: 700; font-size: 10px; opacity: 0.8; flex: 0 0 auto; }
+    .erow .eval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700;
+      white-space: nowrap; flex: 0 0 auto; }
+    .erow.energy .eval { color: var(--accent); }
+    .erow.water .eval { color: #7fd0e0; }
+    .erow.phosphorus .eval { color: #c79be6; }
+    .erow.t .eval { color: var(--warn); }
+    .erow .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
+    .lgdiv { height: 1px; background: var(--panel-border); margin: 6px 0; }
+
+    /* glow dots — shared by ledger rows (full keys energy/water/phosphorus/t) and
+       action rows (short keys e/w/p/t), so both spellings are styled. */
+    .edot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+    .edot.e, .edot.energy { background: radial-gradient(circle at 35% 35%, #d7ffe8, var(--accent)); box-shadow: 0 0 6px var(--accent); }
+    .edot.w, .edot.water { background: radial-gradient(circle at 35% 35%, #dff6fb, #7fd0e0); box-shadow: 0 0 6px #7fd0e0; }
+    .edot.p, .edot.phosphorus { background: radial-gradient(circle at 35% 35%, #efe0fb, #c79be6); box-shadow: 0 0 6px #c79be6; }
+    .edot.t { background: radial-gradient(circle at 35% 35%, #ffe6c2, var(--warn)); box-shadow: 0 0 6px var(--warn); }
+
+    /* Actions dock (top-right): a pill button + a drop-down menu of abilities. */
+    /* z-index (matches .hud) keeps the menu above the hand carousel. */
+    .actionsdock { top: 14px; right: 14px; position: absolute; display: flex;
+      flex-direction: column; align-items: flex-end; gap: 8px; max-width: calc(100vw - 28px);
+      background: none; border: none; box-shadow: none; backdrop-filter: none; padding: 0; z-index: 30; }
+    .actbtn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 12px;
+      border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 700; color: var(--ink);
+      background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border: 1.5px solid rgba(130,230,166,0.5);
+      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px); cursor: pointer; white-space: nowrap; }
+    .actbtn:hover { border-color: rgba(170,255,205,0.7); }
+    .actbtn .pk { color: var(--accent); font-size: 13px; line-height: 1; }
+    .actbtn .abadge { font-size: 10px; font-weight: 800; color: #06120c; background: var(--accent);
+      border-radius: 999px; padding: 1px 6px; box-shadow: 0 0 8px rgba(127,230,163,0.5); font-variant-numeric: tabular-nums; }
+    .actbtn .abadge.zero { color: var(--ink-dim); background: rgba(120,140,130,0.18); box-shadow: none; }
+    .actbtn .achev { font-size: 8px; color: var(--ink-dim); transition: transform 0.15s; }
+    .actbtn.open .achev { transform: rotate(180deg); }
+    .actmenu { width: 266px; max-width: calc(100vw - 28px); padding: 4px 8px 8px;
+      font-size: 12px; color: var(--ink);
+      background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
+      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      max-height: 62vh; overflow-y: auto; overflow-x: hidden;
+      scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
+    .actrow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
+      padding: 7px 4px; border-top: 1px solid var(--panel-border); }
+    .actrow:first-child { border-top: 0; }
+    .actrow.off { opacity: 0.6; }
+    .acttxt { min-width: 0; }
+    .actnm { font-weight: 600; font-size: 12.5px; color: var(--ink); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .acteff { color: var(--ink-dim); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .actmeta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 10px;
+      color: var(--ink-dim); margin-top: 2px; }
+    .acost { font-weight: 700; }
+    .acost.e { color: var(--accent); } .acost.w { color: #7fd0e0; } .acost.p { color: #c79be6; }
+    .use { font-family: inherit; font-size: 11.5px; font-weight: 700; color: #06120c; background: var(--accent);
+      border: 1px solid var(--accent); border-radius: 8px; padding: 6px 14px; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 0 10px rgba(127,230,163,0.28); align-self: center; }
+    .use:hover:not(.off) { filter: brightness(1.08); }
+    .use.off { color: var(--ink-dim); background: rgba(120,140,130,0.14); border-color: var(--panel-border);
+      box-shadow: none; cursor: not-allowed; }
 
     /* Testing panel */
     .testing { bottom: 14px; left: 14px; width: 320px; }
@@ -393,6 +491,12 @@
       /* Compact top HUD (resource pill); the log drops down from it */
       .hud { top: 8px; left: 8px; right: auto; }
       .logdrop { max-width: min(80vw, 300px); }
+      /* Phone: the pill is tappable to drop the engine ledger; the Actions dock
+         moves in to match the compact HUD margins. */
+      .hud .resrow { cursor: pointer; }
+      .engledger { width: min(80vw, 260px); max-width: calc(100vw - 16px); max-height: 60vh; }
+      .actionsdock { top: 8px; right: 8px; }
+      .actmenu { max-width: calc(100vw - 16px); max-height: 60vh; }
       .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
       .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none;

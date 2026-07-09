@@ -111,7 +111,8 @@ export function initCards(state, mode = 'tutorial') {
     for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  if (mode === 'testall') seedDemoActions(state);   // TEMP: populate the Actions menu for testing
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -258,6 +259,67 @@ export function produceCardEngines(state) {
   }
   // The engine energy ceiling: installed energy income is clamped below SKIP.
   if (energySum > 0) net.energy += Math.min(energySum, cc.engineEnergyClamp);
+
+  // Player-activated actions: a world tick is one "round", so per-round use limits
+  // reset and cooldowns tick down (the Actions-menu buttons refresh from this).
+  for (const a of (C.actions || [])) {
+    a.used = 0;
+    if (a.cd > 0) a.cd -= 1;
+  }
+}
+
+// --- player-activated actions (Actions menu) --------------------------------
+// An action is gated by a cooldown (`every` rounds → `cd` counts down), a resource
+// price (`cost` of `res`), and/or a per-round use cap (`per`, `used` this round).
+// Using one does NOT advance the world (it happens within the round); draw/skip/
+// play tick the world, which is what resets `used` and decrements `cd` above.
+const RES_LABEL = { energy: 'Energy', water: 'Water', phosphorus: 'Phosphorus' };
+export function actionUsable(state, a) {
+  if (!a) return false;
+  const net = state.active; if (!net || !net.alive) return false;
+  if ((a.cd || 0) > 0) return false;
+  if (a.per && (a.used || 0) >= a.per) return false;
+  if (a.cost && (net[a.res] || 0) < a.cost) return false;
+  return true;
+}
+export function activateAction(state, i) {
+  const C = state.cards; if (!C) return { ok: false };
+  const a = C.actions && C.actions[i]; if (!a) return { ok: false };
+  const net = state.active;
+  if (!actionUsable(state, a)) {
+    let msg = 'That action isn’t ready.';
+    if ((a.cd || 0) > 0) msg = `On cooldown — ${a.cd} round${a.cd > 1 ? 's' : ''} left.`;
+    else if (a.per && (a.used || 0) >= a.per) msg = 'No uses left this round.';
+    else if (a.cost && (net[a.res] || 0) < a.cost) msg = `Need ${a.cost - Math.floor(net[a.res] || 0)} more ${RES_LABEL[a.res] || a.res}.`;
+    return { ok: false, message: msg };
+  }
+  const res = a.apply ? a.apply(state) : { ok: true, message: `${a.name}.` };
+  if (!res || !res.ok) return { ok: false, message: (res && res.message) || 'Nothing happened.' };
+  if (a.cost) net[a.res] -= a.cost;      // pay the price
+  if (a.per) a.used = (a.used || 0) + 1;  // spend a use
+  if (a.every) a.cd = a.every;            // start the cooldown
+  state.log(`Action: ${a.name}. ${res.message || ''}`, 'action');
+  return { ok: true, message: res.message };
+}
+
+// TEMP (testall only): demo actions so the Actions menu is testable before real
+// action cards exist. Real action cards will push objects of this same shape.
+function seedDemoActions(state) {
+  const cc = state.config.cards;
+  state.cards.actions = [
+    { name: 'Enzyme Surge', effect: 'grow two steps toward food', res: 'phosphorus', cost: 3,
+      apply: (s) => { let n = 0; for (let k = 0; k < 2; k++) n += s.active.grow(s.substrate, s.rng); return { ok: true, message: `Grew ${n}.` }; } },
+    { name: 'Turgor Push', effect: 'nudge the frontier outward', per: 3, used: 0,
+      apply: (s) => { const n = s.active.grow(s.substrate, s.rng); return { ok: true, message: `Pushed ${n}.` }; } },
+    { name: 'Sclerotial Burst', effect: 'clear infection across the colony', every: 3, cd: 0,
+      apply: (s) => { let h = 0; for (const nd of s.active.nodes) if (nd.infected) { nd.infected = false; h++; } return { ok: true, message: h ? `Cleared ${h} strands.` : 'No infection to clear.' }; } },
+    { name: 'Deep Siphon', effect: 'draw a gulp of water', res: 'water', cost: 9,
+      apply: (s) => { const b = s.active.water; s.active.water = gain(s.active.water, 4, cc.softCapWater); return { ok: true, message: `+${Math.round(s.active.water - b)} Water.` }; } },
+    { name: 'Spore Lob', effect: 'seed a spore pocket', res: 'water', cost: 1, per: 2, used: 0,
+      apply: () => ({ ok: true, message: 'Lobbed a spore pocket.' }) },
+    { name: 'Mycelial Recall', effect: 'reclaim spent energy', every: 5, cd: 0,
+      apply: (s) => { s.active.energy += 8; return { ok: true, message: '+8⚡.' }; } },
+  ];
 }
 
 // --- WIN: a strand reaches the goal zone; LOSE: card-dry & broke ------------

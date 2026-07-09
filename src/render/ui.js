@@ -10,7 +10,7 @@
 import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
-import { cardDeckAdditions } from '../engine/cards.js';
+import { cardDeckAdditions, actionUsable } from '../engine/cards.js';
 
 // Small self-contained line-icons for the action bar (inlined so they survive the
 // single-file bundle). Hidden on narrow phones via CSS so the bar stays uncluttered.
@@ -123,6 +123,34 @@ export class UI {
     this.el.logdrop = hud.querySelector('#logdrop');
     this.el.loglist = hud.querySelector('#loglist');
     hud.querySelector('#logbtn').onclick = () => this.toggleLog();
+
+    // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
+    // and the ACTIONS menu (top-right). Both only exist with the card layer on.
+    if (cardsOn) {
+      const led = div('engledger hidden');
+      led.id = 'engledger';
+      hud.appendChild(led);
+      this.el.engledger = led;
+      // On a phone the ledger is collapsed; tapping the pill row (not the Log
+      // button) drops it. Desktop keeps it pinned open (see _renderEngines).
+      hud.querySelector('.resrow').addEventListener('click', (e) => {
+        if (e.target.closest('#logbtn')) return;
+        if (window.innerWidth < 760) this.toggleLedger();
+      });
+
+      const dock = div('actionsdock hidden');
+      dock.innerHTML =
+        `<button class="actbtn" id="actbtn" aria-label="Colony actions">`
+        + `<span class="pk" aria-hidden="true">⛏</span><span class="albl">Actions</span>`
+        + `<span class="abadge" id="actbadge">0</span><span class="achev">▾</span></button>`
+        + `<div class="actmenu hidden" id="actmenu"></div>`;
+      root.appendChild(dock);
+      this.el.actdock = dock;
+      this.el.actbtn = dock.querySelector('#actbtn');
+      this.el.actmenu = dock.querySelector('#actmenu');
+      this.el.actbadge = dock.querySelector('#actbadge');
+      this.el.actbtn.onclick = () => this.toggleActions();
+    }
 
     // ---- Bottom action bar ----
     const bar = div('panel actionbar');
@@ -313,12 +341,100 @@ export class UI {
   toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
   setLogOpen(open) {
     if (!this.el.logdrop) return;
+    // Phone: the log shares screen space with the two corner drop-downs — close
+    // them when it opens so only one is visible at a time.
+    if (open && window.innerWidth < 760) {
+      this.ledgerOpen = false; this.actionsOpen = false;
+      this._renderEngines(); this._renderActions();
+    }
     this.el.logdrop.classList.toggle('hidden', !open);
     const chev = document.querySelector('.logbtn .lchev');
     if (chev) chev.textContent = open ? '▴' : '▾';
     if (open) this._renderLog();
   }
   openLog() { this.setLogOpen(true); }
+
+  // --- installed-engines ledger (top-left) + actions menu (top-right) --------
+  // On a phone the three drop-downs (Log, ledger, Actions) would overlap, so only
+  // one is open at a time. On desktop both corner panels stay pinned (no conflict).
+  toggleLedger() {
+    this.ledgerOpen = !this.ledgerOpen;
+    if (this.ledgerOpen) {
+      this.setLogOpen(false);                                  // log + ledger share the top-left column
+      if (window.innerWidth < 760) this.actionsOpen = false;   // phone: one drop-down at a time
+    }
+    this._renderEngines(); this._renderActions(); this._syncPanelHeights();
+  }
+  toggleActions() {
+    this.actionsOpen = !this.actionsOpen;
+    if (this.actionsOpen && window.innerWidth < 760) { this.ledgerOpen = false; this.setLogOpen(false); }
+    this._renderActions(); this._renderEngines(); this._syncPanelHeights();
+  }
+
+  _renderEngines() {
+    const led = this.el.engledger; if (!led) return;
+    const C = this.state.cards; const engines = (C && C.engines) || [];
+    const wide = window.innerWidth >= 760;
+    const show = engines.length > 0 && (wide || this.ledgerOpen);
+    led.classList.toggle('hidden', !show);
+    if (!show) { led.innerHTML = ''; return; }
+    const sum = summarizeEngines(engines);
+    const rangeStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
+    const block = (key, label, glyph) => {
+      const g = sum[key]; if (!g.rows.size) return '';
+      const rows = [...g.rows.values()].map((r) =>
+        `<div class="erow ${key}"><span class="edot ${key}"></span>`
+        + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
+        + `<span class="enm">${r.name}</span>`
+        + `<span class="eval">+${r.amt}${glyph}</span>`
+        + `<span class="ecad">${r.cad > 1 ? '/' + r.cad : '/rd'}</span></div>`).join('');
+      return `<div class="lgblock"><div class="lghead ${key}"><span>${glyph} ${label}</span>`
+        + `<span class="lgsub">${rangeStr(g)} / round</span></div>${rows}</div>`;
+    };
+    let h = block('energy', 'Energy', '⚡') + block('phosphorus', 'Phosphorus', '✦') + block('water', 'Water', '💧');
+    if (sum.timed.length) {
+      h += '<div class="lgdiv"></div>' + sum.timed.map((t) =>
+        `<div class="lgblock"><div class="lghead t"><span>⛏ Timed</span></div>`
+        + `<div class="erow t"><span class="edot t"></span><span class="enm">${t.name}</span>`
+        + `<span class="eval">${t.left} left</span></div></div>`).join('');
+    }
+    if (sum.mods.length) {
+      h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
+        + sum.mods.map((m) => `<div class="erow"><span class="enm dim">${m.name} · ${m.text}</span></div>`).join('') + '</div>';
+    }
+    led.innerHTML = h;
+  }
+
+  _renderActions() {
+    const dock = this.el.actdock, menu = this.el.actmenu, btn = this.el.actbtn, badge = this.el.actbadge;
+    if (!dock) return;
+    const C = this.state.cards; const actions = (C && C.actions) || [];
+    dock.classList.toggle('hidden', actions.length === 0);
+    if (!actions.length) { menu.innerHTML = ''; return; }
+    const ready = actions.filter((a) => actionUsable(this.state, a)).length;
+    badge.textContent = ready; badge.classList.toggle('zero', ready === 0);
+    const wide = window.innerWidth >= 760;
+    const show = wide || this.actionsOpen;
+    btn.classList.toggle('open', show);
+    menu.classList.toggle('hidden', !show);
+    if (!show) { menu.innerHTML = ''; return; }
+    menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('');
+    menu.querySelectorAll('.use:not(.off)').forEach((b) => { b.onclick = () => this.handlers.onActivateAction(+b.dataset.i); });
+  }
+
+  // Match the two panels' heights so the corners read as a balanced pair.
+  _syncPanelHeights() {
+    const led = this.el.engledger, menu = this.el.actmenu;
+    if (!led || !menu) return;
+    led.style.height = ''; menu.style.height = '';
+    const ledVis = !led.classList.contains('hidden');
+    const menuVis = menu && this.el.actdock && !this.el.actdock.classList.contains('hidden') && !menu.classList.contains('hidden');
+    if (ledVis && menuVis) {
+      const cap = Math.round(window.innerHeight * 0.62);
+      const hh = Math.min(cap, Math.max(led.scrollHeight, menu.scrollHeight));
+      led.style.height = hh + 'px'; menu.style.height = hh + 'px';
+    }
+  }
 
   // The "selected card" chip in the hand header — makes it clear which card is
   // armed while you're aiming on the map.
@@ -426,6 +542,9 @@ export class UI {
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
       }
       this._renderOffer();
+      this._renderEngines();
+      this._renderActions();
+      this._syncPanelHeights();
     }
 
     // Old action buttons (only present when the card layer is off).
@@ -655,6 +774,48 @@ function span(t, cls) { const s = document.createElement('span'); s.className = 
 function button(cls, html) { const b = document.createElement('button'); b.className = cls; b.innerHTML = html; return b; }
 function text(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// --- installed-engine ledger helpers ---------------------------------------
+// Group installed engines by their output, summing duplicates (×N) and splitting
+// steady (per-round) from cadenced (every-N) income so the ledger can show a range.
+function summarizeEngines(engines) {
+  const mk = () => ({ steady: 0, cad: 0, rows: new Map() });
+  const out = { energy: mk(), water: mk(), phosphorus: mk(), timed: [], mods: [] };
+  for (const e of engines) {
+    const res = e.energy ? 'energy' : e.water ? 'water' : e.phosphorus ? 'phosphorus' : null;
+    if (res) {
+      const amt = e[res], cad = (e.every && e.every > 1) ? e.every : 1, g = out[res];
+      if (cad > 1) g.cad += amt; else g.steady += amt;
+      const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), amt: 0, n: 0, cad };
+      row.amt += amt; row.n += 1; g.rows.set(key, row);
+    } else if (e.digEvery) {
+      out.timed.push({ name: escapeHtml(e.name), every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
+    } else if (e.drawDiscount) {
+      out.mods.push({ name: escapeHtml(e.name), text: `draws −${e.drawDiscount}⚡` });
+    }
+  }
+  return out;
+}
+
+// --- actions-menu row -------------------------------------------------------
+const ACT_GLYPH = { energy: '⚡', water: '💧', phosphorus: '✦' };
+const ACT_DOT = { energy: 'e', water: 'w', phosphorus: 'p' };
+function actionRowHTML(a, i, state) {
+  const usable = actionUsable(state, a);
+  const bits = [];
+  if (a.cost) bits.push(`<span class="acost ${ACT_DOT[a.res]}">${a.cost}${ACT_GLYPH[a.res]}</span>`);
+  if (a.per) bits.push(`${(a.per - (a.used || 0))} / ${a.per} left`);
+  if (a.every) bits.push((a.cd || 0) > 0 ? `every ${a.every} · in ${a.cd}` : `every ${a.every}`);
+  const meta = bits.join(' · ');
+  const dot = a.cost ? ACT_DOT[a.res] : (a.every ? 't' : 'e');
+  return `<div class="actrow${usable ? '' : ' off'}">`
+    + `<span class="edot ${dot}"></span>`
+    + `<div class="acttxt"><div class="actnm">${escapeHtml(a.name)}</div>`
+    + `<div class="acteff">${escapeHtml(a.effect || '')}</div>`
+    + (meta ? `<div class="actmeta">${meta}</div>` : '')
+    + `</div>`
+    + `<button class="use${usable ? '' : ' off'}" data-i="${i}"${usable ? '' : ' disabled'}>Use</button></div>`;
+}
 // Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
 export function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 // The art window: a bespoke image per card; if it's missing the dark gradient shows
