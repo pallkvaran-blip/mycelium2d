@@ -151,7 +151,7 @@ export class UI {
       dock.innerHTML =
         `<button class="actbtn" id="actbtn" aria-label="Colony actions">`
         + PICK_SVG
-        + `<span class="abadge" id="actbadge">0</span><span class="achev">▾</span></button>`
+        + `<span class="abadge" id="actbadge">0</span></button>`
         + `<div class="actmenu hidden" id="actmenu"></div>`;
       root.appendChild(dock);
       this.el.actdock = dock;
