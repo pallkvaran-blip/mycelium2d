@@ -88,10 +88,25 @@ export class Lighting {
       // (the seed strand at game start) a lone aura is faint and its lit edge falls
       // well short of the true range. Scale each tip's alpha up when the frontier is
       // sparse so the lit area reaches the real reach from the very first turn.
-      const sparseBoost = Math.min(2.6, Math.max(1, 5 / tips.length));
+      // Weight the frontier count by each tip's reveal so a grow's not-yet-revealed
+      // tips don't instantly collapse the boost (which would DIM the existing aura
+      // for the whole reveal); the boost eases down as the new tips fade in.
+      const revs = tips.map((t) => rend.revealFactor(t, time));
+      let effTips = 0; for (const rv of revs) effTips += rv;
+      const sparseBoost = Math.min(2.6, Math.max(1, 5 / Math.max(1, effTips)));
       const senseAlpha = 0.12 * breath * sparseBoost;
-      for (const t of tips) {
-        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, senseAlpha, W, H);
+      for (let ti = 0; ti < tips.length; ti++) {
+        // Follow the growth animation: a frontier tip only casts its aura once
+        // its strand has started growing in, ramping + moving with the tip.
+        const rev = revs[ti];
+        if (rev <= 0) continue;
+        const t = tips[ti];
+        let tx = t.x, ty = t.y;
+        if (rev < 1) {
+          const p = t.parentId != null ? net.byId.get(t.parentId) : null;
+          if (p) { tx = p.x + (t.x - p.x) * rev; ty = p.y + (t.y - p.y) * rev; }
+        }
+        this._light(lc, camera, this.spriteSense, tx, ty, senseR, senseAlpha * rev, W, H);
       }
     }
 
@@ -100,13 +115,27 @@ export class Lighting {
       if (!net.alive && !net.fruited) continue;
       const bright = breath; // glow independent of vitality
       const nodes = net.nodes;
+      const rend = networkRenderers && networkRenderers.get(net.id);
       // Keep glow DENSITY roughly constant as the colony grows (don't let a
       // fixed light budget spread thin and make a big colony look faint).
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
         if (n.infected) continue;  // dead strands don't glow
-        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
+        // Follow the growth animation instead of lighting the whole end-state
+        // colony at once: skip a node until its strand starts, and fade + move
+        // its glow with the growing tip.
+        let nx = n.x, ny = n.y, k = bright * 0.9;
+        if (rend) {
+          const rev = rend.revealFactor(n, time);
+          if (rev <= 0) continue;
+          if (rev < 1) {
+            const p = n.parentId != null ? net.byId.get(n.parentId) : null;
+            if (p) { nx = p.x + (n.x - p.x) * rev; ny = p.y + (n.y - p.y) * rev; }
+            k *= rev;
+          }
+        }
+        this._light(lc, camera, this.spriteNetwork, nx, ny, baseR * 1.0, k, W, H);
       }
     }
 

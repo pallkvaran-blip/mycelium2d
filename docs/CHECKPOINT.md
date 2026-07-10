@@ -345,14 +345,23 @@ Both menus are dark, on-theme, with glowing green borders.
     every node is still added to `net.nodes` instantly, so income, collision, infection and
     win-checks all resolve on the same tick as before — only the *draw* is delayed. This keeps
     it cheap (no extra batch rebuilds, no sim rework).
-  - `NetworkRenderer.draw` keeps a lazy `_revealCount` baseline; when `nodes.length` grows it
-    stamps each new node's `_appearAt` staggered **base→tip** across a spread of
-    `count*55 ms` clamped to `[REVEAL_SPREAD_MIN 1000, REVEAL_SPREAD_MAX 2400]`. Seed / shrink
-    (undo, new run) reset the baseline so they show instantly.
+  - `NetworkRenderer.draw` detects freshly-grown nodes by **identity** (a per-node `_revSeen`
+    flag), not by a node-count delta, and stamps each new node's `_appearAt` staggered
+    **base→tip** across a spread of `count*55 ms` clamped to
+    `[REVEAL_SPREAD_MIN 1000, REVEAL_SPREAD_MAX 2400]`. Identity-keying is robust to a grow and
+    a threat-removal landing in the **same frame** (the action appends nodes, then `tickWorld`
+    lets nematodes/ants/starvation prune others and `_removeNodes` compacts the array) — a
+    count/index scheme would mis-schedule and flash part of the new growth.
   - `_strokeStructure` draws a not-yet-arrived node as a partial line from its parent
     (`rev = (now - _appearAt)/REVEAL_SEG`, `REVEAL_SEG 340 ms`) that extends + fades in, then
     snaps to the normal quadratic once `rev>=1`. **Batched/simplify mode** (zoomed out or
     >~1900 nodes) intentionally shows instant — the per-node reveal only runs in the detail path.
+  - **No end-state flash.** The other render passes that read the whole node set now follow the
+    reveal via `NetworkRenderer.revealFactor(node, time)` (0 = not started … 1 = done; 1 in
+    batched LOD): the **lighting** network-glow + sensing-aura skip un-started nodes and move +
+    fade each light with its growing tip (the sensing `sparseBoost` is weighted by reveal so a
+    grow doesn't dim the existing aura), and the **nutrient-pulse ring** skips strands that are
+    still growing in (else it painted a bright arc in empty earth ahead of the filament).
 - **Growth-through-rock fix + review hardening** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Directed growth (Tropic Lunge, Rhizomorph Lance, Apical Drive, …) no longer crosses
     rock.** Growth checked only each segment's *endpoint* cell, so a strand could hop over

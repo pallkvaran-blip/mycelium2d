@@ -67,7 +67,7 @@ export class NetworkRenderer {
           const d = root ? Math.hypot(n.x - root.x, n.y - root.y) : 0;
           if (d > this.maxDist) this.maxDist = d;
           const w = size.get(n.id) || 1;
-          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w, h: n.health, d });
+          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w, h: n.health, d, node: n });
 
           // Bucket by the same taper width used in detail mode, then bake the
           // meandering centreline into that bucket's shared path.
@@ -250,18 +250,31 @@ export class NetworkRenderer {
     const net = this.network;
 
     // --- Growth reveal scheduling (render-only) ---
-    // Stamp newly-appended nodes with a staggered `_appearAt` so a grow animates
-    // in over ~1–3s. First frame's nodes (the seed) and any post-shrink state are
-    // shown instantly; only genuinely-new nodes get an appear time.
+    // Stamp freshly-grown nodes with a staggered `_appearAt` so a grow animates in
+    // over ~1–3s. New nodes are detected by IDENTITY (a per-node `_revSeen` flag),
+    // not by a node-count delta: a grow and a threat-removal can both land between
+    // the same two frames (the action appends nodes, then tickWorld lets nematodes/
+    // ants/starvation prune others in the same handler), and _removeNodes compacts
+    // the array — so index/count assumptions misfire and would flash the new growth.
+    // Keying off identity is robust to any add+remove mix in one frame gap.
     this._now = time;
-    const nn = net.nodes.length;
-    if (this._revealCount === undefined || nn < this._revealCount) {
-      this._revealCount = nn;                       // baseline (first frame) or nodes removed
-    } else if (nn > this._revealCount) {
-      const first = this._revealCount, count = nn - first;
-      const spread = Math.min(REVEAL_SPREAD_MAX, Math.max(REVEAL_SPREAD_MIN, count * 55));
-      for (let i = first; i < nn; i++) net.nodes[i]._appearAt = time + ((i - first) / count) * spread;
-      this._revealCount = nn;
+    const nodes = net.nodes;
+    if (!this._revealReady) {
+      for (const n of nodes) n._revSeen = true;     // first frame: everything present is baseline (instant)
+      this._revealReady = true;
+    } else {
+      let count = 0;
+      for (const n of nodes) if (!n._revSeen) count++;
+      if (count > 0) {
+        const spread = Math.min(REVEAL_SPREAD_MAX, Math.max(REVEAL_SPREAD_MIN, count * 55));
+        let k = 0;
+        for (const n of nodes) {                    // array order = base→tip among the new nodes
+          if (n._revSeen) continue;
+          n._appearAt = time + (k / count) * spread;
+          n._revSeen = true;
+          k++;
+        }
+      }
     }
     // Steady brightness — no global "breathing" (the constant brightening/dimming
     // made the whole map pulse and was hard to look at). Appearance is also
@@ -293,6 +306,7 @@ export class NetworkRenderer {
     // path LOD, which strokes the whole structure in ~4 calls instead of one
     // per node. This keeps big colonies at interactive frame rates.
     const simplify = detailAmt <= 0.02;
+    this._lastSimplify = simplify;   // so the lighting pass can match instant-LOD strands
     ctx.save();
     ctx.translate(tl.x, tl.y);
     ctx.scale(zoom, zoom);
@@ -316,6 +330,9 @@ export class NetworkRenderer {
     const estride = Math.max(1, Math.ceil(this.edges.length / 220));
     for (let i = 0; i < this.edges.length; i += estride) {
       const e = this.edges[i];
+      // Don't pulse a strand that's still growing in — otherwise the ring paints a
+      // bright arc in empty earth where the not-yet-revealed filament will land.
+      if (this.revealFactor(e.node, time) < 1) continue;
       const dd = Math.abs(e.d - front);
       if (dd > bandW) continue;
       ctx.globalAlpha = (1 - dd / bandW) * 0.45 * brightness;
@@ -328,6 +345,19 @@ export class NetworkRenderer {
     }
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  // Reveal factor for a node at the current frame time, matching the strand
+  // reveal in _strokeStructure: 1 when fully grown (or unscheduled, or when the
+  // batched LOD is drawing strands instantly), 0..1 while a fresh strand grows
+  // in, 0 before it starts. The lighting pass uses this so the colony's glow and
+  // sensing aura FOLLOW the animated growth instead of flashing the full
+  // end-state extent the instant the sim appends the nodes.
+  revealFactor(n, time) {
+    if (this._lastSimplify) return 1;      // batched LOD shows strands instantly
+    if (n._appearAt == null) return 1;
+    const rev = (time - n._appearAt) / REVEAL_SEG;
+    return rev <= 0 ? 0 : (rev < 1 ? rev : 1);
   }
 }
 

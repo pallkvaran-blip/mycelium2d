@@ -609,8 +609,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "14dkd3v";
-globalThis.__BUILD__ = "local 07-10 11:08";
+window.__ASSET_VER = "1htss5g";
+globalThis.__BUILD__ = "local 07-10 11:41";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6004,7 +6004,7 @@ class NetworkRenderer {
           const d = root ? Math.hypot(n.x - root.x, n.y - root.y) : 0;
           if (d > this.maxDist) this.maxDist = d;
           const w = size.get(n.id) || 1;
-          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w, h: n.health, d });
+          this.edges.push({ ax: p.x, ay: p.y, bx: n.x, by: n.y, w, h: n.health, d, node: n });
 
           // Bucket by the same taper width used in detail mode, then bake the
           // meandering centreline into that bucket's shared path.
@@ -6187,18 +6187,31 @@ class NetworkRenderer {
     const net = this.network;
 
     // --- Growth reveal scheduling (render-only) ---
-    // Stamp newly-appended nodes with a staggered `_appearAt` so a grow animates
-    // in over ~1–3s. First frame's nodes (the seed) and any post-shrink state are
-    // shown instantly; only genuinely-new nodes get an appear time.
+    // Stamp freshly-grown nodes with a staggered `_appearAt` so a grow animates in
+    // over ~1–3s. New nodes are detected by IDENTITY (a per-node `_revSeen` flag),
+    // not by a node-count delta: a grow and a threat-removal can both land between
+    // the same two frames (the action appends nodes, then tickWorld lets nematodes/
+    // ants/starvation prune others in the same handler), and _removeNodes compacts
+    // the array — so index/count assumptions misfire and would flash the new growth.
+    // Keying off identity is robust to any add+remove mix in one frame gap.
     this._now = time;
-    const nn = net.nodes.length;
-    if (this._revealCount === undefined || nn < this._revealCount) {
-      this._revealCount = nn;                       // baseline (first frame) or nodes removed
-    } else if (nn > this._revealCount) {
-      const first = this._revealCount, count = nn - first;
-      const spread = Math.min(REVEAL_SPREAD_MAX, Math.max(REVEAL_SPREAD_MIN, count * 55));
-      for (let i = first; i < nn; i++) net.nodes[i]._appearAt = time + ((i - first) / count) * spread;
-      this._revealCount = nn;
+    const nodes = net.nodes;
+    if (!this._revealReady) {
+      for (const n of nodes) n._revSeen = true;     // first frame: everything present is baseline (instant)
+      this._revealReady = true;
+    } else {
+      let count = 0;
+      for (const n of nodes) if (!n._revSeen) count++;
+      if (count > 0) {
+        const spread = Math.min(REVEAL_SPREAD_MAX, Math.max(REVEAL_SPREAD_MIN, count * 55));
+        let k = 0;
+        for (const n of nodes) {                    // array order = base→tip among the new nodes
+          if (n._revSeen) continue;
+          n._appearAt = time + (k / count) * spread;
+          n._revSeen = true;
+          k++;
+        }
+      }
     }
     // Steady brightness — no global "breathing" (the constant brightening/dimming
     // made the whole map pulse and was hard to look at). Appearance is also
@@ -6230,6 +6243,7 @@ class NetworkRenderer {
     // path LOD, which strokes the whole structure in ~4 calls instead of one
     // per node. This keeps big colonies at interactive frame rates.
     const simplify = detailAmt <= 0.02;
+    this._lastSimplify = simplify;   // so the lighting pass can match instant-LOD strands
     ctx.save();
     ctx.translate(tl.x, tl.y);
     ctx.scale(zoom, zoom);
@@ -6253,6 +6267,9 @@ class NetworkRenderer {
     const estride = Math.max(1, Math.ceil(this.edges.length / 220));
     for (let i = 0; i < this.edges.length; i += estride) {
       const e = this.edges[i];
+      // Don't pulse a strand that's still growing in — otherwise the ring paints a
+      // bright arc in empty earth where the not-yet-revealed filament will land.
+      if (this.revealFactor(e.node, time) < 1) continue;
       const dd = Math.abs(e.d - front);
       if (dd > bandW) continue;
       ctx.globalAlpha = (1 - dd / bandW) * 0.45 * brightness;
@@ -6265,6 +6282,19 @@ class NetworkRenderer {
     }
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  // Reveal factor for a node at the current frame time, matching the strand
+  // reveal in _strokeStructure: 1 when fully grown (or unscheduled, or when the
+  // batched LOD is drawing strands instantly), 0..1 while a fresh strand grows
+  // in, 0 before it starts. The lighting pass uses this so the colony's glow and
+  // sensing aura FOLLOW the animated growth instead of flashing the full
+  // end-state extent the instant the sim appends the nodes.
+  revealFactor(n, time) {
+    if (this._lastSimplify) return 1;      // batched LOD shows strands instantly
+    if (n._appearAt == null) return 1;
+    const rev = (time - n._appearAt) / REVEAL_SEG;
+    return rev <= 0 ? 0 : (rev < 1 ? rev : 1);
   }
 }
 
@@ -6422,10 +6452,25 @@ class Lighting {
       // (the seed strand at game start) a lone aura is faint and its lit edge falls
       // well short of the true range. Scale each tip's alpha up when the frontier is
       // sparse so the lit area reaches the real reach from the very first turn.
-      const sparseBoost = Math.min(2.6, Math.max(1, 5 / tips.length));
+      // Weight the frontier count by each tip's reveal so a grow's not-yet-revealed
+      // tips don't instantly collapse the boost (which would DIM the existing aura
+      // for the whole reveal); the boost eases down as the new tips fade in.
+      const revs = tips.map((t) => rend.revealFactor(t, time));
+      let effTips = 0; for (const rv of revs) effTips += rv;
+      const sparseBoost = Math.min(2.6, Math.max(1, 5 / Math.max(1, effTips)));
       const senseAlpha = 0.12 * breath * sparseBoost;
-      for (const t of tips) {
-        this._light(lc, camera, this.spriteSense, t.x, t.y, senseR, senseAlpha, W, H);
+      for (let ti = 0; ti < tips.length; ti++) {
+        // Follow the growth animation: a frontier tip only casts its aura once
+        // its strand has started growing in, ramping + moving with the tip.
+        const rev = revs[ti];
+        if (rev <= 0) continue;
+        const t = tips[ti];
+        let tx = t.x, ty = t.y;
+        if (rev < 1) {
+          const p = t.parentId != null ? net.byId.get(t.parentId) : null;
+          if (p) { tx = p.x + (t.x - p.x) * rev; ty = p.y + (t.y - p.y) * rev; }
+        }
+        this._light(lc, camera, this.spriteSense, tx, ty, senseR, senseAlpha * rev, W, H);
       }
     }
 
@@ -6434,13 +6479,27 @@ class Lighting {
       if (!net.alive && !net.fruited) continue;
       const bright = breath; // glow independent of vitality
       const nodes = net.nodes;
+      const rend = networkRenderers && networkRenderers.get(net.id);
       // Keep glow DENSITY roughly constant as the colony grows (don't let a
       // fixed light budget spread thin and make a big colony look faint).
       const stride = Math.max(1, Math.ceil(nodes.length / 600));
       for (let i = 0; i < nodes.length; i += stride) {
         const n = nodes[i];
         if (n.infected) continue;  // dead strands don't glow
-        this._light(lc, camera, this.spriteNetwork, n.x, n.y, baseR * 1.0, bright * 0.9, W, H);
+        // Follow the growth animation instead of lighting the whole end-state
+        // colony at once: skip a node until its strand starts, and fade + move
+        // its glow with the growing tip.
+        let nx = n.x, ny = n.y, k = bright * 0.9;
+        if (rend) {
+          const rev = rend.revealFactor(n, time);
+          if (rev <= 0) continue;
+          if (rev < 1) {
+            const p = n.parentId != null ? net.byId.get(n.parentId) : null;
+            if (p) { nx = p.x + (n.x - p.x) * rev; ny = p.y + (n.y - p.y) * rev; }
+            k *= rev;
+          }
+        }
+        this._light(lc, camera, this.spriteNetwork, nx, ny, baseR * 1.0, k, W, H);
       }
     }
 
