@@ -603,8 +603,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "q7k4n3";
-globalThis.__BUILD__ = "local 07-09 17:56";
+window.__ASSET_VER = "1lcb81p";
+globalThis.__BUILD__ = "local 07-10 10:48";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6522,6 +6522,7 @@ class UI {
     this.pendingAction = null;        // index into cards.actions[] awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
+    this._lastCardTap = null;         // {name, t} — for double-tap/double-click-to-play detection
     this.handFilter = 'all';          // active card-hand filter group key
     this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
@@ -7152,7 +7153,7 @@ class UI {
       const b = button(cls, cardFaceHTML(g.name, c, g.count));
       b.setAttribute('data-name', g.name);
       b.title = c.effect;
-      b.onclick = () => this.armCard(g.firstIndex, g.name);
+      b.onclick = () => this.onCardTap(g.firstIndex, g.name);
       list.appendChild(b);
     });
     list.scrollLeft = prevScroll;   // keep carousel position across a re-render
@@ -7259,6 +7260,25 @@ class UI {
   // Card" button plays the highlighted card. The carousel stays visible whether
   // or not a card is played — only the Show/Hide button toggles it. The only
   // popup is a text preview of what a draw-engine (+5) card shuffles in.
+  //
+  // A DOUBLE tap / double click on the same card plays it straight away (a
+  // shortcut past the select-then-Play step). We detect it manually off the
+  // single `click` so it behaves identically on mouse and touch — a native
+  // `dblclick` would fight the single-tap select/deselect toggle below.
+  onCardTap(index, name) {
+    const now = Date.now();
+    const last = this._lastCardTap;
+    const isDouble = last && last.name === name && now - last.t < 320;
+    this._lastCardTap = isDouble ? null : { name, t: now };
+    if (isDouble) {
+      // Arm the intended card, then play it. playArmed() resolves the live hand
+      // index by name at play time, so the stored index can't go stale on us.
+      this.armed = { kind: 'hand', index, name };
+      this.playArmed();
+      return;
+    }
+    this.armCard(index, name);
+  }
   armCard(index, name) {
     // tap the already-selected card again to deselect it (match by NAME — the
     // stored index is a group firstIndex and can go stale as the hand mutates)
