@@ -555,7 +555,7 @@ export const EFFECTS = {
   // --- energy ---
   'Rhizomorph Trunkline': engine({ energy: 4 }, 'Installed: +4⚡/round.'),
   'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
-  'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: draws cost 3 less.'),
+  'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: drawing cards costs 3 less energy.'),
 
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),

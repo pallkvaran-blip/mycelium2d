@@ -327,7 +327,7 @@
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
-  "effect": "Install. Drawing a basic card costs 3 less energy.",
+  "effect": "Install. Drawing cards costs 3 less energy.",
   "produces": "-3 energy per draw (savings)",
   "timing": "early",
   "repayRounds": 3,

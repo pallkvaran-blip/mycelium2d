@@ -271,7 +271,7 @@ export const CARD_DATA = [
   "repay": 3,
   "threat": "none",
   "produces": "-3 energy per draw (savings)",
-  "effect": "Install. Drawing a basic card costs 3 less energy.",
+  "effect": "Install. Drawing cards costs 3 less energy.",
   "family": "energy",
   "tutorial": false,
   "startCopies": 0

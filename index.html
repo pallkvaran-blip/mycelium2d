@@ -209,7 +209,7 @@
       border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
       box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
       backdrop-filter: blur(6px);
-      max-height: 62vh; overflow-y: auto; overflow-x: hidden;
+      max-height: 90vh; overflow-y: auto; overflow-x: hidden;
       scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
     .engledger::-webkit-scrollbar, .actmenu::-webkit-scrollbar { width: 5px; }
     .engledger::-webkit-scrollbar-thumb, .actmenu::-webkit-scrollbar-thumb {
@@ -234,15 +234,18 @@
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
     .erow.t .eval { color: var(--warn); }
-    .erow .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
+    .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
     /* Cadence lights: one dot per round of the cadence. Lit dots = rounds left
-       until the producer next fires (they count down, then recharge on payout). */
-    .erow .ecad.cad { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; }
+       until the event (a producer's next payout, or an action coming off cooldown);
+       they count DOWN, then recharge. Same widget on BOTH corners. */
+    .ecad.cad { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; }
     .clight { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
       background: rgba(220,235,225,0.13); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
-    .erow.energy .clight.on { background: radial-gradient(circle at 35% 35%, #d7ffe8, var(--accent)); box-shadow: 0 0 5px var(--accent); }
-    .erow.water .clight.on { background: radial-gradient(circle at 35% 35%, #dff6fb, #7fd0e0); box-shadow: 0 0 5px #7fd0e0; }
-    .erow.phosphorus .clight.on { background: radial-gradient(circle at 35% 35%, #efe0fb, #c79be6); box-shadow: 0 0 5px #c79be6; }
+    .clight.on { background: radial-gradient(circle at 35% 35%, #fff2d0, var(--warn)); box-shadow: 0 0 5px var(--warn); }
+    .ck-e .clight.on { background: radial-gradient(circle at 35% 35%, #d7ffe8, var(--accent)); box-shadow: 0 0 5px var(--accent); }
+    .ck-w .clight.on { background: radial-gradient(circle at 35% 35%, #dff6fb, #7fd0e0); box-shadow: 0 0 5px #7fd0e0; }
+    .ck-p .clight.on { background: radial-gradient(circle at 35% 35%, #efe0fb, #c79be6); box-shadow: 0 0 5px #c79be6; }
+    .ck-t .clight.on { background: radial-gradient(circle at 35% 35%, #fff2d0, var(--warn)); box-shadow: 0 0 5px var(--warn); }
     .lgdiv { height: 1px; background: var(--panel-border); margin: 6px 0; }
 
     /* glow dots — shared by ledger rows (full keys energy/water/phosphorus/t) and
@@ -277,7 +280,7 @@
       border: 1px solid rgba(224,106,106,0.4); border-radius: 12px;
       box-shadow: 0 0 12px -3px rgba(224,106,106,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
       backdrop-filter: blur(6px);
-      max-height: 62vh; overflow-y: auto; overflow-x: hidden;
+      max-height: 90vh; overflow-y: auto; overflow-x: hidden;
       scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
     .actrow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
       padding: 7px 4px; border-top: 1px solid var(--panel-border); }
@@ -536,9 +539,9 @@
       /* Phone: the pill is tappable to drop the engine ledger; the Actions dock
          moves in to match the compact HUD margins. */
       .hud .resrow { cursor: pointer; }
-      .engledger { width: min(80vw, 260px); max-width: calc(100vw - 16px); max-height: 60vh; }
+      .engledger { width: min(80vw, 260px); max-width: calc(100vw - 16px); max-height: 88vh; }
       .actionsdock { top: 8px; right: 8px; }
-      .actmenu { max-width: calc(100vw - 16px); max-height: 60vh; }
+      .actmenu { max-width: calc(100vw - 16px); max-height: 88vh; }
       .loglist { font-size: 10px; line-height: 1.4; }
       /* Bottom cluster sits low, using the space under the controls (respect safe-area) */
       .actionbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none;

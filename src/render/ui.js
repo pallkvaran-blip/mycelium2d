@@ -461,15 +461,10 @@ export class UI {
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
-    // Cadence indicator: a steady producer shows "/rd"; a producer that fires only
-    // every N rounds shows N lights that count DOWN to the payout — all lit when
-    // freshly charged, one lit when it fires next round, then it recharges.
-    const cadenceHTML = (r) => {
-      if (r.cad <= 1) return `<span class="ecad">/rd</span>`;
-      let lights = '';
-      for (let i = 0; i < r.cad; i++) lights += `<i class="clight${i < r.left ? ' on' : ''}"></i>`;
-      return `<span class="ecad cad" title="+${r.amt} every ${r.cad} rounds · fires in ${r.left}">${lights}</span>`;
-    };
+    // Cadence indicator (shared with the Actions menu): a steady producer shows
+    // "/rd"; one that fires every N rounds shows N lights counting DOWN to the
+    // payout — all lit when freshly charged, one lit when it fires next round.
+    const CK = { energy: 'e', water: 'w', phosphorus: 'p' };
     const block = (key, glyph) => {
       const g = sum[key]; if (!g.rows.size) return '';
       // No resource header — each row carries its own colour dot + glyph, so the
@@ -479,7 +474,7 @@ export class UI {
         + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
         + `<span class="enm">${r.name}</span>`
         + `<span class="eval">+${r.amt}${glyph}</span>`
-        + cadenceHTML(r) + `</div>`).join('');
+        + cadenceLightsHTML(r.cad, r.left, CK[key]) + `</div>`).join('');
     };
     let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
@@ -511,17 +506,21 @@ export class UI {
     menu.querySelectorAll('.use:not(.off)').forEach((b) => { b.onclick = () => this.handlers.onActivateAction(+b.dataset.i); });
   }
 
-  // Match the two panels' heights so the corners read as a balanced pair.
+  // Match the two panels' heights so the corners read as a balanced pair. Uses
+  // `min-height` (not `height`) so a panel always GROWS to fit its content and
+  // never clips — with `box-sizing: border-box`, an exact `height = scrollHeight`
+  // would fall short by the border and force a stray scrollbar. Each panel ends up
+  // at least as tall as the taller one's content, so neither ever scrolls.
   _syncPanelHeights() {
     const led = this.el.engledger, menu = this.el.actmenu;
     if (!led || !menu) return;
     led.style.height = ''; menu.style.height = '';
+    led.style.minHeight = ''; menu.style.minHeight = '';
     const ledVis = !led.classList.contains('hidden');
     const menuVis = menu && this.el.actdock && !this.el.actdock.classList.contains('hidden') && !menu.classList.contains('hidden');
     if (ledVis && menuVis) {
-      const cap = Math.round(window.innerHeight * 0.62);
-      const hh = Math.min(cap, Math.max(led.scrollHeight, menu.scrollHeight));
-      led.style.height = hh + 'px'; menu.style.height = hh + 'px';
+      const hh = Math.max(led.scrollHeight, menu.scrollHeight);
+      led.style.minHeight = hh + 'px'; menu.style.minHeight = hh + 'px';
     }
   }
 
@@ -936,33 +935,47 @@ function summarizeEngines(engines) {
   return out;
 }
 
+// Cadence display shared by the LEFT ledger and the RIGHT actions menu, so round
+// times read identically on both corners: a steady per-round item shows "/rd"; a
+// cadenced one shows `cad` dots with `left` of them lit — the rounds remaining
+// until the event (a producer's next payout, or an action coming off cooldown).
+// `ck` tints the lit dots: 'e'/'w'/'p' by resource, 't' for a timed ability.
+function cadenceLightsHTML(cad, left, ck = 't') {
+  if (!cad || cad <= 1) return `<span class="ecad">/rd</span>`;
+  let lights = '';
+  for (let i = 0; i < cad; i++) lights += `<i class="clight${i < left ? ' on' : ''}"></i>`;
+  return `<span class="ecad cad ck-${ck}" title="every ${cad} rounds · ${left} left">${lights}</span>`;
+}
+
 // --- actions-menu row -------------------------------------------------------
 const ACT_GLYPH = { energy: '⚡', water: '💧', phosphorus: '✦' };
 const ACT_DOT = { energy: 'e', water: 'w', phosphorus: 'p' };
 function actionRowHTML(a, i, state) {
   const usable = actionUsable(state, a);
-  const bits = [];
-  if (a.cost) bits.push(`<span class="acost ${ACT_DOT[a.res]}">${a.cost}${ACT_GLYPH[a.res]}</span>`);
-  if (a.per) bits.push(`${(a.per - (a.used || 0))} / ${a.per} left`);
-  if (a.every) bits.push((a.cd || 0) > 0 ? `every ${a.every} · in ${a.cd}` : `every ${a.every}`);
-  const meta = bits.join(' · ');
+  const meta = [];
+  if (a.cost) meta.push(`<span class="acost ${ACT_DOT[a.res]}">${a.cost}${ACT_GLYPH[a.res]}</span>`);
+  if (a.per) meta.push(`<span class="aleft">${(a.per - (a.used || 0))} / ${a.per} left</span>`);
+  // Round time as cadence lights (same widget as the left ledger) — `cd` counts
+  // down from `every` to 0 (ready), so lit dots = rounds left on the cooldown.
+  if (a.every) meta.push(cadenceLightsHTML(a.every, a.cd || 0, a.cost ? ACT_DOT[a.res] : 't'));
   const dot = a.cost ? ACT_DOT[a.res] : (a.every ? 't' : 'e');
   return `<div class="actrow${usable ? '' : ' off'}">`
     + `<span class="edot ${dot}"></span>`
     + `<div class="acttxt"><div class="actnm">${escapeHtml(a.name)}</div>`
     + `<div class="acteff">${escapeHtml(a.effect || '')}</div>`
-    + (meta ? `<div class="actmeta">${meta}</div>` : '')
+    + (meta.length ? `<div class="actmeta">${meta.join('')}</div>` : '')
     + `</div>`
     + `<button class="use${usable ? '' : ' off'}" data-i="${i}"${usable ? '' : ' disabled'}>Use</button></div>`;
 }
 // An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
-// its own cadence, so it shows a countdown and an "auto" tag instead of a Use button.
+// its own cadence, so it shows the same countdown lights + an "auto" tag instead
+// of a Use button.
 function autoActionRowHTML(t) {
   return `<div class="actrow auto">`
     + `<span class="edot t"></span>`
     + `<div class="acttxt"><div class="actnm">${escapeHtml(t.name)}</div>`
     + `<div class="acteff">clears a rock formation/column</div>`
-    + `<div class="actmeta">auto · every ${t.every}${t.left != null ? ` · in ${t.left}` : ''}</div></div>`
+    + `<div class="actmeta">${cadenceLightsHTML(t.every, t.left != null ? t.left : t.every, 't')}</div></div>`
     + `<span class="autotag">auto</span></div>`;
 }
 // Card art slug — MUST match scripts/gen_card_art.py (lowercase, non-alphanumeric -> '-').
