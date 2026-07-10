@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow)._
+_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow · animated (render-only) growth reveal)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -340,6 +340,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Animated mycelium growth (render-only)** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - Grow actions now **reveal over ~1–2.4 s** instead of snapping in, but the **sim is untouched**:
+    every node is still added to `net.nodes` instantly, so income, collision, infection and
+    win-checks all resolve on the same tick as before — only the *draw* is delayed. This keeps
+    it cheap (no extra batch rebuilds, no sim rework).
+  - `NetworkRenderer.draw` keeps a lazy `_revealCount` baseline; when `nodes.length` grows it
+    stamps each new node's `_appearAt` staggered **base→tip** across a spread of
+    `count*55 ms` clamped to `[REVEAL_SPREAD_MIN 1000, REVEAL_SPREAD_MAX 2400]`. Seed / shrink
+    (undo, new run) reset the baseline so they show instantly.
+  - `_strokeStructure` draws a not-yet-arrived node as a partial line from its parent
+    (`rev = (now - _appearAt)/REVEAL_SEG`, `REVEAL_SEG 340 ms`) that extends + fades in, then
+    snaps to the normal quadratic once `rev>=1`. **Batched/simplify mode** (zoomed out or
+    >~1900 nodes) intentionally shows instant — the per-node reveal only runs in the detail path.
 - **Growth-through-rock fix + review hardening** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Directed growth (Tropic Lunge, Rhizomorph Lance, Apical Drive, …) no longer crosses
     rock.** Growth checked only each segment's *endpoint* cell, so a strand could hop over
