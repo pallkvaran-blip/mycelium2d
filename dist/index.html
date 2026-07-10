@@ -609,8 +609,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "gxmk0j";
-globalThis.__BUILD__ = "local 07-10 12:25";
+window.__ASSET_VER = "1jxo0u8";
+globalThis.__BUILD__ = "local 07-10 12:41";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1743,7 +1743,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, pathClear: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, pathClear: false, rockFill: false, foodKind: '' };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -8057,6 +8057,7 @@ function frame(time) {
   drawGoalBackdrop();           // summery green hill band behind the goal (far backdrop)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
+  solidifyRock();               // one-shot: make every visible rock sprite (boulder/formation/column) block growth
   drawRockPiles();              // lone boulders (gated) — over food/earth
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawRockColumns();            // path-blocking vertical rock columns (gated) — barriers from the surface down
@@ -8605,8 +8606,9 @@ function rockGroups() {
     const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     let gi = 0;
     sub.forEachCell((cell, col, row) => {
-      // lakes (water) draw as water; formation + column cells draw as AI sprites
-      if (!cell.rock || cell.water || cell.formation || cell.column || seen.has(id(col, row))) return;
+      // lakes (water) draw as water; formation + column cells draw as AI sprites;
+      // rockFill = soil solidified UNDER another rock's sprite (never its own boulder).
+      if (!cell.rock || cell.water || cell.formation || cell.column || cell.rockFill || seen.has(id(col, row))) return;
       const cells = [];
       const q = [[col, row]]; seen.add(id(col, row));
       while (q.length) {
@@ -8616,7 +8618,7 @@ function rockGroups() {
           const nc = c + dc, nr = r + dr;
           if (nc < 0 || nr < 0 || nc >= sub.cols || nr >= sub.rows || seen.has(id(nc, nr))) continue;
           const ncell = sub.cellAt(nc, nr);
-          if (ncell && ncell.rock && !ncell.water && !ncell.formation && !ncell.column) { seen.add(id(nc, nr)); q.push([nc, nr]); }
+          if (ncell && ncell.rock && !ncell.water && !ncell.formation && !ncell.column && !ncell.rockFill) { seen.add(id(nc, nr)); q.push([nc, nr]); }
         }
       }
       let pal = ROCK_RECIPES[gi % ROCK_RECIPES.length].filter(hasAsset);
@@ -8775,62 +8777,144 @@ function formationRect(g, sub, cs) {
   return { img, cx, dw, dh, topW, baseY, footBottom: b.y1 };
 }
 
-// WYSIWYG collision: the rock SPRITE is drawn larger than its (thin, elliptical)
-// cell footprint, so mycelium in the open soil a sprite visually covers used to
-// look like it was growing ON the rock. Once per map, mark every soil cell that
-// the sprite's opaque silhouette actually covers as rock, so the whole visible
-// slab blocks growth. Silhouette is sampled from the sprite's alpha (not its
-// bounding box) so transparent margins stay passable soil.
+// WYSIWYG collision: every rock TYPE (boulders, formations, columns) is drawn as
+// a sprite LARGER than its cell footprint, so mycelium in the open soil a sprite
+// visually covers used to look like it was growing ON the rock. Once per map,
+// solidifyRock() marks every soil cell that any rock sprite's OPAQUE silhouette
+// actually covers as rock, so the whole visible rock blocks growth. The
+// silhouette is sampled from each sprite's alpha (not its bounding box) so the
+// transparent margins around the art stay passable soil. Solidified cells are
+// tagged `rockFill` so they're never re-drawn as their own boulder/formation.
 let _solidBuf = null;
-function solidifyFormations() {
-  const sub = state.substrate;
-  if (sub._formationsSolidified) return;
-  const groups = formationGroups();
-  if (!groups.length) { sub._formationsSolidified = true; return; }
-  const cs = sub.cellSize;
-  let allReady = true;
-  for (const g of groups) {
-    const r = formationRect(g, sub, cs);
-    if (!r) { allReady = false; continue; }         // sprite not loaded yet — retry next frame
-    const MW = Math.min(220, Math.max(24, Math.round(r.dw / (cs * 0.5))));
-    const MH = Math.min(220, Math.max(8, Math.round(MW * r.dh / r.dw)));
-    if (!_solidBuf) _solidBuf = document.createElement('canvas');
-    _solidBuf.width = MW; _solidBuf.height = MH;
-    const mctx = _solidBuf.getContext('2d', { willReadFrequently: true });
-    mctx.clearRect(0, 0, MW, MH);
-    mctx.drawImage(r.img, 0, 0, MW, MH);
-    let data;
-    try { data = mctx.getImageData(0, 0, MW, MH).data; }
-    catch (e) { allReady = false; continue; }        // not decodable yet
-    const x0 = r.cx - r.dw / 2, x1 = r.cx + r.dw / 2;
-    // Extend collision up to the sprite top and across its width — but never below
-    // the original rock footprint (the buried base fade is purely cosmetic).
-    const c0 = Math.max(0, sub.colAtX(x0)), c1 = Math.min(sub.cols - 1, sub.colAtX(x1));
-    const rr0 = Math.max(0, sub.rowAtY(r.topW)), rr1 = Math.min(sub.rows - 1, sub.rowAtY(r.footBottom));
-    for (let col = c0; col <= c1; col++) {
-      for (let row = rr0; row <= rr1; row++) {
-        const cell = sub.cellAt(col, row);
-        if (!cell || cell.rock || cell.water) continue;
-        if (cell.pathClear) continue;                              // never re-fill the generator's guaranteed route
-        if (cell.nutrient > 0 || cell.maxNutrient > 0) continue;   // don't bury food
-        const ctr = sub.cellCenter(col, row);
-        if (ctr.y <= sub.surfaceY) continue;                        // stay underground
-        const u = (ctr.x - x0) / r.dw, v = (ctr.y - r.topW) / r.dh;
-        if (u < 0 || u > 1 || v < 0 || v > 1) continue;
-        const px = Math.min(MW - 1, Math.max(0, Math.floor(u * MW)));
-        const py = Math.min(MH - 1, Math.max(0, Math.floor(v * MH)));
-        if (data[(py * MW + px) * 4 + 3] < 128) continue;           // sprite transparent here — leave as soil
-        cell.rock = true; cell.formation = true; cell.hazard = false;
-      }
+const _alphaMaskCache = new Map();     // img.src -> { mw, mh, data }
+function _alphaMask(img) {
+  const key = img.src || img;
+  let m = _alphaMaskCache.get(key);
+  if (m) return m;
+  const mw = Math.min(160, Math.max(16, img.width | 0));
+  const mh = Math.min(160, Math.max(16, Math.round(mw * img.height / img.width)));
+  if (!_solidBuf) _solidBuf = document.createElement('canvas');
+  _solidBuf.width = mw; _solidBuf.height = mh;
+  const mctx = _solidBuf.getContext('2d', { willReadFrequently: true });
+  mctx.clearRect(0, 0, mw, mh);
+  mctx.drawImage(img, 0, 0, mw, mh);
+  let data;
+  try { data = mctx.getImageData(0, 0, mw, mh).data; } catch (e) { return null; }
+  m = { mw, mh, data };
+  _alphaMaskCache.set(key, m);
+  return m;
+}
+
+// Mark the soil cells under one rock sprite's opaque silhouette as solid rock.
+// The sprite is drawn centred at (cxW,cyW) in world units, size (wW×hW), rotated
+// by `rot` (matching the draw). Returns false if the sprite isn't decodable yet.
+function stampSolid(sub, cs, img, cxW, cyW, wW, hW, rot) {
+  const m = _alphaMask(img);
+  if (!m) return false;
+  const cr = Math.cos(rot), sr = Math.sin(rot);
+  const hwR = Math.abs(wW / 2 * cr) + Math.abs(hW / 2 * sr);   // rotated AABB half-extents
+  const hhR = Math.abs(wW / 2 * sr) + Math.abs(hW / 2 * cr);
+  const c0 = Math.max(0, sub.colAtX(cxW - hwR)), c1 = Math.min(sub.cols - 1, sub.colAtX(cxW + hwR));
+  const r0 = Math.max(0, sub.rowAtY(cyW - hhR)), r1 = Math.min(sub.rows - 1, sub.rowAtY(cyW + hhR));
+  for (let col = c0; col <= c1; col++) {
+    for (let row = r0; row <= r1; row++) {
+      const cell = sub.cellAt(col, row);
+      if (!cell || cell.rock || cell.water) continue;
+      if (cell.nutrient > 0 || cell.maxNutrient > 0) continue;   // don't bury a food pile
+      const ctr = sub.cellCenter(col, row);
+      if (ctr.y <= sub.surfaceY) continue;                        // stay underground
+      const dx = ctr.x - cxW, dy = ctr.y - cyW;
+      const lx = cr * dx + sr * dy, ly = -sr * dx + cr * dy;      // world -> sprite-local (undo rot)
+      const u = (lx + wW / 2) / wW, v = (ly + hW / 2) / hW;
+      if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+      const px = Math.min(m.mw - 1, Math.max(0, Math.floor(u * m.mw)));
+      const py = Math.min(m.mh - 1, Math.max(0, Math.floor(v * m.mh)));
+      if (m.data[(py * m.mw + px) * 4 + 3] < 128) continue;       // sprite transparent here — leave as soil
+      cell.rock = true; cell.rockFill = true; cell.hazard = false;
     }
   }
-  if (allReady) sub._formationsSolidified = true;
+  return true;
+}
+
+// One-shot per map: solidify the visible silhouette of EVERY rock sprite —
+// scattered boulders, big formations, and vertical columns — so no rock type can
+// be grown over. (Winnability is not protected here by design.)
+function solidifyRock() {
+  const sub = state.substrate;
+  if (sub._rockSolidified) return;
+  const cs = sub.cellSize;
+  let ready = true;
+
+  // Boulders (drawRockPiles / drawBoulder geometry, k=0, mult=1).
+  for (const g of rockGroups()) {
+    if (!g.palette.length) continue;
+    for (const c of g.cells) {
+      const h1 = _hashf(c.x * 0.13, c.y * 0.17);
+      const h2 = _hashf(c.x * 0.19, c.y * 0.11);
+      const h3 = _hashf(c.x * 0.23, c.y * 0.29);
+      const img = asset(g.palette[Math.floor(h3 * g.palette.length) % g.palette.length]);
+      if (!img) { ready = false; continue; }
+      const bhW = cs * (1.35 + h1 * h1 * 2.0);
+      const bwW = bhW * (img.width / img.height);
+      const ox = (h1 * 2 - 1) * cs * 0.3, oy = (h2 * 2 - 1) * cs * 0.3;
+      if (!stampSolid(sub, cs, img, c.x + ox, c.y + oy, bwW, bhW, (h3 * 2 - 1) * 0.3)) ready = false;
+    }
+  }
+
+  // Formations (formationRect / drawRockFormations geometry, rot 0).
+  for (const g of formationGroups()) {
+    const r = formationRect(g, sub, cs);
+    if (!r) { ready = false; continue; }
+    if (!stampSolid(sub, cs, r.img, r.cx, (r.topW + r.baseY) / 2, r.dw, r.baseY - r.topW, 0)) ready = false;
+  }
+
+  // Columns (drawRockColumns geometry — a stack of rotated sprites per column).
+  const cols = sub.rockColumns;
+  if (cols && cols.length && ROCKFORM_KEYS.some(hasAsset)) {
+    const colW = state.config.substrate.columnWidthCols || 2;
+    const seed = (state.seed || 1);
+    const overlap = 0.16;
+    const cdMin = state.config.substrate.columnDepthMinRows || 6;
+    const cdMax = state.config.substrate.columnDepthMaxRows || 11;
+    const dspan = Math.max(1, cdMax - cdMin);
+    cols.forEach((col, ci) => {
+      const tanT = Math.tan(col.tilt);
+      const topX = (col.cx + colW / 2) * cs, topY = sub.surfaceY;
+      const botX = topX + col.depth * tanT * cs, botY = sub.surfaceY + col.depth * cs;
+      const dx = botX - topX, dy = botY - topY;
+      const axLen0 = Math.max(1, Math.hypot(dx, dy));
+      const ux = dx / axLen0, uy = dy / axLen0;
+      const poke = cs * 0.3;
+      const startX = topX - ux * poke, startY = topY - uy * poke;
+      const axLen = axLen0 + poke;
+      let N = Math.max(2, Math.min(4, 2 + Math.round((col.depth - cdMin) / dspan * 2)));
+      const styleNames = Object.keys(COLUMN_STYLES).filter((k) => COLUMN_STYLES[k].filter(hasAsset).length >= N);
+      const pool = (styleNames.length
+        ? COLUMN_STYLES[styleNames[Math.floor(_hashf(ci + 2, seed * 0.017) * styleNames.length) % styleNames.length]]
+        : ROCKFORM_KEYS).filter(hasAsset);
+      N = Math.min(N, pool.length);
+      if (!N) return;
+      const chosen = pool
+        .map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.019 + ci * 1.7) }))
+        .sort((a, b) => a.r - b.r).map((o) => o.k).slice(0, N);
+      const ell = axLen / (1 + (N - 1) * (1 - overlap));
+      for (let i = 0; i < N; i++) {
+        const img = asset(chosen[i]); if (!img) { ready = false; continue; }
+        const aspect = img.width / img.height;
+        const longW = ell, crossW = ell / aspect;
+        const t = ell / 2 + i * ell * (1 - overlap);
+        const rot = Math.PI / 2 + (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * (Math.PI / 6);
+        if (!stampSolid(sub, cs, img, startX + ux * t, startY + uy * t, longW, crossW, rot)) ready = false;
+      }
+    });
+  }
+
+  if (ready) sub._rockSolidified = true;
 }
 
 function drawRockFormations() {
   const groups = formationGroups();
   if (!groups.length) return;
-  solidifyFormations();                              // one-shot: match collision to the drawn slab
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
   for (const g of groups) {
