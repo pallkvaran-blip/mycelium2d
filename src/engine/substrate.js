@@ -28,7 +28,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, pathClear: false, foodKind: '' };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -398,7 +398,7 @@ export function generateSubstrate(config, rng) {
   for (let col = 0; col < sub.cols; col++)
     for (let row = pathRow[col]; row < pathRow[col] + pathH; row++) {
       const cell = sub.cellAt(col, row);
-      if (cell && !cell.water) cell.rock = false;          // never carve through a lake
+      if (cell && !cell.water) { cell.rock = false; cell.pathClear = true; }   // never carve through a lake; flag the guaranteed corridor so nothing re-fills it
     }
 
   // Entry + goal channels always clear (root in, surface out).
@@ -406,7 +406,7 @@ export function generateSubstrate(config, rng) {
     for (let col = c0; col < c1; col++)
       for (let row = 0; row < sub.rows; row++) {
         const cell = sub.cellAt(col, row);
-        if (cell && !cell.water) cell.rock = false;
+        if (cell && !cell.water) { cell.rock = false; cell.pathClear = true; }
       }
   };
   clearChannel(0, startCols + 1);

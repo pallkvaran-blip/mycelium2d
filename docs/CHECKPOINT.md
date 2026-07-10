@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow · animated (render-only) growth reveal)._
+_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow · animated (render-only) growth reveal · WYSIWYG solid rock formations)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -340,6 +340,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Mycelium no longer appears to grow over rocks** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Foraging Fan (`growRadial`/`_fanRing`) checked only the ray's *endpoint* cell**
+    (`_placeOk`), so a ray could clip across a rock. Now uses `_segmentClear` like the
+    directed-grow cards — the whole ray must be clear (real edge-crossings 8→0 in repro).
+  - **WYSIWYG rock (the real cause):** a formation's SPRITE is drawn as a chunky slab larger
+    than its thin elliptical cell footprint (typical image aspect ~1.8 vs footprint 2.4, so the
+    "cover" sizing draws it ~45% taller), so mycelium legitimately growing in the open soil the
+    sprite covers *looked* like it was on the rock. New one-shot `solidifyFormations()` (main.js)
+    marks every soil cell the sprite's **opaque silhouette** actually covers (sampled from the
+    sprite alpha, not its bbox — transparent margins stay soil) as `rock`, so the whole visible
+    slab blocks growth. Runs once per map (`sub._formationsSolidified`); `formationRect()` is the
+    shared draw/collision geometry so they stay identical.
+  - **No overcorrection / winnability preserved:** the generator carves a guaranteed `pathH`-tall
+    corridor (clears rock from entry→goal, substrate.js §2d) so rocks never make a map unwinnable.
+    Those cleared cells are now flagged `cell.pathClear`, and `solidifyFormations` never re-fills a
+    `pathClear` cell (nor food/water). Same-seed A/B (bot): baseline 7/16 vs solidified 8/16 —
+    no net winnability loss; verified 0 `pathClear` cells ever turn to rock.
 - **Animated mycelium growth (render-only)** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - Grow actions now **reveal over ~1–2.4 s** instead of snapping in, but the **sim is untouched**:
     every node is still added to `net.nodes` instantly, so income, collision, infection and

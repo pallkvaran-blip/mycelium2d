@@ -317,7 +317,7 @@ export class Network {
         const ang = (k / rays) * Math.PI * 2 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
         const nx = t.x + Math.cos(ang) * g.segmentLength;
         const ny = t.y + Math.sin(ang) * g.segmentLength;
-        if (!this._placeOk(substrate, nx, ny)) continue;                         // rock / edge / above surface
+        if (!this._segmentClear(substrate, t.x, t.y, nx, ny)) continue;          // rock/edge ANYWHERE along the ray, not just its endpoint (no clipping over a rock)
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, 1)) continue;  // already occupied
         const child = this.addNode(nx, ny, t);
         bucket(child);

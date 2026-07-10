@@ -1192,14 +1192,89 @@ function _blitFormation(img, sw, sh, tlx, tly, z, cs, soil, baseBlend, rot = 0) 
   ctx.restore();
 }
 
+// The world-space rectangle a formation's sprite is drawn into. Shared by the
+// draw pass and the collision-solidify pass so "what you see is what blocks"
+// stays exact. Returns null when the sprite isn't loaded yet (draw falls back to
+// boulders, whose footprint already matches the cells).
+function formationRect(g, sub, cs) {
+  const img = g.key ? asset(g.key) : null;
+  if (!img) return null;
+  const b = g.bbox;
+  const bw = b.x1 - b.x0, bh = b.y1 - b.y0, cx = (b.x0 + b.x1) / 2;
+  const aspect = img.width / img.height;
+  // Cover the footprint: size by width, but grow if needed so the image is at
+  // least as tall as the footprint. Slight overhang so edges fully cover.
+  let dw = bw * 1.08, dh = dw / aspect;
+  if (dh < bh * 1.02) { dh = bh * 1.02; dw = dh * aspect; }
+  const embed = cs * 0.55;                          // bury the jagged base into the soil
+  const baseY = b.y1 + embed;
+  // Anchor the base, but never let the (taller-than-footprint) sprite jut above
+  // the soil line — clamp its top down to the surface for shallow formations.
+  const topW = Math.max(sub.surfaceY, baseY - dh);
+  return { img, cx, dw, dh, topW, baseY, footBottom: b.y1 };
+}
+
+// WYSIWYG collision: the rock SPRITE is drawn larger than its (thin, elliptical)
+// cell footprint, so mycelium in the open soil a sprite visually covers used to
+// look like it was growing ON the rock. Once per map, mark every soil cell that
+// the sprite's opaque silhouette actually covers as rock, so the whole visible
+// slab blocks growth. Silhouette is sampled from the sprite's alpha (not its
+// bounding box) so transparent margins stay passable soil.
+let _solidBuf = null;
+function solidifyFormations() {
+  const sub = state.substrate;
+  if (sub._formationsSolidified) return;
+  const groups = formationGroups();
+  if (!groups.length) { sub._formationsSolidified = true; return; }
+  const cs = sub.cellSize;
+  let allReady = true;
+  for (const g of groups) {
+    const r = formationRect(g, sub, cs);
+    if (!r) { allReady = false; continue; }         // sprite not loaded yet — retry next frame
+    const MW = Math.min(220, Math.max(24, Math.round(r.dw / (cs * 0.5))));
+    const MH = Math.min(220, Math.max(8, Math.round(MW * r.dh / r.dw)));
+    if (!_solidBuf) _solidBuf = document.createElement('canvas');
+    _solidBuf.width = MW; _solidBuf.height = MH;
+    const mctx = _solidBuf.getContext('2d', { willReadFrequently: true });
+    mctx.clearRect(0, 0, MW, MH);
+    mctx.drawImage(r.img, 0, 0, MW, MH);
+    let data;
+    try { data = mctx.getImageData(0, 0, MW, MH).data; }
+    catch (e) { allReady = false; continue; }        // not decodable yet
+    const x0 = r.cx - r.dw / 2, x1 = r.cx + r.dw / 2;
+    // Extend collision up to the sprite top and across its width — but never below
+    // the original rock footprint (the buried base fade is purely cosmetic).
+    const c0 = Math.max(0, sub.colAtX(x0)), c1 = Math.min(sub.cols - 1, sub.colAtX(x1));
+    const rr0 = Math.max(0, sub.rowAtY(r.topW)), rr1 = Math.min(sub.rows - 1, sub.rowAtY(r.footBottom));
+    for (let col = c0; col <= c1; col++) {
+      for (let row = rr0; row <= rr1; row++) {
+        const cell = sub.cellAt(col, row);
+        if (!cell || cell.rock || cell.water) continue;
+        if (cell.pathClear) continue;                              // never re-fill the generator's guaranteed route
+        if (cell.nutrient > 0 || cell.maxNutrient > 0) continue;   // don't bury food
+        const ctr = sub.cellCenter(col, row);
+        if (ctr.y <= sub.surfaceY) continue;                        // stay underground
+        const u = (ctr.x - x0) / r.dw, v = (ctr.y - r.topW) / r.dh;
+        if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+        const px = Math.min(MW - 1, Math.max(0, Math.floor(u * MW)));
+        const py = Math.min(MH - 1, Math.max(0, Math.floor(v * MH)));
+        if (data[(py * MW + px) * 4 + 3] < 128) continue;           // sprite transparent here — leave as soil
+        cell.rock = true; cell.formation = true; cell.hazard = false;
+      }
+    }
+  }
+  if (allReady) sub._formationsSolidified = true;
+}
+
 function drawRockFormations() {
   const groups = formationGroups();
   if (!groups.length) return;
+  solidifyFormations();                              // one-shot: match collision to the drawn slab
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
   for (const g of groups) {
-    const img = g.key ? asset(g.key) : null;
-    if (!img) {
+    const r = formationRect(g, sub, cs);
+    if (!r) {
       // Fallback: no formation sprites loaded — render as piled boulders so the
       // impassable mass is never invisible.
       const pal = ALL_ROCKS.filter(hasAsset);
@@ -1208,23 +1283,10 @@ function drawRockFormations() {
       for (const c of cells) drawBoulder(c, pal, 0, 1.0, cs, z);
       continue;
     }
-    const b = g.bbox;
-    const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
-    const cx = (b.x0 + b.x1) / 2;
-    const aspect = img.width / img.height;
-    // Cover the footprint: size by width, but grow if needed so the image is at
-    // least as tall as the footprint. Slight overhang so edges fully cover.
-    let dw = bw * 1.08;
-    let dh = dw / aspect;
-    if (dh < bh * 1.02) { dh = bh * 1.02; dw = dh * aspect; }
-    const embed = cs * 0.55;                         // bury the jagged base into the soil
-    const sw = dw * z, sh = dh * z;
-    // Anchor the base, but never let the (taller-than-footprint) sprite jut above
-    // the soil line — clamp its top down to the surface for shallow formations.
-    const topW = Math.max(sub.surfaceY, (b.y1 + embed) - dh);
-    const tl = camera.worldToScreen(cx - dw / 2, topW);
+    const sw = r.dw * z, sh = r.dh * z;
+    const tl = camera.worldToScreen(r.cx - r.dw / 2, r.topW);
     if (tl.x > camera.viewW + sw || tl.x + sw < 0 || tl.y > camera.viewH + sh || tl.y + sh < 0) continue;
-    _blitFormation(img, sw, sh, tl.x, tl.y, z, cs, soil, true);
+    _blitFormation(r.img, sw, sh, tl.x, tl.y, z, cs, soil, true);
   }
 }
 
