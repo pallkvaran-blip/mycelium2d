@@ -167,7 +167,9 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   cellProofed` skips warded nodes in both infection vectors.
 - **Growth never crosses rock:** `Network._segmentClear` samples each growth segment
   (~⅓ cell) so a strand stops at rock instead of hopping/grazing over it — only a
-  punch/dig (`cell.bored`) may pass through rock. Used by `growDirected` + `_reachableSteps`.
+  punch/dig (`cell.bored`) may pass through rock. Used by `growDirected`, `_reachableSteps`,
+  **and `_fanRing`** (Foraging Fan / `growRadial` — it previously checked only the ray's
+  endpoint cell, so a ray could clip across a rock).
 - **Opening hand:** `initCards` deals a free `drawCount` (3) off the top of the
   draw deck so turn 1 starts with cards in hand (no Energy charged for it; deck
   drops from 15 → 12). See `cards-design.md` §18.1.
@@ -294,6 +296,34 @@ Both menus are dark, on-theme, with glowing green borders.
   Nothing is generated in the buffer; the renderer paints seamless deep-soil brown
   down through it and `SubstrateRenderer._bakeBottomFade()` fades it to the void
   colour (`#05070d`, solid at the deepest band) so the map's end reads clearly.
+
+### Network rendering systems (`render/network.js`, `render/lighting.js`)
+
+- **LOD:** `_strokeStructure` (per-node detail, iterates every node/frame) vs
+  `_strokeBatched` (baked `Path2D` per width bucket, ~4 stroke calls). `_rebuildCaches`
+  runs on `structureDirty` and **self-heals** if `_builtNodeCount !== nodes.length`.
+  `simplify` (batched) kicks in when `detailAmt <= 0.02` (zoomed out or ≳1900 nodes).
+- **Animated growth (render-only):** a grow adds all nodes to the sim instantly (income /
+  collision / infection / win-checks unchanged); only the DRAW is delayed. `draw()` detects
+  freshly-grown nodes by **identity** (per-node `_revSeen` flag — robust to a grow + a
+  same-frame threat removal that compacts the array) and stamps each new node's `_appearAt`
+  staggered **base→tip** over `count*55 ms` clamped to `[1000, 2400]`. `_strokeStructure`
+  draws a not-yet-arrived node as a partial line that extends + fades over `REVEAL_SEG`
+  (340 ms). `revealFactor(node, time)` (0…1; 1 in batched LOD) is the single source of truth,
+  used by `_strokeStructure`, the nutrient-pulse ring (skips strands still growing in), and
+  **`lighting.compose`** — the network glow + sensing aura follow the reveal (skip un-started
+  nodes, move + fade each light with the growing tip; the sensing `sparseBoost` is
+  reveal-weighted) so the colony never **flashes its end state** before animating.
+- **WYSIWYG solid rock (`main.js solidifyRock`)** — every rock TYPE is drawn as a sprite
+  larger than its cell footprint, so mycelium in the open soil a sprite covers used to look
+  like it grew ON the rock. Once per map (guarded by `sub._rockSolidified`, called in `frame()`
+  before the rock draws) `solidifyRock` stamps EVERY sprite — boulders (`drawBoulder`),
+  formations (`formationRect`), columns (`drawRockColumns` geometry). `stampSolid` samples the
+  sprite's **opaque silhouette** (alpha, rotation-aware; per-image mask built once + cached in
+  `_alphaMaskCache`) and marks each covered soil cell `rock` + `rockFill`. `rockFill` cells are
+  excluded from `rockGroups` (never re-drawn as their own boulder); food / water / above-surface
+  cells are skipped. **Winnability is deliberately NOT protected** (the old `pathClear` corridor
+  exception was removed) — the owner verifies maps directly.
 
 ---
 
@@ -556,6 +586,13 @@ Both menus are dark, on-theme, with glowing green borders.
   the contact and the along-filament spread vectors). Note it wards the AREA's nodes against
   fresh infection — the rot can still creep in from an adjacent *unwarded* node, so it's
   strong-but-not-absolute protection for the 2 rounds (acceptable v1).
+- **Rock is WYSIWYG-solid but winnability is NOT auto-guaranteed anymore.** `solidifyRock`
+  (main.js) fills rock under **every** rock sprite's silhouette, including over the generator's
+  cleared entry→goal corridor — so a *newly generated* map is no longer provably routable by the
+  gen carve alone. This was an explicit owner decision (they verify maps by playing; hundreds of
+  maps under the "all rocks solid" assumption were never unbeatable). The `cell.pathClear` flag
+  is still set at gen (documents the intended corridor) but is **no longer read** by solidify —
+  re-honour it there if auto-winnability ever needs restoring.
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to
