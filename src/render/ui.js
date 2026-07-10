@@ -461,19 +461,27 @@ export class UI {
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
-    const rangeStr = (g) => { const mn = g.steady, mx = g.steady + g.cad; return mn === mx ? `+${mn}` : `+${mn}–${mx}`; };
-    const block = (key, label, glyph) => {
+    // Cadence indicator: a steady producer shows "/rd"; a producer that fires only
+    // every N rounds shows N lights that count DOWN to the payout — all lit when
+    // freshly charged, one lit when it fires next round, then it recharges.
+    const cadenceHTML = (r) => {
+      if (r.cad <= 1) return `<span class="ecad">/rd</span>`;
+      let lights = '';
+      for (let i = 0; i < r.cad; i++) lights += `<i class="clight${i < r.left ? ' on' : ''}"></i>`;
+      return `<span class="ecad cad" title="+${r.amt} every ${r.cad} rounds · fires in ${r.left}">${lights}</span>`;
+    };
+    const block = (key, glyph) => {
       const g = sum[key]; if (!g.rows.size) return '';
-      const rows = [...g.rows.values()].map((r) =>
+      // No resource header — each row carries its own colour dot + glyph, so the
+      // effects read as one flat list (grouped by resource via order & colour).
+      return [...g.rows.values()].map((r) =>
         `<div class="erow ${key}"><span class="edot ${key}"></span>`
         + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
         + `<span class="enm">${r.name}</span>`
         + `<span class="eval">+${r.amt}${glyph}</span>`
-        + `<span class="ecad">${r.cad > 1 ? '/' + r.cad : '/rd'}</span></div>`).join('');
-      return `<div class="lgblock"><div class="lghead ${key}"><span>${glyph} ${label}</span>`
-        + `<span class="lgsub">${rangeStr(g)} / round</span></div>${rows}</div>`;
+        + cadenceHTML(r) + `</div>`).join('');
     };
-    let h = block('energy', 'Energy', '⚡') + block('phosphorus', 'Phosphorus', '✦') + block('water', 'Water', '💧');
+    let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
@@ -913,8 +921,12 @@ function summarizeEngines(engines) {
     if (res) {
       const amt = e[res], cad = (e.every && e.every > 1) ? e.every : 1, g = out[res];
       if (cad > 1) g.cad += amt; else g.steady += amt;
-      const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), amt: 0, n: 0, cad };
-      row.amt += amt; row.n += 1; g.rows.set(key, row);
+      const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), amt: 0, n: 0, cad, left: cad };
+      row.amt += amt; row.n += 1;
+      // Rounds until this producer next fires (soonest across any duplicates).
+      // `_et` counts ticks since its last payout, so `cad - _et` rounds remain.
+      if (cad > 1) row.left = Math.min(row.left, cad - (e._et || 0));
+      g.rows.set(key, row);
     } else if (e.digEvery) {
       out.timed.push({ name: escapeHtml(e.name), every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
     } else if (e.drawDiscount) {
