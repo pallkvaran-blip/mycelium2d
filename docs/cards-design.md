@@ -10,7 +10,9 @@ open issues to resolve before implementation.
 > harvested from rocks); Nitrogen retired. **Draw pulls 3** cards for 16⚡. Entering a food pocket bursts
 > to look fully colonised at once, and a pile digests in ~2 steps. **v9: pile drafting** — empty starting
 > hand; draft new cards by finishing map food piles. No `rarity`; variable buy costs (cap ~40).
-> CURRENT rules: §17 (v8) → §18 (v9 drafting) → **§19 (v10 two-resource — authoritative)**.
+> CURRENT rules: §17 (v8) → §18 (v9 drafting) → **§19 (v10 two-resource — authoritative)** →
+> §20 (grow-card tuning) → **§22 (installed ACTIONS menu — authoritative for the 4 action cards)**.
+> §21 is the (unbuilt) long-term vision.
 
 ---
 
@@ -818,3 +820,34 @@ not-have-this lever that lets a player steer toward a favored route across runs.
 - Exact retention rule (engines + X others vs unused-hand + X) and the value of X.
 - How the one kept card interacts with species bonuses and the draft pool.
 - Scoring model per map (binary goal-reached vs a points total that rewards over-building).
+
+---
+
+## 22. Installed ACTIONS — the top-right menu (CURRENT — authoritative for these cards)
+
+Implements §5's `action` type as a persistent ability and supersedes the older per-card
+text for the four action cards. Runtime map lives in CHECKPOINT §4.
+
+**Model.** When played, an `action`-type card **installs** into the top-right Actions
+menu (`state.cards.actions[]`) rather than firing once. Each install carries its gating:
+a **cooldown** (`every N` rounds), a **per-activation resource cost**, a **uses/round**
+cap, and/or **targeting** (tap a map point). A world tick (draw/skip/play) resets uses
+and ages cooldowns. **Install cost = the card's buy Energy only**; any W/P on the card is
+the *per-activation* price, not an install gate (so action cards aren't W/P-gated to play,
+aren't greyed for W/P in hand, and don't show a W/P pip on the face). Duplicate installs
+are blocked. `engine`-type cards still install to the left ledger; `event`/`basic`/
+`extender` stay one-shot.
+
+**The four action cards (current, shortened text):**
+
+| Card | Cooldown | Activation cost | Effect |
+| --- | --- | --- | --- |
+| **Constricting Ring** | every 6 | free | Tap empty ground → lay a **trap**; the first nematode to enter its radius is digested for **+2 P** (resolved in the sim, swept-path). |
+| **Tap-Root Rhizomorph** | every 5 | **2 P** | Tap an in-range rock → **bore through it** (was an auto dig-engine; now a player-triggered action, type engine→action). |
+| **Sclerotial Seal** | every 4 | **1 P** | Tap a food pile → **ant-proof** it for 3 rounds. |
+| **Suberin Wall** | every 3 | free | Tap a point → **clear all mould infection** in radius 80 **and ward** those cells against reinfection for **2 full rounds** (`cell.mouldProof`). |
+
+Note: this diverges from §15.1's earlier "every action activation = 1 P" line — only
+Tap-Root (2 P) and Sclerotial Seal (1 P) charge per use now; Constricting Ring and Suberin
+Wall are free to activate (their card text has no "Pay"). The card **face** text and the
+Actions-menu row label are the source of truth for each card's gating.

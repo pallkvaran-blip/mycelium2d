@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-09 (engine ledger + actions menu shipped · grow-card mechanic fixes · batched renderer LOD · raised caps · game-vision note §21)._
+_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -142,6 +142,32 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   deselects on a genuine play (the carousel stays visible either way).
 - **Targeted cards** (`EFFECTS[name].target`) need a map tap to aim; non-targeted
   resolve immediately.
+- **Installed engines vs actions (the two HUD corners):**
+  - `engine`-type cards → `state.cards.engines[]` (passive **income / timed / modifier**),
+    shown in the **left ledger**. `EFFECTS` uses `engine(produce, msg)` → `{install}`.
+  - `action`-type cards → `state.cards.actions[]` (**installed repeatable abilities**),
+    shown in the **right Actions menu** with a **Use** button. `EFFECTS` uses
+    `action(spec, run)` → `{installAction}`. Gating (`spec`): `every` (once-per-N-round
+    cooldown → `cd`), `cost`+`res` (per-activation price), `per`+`used` (uses/round),
+    `target` (aim a map point). `activateAction(state, i, ctx)` checks `actionUsable`,
+    returns `{needTarget}` when a targeted action needs its point (main.js arms
+    `ui.pendingAction`; the next map tap re-calls with `{x,y}`), then pays cost / starts
+    `cd` / spends a use **only on a successful resolve**. `produceCardEngines` (each world
+    tick) resets `used=0` and ages `cd` down.
+  - **Action install cost = Energy only** — `playCard` / `cardBlockedReason` skip W/P for
+    `type==='action'` cards (a card's W/P is its *per-activation* cost); the card face
+    hides its W/P pip and the hand never greys it for W/P. Duplicate `action` installs are
+    blocked ("Already installed").
+  - `event` / `basic` / `extender` → one-shot (play → discard / shuffle).
+- **Traps & wards:** Constricting Ring lays a snare into `state.traps[]` (`{x,y,r,reward}`);
+  `resolveTraps` (turn.js, each tick after `stepNematodes`) digests a worm whose **swept
+  path** (prev→current) crosses a trap for +Phosphorus, then spends the trap; `drawTraps`
+  (main.js) renders a pulsing ring. Suberin Wall sets `cell.mouldProof` (a per-cell ward
+  aged down each tick **after** infection resolves, so N = N rounds); `threats.js
+  cellProofed` skips warded nodes in both infection vectors.
+- **Growth never crosses rock:** `Network._segmentClear` samples each growth segment
+  (~⅓ cell) so a strand stops at rock instead of hopping/grazing over it — only a
+  punch/dig (`cell.bored`) may pass through rock. Used by `growDirected` + `_reachableSteps`.
 - **Opening hand:** `initCards` deals a free `drawCount` (3) off the top of the
   draw deck so turn 1 starts with cards in hand (no Energy charged for it; deck
   drops from 15 → 12). See `cards-design.md` §18.1.
@@ -185,7 +211,18 @@ Both menus are dark, on-theme, with glowing green borders.
   inline SVG mark (bolt / drop / spark, same size, centre-aligned) and its **per-round
   income range** beside the stock, e.g. `265 +4` · `301 +0–1` · `302 +1`. A **Log**
   button drops the event log down; it **auto-opens on player errors** (`openLog()`).
-  No turn/step/vitality rows.
+  No turn/step/vitality rows. The pill also carries a **red-bordered Actions pill**
+  (top-right on phone / desktop) — a red pickaxe (inline SVG) + a **red ready-count
+  badge**, no label. **Both pills are collapsible on click** (`ledgerOpen`/`actionsOpen`);
+  they start **open on desktop**, **closed on phone**. On a phone the Log / ledger /
+  Actions drop-downs are **mutually exclusive** and a tap anywhere outside an open one
+  dismisses it (`_onTapAway`).
+- **Two corner panels (card layer):** the **engine ledger** (top-left, under the pill)
+  lists installed **engines** grouped by resource with per-round **income ranges**; the
+  **Actions menu** (top-right dock) lists installed **actions** (each a **Use** button,
+  red to match) plus any **auto** abilities (amber "AUTO" tag + countdown). Panel CSS:
+  `.engledger` / `.actionsdock` / `.actmenu`; render: `_renderEngines` / `_renderActions`
+  (+ `summarizeEngines` / `actionRowHTML` / `autoActionRowHTML`) in `ui.js`.
 - **Bottom action bar** — the Show Hand · Draw · Skip · Play Card controls, text-only
   (icons dropped). **Desktop:** a **vertical tray to the right of the carousel**
   (`flex-direction: column`, pinned bottom-right). **Phone:** a horizontal one-row
@@ -197,15 +234,23 @@ Both menus are dark, on-theme, with glowing green borders.
     ⚡/W/P cost on the second row), a readable dim button when nothing is selected.
   - Every button is **two rows** (function on top, cost below). Empty cost rows
     collapse (`.bcost:empty { display:none }`) so single-label buttons stay centred.
+- **Fixed CCG card shape** — every card face (hand + draft offer) is a locked **5:7**
+  aspect (`.cardbtn`/`.offercard aspect-ratio:5/7`, `align-self:flex-start` so the flex
+  row can't stretch them) with a **uniform 3:2 art window** (`.cart aspect-ratio:3/2`,
+  `.caimg pointer-events:none` + `draggable=false` so dragging the picture scrolls the
+  carousel instead of ghost-dragging the image). The rules box flex-fills; font/size are
+  tuned so every current card's full text shows (longest ≈110 chars; keep new cards under
+  that). Shape takes priority over card count → desktop now shows ~6.
 - **Hand carousel** — a horizontal **drag-scroll** row on phone *and* desktop
-  (touch scrolls natively; mouse uses `_enableDragScroll`, which now adds **inertial
+  (touch scrolls natively; mouse uses `_enableDragScroll`, which adds **inertial
   momentum** on release so a mouse drag glides like a phone swipe, and suppresses the
-  click after a >6px drag so a drag never arms a card). Browser view also has **‹ ›
-  nav arrows** flanking the row (`_updateHandNav` shows them only when the hand
-  overflows; CSS hides them on phones). Desktop shows **~7–8 cards** (cards 150px,
-  list capped at `min(88vw,1400px)`). Identical cards **stack** (grouped by name with
-  a count). Filter chips above. The hand + bottom action bar sit **at the bottom**
-  (`.handbar` ~98px, `.actionbar` 16px) on desktop, matching the phone layout.
+  click after a >6px drag so a drag never arms a card). Browser view also has faint
+  **transparent ‹ › nav arrows** flanking the row (no button chrome; `_updateHandNav`
+  shows them only when the hand overflows; CSS hides them on phones). Identical cards
+  **stack** (grouped by name with a count). Filter chips above. **Desktop layout:** the
+  bottom **action bar is a vertical tray pinned bottom-right** and the carousel fills the
+  space to its left (`.handbar left:12 right:192 bottom:16`). **Phone layout:** carousel
+  above a horizontal bottom action strip.
   **Always visible by default** on every screen (`handOpen` starts `true`); the
   game never auto-hides or auto-shows it — the only toggle is the **Show/Hide
   Hand** button in the action bar (`toggleHand`). (The old
