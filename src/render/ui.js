@@ -937,14 +937,17 @@ function summarizeEngines(engines) {
 
 // Cadence display shared by the LEFT ledger and the RIGHT actions menu, so round
 // times read identically on both corners: a steady per-round item shows "/rd"; a
-// cadenced one shows `cad` dots with `left` of them lit — the rounds remaining
-// until the event (a producer's next payout, or an action coming off cooldown).
+// cadenced one shows `cad` dots with `lit` of them on. For a producer/auto, `lit`
+// = rounds remaining until its next payout/fire. For a player action it's a CHARGE
+// meter — full = ready to use (so a freshly-installed, usable action shows all dots
+// lit), draining to empty right after a use and refilling as the cooldown ticks.
 // `ck` tints the lit dots: 'e'/'w'/'p' by resource, 't' for a timed ability.
-function cadenceLightsHTML(cad, left, ck = 't') {
+function cadenceLightsHTML(cad, lit, ck = 't', title) {
   if (!cad || cad <= 1) return `<span class="ecad">/rd</span>`;
-  let lights = '';
-  for (let i = 0; i < cad; i++) lights += `<i class="clight${i < left ? ' on' : ''}"></i>`;
-  return `<span class="ecad cad ck-${ck}" title="every ${cad} rounds · ${left} left">${lights}</span>`;
+  let dots = '';
+  for (let i = 0; i < cad; i++) dots += `<i class="clight${i < lit ? ' on' : ''}"></i>`;
+  const t = title != null ? title : `every ${cad} rounds · ${lit} left`;
+  return `<span class="ecad cad ck-${ck}" title="${t}">${dots}</span>`;
 }
 
 // --- actions-menu row -------------------------------------------------------
@@ -955,9 +958,10 @@ function actionRowHTML(a, i, state) {
   const meta = [];
   if (a.cost) meta.push(`<span class="acost ${ACT_DOT[a.res]}">${a.cost}${ACT_GLYPH[a.res]}</span>`);
   if (a.per) meta.push(`<span class="aleft">${(a.per - (a.used || 0))} / ${a.per} left</span>`);
-  // Round time as cadence lights (same widget as the left ledger) — `cd` counts
-  // down from `every` to 0 (ready), so lit dots = rounds left on the cooldown.
-  if (a.every) meta.push(cadenceLightsHTML(a.every, a.cd || 0, a.cost ? ACT_DOT[a.res] : 't'));
+  // Round time as a CHARGE meter (same widget as the left ledger): full = ready to
+  // use, so an installed/off-cooldown action shows all dots lit. `cd` counts down
+  // from `every` (just used) to 0 (ready), so lit = every − cd fills as it recharges.
+  if (a.every) meta.push(cadenceLightsHTML(a.every, a.every - (a.cd || 0), a.cost ? ACT_DOT[a.res] : 't', (a.cd || 0) > 0 ? `ready in ${a.cd}` : 'ready'));
   const dot = a.cost ? ACT_DOT[a.res] : (a.every ? 't' : 'e');
   return `<div class="actrow${usable ? '' : ' off'}">`
     + `<span class="edot ${dot}"></span>`
