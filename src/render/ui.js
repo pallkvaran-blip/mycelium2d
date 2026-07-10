@@ -123,7 +123,7 @@ export class UI {
     }, true);
   }
 
-  setState(state) { this.state = state; }
+  setState(state) { this.state = state; this._hideCardPopup(); }
 
   _build() {
     const root = document.getElementById('ui');
@@ -345,18 +345,30 @@ export class UI {
     // control's own handler, e.g. arming a card.)
     if (this._onTapAway) document.removeEventListener('pointerdown', this._onTapAway, true);
     this._onTapAway = (e) => {
+      // While the card preview is up it owns all input — its own click dismisses it.
+      // (This capture-phase pointerdown would otherwise collapse the corner pills,
+      // since the popup lives on document.body, outside .hud / .actionsdock.)
+      if (this._cardPop && this._cardPop.classList.contains('show')) return;
       if (window.innerWidth >= 760) return;
       const t = e.target;
       if (!t || !t.closest) return;
       const inHud = t.closest('.hud');            // resource pill + Log + engine ledger
       const inDock = t.closest('.actionsdock');   // Actions button + menu
-      let changed = false;
+      let ledChanged = false, actChanged = false;
       if (!inHud) {
-        if (this.ledgerOpen) { this.ledgerOpen = false; changed = true; }
+        if (this.ledgerOpen) { this.ledgerOpen = false; ledChanged = true; }
         if (this.el.logdrop && !this.el.logdrop.classList.contains('hidden')) this.setLogOpen(false);
       }
-      if (!inDock && this.actionsOpen) { this.actionsOpen = false; changed = true; }
-      if (changed) { this._renderEngines(); this._renderActions(); this._syncPanelHeights(); }
+      if (!inDock && this.actionsOpen) { this.actionsOpen = false; actChanged = true; }
+      if (ledChanged || actChanged) {
+        // Re-render ONLY the panel that closed — re-rendering the OTHER panel too
+        // would detach a row the user is mid-tap on (both panels can be open at
+        // phone width after a desktop→phone resize), swallowing the click that
+        // opens its card popup.
+        if (ledChanged) this._renderEngines();
+        if (actChanged) this._renderActions();
+        this._syncPanelHeights();
+      }
     };
     document.addEventListener('pointerdown', this._onTapAway, true);
   }
@@ -470,7 +482,7 @@ export class UI {
       // No resource header — each row carries its own colour dot + glyph, so the
       // effects read as one flat list (grouped by resource via order & colour).
       return [...g.rows.values()].map((r) =>
-        `<div class="erow ${key}"><span class="edot ${key}"></span>`
+        `<div class="erow ${key}" data-card="${escapeHtml(r.raw)}"><span class="edot ${key}"></span>`
         + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
         + `<span class="enm">${r.name}</span>`
         + `<span class="eval">+${r.amt}${glyph}</span>`
@@ -480,9 +492,12 @@ export class UI {
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
-        + sum.mods.map((m) => `<div class="erow"><span class="enm dim">${m.name} · ${m.text}</span></div>`).join('') + '</div>';
+        + sum.mods.map((m) => `<div class="erow" data-card="${escapeHtml(m.raw)}"><span class="enm dim">${m.name} · ${m.text}</span></div>`).join('') + '</div>';
     }
     led.innerHTML = h;
+    // Click any installed-engine row to preview that card (see _showCardPopup).
+    led.querySelectorAll('.erow[data-card]').forEach((row) =>
+      row.addEventListener('click', () => this._showCardPopup(row.dataset.card)));
   }
 
   _renderActions() {
@@ -503,8 +518,32 @@ export class UI {
     if (!show) { menu.innerHTML = ''; return; }
     menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('')
       + timed.map((t) => autoActionRowHTML(t)).join('');
-    menu.querySelectorAll('.use:not(.off)').forEach((b) => { b.onclick = () => this.handlers.onActivateAction(+b.dataset.i); });
+    menu.querySelectorAll('.use:not(.off)').forEach((b) => {
+      b.onclick = (e) => { e.stopPropagation(); this.handlers.onActivateAction(+b.dataset.i); };  // don't also open the preview
+    });
+    // Click a row (anywhere but its Use button) to preview that card.
+    menu.querySelectorAll('.actrow[data-card]').forEach((row) =>
+      row.addEventListener('click', (e) => { if (e.target.closest('.use')) return; this._showCardPopup(row.dataset.card); }));
   }
+
+  // Preview an installed card (from either corner panel) as a compact, fixed-shape
+  // CCG card floating over the scene. A full-screen backdrop catches the next click
+  // anywhere else and dismisses it; clicks on the card itself do nothing.
+  _showCardPopup(name) {
+    const c = CARD_BY_NAME[name];
+    if (!c) return;
+    if (!this._cardPop) {
+      const el = document.createElement('div');
+      el.className = 'cardpop';
+      // Any click outside the card face closes the preview (and nothing else).
+      el.addEventListener('click', (e) => { if (!e.target.closest('.cardpop-card')) { e.stopPropagation(); this._hideCardPopup(); } });
+      document.body.appendChild(el);
+      this._cardPop = el;
+    }
+    this._cardPop.innerHTML = `<div class="cardpop-card">${cardFaceHTML(name, c, 0)}</div>`;
+    this._cardPop.classList.add('show');
+  }
+  _hideCardPopup() { if (this._cardPop) this._cardPop.classList.remove('show'); }
 
   // Match the two panels' heights so the corners read as a balanced pair. Uses
   // `min-height` (not `height`) so a panel always GROWS to fit its content and
@@ -571,6 +610,7 @@ export class UI {
   }
 
   showOverlay(result) {
+    this._hideCardPopup();   // a card preview must never sit over the run-over screen
     const o = this.el.overlay;
     o.classList.remove('hidden');
     const won = result && result.won;
@@ -920,16 +960,16 @@ function summarizeEngines(engines) {
     if (res) {
       const amt = e[res], cad = (e.every && e.every > 1) ? e.every : 1, g = out[res];
       if (cad > 1) g.cad += amt; else g.steady += amt;
-      const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), amt: 0, n: 0, cad, left: cad };
+      const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), raw: e.name, amt: 0, n: 0, cad, left: cad };
       row.amt += amt; row.n += 1;
       // Rounds until this producer next fires (soonest across any duplicates).
       // `_et` counts ticks since its last payout, so `cad - _et` rounds remain.
       if (cad > 1) row.left = Math.min(row.left, cad - (e._et || 0));
       g.rows.set(key, row);
     } else if (e.digEvery) {
-      out.timed.push({ name: escapeHtml(e.name), every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
+      out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
     } else if (e.drawDiscount) {
-      out.mods.push({ name: escapeHtml(e.name), text: `draws −${e.drawDiscount}⚡` });
+      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `draws −${e.drawDiscount}⚡` });
     }
   }
   return out;
@@ -963,7 +1003,7 @@ function actionRowHTML(a, i, state) {
   // from `every` (just used) to 0 (ready), so lit = every − cd fills as it recharges.
   if (a.every) meta.push(cadenceLightsHTML(a.every, a.every - (a.cd || 0), a.cost ? ACT_DOT[a.res] : 't', (a.cd || 0) > 0 ? `ready in ${a.cd}` : 'ready'));
   const dot = a.cost ? ACT_DOT[a.res] : (a.every ? 't' : 'e');
-  return `<div class="actrow${usable ? '' : ' off'}">`
+  return `<div class="actrow${usable ? '' : ' off'}" data-card="${escapeHtml(a.name)}">`
     + `<span class="edot ${dot}"></span>`
     + `<div class="acttxt"><div class="actnm">${escapeHtml(a.name)}</div>`
     + `<div class="acteff">${escapeHtml(a.effect || '')}</div>`
@@ -975,7 +1015,7 @@ function actionRowHTML(a, i, state) {
 // its own cadence, so it shows the same countdown lights + an "auto" tag instead
 // of a Use button.
 function autoActionRowHTML(t) {
-  return `<div class="actrow auto">`
+  return `<div class="actrow auto" data-card="${escapeHtml(t.raw || t.name)}">`
     + `<span class="edot t"></span>`
     + `<div class="acttxt"><div class="actnm">${escapeHtml(t.name)}</div>`
     + `<div class="acteff">clears a rock formation/column</div>`
