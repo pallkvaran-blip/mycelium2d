@@ -125,7 +125,7 @@ export class Lighting {
         // Follow the growth animation instead of lighting the whole end-state
         // colony at once: skip a node until its strand starts, and fade + move
         // its glow with the growing tip.
-        let nx = n.x, ny = n.y, k = bright * 0.4;   // dimmer colony / sensed-area glow (was 0.9)
+        let nx = n.x, ny = n.y, k = bright * 0.3;   // dimmer colony / sensed-area glow (was 0.9)
         if (rend) {
           const rev = rend.revealFactor(n, time);
           if (rev <= 0) continue;

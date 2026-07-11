@@ -11,6 +11,7 @@ import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
 import { cardDeckAdditions, actionUsable } from '../engine/cards.js';
+import { toggleMusic, isMusicMuted } from './music.js';
 
 // Small self-contained line-icons for the action bar (inlined so they survive the
 // single-file bundle). Hidden on narrow phones via CSS so the bar stays uncluttered.
@@ -145,6 +146,7 @@ export class UI {
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     hud.innerHTML =
       `<div class="resrow">${resRow}`
+      + `<button class="mutebtn" id="mutebtn" aria-label="Toggle music"></button>`
       + `<button class="logbtn" id="logbtn" aria-label="Event log">Log <span class="lchev">▾</span></button>`
       + `</div>`
       + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
@@ -152,6 +154,9 @@ export class UI {
     this.el.logdrop = hud.querySelector('#logdrop');
     this.el.loglist = hud.querySelector('#loglist');
     hud.querySelector('#logbtn').onclick = () => this.toggleLog();
+    const mb = hud.querySelector('#mutebtn');
+    mb.textContent = isMusicMuted() ? '🔇' : '🔊';
+    mb.onclick = () => { mb.textContent = toggleMusic() ? '🔇' : '🔊'; };
 
     // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
     // and the ACTIONS menu (top-right). Both only exist with the card layer on.
@@ -167,7 +172,7 @@ export class UI {
       // Clicking the resource pill (anywhere but the Log button) collapses/expands
       // the income ledger — on every screen size now.
       hud.querySelector('.resrow').addEventListener('click', (e) => {
-        if (e.target.closest('#logbtn')) return;
+        if (e.target.closest('#logbtn') || e.target.closest('#mutebtn')) return;
         this.toggleLedger();
       });
 

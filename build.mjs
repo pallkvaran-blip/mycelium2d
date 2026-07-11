@@ -40,6 +40,7 @@ const MODULES = [
   'src/render/substrate.js',
   'src/render/network.js',
   'src/render/lighting.js',
+  'src/render/music.js',
   'src/render/ui.js',
   'src/main.js',
 ];
