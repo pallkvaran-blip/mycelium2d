@@ -845,10 +845,12 @@ export class UI {
     this._offerReleased = null;
     this._renderOffer();
   }
-  // Release the panel FROM the pile's screen point `origin`. On a roomy screen a
-  // glowing 3-card glyph rises there and each card flies + grows into one of the
-  // three draft cards (the icon/draft borders match, so it reads as one shape
-  // transforming). Narrow screens / reduced-motion get the simpler box expand.
+  // Release the panel FROM the pile's screen point `origin`: a glowing 3-card
+  // glyph rises there on EVERY screen. Where the three draft slots all fit on
+  // screen, each glyph card flies + grows into its slot (the icon/draft borders
+  // match, so it reads as one shape transforming); where the row scrolls (phone
+  // portrait) the icon holds and the whole panel expands out of it. Reduced-motion
+  // just shows the panel.
   releaseOffer(origin) {
     this._clearDraftMorph();
     this._offerHold = false;
@@ -857,9 +859,8 @@ export class UI {
     const off = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
     this._offerReleased = off;
     this._renderOffer();                         // build + show the panel (cards laid out)
-    if (!off || !origin) return;                 // centred, no animation
-    if (this._reducedMotion() || window.innerWidth < 760) { this._playOfferExpand(origin); return; }
-    this._playDraftMorph(origin);
+    if (!off || !origin || this._reducedMotion()) return;
+    this._playDraftReveal(origin);
   }
 
   _reducedMotion() {
@@ -895,48 +896,61 @@ export class UI {
     }));
   }
 
-  // The headline effect: each glyph card (a glowing frame) flies from the fan at
-  // the pile up into its draft-card slot, growing + de-rotating while the card
-  // face reveals inside it. A FLIP over left/top/width/height so the border stays
-  // crisp at icon scale; the real cards sit underneath and cross-fade in at the end.
-  _playDraftMorph(origin) {
+  // Raise the glowing 3-card glyph at the pile, then hand off to the per-card
+  // morph (roomy layouts) or an icon-hold + panel-expand (scrolling row).
+  _playDraftReveal(origin) {
     const el = this.el.offer;
     const cardEls = el ? [...el.querySelectorAll('.offerrow .offercard')] : [];
-    if (!cardEls.length || !cardEls[0].animate) { this._playOfferExpand(origin); return; }
-    const targets = cardEls.map((c) => c.getBoundingClientRect());
+    if (!cardEls.length || !cardEls[0].animate) return;   // panel already shown by _renderOffer
     const vw = window.innerWidth, vh = window.innerHeight;
-    const bad = targets.some((r) => r.width < 8 || r.right < 0 || r.left > vw || r.bottom < 0 || r.top > vh);
-    if (bad) { this._playOfferExpand(origin); return; }
+    const targets = cardEls.map((c) => c.getBoundingClientRect());
+    // All three draft slots fully on screen? (Phone portrait scrolls the row, so
+    // some slots sit off the right edge — there we hold the icon + expand instead.)
+    const allFit = targets.every((r) => r.width >= 8 && r.left >= -2 && r.right <= vw + 2 && r.top >= -2 && r.bottom <= vh + 2);
 
-    const ICON_H = 76, MORPH_MS = 940, STAGGER = 80;
+    const ICON_H = allFit ? 78 : 96;   // a touch larger when it won't fly into slots
     const fan = this._draftFanCards(origin, ICON_H);
 
-    // Hide the real cards while the frames fly; the panel dim + chrome fade in
-    // once the glyph has read as an icon and starts to expand.
-    cardEls.forEach((c) => { c.style.opacity = '0'; });
-    el.style.opacity = '0';
-    const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
-      { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
-    dim.onfinish = () => { el.style.opacity = ''; };
-
-    const frames = [];
-    cardEls.forEach((cardEl, i) => {
-      const tr = targets[i], f = fan[Math.min(i, fan.length - 1)];
+    // Three glowing glyph frames at the pile — a clone of each card inside, hidden
+    // (CSS opacity 0) so the icon reads as an outline until it becomes the card.
+    const frames = cardEls.map((cardEl, i) => {
+      const f = fan[Math.min(i, fan.length - 1)];
       const frame = document.createElement('div');
       frame.className = 'draftmorph';
       const clone = cardEl.cloneNode(true);
       clone.classList.add('dmclone'); clone.classList.remove('selected');
       frame.appendChild(clone);
       document.body.appendChild(frame);
-      frames.push(frame);
+      Object.assign(frame.style, {
+        left: (f.cx - f.w / 2) + 'px', top: (f.cy - f.h / 2) + 'px',
+        width: f.w + 'px', height: f.h + 'px', borderRadius: (f.w * 0.13) + 'px',
+        transform: `rotate(${f.rot}deg)`, opacity: '0',
+      });
+      return { frame, clone, f };
+    });
 
+    el.style.opacity = '0';   // hide the panel while the icon reads
+    if (allFit) this._draftMorphToSlots(el, cardEls, targets, frames);
+    else this._draftIconThenExpand(origin, el, frames);
+  }
+
+  // Roomy layouts: each glyph card flies + grows + de-rotates into its slot, face
+  // revealing inside. A FLIP over left/top/width/height (NOT transform-scale, so
+  // the border stays crisp at icon size); real cards cross-fade in at the end.
+  _draftMorphToSlots(el, cardEls, targets, frames) {
+    const MORPH_MS = 940, STAGGER = 80;
+    cardEls.forEach((c) => { c.style.opacity = '0'; });   // real cards hidden until handoff
+    const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
+      { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
+    dim.onfinish = () => { el.style.opacity = ''; };
+
+    frames.forEach(({ frame, clone, f }, i) => {
+      const tr = targets[i];
       const sl = f.cx - f.w / 2, st = f.cy - f.h / 2, sbr = f.w * 0.13;
       const base = { left: tr.left + 'px', top: tr.top + 'px', width: tr.width + 'px', height: tr.height + 'px', borderRadius: '12px', transform: 'rotate(0deg)' };
-      Object.assign(frame.style, base);
       const start = { left: sl + 'px', top: st + 'px', width: f.w + 'px', height: f.h + 'px', borderRadius: sbr + 'px', transform: `rotate(${f.rot}deg)` };
       // Linear timeline + PER-KEYFRAME easing: a global ease-out would race through
-      // the early "hold" in wall-time and collapse the icon beat. So the hold stays
-      // linear and only the fly-out segment (0.42→1) is eased.
+      // the early "hold" in wall-time and collapse the icon beat.
       const opts = { duration: MORPH_MS, delay: i * STAGGER, fill: 'both' };
       frame.animate([
         { ...start, opacity: 0, offset: 0, easing: 'ease-out' },
@@ -944,22 +958,38 @@ export class UI {
         { ...start, opacity: 1, offset: 0.42, easing: 'cubic-bezier(.2,.8,.25,1)' },  // holds as a small glowing outline
         { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
       ], opts);
-      // glow relaxes from icon-bright to a soft card edge as it lands
       frame.animate([
         { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
         { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
         { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
       ], opts);
-      // the card face reveals inside the flying frame (outline → full card)
       clone.animate([
         { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },
         { opacity: 1, offset: 0.84 }, { opacity: 1, offset: 1 },
       ], opts);
     });
 
-    const total = MORPH_MS + (cardEls.length - 1) * STAGGER;
+    const total = MORPH_MS + (frames.length - 1) * STAGGER;
     const timer = setTimeout(() => this._finishDraftMorph(), Math.max(0, total - 70));
-    this._draftMorph = { frames, cardEls, timer };
+    this._draftMorph = { frames: frames.map((x) => x.frame), cardEls, timer };
+  }
+
+  // Scrolling row (phone portrait): the icon reads, then the whole panel expands
+  // out of it as the glyph dissolves.
+  _draftIconThenExpand(origin, el, frames) {
+    const APPEAR = 200, HOLD = 380, FADE = 340, life = APPEAR + HOLD + FADE;
+    frames.forEach(({ frame }, i) => {
+      frame.animate([
+        { opacity: 0, offset: 0 },
+        { opacity: 1, offset: APPEAR / life },
+        { opacity: 1, offset: (APPEAR + HOLD) / life },
+        { opacity: 0, offset: 1 },
+      ], { duration: life, delay: i * 60, easing: 'ease-in-out', fill: 'both' });
+    });
+    const aux = setTimeout(() => { el.style.opacity = ''; this._playOfferExpand(origin); }, APPEAR + HOLD * 0.72);
+    const total = life + (frames.length - 1) * 60;
+    const timer = setTimeout(() => { frames.forEach(({ frame }) => frame.remove()); this._draftMorph = null; }, total + 80);
+    this._draftMorph = { frames: frames.map((x) => x.frame), cardEls: [], timer, aux };
   }
 
   // Hand off from the flying frames to the real (interactive) cards: cross-fade.
@@ -982,6 +1012,7 @@ export class UI {
     const dm = this._draftMorph;
     if (!dm) return;
     clearTimeout(dm.timer);
+    if (dm.aux) clearTimeout(dm.aux);
     dm.frames.forEach((f) => f.remove());
     dm.cardEls.forEach((c) => { c.style.opacity = ''; });
     this._draftMorph = null;

@@ -397,9 +397,16 @@ Both menus are dark, on-theme, with glowing green borders.
     "Standard" 16° glyph) into the slot; the clone's opacity reveals the face; the glow relaxes.
     **Per-keyframe easing** (linear hold, eased fly) — a global ease-out raced through the hold
     in wall-time and collapsed the icon beat. At the end the real cards cross-fade in and the
-    frames are removed (`_finishDraftMorph`). Narrow screens / reduced-motion fall back to a
-    whole-panel expand-from-point (`_playOfferExpand`). `holdOffer` gates the panel hidden
-    during the wait; `_renderOffer` builds once per offer (`_offerBuiltFor`).
+    frames are removed (`_finishDraftMorph`). `holdOffer` gates the panel hidden during the wait;
+    `_renderOffer` builds once per offer (`_offerBuiltFor`).
+  - **The glyph shows on EVERY screen** (`_playDraftReveal`): it measures whether all three
+    draft slots fit on screen (`allFit`). Desktop/landscape (all fit) → the per-card morph
+    (`_draftMorphToSlots`). Phone PORTRAIT, where `.offerrow` scrolls and slots 2–3 sit off the
+    right edge (`allFit` false) → the icon holds at the pile and the whole panel expands out of
+    it (`_draftIconThenExpand` → `_playOfferExpand`). (The earlier `< 760px` gate skipped the
+    glyph entirely on phones — that was the "no icon on my phone" bug.) Reduced-motion just shows
+    the panel. `.dmclone` defaults to `opacity:0` so the icon reads as a glowing outline until the
+    face reveals.
   - Verified headless (Playwright): small glyph at the pile → cards fly into the slots (faces
     revealing) → landed panel; WAAPI duration honoured (940ms); no console errors. Build
     ~475 KB; 94 smoke + 30 cards green.
