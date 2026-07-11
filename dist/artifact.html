@@ -625,8 +625,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1cumz2x";
-globalThis.__BUILD__ = "local 07-11 14:26";
+window.__ASSET_VER = "17456pq";
+globalThis.__BUILD__ = "local 07-11 14:47";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6505,7 +6505,7 @@ class Lighting {
         // Follow the growth animation instead of lighting the whole end-state
         // colony at once: skip a node until its strand starts, and fade + move
         // its glow with the growing tip.
-        let nx = n.x, ny = n.y, k = bright * 0.9;
+        let nx = n.x, ny = n.y, k = bright * 0.4;   // dimmer colony / sensed-area glow (was 0.9)
         if (rend) {
           const rev = rend.revealFactor(n, time);
           if (rev <= 0) continue;
