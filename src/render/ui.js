@@ -540,7 +540,7 @@ export class UI {
       document.body.appendChild(el);
       this._cardPop = el;
     }
-    this._cardPop.innerHTML = `<div class="cardpop-card">${cardFaceHTML(name, c, 0)}</div>`;
+    this._cardPop.innerHTML = `<div class="cardbtn cardpop-card">${cardFaceHTML(name, c, 0)}</div>`;
     this._cardPop.classList.add('show');
   }
   _hideCardPopup() { if (this._cardPop) this._cardPop.classList.remove('show'); }

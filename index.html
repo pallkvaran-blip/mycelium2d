@@ -497,13 +497,11 @@
     .cardpop { position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center;
       background: rgba(6,10,8,0.5); padding: 20px; }
     .cardpop.show { display: flex; }
-    /* Self-contained fixed 5:7 card (doesn't inherit the hand card's flex-start pin). */
-    .cardpop-card { position: relative; display: flex; flex-direction: column; align-items: stretch; align-self: center;
-      width: 190px; max-width: min(82vw, 240px); aspect-ratio: 5 / 7; padding: 0; overflow: hidden; cursor: default;
-      background: linear-gradient(158deg, #101a15, #070c0a 72%); color: var(--ink);
-      border: 2px solid rgba(130,230,166,0.6); border-radius: 14px;
-      box-shadow: 0 0 12px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.18), 0 14px 34px -10px rgba(0,0,0,0.85); }
-    .cardpop-card .cart { aspect-ratio: 5 / 2; }   /* smaller picture; rules box keeps full-size text */
+    /* IDENTICAL to a hand card (.cardbtn) — only centred in the overlay instead of
+       pinned to the carousel's flex-start, non-interactive, and with a smaller art
+       window (the rules box keeps its normal size + text). */
+    .cardpop-card { align-self: center; cursor: default; max-width: calc(100vw - 40px); }
+    .cardpop-card .cart { aspect-ratio: 5 / 2; }
     /* Card-draft overlay: pick 1 of 3 after finishing a food pile */
     .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
