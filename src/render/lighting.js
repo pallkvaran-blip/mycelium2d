@@ -94,7 +94,7 @@ export class Lighting {
       const revs = tips.map((t) => rend.revealFactor(t, time));
       let effTips = 0; for (const rv of revs) effTips += rv;
       const sparseBoost = Math.min(2.6, Math.max(1, 5 / Math.max(1, effTips)));
-      const senseAlpha = 0.12 * breath * sparseBoost;
+      const senseAlpha = 0.06 * breath * sparseBoost;   // faint aura — well below the colony's own glow
       for (let ti = 0; ti < tips.length; ti++) {
         // Follow the growth animation: a frontier tip only casts its aura once
         // its strand has started growing in, ramping + moving with the tip.
