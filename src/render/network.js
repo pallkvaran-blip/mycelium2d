@@ -362,6 +362,18 @@ export class NetworkRenderer {
     const rev = (time - n._appearAt) / REVEAL_SEG;
     return rev <= 0 ? 0 : (rev < 1 ? rev : 1);
   }
+
+  // True while any freshly-grown strand is still animating in (used by the draft
+  // intro to hold until a played card's grow finishes before starting the draft).
+  // Batched LOD reveals instantly, so it's never "revealing".
+  isRevealing(time) {
+    if (this._lastSimplify) return false;
+    const nodes = this.network.nodes;
+    for (const n of nodes) {
+      if (n._appearAt != null && (time - n._appearAt) < REVEAL_SEG) return true;
+    }
+    return false;
+  }
 }
 
 // --- Fruiting bodies rising through the soil line (A8) ----------------------

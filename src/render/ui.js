@@ -795,30 +795,85 @@ export class UI {
     if (!el) return;
     const s = this.state;
     const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
-    if (!off) { el.classList.add('hidden'); this.armedOffer = null; return; }
+    if (!off) {
+      el.classList.add('hidden');
+      this.armedOffer = null;
+      this._offerHold = false; this._offerReleased = null; this._offerOrigin = null;
+      this._offerBuiltFor = null; this._offerExpandedFor = null;
+      return;
+    }
+    // Draft-intro gate: while the glyph animation is playing (held, and not yet
+    // released for THIS offer), keep the panel hidden — main.js releases it once
+    // the glyph is in. With no intro running, _offerHold is false and it shows as before.
+    if (this._offerHold && this._offerReleased !== off) { el.classList.add('hidden'); return; }
     // Drop a stale selection if it isn't among the current choices.
     if (this.armedOffer && !off.choices.includes(this.armedOffer)) this.armedOffer = null;
-    const cards = off.choices.map((name) => {
-      const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
-      const sel = name === this.armedOffer ? ' selected' : '';
-      return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
-    }).join('');
-    const more = s.cards.pendingOffers.length - 1;
-    el.innerHTML = `<div class="offerbox">`
-      + `<h2>Pile digested — draft a card</h2>`
-      + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
-      + `<div class="offerrow">${cards}</div>`
-      + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
-      + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
-      + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
-      + `</div>`;
+    // Build the panel once per offer (choices are fixed; selection is repainted
+    // separately). Rebuilding every frame would fight the expand animation.
+    if (this._offerBuiltFor !== off) {
+      const cards = off.choices.map((name) => {
+        const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
+        const sel = name === this.armedOffer ? ' selected' : '';
+        return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+      }).join('');
+      const more = s.cards.pendingOffers.length - 1;
+      el.innerHTML = `<div class="offerbox">`
+        + `<h2>Pile digested — draft a card</h2>`
+        + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
+        + `<div class="offerrow">${cards}</div>`
+        + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
+        + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
+        + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
+        + `</div>`;
+      el.querySelectorAll('.offercard').forEach((btn) => {
+        btn.onclick = () => this.armOffer(btn.dataset.name);
+      });
+      const confirm = el.querySelector('#offerconfirm');
+      if (confirm) confirm.onclick = () => this.confirmOffer();
+      this._offerBuiltFor = off;
+    }
     el.classList.remove('hidden');
-    el.querySelectorAll('.offercard').forEach((btn) => {
-      btn.onclick = () => this.armOffer(btn.dataset.name);
-    });
-    const confirm = el.querySelector('#offerconfirm');
-    if (confirm) confirm.onclick = () => this.confirmOffer();
+    // Expand out of the pile's screen point the first time this offer is shown.
+    if (this._offerReleased === off && this._offerOrigin && this._offerExpandedFor !== off) {
+      this._offerExpandedFor = off;
+      this._playOfferExpand(this._offerOrigin);
+    }
     this._paintOffer();
+  }
+
+  // --- draft intro (main.js drives the timing) -----------------------------
+  // Keep the draft panel hidden while the on-canvas 3-card glyph fades in.
+  holdOffer() {
+    this._offerHold = true;
+    this._offerReleased = null;
+    this._renderOffer();
+  }
+  // Release the panel, expanding it from `origin` (a screen point) — or centred
+  // if null. Called once the glyph is in place.
+  releaseOffer(origin) {
+    this._offerHold = false;
+    this._offerOrigin = origin || null;
+    const s = this.state;
+    this._offerReleased = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
+    this._renderOffer();
+  }
+  _playOfferExpand(origin) {
+    const el = this.el.offer;
+    const box = el && el.querySelector('.offerbox');
+    if (!box || !box.animate) return;
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (reduce) return;
+    const br = box.getBoundingClientRect();
+    const dx = origin.x - (br.left + br.width / 2), dy = origin.y - (br.top + br.height / 2);
+    try {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
+      box.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(0.10)`, opacity: 0 },
+        { transform: `translate(${dx * 0.22}px, ${dy * 0.22}px) scale(0.62)`, opacity: 1, offset: 0.55 },
+        { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+      ], { duration: 380, easing: 'cubic-bezier(.2,.85,.3,1)' });
+    } catch (e) {}
   }
 
   // Highlight a draft choice (tap again to deselect); the "Draft Card" button

@@ -34,6 +34,7 @@ const networkRenderers = new Map();
 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
+let draftIntro = null;                // sequenced food-pile → card-draft animation (see updateDraftIntro)
 
 // Fade the whole map in from black. Called once art is loaded (first map) and on
 // every new map, so nothing pops in piece by piece — the finished scene fades up.
@@ -489,6 +490,7 @@ function resize() {
 // --- render loop ------------------------------------------------------------
 function frame(time) {
   lastTime = time;
+  updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -530,6 +532,7 @@ function frame(time) {
   drawNematodes(time);
   drawTraps(time);
   drawTargetingCursor(time);
+  drawDraftIcon(time);          // glowing 3-card glyph rising where a finished pile stood
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
@@ -949,59 +952,240 @@ function drawTerrainAssets() {
 // position/size/type is hashed from (col,row,k) so the heap is stable across
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
-function drawSubstrateLeaves() {
+function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
   const leaves = (oak || maple) ? [oak || maple, maple || oak] : null;
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  const nuts = nutSet.length ? nutSet : null;
-  if (!leaves && !nuts) return;
+  return { leaves, nuts: nutSet.length ? nutSet : null };
+}
+
+// Draw one cell's heaped pile of leaf/nut sprites. `frac` (0..1) sets how full the
+// heap is; `alphaMul` scales opacity (1 for a live pile, <1 for the fading draft
+// ghost). Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
+function _drawLeafHeap(sets, col, row, isNut, frac, alphaMul) {
+  const set = isNut ? sets.nuts : sets.leaves;
+  if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const margin = cs * 1.6 * z;
+  const ctr = sub.cellCenter(col, row);
+  const s = camera.worldToScreen(ctr.x, ctr.y);
+  if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
+  const MAXP = isNut ? 8 : 11;                 // denser nut piles
+  const base = cs * (isNut ? 0.26 : 0.64);     // …with smaller pieces, so they read next to the leaves
+  const count = Math.max(1, Math.round(MAXP * frac));
+  // Pull this cell's pieces toward the local food centroid so a cluster reads
+  // as ONE heaped pile (not a cross of separate cells). This also bundles
+  // pieces inward — away from any nearby rock.
+  let bx = 0, by = 0;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const nb = sub.cellAt(col + dc, row + dr);
+    if (nb && nb.nutrient > 0) { bx += dc; by += dr; }
+  }
+  const bl = Math.hypot(bx, by);
+  const biasX = bl ? (bx / bl) * cs * 0.55 * z : 0;
+  const biasY = bl ? (by / bl) * cs * 0.55 * z : 0;
+  for (let k = 0; k < count; k++) {           // low k = bottom of the pile (eaten last)
+    const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
+    const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
+    const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
+    const pick = _hashf(col * 5.9 + k * 3.7, row * 8.3 + k * 9.1);
+    const img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
+    if (!img) continue;
+    const lh = base * (0.7 + h1 * 0.6) * z;
+    const lw = lh * (img.width / img.height);
+    const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
+    ctx.save();
+    ctx.translate(s.x + ox, s.y + oy);
+    // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
+    ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
+    // nuts are muted + slightly translucent so glossy studio-lit sprites blend
+    // into the soil rather than reading as crisp cut-outs.
+    ctx.globalAlpha = (isNut ? 0.9 : 1) * alphaMul;
+    if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
+    ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
+    ctx.restore();
+  }
+}
+
+function drawSubstrateLeaves() {
+  const sets = _leafSets();
+  if (!sets.leaves && !sets.nuts) return;
+  const sub = state.substrate;
   sub.forEachCell((cell, col, row) => {
     if (cell.nutrient <= 0 || cell.rock) return;
     const isNut = cell.foodKind === 'nut';
-    const set = isNut ? nuts : leaves;
-    if (!set) return;                            // this pile's sprites not loaded
-    const ctr = sub.cellCenter(col, row);
-    const s = camera.worldToScreen(ctr.x, ctr.y);
-    if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
     const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
-    const MAXP = isNut ? 8 : 11;                 // denser nut piles
-    const base = cs * (isNut ? 0.26 : 0.64);     // …with smaller pieces, so they read next to the leaves
-    const count = Math.max(1, Math.round(MAXP * frac));
-    // Pull this cell's pieces toward the local food centroid so a cluster reads
-    // as ONE heaped pile (not a cross of separate cells). This also bundles
-    // pieces inward — away from any nearby rock.
-    let bx = 0, by = 0;
-    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-      const nb = sub.cellAt(col + dc, row + dr);
-      if (nb && nb.nutrient > 0) { bx += dc; by += dr; }
-    }
-    const bl = Math.hypot(bx, by);
-    const biasX = bl ? (bx / bl) * cs * 0.55 * z : 0;
-    const biasY = bl ? (by / bl) * cs * 0.55 * z : 0;
-    for (let k = 0; k < count; k++) {           // low k = bottom of the pile (eaten last)
-      const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
-      const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
-      const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
-      const pick = _hashf(col * 5.9 + k * 3.7, row * 8.3 + k * 9.1);
-      const img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
-      if (!img) continue;
-      const lh = base * (0.7 + h1 * 0.6) * z;
-      const lw = lh * (img.width / img.height);
-      const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
-      ctx.save();
-      ctx.translate(s.x + ox, s.y + oy);
-      // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
-      ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
-      // nuts are muted + slightly translucent so glossy studio-lit sprites blend
-      // into the soil rather than reading as crisp cut-outs.
-      if (isNut) { ctx.globalAlpha = 0.9; ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)'; }
-      ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
-      ctx.restore();
-    }
+    _drawLeafHeap(sets, col, row, isNut, frac, 1);
   });
+  drawDraftGhostLeaves(sets);   // the finished pile lingers as a ghost, then fades for the draft
+}
+
+// The draft intro keeps the just-digested pile visible as a ghost while a played
+// card's grow animates over it, then fades it away to reveal the 3-card glyph.
+function drawDraftGhostLeaves(sets) {
+  const di = draftIntro;
+  if (!di || di.ghostAlpha <= 0 || !di.offer || !di.offer.cells) return;
+  const sub = state.substrate;
+  for (const idx of di.offer.cells) {
+    const col = idx % sub.cols, row = Math.floor(idx / sub.cols);
+    _drawLeafHeap(sets, col, row, false, 0.82, di.ghostAlpha);   // map caches are leaf litter
+  }
+}
+
+// =============================================================================
+// FOOD-PILE CARD DRAFT — sequenced intro
+//
+// When a colonised food pile finishes digesting, a card draft is offered. Rather
+// than pop the panel instantly, we play a short beat: (1) WAIT for the played
+// card's grow to finish revealing, (2) the leaf pile lingers then FADES away,
+// (3) a glowing 3-card glyph FADES IN where the pile stood, (4) the draft panel
+// EXPANDS out of that glyph (ui.releaseOffer). Driven per-frame from frame().
+// The offer carries its own world centre + cells (engine/cards.js), so multiple
+// queued drafts each animate from their own pile.
+// =============================================================================
+const DRAFT_WAIT_MAX = 4200;   // hard cap so a stuck reveal never hangs the draft
+const DRAFT_START_GRACE = 500; // if no grow reveal ever starts, stop waiting after this
+const DRAFT_LEAF_MS = 480;     // leaf-ghost fade-out
+const DRAFT_ICON_MS = 380;     // glyph fade-in
+const DRAFT_PANEL_MS = 380;    // glyph hands off to the expanding panel
+
+function anyRevealing(time) {
+  for (const r of networkRenderers.values()) {
+    if (r.isRevealing && r.isRevealing(time)) return true;
+  }
+  return false;
+}
+
+// Advance the draft-intro phase machine. Sets di.ghostAlpha / di.iconAlpha for
+// this frame's draws, and releases the panel when the glyph is in.
+function updateDraftIntro(time) {
+  const offer = state.cards && state.cards.pendingOffers && state.cards.pendingOffers[0];
+  if (!offer) { draftIntro = null; return; }
+
+  // A legacy offer with no captured footprint (or cards layer edge cases) just
+  // shows the panel immediately — nothing to animate from.
+  if (!offer.center) {
+    if (!draftIntro || draftIntro.offer !== offer) {
+      draftIntro = { offer, phase: 'done', ghostAlpha: 0, iconAlpha: 0 };
+      if (ui && ui.releaseOffer) ui.releaseOffer(null);
+    }
+    return;
+  }
+
+  if (!draftIntro || draftIntro.offer !== offer) {
+    draftIntro = { offer, phase: 'wait', t0: time, sawReveal: false, ghostAlpha: 1, iconAlpha: 0, released: false };
+    if (ui && ui.holdOffer) ui.holdOffer();   // keep the panel hidden until the glyph is in
+  }
+  const di = draftIntro;
+
+  if (di.phase === 'wait') {
+    di.ghostAlpha = 1; di.iconAlpha = 0;
+    const revealing = anyRevealing(time);
+    if (revealing) di.sawReveal = true;
+    const waited = time - di.t0;
+    const revealDone = di.sawReveal && !revealing;      // a grow played and has finished
+    const noReveal = !di.sawReveal && waited > DRAFT_START_GRACE;  // nothing was playing
+    if (revealDone || noReveal || waited > DRAFT_WAIT_MAX) { di.phase = 'leaf'; di.t0 = time; }
+  } else if (di.phase === 'leaf') {
+    const p = Math.min(1, (time - di.t0) / DRAFT_LEAF_MS);
+    di.ghostAlpha = 1 - p; di.iconAlpha = 0;
+    if (p >= 1) { di.phase = 'icon'; di.t0 = time; }
+  } else if (di.phase === 'icon') {
+    const p = Math.min(1, (time - di.t0) / DRAFT_ICON_MS);
+    di.ghostAlpha = 0; di.iconAlpha = p;
+    if (p >= 1) { di.phase = 'panel'; di.t0 = time; }
+  } else if (di.phase === 'panel') {
+    if (!di.released) {
+      const scr = camera.worldToScreen(offer.center.x, offer.center.y);
+      if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // expand the panel out of the glyph
+      di.released = true;
+    }
+    const p = Math.min(1, (time - di.t0) / DRAFT_PANEL_MS);
+    di.ghostAlpha = 0; di.iconAlpha = 1 - p;             // glyph dissolves as the panel takes over
+    if (p >= 1) di.phase = 'done';
+  } else {
+    di.ghostAlpha = 0; di.iconAlpha = 0;
+  }
+}
+
+function _roundRectPath(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+// The draft glyph: three cards fanned + stacked left-to-right, outer borders only,
+// glowing mint (matches the icon the user picked — "Standard" spread). Drawn in
+// screen space centred on (cx,cy), fitted to height H, at opacity `alpha`.
+function drawDraftGlyph(cx, cy, H, alpha, time) {
+  const MINT = '127,230,163', BRIGHT = '182,255,207', BODY = '9,15,12';
+  const deg = 16, W0 = 100, H0 = 142;               // one card's nominal size
+  const pivot = { x: 0, y: H0 * 1.00 };
+  const cards = [-deg, 0, deg].map((ang, i) => {
+    const r = ang * Math.PI / 180;
+    return { x: pivot.x + Math.sin(r) * (H0 * 0.80), y: pivot.y - Math.cos(r) * (H0 * 0.80), rot: ang, z: i };
+  }).sort((a, b) => a.z - b.z);                     // z=i → left behind, right on top
+
+  // Fit the fan's bounding box to the target height H, centred on (cx,cy).
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const cd of cards) {
+    const hw = W0 / 2, hh = H0 / 2, r = cd.rot * Math.PI / 180, co = Math.cos(r), si = Math.sin(r);
+    for (const [px, py] of [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]) {
+      const x = cd.x + px * co - py * si, y = cd.y + px * si + py * co;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  const pad = 14; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const bw = maxX - minX, bh = maxY - minY;
+  const scale = H / bh;
+  const ox = cx - (minX + bw / 2) * scale, oy = cy - (minY + bh / 2) * scale;
+  const breath = 0.5 + 0.5 * Math.sin(time / 1250);
+  const lw = Math.max(1, W0 * scale * 0.05);
+
+  ctx.save();
+  for (const cd of cards) {
+    const w = W0 * scale, h = H0 * scale, r = Math.min(w, h) * 0.13;
+    ctx.save();
+    ctx.translate(ox + cd.x * scale, oy + cd.y * scale);
+    ctx.rotate(cd.rot * Math.PI / 180);
+    // dark body: near-invisible over soil, but masks the card behind so the stack reads
+    _roundRectPath(ctx, -w / 2, -h / 2, w, h, r);
+    ctx.globalAlpha = 0.82 * alpha;
+    ctx.fillStyle = `rgba(${BODY},1)`;
+    ctx.fill();
+    // glowing outer border
+    ctx.globalAlpha = alpha;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = `rgba(${MINT},0.9)`;
+    ctx.shadowBlur = 9 + 7 * breath;
+    ctx.lineWidth = lw * 1.1;
+    ctx.strokeStyle = `rgba(${MINT},0.85)`;
+    _roundRectPath(ctx, -w / 2, -h / 2, w, h, r);
+    ctx.stroke();
+    // bright core
+    ctx.shadowBlur = 4;
+    ctx.lineWidth = lw * 0.55;
+    ctx.strokeStyle = `rgba(${BRIGHT},0.95)`;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawDraftIcon(time) {
+  const di = draftIntro;
+  if (!di || di.iconAlpha <= 0 || !di.offer || !di.offer.center) return;
+  const s = camera.worldToScreen(di.offer.center.x, di.offer.center.y);
+  const a = di.iconAlpha;
+  const scale = 0.86 + 0.14 * a;        // subtle scale-in as it fades in
+  const rise = (1 - a) * 10;            // and a small settle upward
+  drawDraftGlyph(s.x, s.y - rise, 56 * scale, a, time);
 }
 
 // Fill `cover` (screen rect) with a world-anchored, zoom-scaled tiled texture,

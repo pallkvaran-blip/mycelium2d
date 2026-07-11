@@ -370,6 +370,30 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Food-pile card-draft intro animation** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - Finishing a colonised map pile now plays a sequenced beat before the draft panel:
+    (1) WAIT for any played card's grow reveal to finish, (2) the leaf pile lingers then
+    FADES away, (3) a glowing 3-card glyph FADES IN where the pile stood, (4) the draft
+    panel EXPANDS out of that glyph.
+  - **Offer carries its footprint** (`engine/cards.js` `offerPileReward(state, pile)`): the
+    pile's world `center` + `cells` are stamped onto the offer, so each queued draft animates
+    from its own pile (pure world coords; no view state in the engine).
+  - **Reveal signal** (`render/network.js` `isRevealing(time)`): true while any node's
+    `_appearAt` is within `REVEAL_SEG` — lets the intro hold until a grow completes.
+  - **Controller in `main.js`** (`updateDraftIntro`, driven per-frame at the top of `frame()`):
+    phases `wait → leaf → icon → panel → done`, setting `draftIntro.ghostAlpha` / `.iconAlpha`.
+    `wait` ends when a seen reveal finishes, or a `DRAFT_START_GRACE` (500ms) elapses with no
+    reveal, or a `DRAFT_WAIT_MAX` (4.2s) cap. The glyph is `drawDraftGlyph()` — three cards
+    fanned + stacked left-to-right, outer borders only, glowing mint ("Standard" 16° spread,
+    the icon the owner picked) — drawn screen-space at the pile via `drawDraftIcon()`. The leaf
+    ghost reuses a refactored `_drawLeafHeap()` (shared with `drawSubstrateLeaves`).
+  - **Panel gate/expand in `render/ui.js`**: `holdOffer()` keeps `.offer` hidden during the
+    intro; `releaseOffer(screenPoint)` shows it and `_playOfferExpand()` scales the `.offerbox`
+    up from the pile's screen point (WAAPI, reduced-motion aware). `_renderOffer` now builds the
+    panel once per offer (guarded by `_offerBuiltFor`) so the expand animation isn't clobbered.
+  - Verified headless (Playwright): panel held hidden through the glyph fade-in, then expands
+    with the 3 cards; no console errors. Build 471.6 KB; 94 smoke + 30 cards green.
+
 - **ALL visible rock is now solid — no rock type can be grown over** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Foraging Fan (`growRadial`/`_fanRing`) checked only the ray's *endpoint* cell**
     (`_placeOk`), so a ray could clip across a rock. Now uses `_segmentClear` like the
