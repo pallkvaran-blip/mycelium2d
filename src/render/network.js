@@ -11,6 +11,8 @@
 // frame in screen space. Vitality drives overall brightness.
 // =============================================================================
 
+import { playGrowBurst } from './sfx.js';
+
 export class NetworkRenderer {
   constructor(network, config) {
     this.network = network;
@@ -274,6 +276,7 @@ export class NetworkRenderer {
           n._revSeen = true;
           k++;
         }
+        playGrowBurst(count, spread);               // layered grow SFX, staggered across the same reveal window
       }
     }
     // Steady brightness — no global "breathing" (the constant brightening/dimming

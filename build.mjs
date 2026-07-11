@@ -38,6 +38,7 @@ const MODULES = [
   'src/render/noise.js',
   'src/render/assets.js',
   'src/render/substrate.js',
+  'src/render/sfx.js',
   'src/render/network.js',
   'src/render/lighting.js',
   'src/render/music.js',

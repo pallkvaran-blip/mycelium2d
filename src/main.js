@@ -20,6 +20,7 @@ import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
+import { initSfx } from './render/sfx.js';
 import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
@@ -1988,9 +1989,10 @@ loadAssets().then(() => {
   assetsReady = true;
   revealMap();   // first map: reveal only now that the art is loaded, so it fades in whole
   initMusic();   // only NOW start streaming a random track — game art loads first
+  initSfx();     // decode the grow SFX in the background so the first grow has sound
 });
 // Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
-setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } initMusic(); }, 4000);
+setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
