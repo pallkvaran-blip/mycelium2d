@@ -734,7 +734,7 @@ export class UI {
 
     // FILTER chips (built from the groups present), then apply the active filter.
     this._renderHandFilter(all);
-    const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroup(g.card).key === this.handFilter);
+    const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroups(g.card).some((x) => x.key === this.handFilter));
 
     const prevScroll = list.scrollLeft;
     if (!s.cards.hand.length) { list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>'; return; }
@@ -776,7 +776,7 @@ export class UI {
     const fbar = this.el.handfilter;
     if (!fbar) return;
     const present = new Map();
-    groups.forEach((g) => { const gr = cardGroup(g.card); const e = present.get(gr.key) || { key: gr.key, label: gr.label, n: 0 }; e.n += g.count; present.set(gr.key, e); });
+    groups.forEach((g) => { cardGroups(g.card).forEach((gr) => { const e = present.get(gr.key) || { key: gr.key, label: gr.label, n: 0 }; e.n += g.count; present.set(gr.key, e); }); });
     if (this.handFilter !== 'all' && !present.has(this.handFilter)) this.handFilter = 'all';  // active filter emptied out
     const total = groups.reduce((a, g) => a + g.count, 0);
     const ordered = GROUP_ORDER.filter((k) => present.has(k)).map((k) => present.get(k));
@@ -1035,21 +1035,29 @@ export function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-
 function cardArt(name) {
   return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
 }
-// Card -> filter group (bucket). Used for the hand filter chips + stacking view.
-const GROUP_ORDER = ['grow', 'substrate', 'digest', 'water', 'mineral', 'energy', 'engine', 'action', 'defense', 'extender', 'other'];
-function cardGroup(c) {
+// Card -> filter groups. A card can belong to SEVERAL filters. Two kinds of tag:
+//  • a VERB tag (what you DO with the card) that partitions every card, so nothing
+//    is ever uncategorised ("Other"): anything you INSTALL (passive engines AND
+//    activated abilities — types engine + action) -> Engine; deck/draw engines
+//    (extenders) -> Draw; everything else (one-shot plays) -> Action.
+//  • EFFECT tags (what the card AFFECTS) from its category/family — cross-cutting,
+//    zero or more per card (Grow, Substrate, Water, Mineral, Energy, Defense).
+const GROUP_LABELS = { engine: 'Engine', action: 'Action', draw: 'Draw', grow: 'Grow',
+  substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
+const GROUP_ORDER = ['engine', 'action', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+function cardGroups(c) {
   const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
-  if (t === 'extender') return { key: 'extender', label: 'Draw' };
-  if (cat.includes('growth')) return { key: 'grow', label: 'Grow' };
-  if (cat.includes('substrate')) return { key: 'substrate', label: 'Substrate' };
-  if (cat.includes('economy') || cat.includes('digest')) return { key: 'digest', label: 'Digest' };
-  if (fam === 'water' || cat.includes('water')) return { key: 'water', label: 'Water' };
-  if (fam === 'phosphorus' || cat.includes('phosphorus') || cat.includes('mineral')) return { key: 'mineral', label: 'Mineral' };
-  if (fam === 'energy' || cat.includes('energy')) return { key: 'energy', label: 'Energy' };
-  if (t === 'engine') return { key: 'engine', label: 'Engine' };
-  if (cat.includes('defense') || cat.includes('anti')) return { key: 'defense', label: 'Defense' };
-  if (t === 'event' || t === 'action') return { key: 'action', label: 'Action' };
-  return { key: 'other', label: 'Other' };
+  const keys = new Set();
+  if (t === 'engine' || t === 'action') keys.add('engine');       // you install it
+  else if (t === 'extender') keys.add('draw');                    // a deck / draw engine
+  else keys.add('action');                                        // a one-shot play
+  if (/growth|mobility|routing|utility|finisher/.test(cat)) keys.add('grow');   // grows / digs / fruits the network
+  if (cat.includes('substrate')) keys.add('substrate');
+  if (fam === 'water' || cat.includes('water')) keys.add('water');
+  if (fam === 'phosphorus' || cat.includes('phosphorus') || cat.includes('mineral')) keys.add('mineral');
+  if (fam === 'energy' || cat.includes('energy')) keys.add('energy');
+  if (fam === 'defense' || /defense|anti-/.test(cat)) keys.add('defense');
+  return [...keys].map((k) => ({ key: k, label: GROUP_LABELS[k] }));
 }
 // Themed cost pips (Energy / Water / Phosphorus).
 function gateChips(c) {
