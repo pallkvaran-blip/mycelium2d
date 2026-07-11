@@ -371,28 +371,38 @@ Both menus are dark, on-theme, with glowing green borders.
 ## 9. Recent work log (most recent first)
 
 - **Food-pile card-draft intro animation** (branch `claude/mycelium-phase-1-build-urvq5e`).
-  - Finishing a colonised map pile now plays a sequenced beat before the draft panel:
+  - Finishing a colonised map pile plays a sequenced beat before the draft panel:
     (1) WAIT for any played card's grow reveal to finish, (2) the leaf pile lingers then
-    FADES away, (3) a glowing 3-card glyph FADES IN where the pile stood, (4) the draft
-    panel EXPANDS out of that glyph.
+    FADES away where it stood, (3) a small glowing 3-card glyph rises there, then (4) **each
+    of its three cards flies + grows + de-rotates into one of the three draft cards**, its
+    face revealing inside the glowing frame — the draft panel materialises out of the icon.
+    (The icon-card borders and the draft-card borders are the same shape, so it reads as one
+    thing transforming.)
   - **Offer carries its footprint** (`engine/cards.js` `offerPileReward(state, pile)`): the
     pile's world `center` + `cells` are stamped onto the offer, so each queued draft animates
     from its own pile (pure world coords; no view state in the engine).
   - **Reveal signal** (`render/network.js` `isRevealing(time)`): true while any node's
     `_appearAt` is within `REVEAL_SEG` — lets the intro hold until a grow completes.
-  - **Controller in `main.js`** (`updateDraftIntro`, driven per-frame at the top of `frame()`):
-    phases `wait → leaf → icon → panel → done`, setting `draftIntro.ghostAlpha` / `.iconAlpha`.
-    `wait` ends when a seen reveal finishes, or a `DRAFT_START_GRACE` (500ms) elapses with no
-    reveal, or a `DRAFT_WAIT_MAX` (4.2s) cap. The glyph is `drawDraftGlyph()` — three cards
-    fanned + stacked left-to-right, outer borders only, glowing mint ("Standard" 16° spread,
-    the icon the owner picked) — drawn screen-space at the pile via `drawDraftIcon()`. The leaf
-    ghost reuses a refactored `_drawLeafHeap()` (shared with `drawSubstrateLeaves`).
-  - **Panel gate/expand in `render/ui.js`**: `holdOffer()` keeps `.offer` hidden during the
-    intro; `releaseOffer(screenPoint)` shows it and `_playOfferExpand()` scales the `.offerbox`
-    up from the pile's screen point (WAAPI, reduced-motion aware). `_renderOffer` now builds the
-    panel once per offer (guarded by `_offerBuiltFor`) so the expand animation isn't clobbered.
-  - Verified headless (Playwright): panel held hidden through the glyph fade-in, then expands
-    with the 3 cards; no console errors. Build 471.6 KB; 94 smoke + 30 cards green.
+  - **Controller in `main.js`** (`updateDraftIntro`, per-frame at the top of `frame()`):
+    phases `wait → leaf → handoff`. `wait` ends when a seen reveal finishes, or `DRAFT_START_GRACE`
+    (500ms) with no reveal, or a `DRAFT_WAIT_MAX` (4.2s) cap. `leaf` fades the ghost
+    (`draftIntro.ghostAlpha`, drawn via a refactored `_drawLeafHeap()` shared with
+    `drawSubstrateLeaves`); then it calls `ui.releaseOffer(screenPoint)` once and the UI owns
+    the glyph + morph.
+  - **Per-card morph in `render/ui.js`** (`releaseOffer` → `_playDraftMorph`): builds the panel
+    (cards laid out but held at opacity 0), measures each `.offercard` rect, then for each spawns
+    a `.draftmorph` frame (fixed, glowing mint border + dark body) containing a clone of that
+    card. A FLIP over `left/top/width/height` + `transform:rotate` (NOT transform-scale, so the
+    border stays crisp at icon size) flies it from the fan at the pile (`_draftFanCards`, the
+    "Standard" 16° glyph) into the slot; the clone's opacity reveals the face; the glow relaxes.
+    **Per-keyframe easing** (linear hold, eased fly) — a global ease-out raced through the hold
+    in wall-time and collapsed the icon beat. At the end the real cards cross-fade in and the
+    frames are removed (`_finishDraftMorph`). Narrow screens / reduced-motion fall back to a
+    whole-panel expand-from-point (`_playOfferExpand`). `holdOffer` gates the panel hidden
+    during the wait; `_renderOffer` builds once per offer (`_offerBuiltFor`).
+  - Verified headless (Playwright): small glyph at the pile → cards fly into the slots (faces
+    revealing) → landed panel; WAAPI duration honoured (940ms); no console errors. Build
+    ~475 KB; 94 smoke + 30 cards green.
 
 - **ALL visible rock is now solid — no rock type can be grown over** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Foraging Fan (`growRadial`/`_fanRing`) checked only the ray's *endpoint* cell**

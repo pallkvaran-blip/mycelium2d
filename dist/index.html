@@ -512,6 +512,14 @@
     .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
     .offer.hidden { display: none; }
+    /* Draft morph: glowing 3-card glyph flying up from the pile, each frame
+       growing into a draft-card slot with its face revealing inside. */
+    .draftmorph { position: fixed; z-index: 60; box-sizing: border-box; overflow: hidden;
+      border: 1.8px solid rgba(182,255,207,0.96); background: rgba(9,15,12,0.86);
+      box-shadow: 0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26);
+      pointer-events: none; }
+    .draftmorph .dmclone { width: 100% !important; height: 100% !important; margin: 0 !important;
+      border: none !important; box-shadow: none !important; background: transparent !important; }
     .offerbox { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
       padding: 20px 22px; max-width: 720px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
     .offerbox h2 { font-size: 19px; margin: 0 0 6px; color: var(--accent); font-weight: 600; }
@@ -636,8 +644,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1761q8h";
-globalThis.__BUILD__ = "local 07-11 16:05";
+window.__ASSET_VER = "12kwboo";
+globalThis.__BUILD__ = "local 07-11 16:35";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7563,7 +7571,8 @@ class UI {
       el.classList.add('hidden');
       this.armedOffer = null;
       this._offerHold = false; this._offerReleased = null; this._offerOrigin = null;
-      this._offerBuiltFor = null; this._offerExpandedFor = null;
+      this._offerBuiltFor = null;
+      this._clearDraftMorph();   // stop a mid-flight morph if the offer went away
       return;
     }
     // Draft-intro gate: while the glyph animation is playing (held, and not yet
@@ -7597,37 +7606,165 @@ class UI {
       this._offerBuiltFor = off;
     }
     el.classList.remove('hidden');
-    // Expand out of the pile's screen point the first time this offer is shown.
-    if (this._offerReleased === off && this._offerOrigin && this._offerExpandedFor !== off) {
-      this._offerExpandedFor = off;
-      this._playOfferExpand(this._offerOrigin);
-    }
     this._paintOffer();
   }
 
   // --- draft intro (main.js drives the timing) -----------------------------
-  // Keep the draft panel hidden while the on-canvas 3-card glyph fades in.
+  // Keep the draft panel hidden while the leaf pile fades on the canvas.
   holdOffer() {
+    this._clearDraftMorph();
     this._offerHold = true;
     this._offerReleased = null;
     this._renderOffer();
   }
-  // Release the panel, expanding it from `origin` (a screen point) — or centred
-  // if null. Called once the glyph is in place.
+  // Release the panel FROM the pile's screen point `origin`. On a roomy screen a
+  // glowing 3-card glyph rises there and each card flies + grows into one of the
+  // three draft cards (the icon/draft borders match, so it reads as one shape
+  // transforming). Narrow screens / reduced-motion get the simpler box expand.
   releaseOffer(origin) {
+    this._clearDraftMorph();
     this._offerHold = false;
     this._offerOrigin = origin || null;
     const s = this.state;
-    this._offerReleased = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
-    this._renderOffer();
+    const off = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
+    this._offerReleased = off;
+    this._renderOffer();                         // build + show the panel (cards laid out)
+    if (!off || !origin) return;                 // centred, no animation
+    if (this._reducedMotion() || window.innerWidth < 760) { this._playOfferExpand(origin); return; }
+    this._playDraftMorph(origin);
   }
+
+  _reducedMotion() {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+
+  // Fan geometry for the glyph, in SCREEN coords, centred on `origin`, fitted to
+  // height H. Mirrors the icon the owner picked: three cards, "Standard" 16°
+  // spread, stacked left→right. Returns [{cx,cy,w,h,rot}] per card (left,mid,right).
+  _draftFanCards(origin, H) {
+    const deg = 16, W0 = 100, H0 = 142;
+    const pivot = { x: 0, y: H0 * 1.0 };
+    const cards = [-deg, 0, deg].map((ang) => {
+      const r = ang * Math.PI / 180;
+      return { x: pivot.x + Math.sin(r) * (H0 * 0.8), y: pivot.y - Math.cos(r) * (H0 * 0.8), rot: ang };
+    });
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (const cd of cards) {
+      const hw = W0 / 2, hh = H0 / 2, r = cd.rot * Math.PI / 180, co = Math.cos(r), si = Math.sin(r);
+      for (const [px, py] of [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]) {
+        const x = cd.x + px * co - py * si, y = cd.y + px * si + py * co;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    const pad = 14; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const scale = H / (maxY - minY);
+    const bcx = (minX + maxX) / 2, bcy = (minY + maxY) / 2;
+    return cards.map((cd) => ({
+      cx: origin.x + (cd.x - bcx) * scale,
+      cy: origin.y + (cd.y - bcy) * scale,
+      w: W0 * scale, h: H0 * scale, rot: cd.rot,
+    }));
+  }
+
+  // The headline effect: each glyph card (a glowing frame) flies from the fan at
+  // the pile up into its draft-card slot, growing + de-rotating while the card
+  // face reveals inside it. A FLIP over left/top/width/height so the border stays
+  // crisp at icon scale; the real cards sit underneath and cross-fade in at the end.
+  _playDraftMorph(origin) {
+    const el = this.el.offer;
+    const cardEls = el ? [...el.querySelectorAll('.offerrow .offercard')] : [];
+    if (!cardEls.length || !cardEls[0].animate) { this._playOfferExpand(origin); return; }
+    const targets = cardEls.map((c) => c.getBoundingClientRect());
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const bad = targets.some((r) => r.width < 8 || r.right < 0 || r.left > vw || r.bottom < 0 || r.top > vh);
+    if (bad) { this._playOfferExpand(origin); return; }
+
+    const ICON_H = 76, MORPH_MS = 940, STAGGER = 80;
+    const fan = this._draftFanCards(origin, ICON_H);
+
+    // Hide the real cards while the frames fly; the panel dim + chrome fade in
+    // once the glyph has read as an icon and starts to expand.
+    cardEls.forEach((c) => { c.style.opacity = '0'; });
+    el.style.opacity = '0';
+    const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
+      { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
+    dim.onfinish = () => { el.style.opacity = ''; };
+
+    const frames = [];
+    cardEls.forEach((cardEl, i) => {
+      const tr = targets[i], f = fan[Math.min(i, fan.length - 1)];
+      const frame = document.createElement('div');
+      frame.className = 'draftmorph';
+      const clone = cardEl.cloneNode(true);
+      clone.classList.add('dmclone'); clone.classList.remove('selected');
+      frame.appendChild(clone);
+      document.body.appendChild(frame);
+      frames.push(frame);
+
+      const sl = f.cx - f.w / 2, st = f.cy - f.h / 2, sbr = f.w * 0.13;
+      const base = { left: tr.left + 'px', top: tr.top + 'px', width: tr.width + 'px', height: tr.height + 'px', borderRadius: '12px', transform: 'rotate(0deg)' };
+      Object.assign(frame.style, base);
+      const start = { left: sl + 'px', top: st + 'px', width: f.w + 'px', height: f.h + 'px', borderRadius: sbr + 'px', transform: `rotate(${f.rot}deg)` };
+      // Linear timeline + PER-KEYFRAME easing: a global ease-out would race through
+      // the early "hold" in wall-time and collapse the icon beat. So the hold stays
+      // linear and only the fly-out segment (0.42→1) is eased.
+      const opts = { duration: MORPH_MS, delay: i * STAGGER, fill: 'both' };
+      frame.animate([
+        { ...start, opacity: 0, offset: 0, easing: 'ease-out' },
+        { ...start, opacity: 1, offset: 0.14, easing: 'linear' },   // glyph card appears at the pile
+        { ...start, opacity: 1, offset: 0.42, easing: 'cubic-bezier(.2,.8,.25,1)' },  // holds as a small glowing outline
+        { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
+      ], opts);
+      // glow relaxes from icon-bright to a soft card edge as it lands
+      frame.animate([
+        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
+        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
+        { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
+      ], opts);
+      // the card face reveals inside the flying frame (outline → full card)
+      clone.animate([
+        { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },
+        { opacity: 1, offset: 0.84 }, { opacity: 1, offset: 1 },
+      ], opts);
+    });
+
+    const total = MORPH_MS + (cardEls.length - 1) * STAGGER;
+    const timer = setTimeout(() => this._finishDraftMorph(), Math.max(0, total - 70));
+    this._draftMorph = { frames, cardEls, timer };
+  }
+
+  // Hand off from the flying frames to the real (interactive) cards: cross-fade.
+  _finishDraftMorph() {
+    const dm = this._draftMorph;
+    if (!dm) return;
+    dm.cardEls.forEach((c) => {
+      c.style.opacity = '';
+      if (c.animate) c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' });
+    });
+    dm.frames.forEach((f) => {
+      if (f.animate) { const a = f.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: 'ease-in', fill: 'forwards' }); a.onfinish = () => f.remove(); }
+      else f.remove();
+    });
+    clearTimeout(dm.timer);
+    this._draftMorph = null;
+  }
+
+  _clearDraftMorph() {
+    const dm = this._draftMorph;
+    if (!dm) return;
+    clearTimeout(dm.timer);
+    dm.frames.forEach((f) => f.remove());
+    dm.cardEls.forEach((c) => { c.style.opacity = ''; });
+    this._draftMorph = null;
+  }
+
+  // Fallback: expand the whole panel out of the pile point (narrow / reduced-motion).
   _playOfferExpand(origin) {
     const el = this.el.offer;
     const box = el && el.querySelector('.offerbox');
     if (!box || !box.animate) return;
-    let reduce = false;
-    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
-    if (reduce) return;
+    if (this._reducedMotion()) return;
     const br = box.getBoundingClientRect();
     const dx = origin.x - (br.left + br.width / 2), dy = origin.y - (br.top + br.height / 2);
     try {
@@ -8442,7 +8579,6 @@ function frame(time) {
   drawNematodes(time);
   drawTraps(time);
   drawTargetingCursor(time);
-  drawDraftIcon(time);          // glowing 3-card glyph rising where a finished pile stood
 
   if (uiDirty) { ui.update(); uiDirty = false; }
   requestAnimationFrame(frame);
@@ -8947,18 +9083,17 @@ function drawDraftGhostLeaves(sets) {
 // FOOD-PILE CARD DRAFT — sequenced intro
 //
 // When a colonised food pile finishes digesting, a card draft is offered. Rather
-// than pop the panel instantly, we play a short beat: (1) WAIT for the played
-// card's grow to finish revealing, (2) the leaf pile lingers then FADES away,
-// (3) a glowing 3-card glyph FADES IN where the pile stood, (4) the draft panel
-// EXPANDS out of that glyph (ui.releaseOffer). Driven per-frame from frame().
-// The offer carries its own world centre + cells (engine/cards.js), so multiple
-// queued drafts each animate from their own pile.
+// than pop the panel instantly, we play a beat: (1) WAIT for the played card's
+// grow to finish revealing, (2) the leaf pile lingers then FADES away (canvas,
+// here), then we hand off to the UI: a glowing 3-card glyph rises where the pile
+// stood and each of its three cards flies + grows into one of the three draft
+// cards (render/ui.js `releaseOffer` → `_playDraftMorph`). Driven per-frame.
+// The offer carries its own world centre (engine/cards.js), so multiple queued
+// drafts each animate from their own pile.
 // =============================================================================
 const DRAFT_WAIT_MAX = 4200;   // hard cap so a stuck reveal never hangs the draft
 const DRAFT_START_GRACE = 500; // if no grow reveal ever starts, stop waiting after this
-const DRAFT_LEAF_MS = 480;     // leaf-ghost fade-out
-const DRAFT_ICON_MS = 380;     // glyph fade-in
-const DRAFT_PANEL_MS = 380;    // glyph hands off to the expanding panel
+const DRAFT_LEAF_MS = 480;     // leaf-ghost fade-out, then hand the pile point to the UI
 
 function anyRevealing(time) {
   for (const r of networkRenderers.values()) {
@@ -8967,8 +9102,9 @@ function anyRevealing(time) {
   return false;
 }
 
-// Advance the draft-intro phase machine. Sets di.ghostAlpha / di.iconAlpha for
-// this frame's draws, and releases the panel when the glyph is in.
+// Advance the draft-intro phase machine (wait → leaf → handoff). Sets
+// di.ghostAlpha for the leaf-ghost draw; when the leaves have faded it hands the
+// pile's screen point to the UI, which owns the glyph + per-card morph.
 function updateDraftIntro(time) {
   const offer = state.cards && state.cards.pendingOffers && state.cards.pendingOffers[0];
   if (!offer) { draftIntro = null; return; }
@@ -8977,20 +9113,20 @@ function updateDraftIntro(time) {
   // shows the panel immediately — nothing to animate from.
   if (!offer.center) {
     if (!draftIntro || draftIntro.offer !== offer) {
-      draftIntro = { offer, phase: 'done', ghostAlpha: 0, iconAlpha: 0 };
+      draftIntro = { offer, phase: 'done', ghostAlpha: 0 };
       if (ui && ui.releaseOffer) ui.releaseOffer(null);
     }
     return;
   }
 
   if (!draftIntro || draftIntro.offer !== offer) {
-    draftIntro = { offer, phase: 'wait', t0: time, sawReveal: false, ghostAlpha: 1, iconAlpha: 0, released: false };
+    draftIntro = { offer, phase: 'wait', t0: time, sawReveal: false, ghostAlpha: 1, released: false };
     if (ui && ui.holdOffer) ui.holdOffer();   // keep the panel hidden until the glyph is in
   }
   const di = draftIntro;
 
   if (di.phase === 'wait') {
-    di.ghostAlpha = 1; di.iconAlpha = 0;
+    di.ghostAlpha = 1;
     const revealing = anyRevealing(time);
     if (revealing) di.sawReveal = true;
     const waited = time - di.t0;
@@ -8999,103 +9135,18 @@ function updateDraftIntro(time) {
     if (revealDone || noReveal || waited > DRAFT_WAIT_MAX) { di.phase = 'leaf'; di.t0 = time; }
   } else if (di.phase === 'leaf') {
     const p = Math.min(1, (time - di.t0) / DRAFT_LEAF_MS);
-    di.ghostAlpha = 1 - p; di.iconAlpha = 0;
-    if (p >= 1) { di.phase = 'icon'; di.t0 = time; }
-  } else if (di.phase === 'icon') {
-    const p = Math.min(1, (time - di.t0) / DRAFT_ICON_MS);
-    di.ghostAlpha = 0; di.iconAlpha = p;
-    if (p >= 1) { di.phase = 'panel'; di.t0 = time; }
-  } else if (di.phase === 'panel') {
-    if (!di.released) {
-      const scr = camera.worldToScreen(offer.center.x, offer.center.y);
-      if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // expand the panel out of the glyph
-      di.released = true;
+    di.ghostAlpha = 1 - p;
+    if (p >= 1) {
+      di.ghostAlpha = 0; di.phase = 'done';
+      if (!di.released) {
+        const scr = camera.worldToScreen(offer.center.x, offer.center.y);
+        if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
+        di.released = true;
+      }
     }
-    const p = Math.min(1, (time - di.t0) / DRAFT_PANEL_MS);
-    di.ghostAlpha = 0; di.iconAlpha = 1 - p;             // glyph dissolves as the panel takes over
-    if (p >= 1) di.phase = 'done';
   } else {
-    di.ghostAlpha = 0; di.iconAlpha = 0;
+    di.ghostAlpha = 0;
   }
-}
-
-function _roundRectPath(c, x, y, w, h, r) {
-  c.beginPath();
-  c.moveTo(x + r, y);
-  c.arcTo(x + w, y, x + w, y + h, r);
-  c.arcTo(x + w, y + h, x, y + h, r);
-  c.arcTo(x, y + h, x, y, r);
-  c.arcTo(x, y, x + w, y, r);
-  c.closePath();
-}
-
-// The draft glyph: three cards fanned + stacked left-to-right, outer borders only,
-// glowing mint (matches the icon the user picked — "Standard" spread). Drawn in
-// screen space centred on (cx,cy), fitted to height H, at opacity `alpha`.
-function drawDraftGlyph(cx, cy, H, alpha, time) {
-  const MINT = '127,230,163', BRIGHT = '182,255,207', BODY = '9,15,12';
-  const deg = 16, W0 = 100, H0 = 142;               // one card's nominal size
-  const pivot = { x: 0, y: H0 * 1.00 };
-  const cards = [-deg, 0, deg].map((ang, i) => {
-    const r = ang * Math.PI / 180;
-    return { x: pivot.x + Math.sin(r) * (H0 * 0.80), y: pivot.y - Math.cos(r) * (H0 * 0.80), rot: ang, z: i };
-  }).sort((a, b) => a.z - b.z);                     // z=i → left behind, right on top
-
-  // Fit the fan's bounding box to the target height H, centred on (cx,cy).
-  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-  for (const cd of cards) {
-    const hw = W0 / 2, hh = H0 / 2, r = cd.rot * Math.PI / 180, co = Math.cos(r), si = Math.sin(r);
-    for (const [px, py] of [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]) {
-      const x = cd.x + px * co - py * si, y = cd.y + px * si + py * co;
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-  }
-  const pad = 14; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-  const bw = maxX - minX, bh = maxY - minY;
-  const scale = H / bh;
-  const ox = cx - (minX + bw / 2) * scale, oy = cy - (minY + bh / 2) * scale;
-  const breath = 0.5 + 0.5 * Math.sin(time / 1250);
-  const lw = Math.max(1, W0 * scale * 0.05);
-
-  ctx.save();
-  for (const cd of cards) {
-    const w = W0 * scale, h = H0 * scale, r = Math.min(w, h) * 0.13;
-    ctx.save();
-    ctx.translate(ox + cd.x * scale, oy + cd.y * scale);
-    ctx.rotate(cd.rot * Math.PI / 180);
-    // dark body: near-invisible over soil, but masks the card behind so the stack reads
-    _roundRectPath(ctx, -w / 2, -h / 2, w, h, r);
-    ctx.globalAlpha = 0.82 * alpha;
-    ctx.fillStyle = `rgba(${BODY},1)`;
-    ctx.fill();
-    // glowing outer border
-    ctx.globalAlpha = alpha;
-    ctx.lineJoin = 'round';
-    ctx.shadowColor = `rgba(${MINT},0.9)`;
-    ctx.shadowBlur = 9 + 7 * breath;
-    ctx.lineWidth = lw * 1.1;
-    ctx.strokeStyle = `rgba(${MINT},0.85)`;
-    _roundRectPath(ctx, -w / 2, -h / 2, w, h, r);
-    ctx.stroke();
-    // bright core
-    ctx.shadowBlur = 4;
-    ctx.lineWidth = lw * 0.55;
-    ctx.strokeStyle = `rgba(${BRIGHT},0.95)`;
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.restore();
-}
-
-function drawDraftIcon(time) {
-  const di = draftIntro;
-  if (!di || di.iconAlpha <= 0 || !di.offer || !di.offer.center) return;
-  const s = camera.worldToScreen(di.offer.center.x, di.offer.center.y);
-  const a = di.iconAlpha;
-  const scale = 0.86 + 0.14 * a;        // subtle scale-in as it fades in
-  const rise = (1 - a) * 10;            // and a small settle upward
-  drawDraftGlyph(s.x, s.y - rise, 56 * scale, a, time);
 }
 
 // Fill `cover` (screen rect) with a world-anchored, zoom-scaled tiled texture,
