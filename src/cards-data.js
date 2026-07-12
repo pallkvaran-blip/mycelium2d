@@ -687,7 +687,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one installed action: it becomes ready 1 round sooner between uses (permanent).",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -703,7 +703,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one installed action: it becomes ready 2 rounds sooner between uses (permanent).",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -719,7 +719,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one installed action: it becomes ready 3 rounds sooner between uses (permanent).",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -735,7 +735,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one resource engine: it pays out 1 round sooner (permanent).",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -751,7 +751,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one resource engine: it pays out 2 rounds sooner (permanent).",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -767,7 +767,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Speed up one resource engine: it pays out 3 rounds sooner (permanent).",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
