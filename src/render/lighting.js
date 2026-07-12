@@ -35,6 +35,7 @@ export class Lighting {
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
     const breath = 1; // steady lighting (no global breathing — it's distracting)
     const W = camera.viewW, H = camera.viewH;
+    if (W <= 0 || H <= 0) return;   // transient 0-size viewport — a 0-wide light buffer would throw on drawImage
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;
     }

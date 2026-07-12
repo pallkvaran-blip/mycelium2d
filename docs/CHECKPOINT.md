@@ -371,6 +371,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Crash-proof render loop** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - Symptom: the game occasionally FROZE with a half-drawn / torn canvas. Cause: `frame()`
+    ended with `requestAnimationFrame(frame)`, so ANY throw in the draw path killed the loop
+    permanently and left the partial frame on screen (very likely a transient 0-size viewport on
+    mobile — address-bar show/hide / rotation — making a light/canvas buffer 0-wide and throwing
+    on `drawImage`).
+  - Fix (`main.js`): split the body into `renderFrame(time)`; `frame()` now wraps it in
+    try/catch and ALWAYS reschedules rAF, so one bad frame can't freeze the game — it logs once
+    (console + in-game Log, throttled by error signature) and keeps animating. `renderFrame`
+    also bails early if `innerWidth/Height <= 0`. `render/lighting.js` `compose()` returns early
+    when `viewW/viewH <= 0` (the specific 0-wide-buffer throw).
+  - The log line ("Render hiccup (recovered): …") is the diagnostic hook — if it recurs, the Log
+    panel now names the actual error so we can fix the true root cause.
+  - Verified headless: injecting a per-frame throw kept rAF running (loop alive, page responsive,
+    error logged exactly once) and the loop fully recovered once the fault was removed.
+
 - **Draw-engine extenders → installed engines / actions (every 6 rounds)** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - The old "extender" cards each shuffled 5 copies of a basic into the draw deck. With the Draw
     button gone that mechanic was dead, so the 10 active extenders are now INSTALLED cards that

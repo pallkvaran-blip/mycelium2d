@@ -488,8 +488,30 @@ function resize() {
 }
 
 // --- render loop ------------------------------------------------------------
+// The loop is CRASH-PROOF: renderFrame() does all the drawing; frame() wraps it
+// so a single throwing frame can't kill requestAnimationFrame and freeze the game
+// with a half-drawn canvas (the symptom we chased). A bad frame is logged once
+// (console + in-game Log) and the loop keeps animating.
+let _lastFrameErr = null;
 function frame(time) {
+  try {
+    renderFrame(time);
+  } catch (e) {
+    const sig = (e && (e.stack || e.message)) || String(e);
+    if (sig !== _lastFrameErr) {
+      _lastFrameErr = sig;
+      console.error('[frame] render error (loop kept alive):', e);
+      try { if (state && state.log) state.log('Render hiccup (recovered): ' + ((e && e.message) || e), 'warn'); } catch (_) {}
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function renderFrame(time) {
   lastTime = time;
+  // A transient 0-size viewport (mobile address-bar show/hide, rotation) would make
+  // canvas/light buffers 0-wide and throw mid-draw — skip until it's valid again.
+  if (window.innerWidth <= 0 || window.innerHeight <= 0) return;
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';
@@ -534,7 +556,6 @@ function frame(time) {
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
-  requestAnimationFrame(frame);
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
