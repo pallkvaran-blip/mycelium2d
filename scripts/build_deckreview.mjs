@@ -40,7 +40,7 @@ function faceHTML(c, uri) {
   const img = uri ? `<img class="caimg" src="${uri}" alt="">` : '';
   return `<div class="cardbtn${c.archived ? ' arch' : ''}">`
     + `<span class="cart">${img}</span>`
-    + `<span class="pips">${pips(c)}</span>`
+    + `<span class="pips" data-face-pips>${pips(c)}</span>`
     + (c.archived ? `<span class="archbadge">archived</span>` : '')
     + `<span class="cplate"><span class="cn">${esc(c.name)}</span><span class="ct">${esc(c.type)}</span></span>`
     + `<span class="crules" data-face-rules></span>`
@@ -108,6 +108,13 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 .vbtn:hover{border-color:rgba(126,240,192,.5)}
 .vbtn.up.on{background:rgba(87,207,140,.22);border-color:var(--up);color:#d6ffe8}
 .vbtn.down.on{background:rgba(255,122,122,.18);border-color:var(--down);color:#ffdede}
+.costs{display:flex;gap:8px;flex-wrap:wrap}
+.ci{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:800;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:4px 7px}
+.ci.changed{border-color:var(--edit)}
+.ci.e{color:#7fe6a3} .ci.w{color:#7fd0e0} .ci.p{color:#c79be6}
+.ci input{width:40px;font:inherit;font-size:13px;font-weight:800;text-align:center;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:6px;color:var(--tink);padding:2px 0}
+.ci input:focus{outline:none;border-color:var(--mint)}
+.ci input::-webkit-outer-spin-button,.ci input::-webkit-inner-spin-button{opacity:.5}
 .lbl{font-size:10.5px;color:var(--tink-dim);margin:2px 0 -4px;display:flex;justify-content:space-between}
 .edited-tag{color:var(--edit);font-weight:700;display:none}
 .rv.edited .edited-tag{display:inline}
@@ -139,6 +146,12 @@ for (const c of cards) {
     + `<div class="stage">${faceHTML(c, uri)}</div>`
     + `<div class="rvctl">`
     +   `<div class="votes"><button class="vbtn up" data-v="up" title="Thumb up">👍</button><button class="vbtn down" data-v="down" title="Thumb down">👎</button></div>`
+    +   `<div class="lbl"><span>Costs — install ⚡ · play 💧 ✦</span></div>`
+    +   `<div class="costs">`
+    +     `<label class="ci e" title="Energy (install / play)">⚡<input type="number" min="0" step="1" inputmode="numeric" data-r="e"></label>`
+    +     `<label class="ci w" title="Water (per play / per use)">💧<input type="number" min="0" step="1" inputmode="numeric" data-r="w"></label>`
+    +     `<label class="ci p" title="Phosphorus (per play / per use)">✦<input type="number" min="0" step="1" inputmode="numeric" data-r="p"></label>`
+    +   `</div>`
     +   `<div class="lbl"><span>Description <span class="edited-tag">· edited</span></span></div>`
     +   `<textarea class="desc" spellcheck="true"></textarea>`
     +   `<input class="note" type="text" placeholder="Note (optional)…">`
@@ -147,19 +160,19 @@ for (const c of cards) {
 }
 
 // data the client needs: slug -> {name, type, group, effect(original), archived}
-const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, group: GROUP[c.type] || c.type, effect: c.effect || '', archived: c.archived })));
+const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, group: GROUP[c.type] || c.type, effect: c.effect || '', archived: c.archived, e: c.buyCostEnergy || 0, w: c.playCostWater || 0, p: c.playCostPhosphorus || 0 })));
 
 const body = `<style>${uiCss}${cardCss}</style>
 <div class="wrap">
   <p class="eyebrow">Mycelium · full deck review</p>
   <h1>Review the whole deck</h1>
-  <p class="lede">Every card on its real face. 👍/👎 each one, and edit its description right in the box (prefilled with the current text) — changed boxes turn amber and the card face updates live. Add a note if you want. When you're done, Export &amp; copy and paste it back to me; I'll apply the rewrites and votes. Your work is saved in this browser.</p>
+  <p class="lede">Every card on its real face. Retune costs in the ⚡/💧/✦ boxes and rewrite the description right in its box — both are prefilled with the current values and the card face updates live. 👍/👎 and note anything you want. When you're done, Export &amp; copy and paste it back to me; I'll apply the new costs, rewrites and votes. Your work is saved in this browser. <b>Note:</b> ⚡ is the install/play cost; for abilities, 💧/✦ are the per-use costs (shown in the Actions menu, not on the face).</p>
   <div class="filterbar"><button class="fToggle" id="btnFilters" aria-expanded="true">Filters <span id="filtCur">· All</span> <span class="chev">▾</span></button></div>
   <div class="filters" id="filters"></div>
   <div class="grid" id="grid">${cells}</div>
 </div>
 <div class="bar"><div class="barwrap">
-  <span class="metric"><b id="mRev">0</b>/<b id="mTot">0</b> reviewed · <span class="u">👍 <b id="mUp">0</b></span> · <span class="d">👎 <b id="mDown">0</b></span> · <span class="e">✏️ <b id="mEd">0</b></span></span>
+  <span class="metric"><b id="mRev">0</b>/<b id="mTot">0</b> reviewed · <span class="u">👍 <b id="mUp">0</b></span> · <span class="d">👎 <b id="mDown">0</b></span> · <span class="e">✏️ <b id="mEd">0</b></span> · <span class="e">🔧 <b id="mCost">0</b></span></span>
   <span style="flex:1"></span>
   <button class="btn ghost" id="btnReset">Reset</button>
   <button class="btn" id="btnExport">Export &amp; copy</button>
@@ -181,40 +194,61 @@ const body = `<style>${uiCss}${cardCss}</style>
   function norm(s){ return String(s||'').trim().replace(/\\s+/g,' '); }
   function curDesc(slug){ var r=store[slug]||{}; return (r.desc!=null)?r.desc:BY[slug].effect; }
   function isEdited(slug){ return norm(curDesc(slug))!==norm(BY[slug].effect); }
+  var RES=['e','w','p'], RES_ICON={e:'⚡',w:'💧',p:'✦'};
+  function curCost(slug,r){ var c=store[slug]&&store[slug].costs; if(c&&c[r]!=null&&c[r]!=='') return Math.max(0,+c[r]||0); return BY[slug][r]; }
+  function costChanged(slug){ return RES.some(function(r){ return curCost(slug,r)!==BY[slug][r]; }); }
+  function costDelta(slug){ var out=[]; RES.forEach(function(r){ var o=BY[slug][r],n=curCost(slug,r); if(o!==n) out.push(RES_ICON[r]+' '+o+'→'+n); }); return out.join(', '); }
+  function changed(slug){ return isEdited(slug)||costChanged(slug); }
+  function pipsHTML(slug){ var c=BY[slug],g=[],e=curCost(slug,'e'),w=curCost(slug,'w'),p=curCost(slug,'p');
+    if(e) g.push('<span class="cc e">'+e+'⚡</span>');
+    if(c.type!=='action'){ if(w) g.push('<span class="cc w">'+w+'💧</span>'); if(p) g.push('<span class="cc p">'+p+'✦</span>'); }
+    return g.join('')||'<span class="cc free">free</span>'; }
 
   document.querySelectorAll('.rv').forEach(function(rv){
     var slug=rv.dataset.slug, r=rec(slug);
     var up=rv.querySelector('.vbtn.up'), down=rv.querySelector('.vbtn.down');
-    var desc=rv.querySelector('.desc'), note=rv.querySelector('.note'), face=rv.querySelector('[data-face-rules]');
+    var desc=rv.querySelector('.desc'), note=rv.querySelector('.note'), face=rv.querySelector('[data-face-rules]'), facePips=rv.querySelector('[data-face-pips]');
     desc.value = curDesc(slug);
     face.textContent = desc.value;
     if(r.note) note.value=r.note;
     if(r.vote==='up') up.classList.add('on'); if(r.vote==='down') down.classList.add('on');
-    if(isEdited(slug)) rv.classList.add('edited');
+    if(changed(slug)) rv.classList.add('edited');
+    // cost inputs — prefill, live-update the face pips, flag changed cells
+    rv.querySelectorAll('.ci input').forEach(function(inp){
+      var res=inp.dataset.r; inp.value=curCost(slug,res);
+      inp.parentNode.classList.toggle('changed', curCost(slug,res)!==BY[slug][res]);
+      inp.addEventListener('input',function(){
+        var costs=(r.costs=r.costs||{}); costs[res]=inp.value===''?0:Math.max(0,+inp.value||0);
+        inp.parentNode.classList.toggle('changed', curCost(slug,res)!==BY[slug][res]);
+        facePips.innerHTML=pipsHTML(slug); rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter();
+      });
+    });
     up.addEventListener('click',function(){ r.vote=r.vote==='up'?null:'up'; up.classList.toggle('on',r.vote==='up'); down.classList.remove('on'); persist(); metrics(); applyFilter(); });
     down.addEventListener('click',function(){ r.vote=r.vote==='down'?null:'down'; down.classList.toggle('on',r.vote==='down'); up.classList.remove('on'); persist(); metrics(); applyFilter(); });
-    desc.addEventListener('input',function(){ r.desc=desc.value; face.textContent=desc.value; rv.classList.toggle('edited',isEdited(slug)); persist(); metrics(); applyFilter(); });
+    desc.addEventListener('input',function(){ r.desc=desc.value; face.textContent=desc.value; rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter(); });
     note.addEventListener('input',function(){ r.note=note.value; persist(); });
   });
 
   function metrics(){
-    var up=0,down=0,ed=0,rev=0;
-    DATA.forEach(function(c){ var r=store[c.slug]||{}; var e=isEdited(c.slug);
-      if(r.vote==='up')up++; if(r.vote==='down')down++; if(e)ed++; if(r.vote||e||(r.note&&r.note.trim()))rev++; });
+    var up=0,down=0,ed=0,cost=0,rev=0;
+    DATA.forEach(function(c){ var r=store[c.slug]||{}; var e=isEdited(c.slug), cc=costChanged(c.slug);
+      if(r.vote==='up')up++; if(r.vote==='down')down++; if(e)ed++; if(cc)cost++;
+      if(r.vote||e||cc||(r.note&&r.note.trim()))rev++; });
     document.getElementById('mUp').textContent=up; document.getElementById('mDown').textContent=down;
-    document.getElementById('mEd').textContent=ed; document.getElementById('mRev').textContent=rev;
+    document.getElementById('mEd').textContent=ed; document.getElementById('mCost').textContent=cost;
+    document.getElementById('mRev').textContent=rev;
     document.getElementById('mTot').textContent=DATA.length;
     buildFilters();
   }
 
   var filter='all';
   function counts(){
-    var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,todo:0};
+    var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,cost:0,todo:0};
     var g={};
-    DATA.forEach(function(d){ var r=store[d.slug]||{}; var e=isEdited(d.slug);
+    DATA.forEach(function(d){ var r=store[d.slug]||{}; var e=isEdited(d.slug), cc=costChanged(d.slug);
       if(d.archived)c.archived++; else c.live++;
-      if(r.vote==='up')c.up++; if(r.vote==='down')c.down++; if(e)c.edited++;
-      if(!r.vote&&!e&&!(r.note&&r.note.trim()))c.todo++;
+      if(r.vote==='up')c.up++; if(r.vote==='down')c.down++; if(e)c.edited++; if(cc)c.cost++;
+      if(!r.vote&&!e&&!cc&&!(r.note&&r.note.trim()))c.todo++;
       g[d.type]=(g[d.type]||0)+1; });
     return {c:c,g:g};
   }
@@ -222,7 +256,7 @@ const body = `<style>${uiCss}${cardCss}</style>
   function filterDefs(){
     var k=counts();
     var base=[['all','All',k.c.all],['live','Live',k.c.live],['archived','Archived',k.c.archived],
-      ['todo','Untouched',k.c.todo],['edited','✏️ Edited',k.c.edited],['up','👍 Liked',k.c.up],['down','👎 Disliked',k.c.down]];
+      ['todo','Untouched',k.c.todo],['cost','🔧 Cost changed',k.c.cost],['edited','✏️ Text edited',k.c.edited],['up','👍 Liked',k.c.up],['down','👎 Disliked',k.c.down]];
     ['basic','engine','action','event','extender'].forEach(function(t){ if(k.g[t]) base.push([t,GLBL[t],k.g[t]]); });
     return base;
   }
@@ -243,8 +277,9 @@ const body = `<style>${uiCss}${cardCss}</style>
     var slug=rv.dataset.slug, type=rv.dataset.group, arch=rv.dataset.arch==='1', r=store[slug]||{};
     switch(filter){
       case 'all': return true; case 'live': return !arch; case 'archived': return arch;
-      case 'todo': return !r.vote && !isEdited(slug) && !(r.note&&r.note.trim());
-      case 'edited': return isEdited(slug); case 'up': return r.vote==='up'; case 'down': return r.vote==='down';
+      case 'todo': return !r.vote && !changed(slug) && !(r.note&&r.note.trim());
+      case 'cost': return costChanged(slug); case 'edited': return isEdited(slug);
+      case 'up': return r.vote==='up'; case 'down': return r.vote==='down';
       default: return type===filter;
     }
   }
@@ -253,7 +288,12 @@ const body = `<style>${uiCss}${cardCss}</style>
   function exportText(){
     var L=['# Mycelium — Full deck review',''];
     var k=counts();
-    L.push(k.c.up+' 👍 · '+k.c.down+' 👎 · '+k.c.edited+' ✏️ edited (of '+DATA.length+' cards)'); L.push('');
+    L.push(k.c.up+' 👍 · '+k.c.down+' 👎 · '+k.c.cost+' 🔧 re-costed · '+k.c.edited+' ✏️ text edits (of '+DATA.length+' cards)'); L.push('');
+    var recost=DATA.filter(function(d){ return costChanged(d.slug); });
+    if(recost.length){ L.push('## 🔧 Cost changes ('+recost.length+')'); L.push('');
+      recost.forEach(function(d){ var r=store[d.slug]||{}; var v=r.vote==='up'?' 👍':r.vote==='down'?' 👎':'';
+        var note=(r.note&&r.note.trim())?(' — '+norm(r.note)):'';
+        L.push('- '+d.name+(d.archived?' [archived]':'')+': '+costDelta(d.slug)+v+note); }); L.push(''); }
     var edited=DATA.filter(function(d){ return isEdited(d.slug); });
     if(edited.length){ L.push('## ✏️ Rewritten descriptions ('+edited.length+')'); L.push('');
       edited.forEach(function(d){ var r=store[d.slug]||{}; var v=r.vote==='up'?' 👍':r.vote==='down'?' 👎':'';
@@ -278,10 +318,12 @@ const body = `<style>${uiCss}${cardCss}</style>
     var done=function(){ var t=document.getElementById('toast'); t.classList.add('on'); setTimeout(function(){t.classList.remove('on');},1300); };
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(out.value).then(done,done); } else { try{document.execCommand('copy');}catch(e){} done(); } });
   document.getElementById('btnReset').addEventListener('click',function(){
-    if(confirm('Clear every vote, rewrite and note? Restores all descriptions to their originals.')){ store={}; persist();
+    if(confirm('Clear every vote, cost change, rewrite and note? Restores all cards to their originals.')){ store={}; persist();
       document.querySelectorAll('.rv').forEach(function(rv){ var slug=rv.dataset.slug;
         rv.classList.remove('edited'); rv.querySelector('.vbtn.up').classList.remove('on'); rv.querySelector('.vbtn.down').classList.remove('on');
-        var d=rv.querySelector('.desc'); d.value=BY[slug].effect; rv.querySelector('[data-face-rules]').textContent=BY[slug].effect; rv.querySelector('.note').value=''; });
+        var d=rv.querySelector('.desc'); d.value=BY[slug].effect; rv.querySelector('[data-face-rules]').textContent=BY[slug].effect; rv.querySelector('.note').value='';
+        rv.querySelectorAll('.ci input').forEach(function(inp){ inp.value=BY[slug][inp.dataset.r]; inp.parentNode.classList.remove('changed'); });
+        rv.querySelector('[data-face-pips]').innerHTML=pipsHTML(slug); });
       metrics(); applyFilter(); } });
 
   document.getElementById('btnFilters').addEventListener('click',function(){
