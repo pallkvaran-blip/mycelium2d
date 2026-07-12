@@ -207,11 +207,11 @@ export class UI {
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
 
-      const drawBtn = button('btn deckbtn abtn', 'Draw');
-      drawBtn.onclick = () => this.handlers.onDraw();
+      // Draw removed — cards enter the hand only by drafting them (choosing after a
+      // finished food pile). Skip stays as the "pass / advance a round" control.
       const skipBtn = button('btn deckbtn abtn', 'Skip');
       skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
+      this.el.skipBtn = skipBtn;
 
       const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span></span>`);
       playBtn.id = 'handplay';
@@ -220,7 +220,7 @@ export class UI {
       this.el.handplay = playBtn;
 
       const left = div('abgroup left'); left.appendChild(handBtn);
-      const centre = div('abgroup centre'); centre.appendChild(drawBtn); centre.appendChild(skipBtn);
+      const centre = div('abgroup centre'); centre.appendChild(skipBtn);
       const right = div('abgroup right'); right.appendChild(playBtn);
       bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
     }
@@ -676,12 +676,6 @@ export class UI {
       text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
-      const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
-      const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
-      if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `${ICON('draw')}<span class="txt"><span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${costHTML(drawE, 0, 0)}</span></span>`;
-        this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
-      }
       if (this.el.skipBtn) {
         this.el.skipBtn.innerHTML = `${ICON('skip')}<span class="txt"><span class="blabel">Skip</span><span class="bcost">${costHTML(cc.skipCostEnergy, 0, 0)}</span></span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
@@ -817,17 +811,25 @@ export class UI {
         const sel = name === this.armedOffer ? ' selected' : '';
         return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
       }).join('');
-      const more = s.cards.pendingOffers.length - 1;
       el.innerHTML = `<div class="offerbox">`
-        + `<h2>Pile digested — draft a card</h2>`
-        + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
+        + `<h2>Choose one</h2>`
         + `<div class="offerrow">${cards}</div>`
         + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
         + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
-        + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
         + `</div>`;
+      // Single click selects; a DOUBLE click drafts it straight to hand (mirrors the
+      // hand's double-tap-to-play). Detected off `click` so it behaves the same on
+      // mouse and touch.
       el.querySelectorAll('.offercard').forEach((btn) => {
-        btn.onclick = () => this.armOffer(btn.dataset.name);
+        btn.onclick = () => {
+          const name = btn.dataset.name;
+          const now = Date.now();
+          const last = this._lastOfferTap;
+          const isDouble = last && last.name === name && now - last.t < 320;
+          this._lastOfferTap = isDouble ? null : { name, t: now };
+          if (isDouble) this.pickOffer(name);
+          else this.armOffer(name);
+        };
       });
       const confirm = el.querySelector('#offerconfirm');
       if (confirm) confirm.onclick = () => this.confirmOffer();
@@ -1068,6 +1070,13 @@ export class UI {
   confirmOffer() {
     if (!this.armedOffer) return;
     const name = this.armedOffer;
+    this.armedOffer = null;
+    this.handlers.onChooseCard(name);
+  }
+  // Draft a specific card straight to hand (double-click shortcut).
+  pickOffer(name) {
+    const off = this.state.cards && this.state.cards.pendingOffers && this.state.cards.pendingOffers[0];
+    if (!off || !off.choices.includes(name)) return;
     this.armedOffer = null;
     this.handlers.onChooseCard(name);
   }

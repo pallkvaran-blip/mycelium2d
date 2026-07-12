@@ -371,6 +371,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Draft/card-flow simplification** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Removed the Draw button** (`render/ui.js`): cards now enter the hand ONLY by drafting
+    them (choosing after a finished food pile). Skip stays as the pass/advance-a-round control.
+    Engine `drawCard`/`drawDeck` are left intact (unused by UI; still on the `__game` debug hook).
+  - **Double-click / double-tap a draft card drafts it straight to hand** (`pickOffer`) — mirrors
+    the hand's double-tap-to-play; single click still selects, and the "Draft Card" button still
+    confirms a selection.
+  - **Draft cards are now the same size as hand cards.** `.offercard` was wider than `.cardbtn`
+    at every breakpoint (base 210 vs 172, phone-portrait `min(56vw,220px)` vs `min(46vw,172px)`,
+    landscape 150 vs 132) — worst on phone portrait. Matched width + fonts to `.cardbtn` at all
+    breakpoints (merged `.offercard` into the responsive `.cardbtn` cn/crules selectors).
+  - **Draft window text is just "Choose one"** — dropped the "Pile digested…" h2, the subtitle,
+    and the "N more drafts waiting" note.
+  - Verified headless at 390×844: bar = Hide Hand · Skip · Play Card (no Draw); draft-card width
+    == hand-card width (172); heading "Choose one", 0 subtitle paragraphs; double-click drafts
+    (offers 1→0, hand +1); no console errors. 94 smoke + 30 cards green.
+
 - **Food-pile card-draft intro animation** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - Finishing a colonised map pile plays a sequenced beat before the draft panel:
     (1) WAIT for any played card's grow reveal to finish, (2) the leaf pile lingers then

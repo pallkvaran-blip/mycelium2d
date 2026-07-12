@@ -528,9 +528,7 @@
     .offerbox p.dim { color: var(--ink-dim); }
     .offerbox p.small { font-size: 12px; }
     .offerrow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
-    .offercard { width: 210px; align-self: flex-start; }
-    .offercard .cplate .cn { font-size: 15px; }
-    .offercard .crules { font-size: 11px; line-height: 1.34; }
+    .offercard { width: 172px; align-self: flex-start; }   /* same size as a hand card (.cardbtn) */
     /* a static (non-interactive) card face inside the confirm/preview overlay */
     .offercard.static { cursor: default; }
     .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
@@ -594,13 +592,13 @@
       .cardbtn { width: min(46vw, 172px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
       .cardbtn .cart { height: auto; flex: 0 0 auto; }
       .cardbtn .crules { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-      .cardbtn .cplate .cn { font-size: 13.5px; }
-      .cardbtn .crules { font-size: 10.5px; }
+      .cardbtn .cplate .cn, .offercard .cplate .cn { font-size: 13.5px; }
+      .cardbtn .crules, .offercard .crules { font-size: 10.5px; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
         scroll-snap-type: x mandatory; scrollbar-width: none; }
       .offerrow::-webkit-scrollbar { display: none; }
-      .offercard { width: min(56vw, 220px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+      .offercard { width: min(46vw, 172px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
       .offercard .cart { height: auto; flex: 0 0 auto; }
       .offercard .crules { flex: 1 1 auto; min-height: 0; overflow: hidden; }
     }
@@ -630,13 +628,11 @@
       /* Landscape phones: same fixed 5:7 shape, just a smaller width so a card fits
          the short viewport; text kept small so it still all shows. */
       .cardbtn { width: 132px; flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
-      .cardbtn .cart { height: auto; flex: 0 0 auto; }
-      .cardbtn .cplate { padding: 4px 7px 1px; }
-      .cardbtn .cplate .cn { font-size: 12px; }
-      .cardbtn .crules { font-size: 8.5px; margin: 2px 6px 6px; padding: 4px 6px; line-height: 1.28; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-      .offercard { width: 150px; align-self: flex-start; }
-      .offercard .cart { height: auto; flex: 0 0 auto; }
-      .offercard .crules { font-size: 9px; flex: 1 1 auto; min-height: 0; overflow: hidden; line-height: 1.3; }
+      .cardbtn .cart, .offercard .cart { height: auto; flex: 0 0 auto; }
+      .cardbtn .cplate, .offercard .cplate { padding: 4px 7px 1px; }
+      .cardbtn .cplate .cn, .offercard .cplate .cn { font-size: 12px; }
+      .cardbtn .crules, .offercard .crules { font-size: 8.5px; margin: 2px 6px 6px; padding: 4px 6px; line-height: 1.28; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+      .offercard { width: 132px; align-self: flex-start; }   /* same size as a hand card */
       .handpreview { padding: 5px 9px; }
       .handpreview .hplabel, .handpreview .hpdesc { font-size: 10px; }
     }
@@ -645,8 +641,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "43otl3";
-globalThis.__BUILD__ = "local 07-11 16:57";
+window.__ASSET_VER = "12rhe82";
+globalThis.__BUILD__ = "local 07-12 08:37";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -6980,11 +6976,11 @@ class UI {
       handBtn.onclick = () => this.toggleHand();
       this.el.handbtn = handBtn;
 
-      const drawBtn = button('btn deckbtn abtn', 'Draw');
-      drawBtn.onclick = () => this.handlers.onDraw();
+      // Draw removed — cards enter the hand only by drafting them (choosing after a
+      // finished food pile). Skip stays as the "pass / advance a round" control.
       const skipBtn = button('btn deckbtn abtn', 'Skip');
       skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.drawBtn = drawBtn; this.el.skipBtn = skipBtn;
+      this.el.skipBtn = skipBtn;
 
       const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span></span>`);
       playBtn.id = 'handplay';
@@ -6993,7 +6989,7 @@ class UI {
       this.el.handplay = playBtn;
 
       const left = div('abgroup left'); left.appendChild(handBtn);
-      const centre = div('abgroup centre'); centre.appendChild(drawBtn); centre.appendChild(skipBtn);
+      const centre = div('abgroup centre'); centre.appendChild(skipBtn);
       const right = div('abgroup right'); right.appendChild(playBtn);
       bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
     }
@@ -7449,12 +7445,6 @@ class UI {
       text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
-      const drawE = Math.max(1, cc.drawCostEnergy - (s.cards.drawDiscount || 0));
-      const drawN = Math.min(cc.drawCount || 1, s.cards.drawDeck.length);
-      if (this.el.drawBtn) {
-        this.el.drawBtn.innerHTML = `${ICON('draw')}<span class="txt"><span class="blabel">Draw ${drawN || (cc.drawCount || 1)}</span><span class="bcost">${costHTML(drawE, 0, 0)}</span></span>`;
-        this.el.drawBtn.disabled = s.runOver || !net.alive || !s.cards.drawDeck.length || net.energy < drawE;
-      }
       if (this.el.skipBtn) {
         this.el.skipBtn.innerHTML = `${ICON('skip')}<span class="txt"><span class="blabel">Skip</span><span class="bcost">${costHTML(cc.skipCostEnergy, 0, 0)}</span></span>`;
         this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
@@ -7590,17 +7580,25 @@ class UI {
         const sel = name === this.armedOffer ? ' selected' : '';
         return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
       }).join('');
-      const more = s.cards.pendingOffers.length - 1;
       el.innerHTML = `<div class="offerbox">`
-        + `<h2>Pile digested — draft a card</h2>`
-        + `<p class="dim small">Select a card, then Draft it. It joins your hand for free — you still pay its ⚡ / W·P to play it.</p>`
+        + `<h2>Choose one</h2>`
         + `<div class="offerrow">${cards}</div>`
         + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
         + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
-        + (more > 0 ? `<p class="dim small">${more} more draft${more > 1 ? 's' : ''} waiting.</p>` : '')
         + `</div>`;
+      // Single click selects; a DOUBLE click drafts it straight to hand (mirrors the
+      // hand's double-tap-to-play). Detected off `click` so it behaves the same on
+      // mouse and touch.
       el.querySelectorAll('.offercard').forEach((btn) => {
-        btn.onclick = () => this.armOffer(btn.dataset.name);
+        btn.onclick = () => {
+          const name = btn.dataset.name;
+          const now = Date.now();
+          const last = this._lastOfferTap;
+          const isDouble = last && last.name === name && now - last.t < 320;
+          this._lastOfferTap = isDouble ? null : { name, t: now };
+          if (isDouble) this.pickOffer(name);
+          else this.armOffer(name);
+        };
       });
       const confirm = el.querySelector('#offerconfirm');
       if (confirm) confirm.onclick = () => this.confirmOffer();
@@ -7841,6 +7839,13 @@ class UI {
   confirmOffer() {
     if (!this.armedOffer) return;
     const name = this.armedOffer;
+    this.armedOffer = null;
+    this.handlers.onChooseCard(name);
+  }
+  // Draft a specific card straight to hand (double-click shortcut).
+  pickOffer(name) {
+    const off = this.state.cards && this.state.cards.pendingOffers && this.state.cards.pendingOffers[0];
+    if (!off || !off.choices.includes(name)) return;
     this.armedOffer = null;
     this.handlers.onChooseCard(name);
   }
