@@ -371,6 +371,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Food piles keep a fixed shape and fade on consume** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - Bug: a leaf/nut pile changed shape/arrangement as it was eaten. `_drawLeafHeap` (main.js)
+    scaled its piece count by live `frac` (so it lost pieces) AND biased piece positions off
+    the LIVE `nb.nutrient > 0` footprint (so pieces shifted as neighbours drained).
+  - Fix: **fixed piece count** (11 leaves / 8 nuts) and **bias from the ORIGINAL footprint**
+    (`nb.maxNutrient > 0`), so the heap is identical at any fill level. `drawSubstrateLeaves`
+    now draws the full heap at alpha 1 while ANY nutrient remains, then TIME-fades it out
+    (`cell._leafGone` timestamp, `LEAF_FADE_MS` 460ms) once the cell hits 0 — because a
+    colonised pile empties in ~2 ticks (`passiveIncomeRate 25` on ~50/cell), a frac-based fade
+    would be a 2-step pop, so the fade is time-based.
+  - Retired the draft **leaf-ghost** (`drawDraftGhostLeaves` + `draftIntro.ghostAlpha`): the
+    per-cell consume-fade now covers "leaves fade away to reveal the icon" uniformly for every
+    pile, so the intro is just wait-for-grow → brief beat → glyph rises.
+  - Verified headless: full-nutrient and half-nutrient piles are pixel-identical (no reshape);
+    on consume the same heap fades out then clears; no console errors. 94 smoke + 30 cards green.
+
 - **Draft/card-flow simplification** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Removed the Draw button** (`render/ui.js`): cards now enter the hand ONLY by drafting
     them (choosing after a finished food pile). Skip stays as the pass/advance-a-round control.

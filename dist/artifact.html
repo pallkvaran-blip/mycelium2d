@@ -635,8 +635,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "12rhe82";
-globalThis.__BUILD__ = "local 07-12 08:37";
+window.__ASSET_VER = "wd9gkz";
+globalThis.__BUILD__ = "local 07-12 09:06";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9037,10 +9037,12 @@ function _leafSets() {
   return { leaves, nuts: nutSet.length ? nutSet : null };
 }
 
-// Draw one cell's heaped pile of leaf/nut sprites. `frac` (0..1) sets how full the
-// heap is; `alphaMul` scales opacity (1 for a live pile, <1 for the fading draft
-// ghost). Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
-function _drawLeafHeap(sets, col, row, isNut, frac, alphaMul) {
+// Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The
+// arrangement is FIXED — a constant piece count and a bias taken from the pile's
+// ORIGINAL footprint (maxNutrient), NOT the live nutrient — so a pile never
+// changes shape or rearranges as it's eaten. It simply fades (via alphaMul) once
+// consumed. Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
+function _drawLeafHeap(sets, col, row, isNut, alphaMul) {
   const set = isNut ? sets.nuts : sets.leaves;
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
@@ -9048,21 +9050,20 @@ function _drawLeafHeap(sets, col, row, isNut, frac, alphaMul) {
   const ctr = sub.cellCenter(col, row);
   const s = camera.worldToScreen(ctr.x, ctr.y);
   if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
-  const MAXP = isNut ? 8 : 11;                 // denser nut piles
-  const base = cs * (isNut ? 0.26 : 0.64);     // …with smaller pieces, so they read next to the leaves
-  const count = Math.max(1, Math.round(MAXP * frac));
-  // Pull this cell's pieces toward the local food centroid so a cluster reads
-  // as ONE heaped pile (not a cross of separate cells). This also bundles
-  // pieces inward — away from any nearby rock.
+  const count = isNut ? 8 : 11;                // FIXED piece count — the heap never loses pieces as it drains
+  const base = cs * (isNut ? 0.26 : 0.64);     // …smaller pieces for nuts, so they read next to the leaves
+  // Pull this cell's pieces toward the local food centroid so a cluster reads as
+  // ONE heaped pile (not a cross of separate cells), keyed off the ORIGINAL
+  // footprint so the arrangement stays put while neighbours drain.
   let bx = 0, by = 0;
   for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
     const nb = sub.cellAt(col + dc, row + dr);
-    if (nb && nb.nutrient > 0) { bx += dc; by += dr; }
+    if (nb && nb.maxNutrient > 0) { bx += dc; by += dr; }
   }
   const bl = Math.hypot(bx, by);
   const biasX = bl ? (bx / bl) * cs * 0.55 * z : 0;
   const biasY = bl ? (by / bl) * cs * 0.55 * z : 0;
-  for (let k = 0; k < count; k++) {           // low k = bottom of the pile (eaten last)
+  for (let k = 0; k < count; k++) {
     const h1 = _hashf(col * 7.1 + k * 13.3, row * 11.7 + k * 5.2);
     const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
     const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
@@ -9085,29 +9086,26 @@ function _drawLeafHeap(sets, col, row, isNut, frac, alphaMul) {
   }
 }
 
+// A food pile keeps its full, fixed heap while ANY nutrient remains, then simply
+// FADES away (time-based) once fully consumed — it never changes shape or loses
+// pieces as it's eaten. `cell._leafGone` (render-only) marks when a cell emptied.
+const LEAF_FADE_MS = 460;
 function drawSubstrateLeaves() {
   const sets = _leafSets();
   if (!sets.leaves && !sets.nuts) return;
   const sub = state.substrate;
   sub.forEachCell((cell, col, row) => {
-    if (cell.nutrient <= 0 || cell.rock) return;
+    if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
     const isNut = cell.foodKind === 'nut';
-    const frac = Math.min(1, cell.nutrient / (cell.maxNutrient || 100));
-    _drawLeafHeap(sets, col, row, isNut, frac, 1);
+    if (cell.nutrient > 0) {
+      cell._leafGone = 0;                                 // still has food → full heap, no fade
+      _drawLeafHeap(sets, col, row, isNut, 1);
+    } else if (cell.maxNutrient > 0) {                    // just emptied → fade the same heap out, then stop
+      if (!cell._leafGone) cell._leafGone = lastTime;
+      const a = 1 - (lastTime - cell._leafGone) / LEAF_FADE_MS;
+      if (a > 0) _drawLeafHeap(sets, col, row, isNut, a);
+    }
   });
-  drawDraftGhostLeaves(sets);   // the finished pile lingers as a ghost, then fades for the draft
-}
-
-// The draft intro keeps the just-digested pile visible as a ghost while a played
-// card's grow animates over it, then fades it away to reveal the 3-card glyph.
-function drawDraftGhostLeaves(sets) {
-  const di = draftIntro;
-  if (!di || di.ghostAlpha <= 0 || !di.offer || !di.offer.cells) return;
-  const sub = state.substrate;
-  for (const idx of di.offer.cells) {
-    const col = idx % sub.cols, row = Math.floor(idx / sub.cols);
-    _drawLeafHeap(sets, col, row, false, 0.82, di.ghostAlpha);   // map caches are leaf litter
-  }
 }
 
 // =============================================================================
@@ -9115,16 +9113,16 @@ function drawDraftGhostLeaves(sets) {
 //
 // When a colonised food pile finishes digesting, a card draft is offered. Rather
 // than pop the panel instantly, we play a beat: (1) WAIT for the played card's
-// grow to finish revealing, (2) the leaf pile lingers then FADES away (canvas,
-// here), then we hand off to the UI: a glowing 3-card glyph rises where the pile
-// stood and each of its three cards flies + grows into one of the three draft
-// cards (render/ui.js `releaseOffer` → `_playDraftMorph`). Driven per-frame.
-// The offer carries its own world centre (engine/cards.js), so multiple queued
-// drafts each animate from their own pile.
+// grow to finish revealing (the pile's leaves have already faded out on consume —
+// see drawSubstrateLeaves), (2) a brief pause, then we hand off to the UI: a
+// glowing 3-card glyph rises where the pile stood and each of its three cards
+// flies + grows into one of the three draft cards (render/ui.js `releaseOffer` →
+// `_playDraftReveal`). Driven per-frame. The offer carries its own world centre
+// (engine/cards.js), so multiple queued drafts each animate from their own pile.
 // =============================================================================
 const DRAFT_WAIT_MAX = 4200;   // hard cap so a stuck reveal never hangs the draft
 const DRAFT_START_GRACE = 500; // if no grow reveal ever starts, stop waiting after this
-const DRAFT_LEAF_MS = 480;     // leaf-ghost fade-out, then hand the pile point to the UI
+const DRAFT_LEAF_MS = 320;     // brief beat after the grow before the glyph rises
 
 function anyRevealing(time) {
   for (const r of networkRenderers.values()) {
@@ -9144,20 +9142,19 @@ function updateDraftIntro(time) {
   // shows the panel immediately — nothing to animate from.
   if (!offer.center) {
     if (!draftIntro || draftIntro.offer !== offer) {
-      draftIntro = { offer, phase: 'done', ghostAlpha: 0 };
+      draftIntro = { offer, phase: 'done' };
       if (ui && ui.releaseOffer) ui.releaseOffer(null);
     }
     return;
   }
 
   if (!draftIntro || draftIntro.offer !== offer) {
-    draftIntro = { offer, phase: 'wait', t0: time, sawReveal: false, ghostAlpha: 1, released: false };
+    draftIntro = { offer, phase: 'wait', t0: time, sawReveal: false, released: false };
     if (ui && ui.holdOffer) ui.holdOffer();   // keep the panel hidden until the glyph is in
   }
   const di = draftIntro;
 
   if (di.phase === 'wait') {
-    di.ghostAlpha = 1;
     const revealing = anyRevealing(time);
     if (revealing) di.sawReveal = true;
     const waited = time - di.t0;
@@ -9165,18 +9162,16 @@ function updateDraftIntro(time) {
     const noReveal = !di.sawReveal && waited > DRAFT_START_GRACE;  // nothing was playing
     if (revealDone || noReveal || waited > DRAFT_WAIT_MAX) { di.phase = 'leaf'; di.t0 = time; }
   } else if (di.phase === 'leaf') {
-    const p = Math.min(1, (time - di.t0) / DRAFT_LEAF_MS);
-    di.ghostAlpha = 1 - p;
-    if (p >= 1) {
-      di.ghostAlpha = 0; di.phase = 'done';
+    // A brief beat after the grow finishes. The pile's leaves have already faded
+    // out on consumption (see drawSubstrateLeaves), so there's nothing to draw here.
+    if (time - di.t0 >= DRAFT_LEAF_MS) {
+      di.phase = 'done';
       if (!di.released) {
         const scr = camera.worldToScreen(offer.center.x, offer.center.y);
         if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
         di.released = true;
       }
     }
-  } else {
-    di.ghostAlpha = 0;
   }
 }
 
