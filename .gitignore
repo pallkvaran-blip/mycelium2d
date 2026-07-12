@@ -6,3 +6,6 @@ node_modules/
 
 # debug screenshots written by scratchpad harnesses
 dist/_*.png
+
+# scratchpad working dir (verification scripts, screenshots — never committed)
+scratchpad/
