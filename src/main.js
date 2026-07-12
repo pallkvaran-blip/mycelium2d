@@ -509,9 +509,6 @@ function frame(time) {
 
 function renderFrame(time) {
   lastTime = time;
-  // A transient 0-size viewport (mobile address-bar show/hide, rotation) would make
-  // canvas/light buffers 0-wide and throw mid-draw — skip until it's valid again.
-  if (window.innerWidth <= 0 || window.innerHeight <= 0) return;
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';

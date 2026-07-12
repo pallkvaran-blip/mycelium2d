@@ -641,8 +641,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "xrw3qy";
-globalThis.__BUILD__ = "local 07-12 13:40";
+window.__ASSET_VER = "1rlutso";
+globalThis.__BUILD__ = "local 07-12 13:50";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8639,9 +8639,6 @@ function frame(time) {
 
 function renderFrame(time) {
   lastTime = time;
-  // A transient 0-size viewport (mobile address-bar show/hide, rotation) would make
-  // canvas/light buffers 0-wide and throw mid-draw — skip until it's valid again.
-  if (window.innerWidth <= 0 || window.innerHeight <= 0) return;
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';

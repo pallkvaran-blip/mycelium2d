@@ -379,9 +379,13 @@ Both menus are dark, on-theme, with glowing green borders.
     on `drawImage`).
   - Fix (`main.js`): split the body into `renderFrame(time)`; `frame()` now wraps it in
     try/catch and ALWAYS reschedules rAF, so one bad frame can't freeze the game — it logs once
-    (console + in-game Log, throttled by error signature) and keeps animating. `renderFrame`
-    also bails early if `innerWidth/Height <= 0`. `render/lighting.js` `compose()` returns early
-    when `viewW/viewH <= 0` (the specific 0-wide-buffer throw).
+    (console + in-game Log, throttled by error signature) and keeps animating. `render/lighting.js`
+    `compose()` returns early when `viewW/viewH <= 0` (the specific 0-wide-buffer throw).
+  - NOTE: an initial version also had `renderFrame` bail on `window.innerHeight/Width <= 0`. That
+    BROKE the boot fade on mobile — `innerHeight` can transiently read 0 during load / address-bar
+    settling even when the canvas is validly sized, so the reveal could fire across skipped frames
+    and fade in a blank/stale canvas. Removed it; the try/catch + lighting guard already crash-proof
+    the 0-size case without skipping otherwise-valid frames.
   - The log line ("Render hiccup (recovered): …") is the diagnostic hook — if it recurs, the Log
     panel now names the actual error so we can fix the true root cause.
   - Verified headless: injecting a per-frame throw kept rAF running (loop alive, page responsive,
