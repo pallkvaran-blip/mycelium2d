@@ -78,10 +78,12 @@ console.log('# Card economy + effects');
   net.energy = 3; net.water = 9; net.phosphorus = 9;
   ok(/Energy/.test(cardBlockedReason(s, 'Fruiting Vigil') || ''), 'a premium card is blocked with too little Energy');
 
-  // draw engine grows the deck by 5 of its basic
+  // converted extender: Forager Bloom now INSTALLS as an every-6-rounds action
   net.energy = 100;
-  const dd0 = s.cards.drawDeck.length; const fbi = ensureHand(s, 'Forager Bloom'); playCard(s, fbi);
-  ok(s.cards.drawDeck.length === dd0 + 5 && s.cards.drawDeck.includes('Foraging Fan'), 'Forager Bloom shuffles 5 Foraging Fan into the deck');
+  const acts0 = s.cards.actions.length; const fbi = ensureHand(s, 'Forager Bloom'); playCard(s, fbi);
+  const fb = s.cards.actions.find((a) => a.name === 'Forager Bloom');
+  ok(s.cards.actions.length === acts0 + 1 && fb && fb.every === 6 && fb.cost === 1 && fb.res === 'water',
+    'Forager Bloom installs as an every-6-rounds action (1 Water/use)');
 
   // resource gate blocks an unaffordable play
   net.water = 0;

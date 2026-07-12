@@ -25,21 +25,14 @@ import { CARD_DATA, CARD_BY_NAME } from '../cards-data.js';
 // it. gain() only ever adds, and stops adding once you're at/over the cap.)
 const gain = (cur, amt, cap) => Math.max(cur, Math.min(cap, cur + amt));
 
-// Draw-engine card -> the basic it seeds (5 copies).
+// Draw-engine card -> the basic it seeds (5 copies). The active extenders were
+// converted into installed engines/actions that repeat every 6 rounds (see the
+// explicit EFFECTS at the bottom of this file); only ARCHIVED extenders remain
+// here (kept for the round-trip if ever un-archived).
 const DRAW_ENGINES = {
-  'Leading Cord': 'Apical Drive',
-  'Forager Bloom': 'Foraging Fan',
-  'Questing Front': 'Tropic Lunge',
   'Humus Cache': 'Humus Bed',
   'Symbiont Weave': 'Mycorrhizal Mat',
-  'Acorn Fall': 'Acorn Cache',
   'Enzyme Priming': 'Saprotrophic Digest',
-  'Boring Corps': 'Appressorial Punch',
-  'Crust Reserve': 'Sclerotial Crust',
-  'Capillary Runners': 'Hyphal Imbibition',
-  'Prospecting Cords': 'Phosphate Tap',
-  'Dew Traps': 'Condense',
-  'Colonizing Front': 'Hyphal Extension',
   'Leaf Fall': 'Leaf Litter Cache',
 };
 
@@ -633,7 +626,7 @@ export const EFFECTS = {
   }),
 };
 
-// Draw-engine cards: shuffle 5 copies of a basic into the draw deck.
+// Draw-engine cards (ARCHIVED only): shuffle 5 copies of a basic into the draw deck.
 for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
   EFFECTS[name] = grow((s) => {
     for (let i = 0; i < 5; i++) s.cards.drawDeck.push(payload);
@@ -641,3 +634,55 @@ for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
     return { ok: true, message: `Shuffled 5 ${payload} into the draw deck.` };
   });
 }
+
+// --- converted extenders --------------------------------------------------
+// The former "draw 5 copies of X" extenders are now INSTALLED cards that repeat
+// their effect every 6 rounds. Growth / bore / cache / defense ones install as
+// player-triggered ACTIONS (right menu): ready every 6 rounds, aim + pay a per-use
+// resource. Harvest ones install as passive resource ENGINES (left ledger). All
+// cost 8⚡ to install (see docs/cards.json).
+EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true }, (s, ctx) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const { dx, dy, tip } = dirFrom(s, ctx);
+  const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
+  return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
+});
+EFFECTS['Forager Bloom'] = action({ effect: 'fan out: grow every direction', every: 6, cost: 1, res: 'water' }, (s) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const n = s.active.growRadial(s.substrate, s.rng);
+  if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
+  const reason = s.active.fanBlockReason(s.substrate);
+  if (reason === 'cap') return { ok: false, message: MAXED_MSG };
+  if (reason === 'crowded') return { ok: false, message: 'Packed too tightly to fan out any further.' };
+  return { ok: false, message: 'Rock walls the colony in — nowhere to fan out.' };
+});
+EFFECTS['Questing Front'] = action({ effect: 'lunge to the nearest food', every: 6, cost: 1, res: 'water' }, (s) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
+  if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
+  if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
+  return { ok: false, message: 'Every food pile has already been reached.' };
+});
+EFFECTS['Colonizing Front'] = action({ effect: 'grow toward all food in range', every: 6, cost: 1, res: 'water' }, (s) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const n = s.active.grow(s.substrate, s.rng);
+  return n > 0 ? { ok: true, message: `Grew ${n} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
+});
+EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cost: 1, res: 'water', target: true }, (s, ctx) => {
+  depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
+  return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };
+});
+EFFECTS['Boring Corps'] = action({ effect: 'bore through an in-range rock', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+  if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
+  if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
+  return { ok: false, message: 'No rock there to punch through.' };
+});
+EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  const h = cureRadius(s, ctx, 40);
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' };
+});
+EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
+EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
+EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');

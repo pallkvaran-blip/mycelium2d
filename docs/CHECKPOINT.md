@@ -371,6 +371,26 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Draw-engine extenders → installed engines / actions (every 6 rounds)** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - The old "extender" cards each shuffled 5 copies of a basic into the draw deck. With the Draw
+    button gone that mechanic was dead, so the 10 active extenders are now INSTALLED cards that
+    repeat the granted basic's effect every 6 rounds, all **8⚡ to install**:
+    - **Triggered ACTIONS** (right menu, `action({every:6,cost,res,target})`): Leading Cord
+      (grow 2 directional, aim, 1 W), Forager Bloom (fan out, 1 W), Questing Front (lunge to
+      food, 1 W), Colonizing Front (grow toward all food, 1 W), Acorn Fall (bury cache, aim,
+      1 W), Boring Corps (bore rock, aim, 2 P), Crust Reserve (harden + clear mould, aim, 1 P).
+    - **Passive ENGINES** (left ledger, `engine({water|phosphorus, every:6})`): Capillary Runners
+      & Dew Traps (+3 Water/6), Prospecting Cords (+3 Phosphorus/6) — the harvest ones, free.
+  - Reuses the existing engine-cadence + action-cooldown runtime entirely (no new mechanics);
+    each converted card's `run` mirrors the corresponding basic's effect. `DRAW_ENGINES` now holds
+    only the archived leftovers. Data patched in `docs/cards.json` (type action/engine, 8⚡,
+    per-use W/P, "Once per 6 rounds…" text, `tutorial:true` so they're draftable) → regenerated
+    `src/cards-data.js`. Owner chose: triggered-ability model for the targeted/growth ones, free
+    resource engines for the harvest ones.
+  - Verified: 13/13 engine-level checks (install as engine/action, +3 on round 6, aim → grow →
+    charge → 6-round cooldown), plus in-browser install (ledger + Actions menu render with
+    cadence meters); no console errors. 94 smoke + 30 cards green.
+
 - **Food piles keep a fixed shape and fade on consume** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - Bug: a leaf/nut pile changed shape/arrangement as it was eaten. `_drawLeafHeap` (main.js)
     scaled its piece count by live `frac` (so it lost pieces) AND biased piece positions off
