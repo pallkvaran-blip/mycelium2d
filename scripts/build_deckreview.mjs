@@ -82,16 +82,27 @@ const uiCss = `
 .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--mint);font-weight:700;margin:0 0 6px}
 h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
 .lede{color:var(--tink-dim);font-size:14px;max-width:70ch;line-height:1.55;margin:0 0 14px}
-.filters{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px;position:sticky;top:0;z-index:30;
-  background:linear-gradient(180deg,var(--bg),rgba(10,18,16,.86));padding:10px 0;backdrop-filter:blur(4px)}
+.filterbar{position:sticky;top:0;z-index:31;background:linear-gradient(180deg,var(--bg),rgba(10,18,16,.92));padding:10px 0 6px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fToggle{font:inherit;font-size:13px;font-weight:700;color:var(--tink);background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:8px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.fToggle:hover{border-color:rgba(126,240,192,.5)}
+.fToggle .chev{transition:transform .18s;font-size:11px;opacity:.8} .fToggle.open .chev{transform:rotate(180deg)}
+.fToggle #filtCur{color:var(--mint);font-weight:600}
+.filters{display:none;gap:8px;flex-wrap:wrap;margin:0 0 6px;position:sticky;top:52px;z-index:30;
+  background:linear-gradient(180deg,var(--bg),rgba(10,18,16,.9));padding:6px 0 10px;backdrop-filter:blur(4px)}
+.filters.open{display:flex}
 .fchip{font:inherit;font-size:12.5px;font-weight:600;color:var(--tink);background:var(--panel2);border:1px solid var(--line);
   border-radius:999px;padding:6px 12px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;transition:.12s}
 .fchip:hover{border-color:rgba(126,240,192,.5)} .fchip.on{background:var(--mint);color:#062b1f;border-color:var(--mint)}
 .fchip .cnt{opacity:.7;font-size:11px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:8px}
-.rv{display:flex;flex-direction:column;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
+@media(max-width:640px){.grid{grid-template-columns:1fr}}
+.rv{display:flex;flex-direction:row;gap:12px;align-items:flex-start}
 .rv.hide{display:none}
-.stage{position:relative}
+.stage{position:relative;flex:0 0 46%;max-width:230px}
+.rvctl{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:8px}
+@media(max-width:420px){.rv{flex-direction:column}.stage{flex:0 0 auto;width:100%;max-width:220px}}
 .votes{display:flex;gap:8px}
 .vbtn{flex:1;font:inherit;font-weight:700;font-size:15px;border:1px solid var(--line);background:var(--panel2);color:var(--tink);border-radius:10px;padding:6px 0;cursor:pointer;transition:.12s}
 .vbtn:hover{border-color:rgba(126,240,192,.5)}
@@ -126,10 +137,12 @@ for (const c of cards) {
   const uri = artUri(c.slug);
   cells += `<div class="rv" data-slug="${c.slug}" data-group="${c.type}" data-arch="${c.archived ? 1 : 0}">`
     + `<div class="stage">${faceHTML(c, uri)}</div>`
-    + `<div class="votes"><button class="vbtn up" data-v="up" title="Thumb up">👍</button><button class="vbtn down" data-v="down" title="Thumb down">👎</button></div>`
-    + `<div class="lbl"><span>Description <span class="edited-tag">· edited</span></span></div>`
-    + `<textarea class="desc" spellcheck="true"></textarea>`
-    + `<input class="note" type="text" placeholder="Note (optional)…">`
+    + `<div class="rvctl">`
+    +   `<div class="votes"><button class="vbtn up" data-v="up" title="Thumb up">👍</button><button class="vbtn down" data-v="down" title="Thumb down">👎</button></div>`
+    +   `<div class="lbl"><span>Description <span class="edited-tag">· edited</span></span></div>`
+    +   `<textarea class="desc" spellcheck="true"></textarea>`
+    +   `<input class="note" type="text" placeholder="Note (optional)…">`
+    + `</div>`
     + `</div>`;
 }
 
@@ -141,6 +154,7 @@ const body = `<style>${uiCss}${cardCss}</style>
   <p class="eyebrow">Mycelium · full deck review</p>
   <h1>Review the whole deck</h1>
   <p class="lede">Every card on its real face. 👍/👎 each one, and edit its description right in the box (prefilled with the current text) — changed boxes turn amber and the card face updates live. Add a note if you want. When you're done, Export &amp; copy and paste it back to me; I'll apply the rewrites and votes. Your work is saved in this browser.</p>
+  <div class="filterbar"><button class="fToggle" id="btnFilters" aria-expanded="true">Filters <span id="filtCur">· All</span> <span class="chev">▾</span></button></div>
   <div class="filters" id="filters"></div>
   <div class="grid" id="grid">${cells}</div>
 </div>
@@ -212,11 +226,18 @@ const body = `<style>${uiCss}${cardCss}</style>
     ['basic','engine','action','event','extender'].forEach(function(t){ if(k.g[t]) base.push([t,GLBL[t],k.g[t]]); });
     return base;
   }
+  function filtLabel(k){ var d=filterDefs().find(function(x){return x[0]===k;}); return d?d[1]:k; }
+  function updateFiltCur(){ var el=document.getElementById('filtCur'); if(el) el.textContent='· '+filtLabel(filter); }
+  function isWide(){ try{ return window.matchMedia('(min-width:760px)').matches; }catch(e){ return true; } }
+  function openFilters(){ var p=document.getElementById('filters'),t=document.getElementById('btnFilters');
+    p.classList.add('open'); t.classList.add('open'); t.setAttribute('aria-expanded','true'); }
+  function closeFilters(){ var p=document.getElementById('filters'),t=document.getElementById('btnFilters');
+    p.classList.remove('open'); t.classList.remove('open'); t.setAttribute('aria-expanded','false'); }
   function buildFilters(){
     var el=document.getElementById('filters'); el.innerHTML='';
     filterDefs().forEach(function(d){ var b=document.createElement('button');
       b.className='fchip'+(filter===d[0]?' on':''); b.innerHTML=d[1]+' <span class="cnt">'+d[2]+'</span>';
-      b.addEventListener('click',function(){ filter=d[0]; buildFilters(); applyFilter(); }); el.appendChild(b); });
+      b.addEventListener('click',function(){ filter=d[0]; updateFiltCur(); buildFilters(); applyFilter(); if(!isWide()) closeFilters(); }); el.appendChild(b); });
   }
   function match(rv){
     var slug=rv.dataset.slug, type=rv.dataset.group, arch=rv.dataset.arch==='1', r=store[slug]||{};
@@ -263,7 +284,11 @@ const body = `<style>${uiCss}${cardCss}</style>
         var d=rv.querySelector('.desc'); d.value=BY[slug].effect; rv.querySelector('[data-face-rules]').textContent=BY[slug].effect; rv.querySelector('.note').value=''; });
       metrics(); applyFilter(); } });
 
-  metrics(); applyFilter();
+  document.getElementById('btnFilters').addEventListener('click',function(){
+    document.getElementById('filters').classList.contains('open') ? closeFilters() : openFilters(); });
+
+  metrics(); applyFilter(); updateFiltCur();
+  if(isWide()) openFilters(); else closeFilters();
 })();
 </script>`;
 
