@@ -34,15 +34,18 @@ const networkRenderers = new Map();
 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
+let _revealPending = false;           // reveal (fade in) after the next fully-drawn frame
 let draftIntro = null;                // sequenced food-pile → card-draft animation (see updateDraftIntro)
 
-// Fade the whole map in from black. Called once art is loaded (first map) and on
-// every new map, so nothing pops in piece by piece — the finished scene fades up.
+// Fade the whole map in from black. Fired by the render loop after the FIRST fully
+// drawn frame that follows an asset load / new map (see `_revealPending`), so the
+// finished scene fades up as a whole — never a blank canvas (which is what a
+// warm-cache refresh used to show, revealing before the first frame was drawn).
 function revealMap() {
   canvas.style.transition = 'none';
   canvas.style.opacity = '0';
   void canvas.offsetWidth;            // commit opacity:0 with no transition
-  canvas.style.transition = 'opacity 0.7s ease';
+  canvas.style.transition = 'opacity 1.4s ease';
   canvas.style.opacity = '1';         // animate 0 -> 1
 }
 
@@ -117,9 +120,10 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
-  // On a new map, fade the finished scene in. (The very first map waits until art
-  // has loaded — see the loadAssets() boot below — so it never fades in half-drawn.)
-  if (assetsReady) revealMap();
+  // On a new map, fade the finished scene in AFTER its first frame draws (the very
+  // first map also waits for art to load — see the loadAssets() boot below), so it
+  // never fades in half-drawn or on a blank canvas.
+  if (assetsReady) _revealPending = true;
 }
 
 function buildRenderers() {
@@ -553,6 +557,11 @@ function renderFrame(time) {
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
+
+  // The scene is now fully drawn this frame — fade it in (once) if a reveal is due.
+  // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
+  // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
+  if (_revealPending) { _revealPending = false; revealMap(); }
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
@@ -2098,12 +2107,12 @@ loadAssets().then(() => {
   uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
   if (substrateRenderer) substrateRenderer.rebake();
   assetsReady = true;
-  revealMap();   // first map: reveal only now that the art is loaded, so it fades in whole
+  _revealPending = true;   // first map: fade in after the first art-complete frame draws
   initMusic();   // only NOW start streaming a random track — game art loads first
   initSfx();     // decode the grow SFX in the background so the first grow has sound
 });
 // Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
-setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } initMusic(); initSfx(); }, 4000);
+setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();

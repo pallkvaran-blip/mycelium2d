@@ -371,6 +371,29 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fade-in polish + tempo (haste) upgrade cards** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Fade-in**: `revealMap` duration 0.7s → **1.4s**, and the reveal now fires from the render
+    loop AFTER the first fully-drawn frame post-asset-load (`_revealPending`), not directly on
+    asset load. This fixes warm-cache **refresh** popping in instead of fading (the reveal used to
+    beat the first frame, fading a blank canvas). begin()/boot/safety-net all set `_revealPending`.
+  - **6 new "tempo" upgrade cards** (`engine`-type modifiers, left ledger, tiered cost 10/18/28⚡,
+    draftable): permanently shorten the "every N rounds" wait on installed abilities, min 1.
+    - Action set (speed up right-menu ACTIONS): **Quickened Reflex** (−1), **Impulse Relay** (−2),
+      **Hair-Trigger Hyphae** (−3) → `actionHaste`.
+    - Engine set (speed up left-pill resource ENGINES): **Brisk Metabolism** (−1), **Enzyme
+      Overclock** (−2), **Metabolic Surge** (−3) → `engineHaste`.
+  - **Mechanism**: `C.actionHaste`/`C.engineHaste` totals in `state.cards`. On install, `applyAction/
+    EngineHaste` MUTATE each installed ability's `every` in place (min 1); a later-installed ability
+    inherits the running total in `playCard`. Because cooldowns, cadence, and the UI meters all read
+    `every`, no downstream plumbing was needed. Shown in the ledger "Modifiers" section
+    (`summarizeEngines` → `mods`). Data in `docs/cards.json` (regen → `cards-data.js`); EFFECTS via
+    `engine({actionHaste|engineHaste: N})`.
+  - New cards have NO art yet → `assets/cards/<slug>.jpg` 404s (benign: `.caimg onerror` hides the
+    img, leaving the dark art window). Generate art later via `scripts/gen_card_art.py`.
+  - Verified: 15/15 haste checks (reduce existing + later installs, stack, clamp min 1, engines⊥
+    actions), in-browser install renders reduced cadence + Modifier rows; fade 1.4s bundled.
+    94 smoke + 30 cards green.
+
 - **Crash-proof render loop** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - Symptom: the game occasionally FROZE with a half-drawn / torn canvas. Cause: `frame()`
     ended with `requestAnimationFrame(frame)`, so ANY throw in the draw path killed the loop

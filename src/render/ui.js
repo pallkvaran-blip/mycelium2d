@@ -1199,6 +1199,10 @@ function summarizeEngines(engines) {
       out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
     } else if (e.drawDiscount) {
       out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `draws −${e.drawDiscount}⚡` });
+    } else if (e.actionHaste) {
+      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `actions −${e.actionHaste} rd` });
+    } else if (e.engineHaste) {
+      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `engines −${e.engineHaste} rd` });
     }
   }
   return out;

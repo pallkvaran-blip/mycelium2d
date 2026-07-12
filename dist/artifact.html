@@ -635,8 +635,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1rlutso";
-globalThis.__BUILD__ = "local 07-12 13:50";
+window.__ASSET_VER = "1rrzo42";
+globalThis.__BUILD__ = "local 07-12 14:08";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1704,6 +1704,102 @@ const CARD_DATA = [
   "effect": "Once per 3 rounds: tap a point to clear all infection and protect from reinfection for 2 rounds.",
   "family": "defense",
   "tutorial": false,
+  "startCopies": 0
+ },
+ {
+  "name": "Quickened Reflex",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 10,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every installed action is ready 1 round sooner.",
+  "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Impulse Relay",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 18,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every installed action is ready 2 rounds sooner.",
+  "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Hair-Trigger Hyphae",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 28,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every installed action is ready 3 rounds sooner.",
+  "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Brisk Metabolism",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 10,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every resource engine pays out 1 round sooner.",
+  "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Enzyme Overclock",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 18,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every resource engine pays out 2 rounds sooner.",
+  "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Metabolic Surge",
+  "type": "engine",
+  "category": "tempo",
+  "buyCostEnergy": 28,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Install. Every resource engine pays out 3 rounds sooner.",
+  "family": "tempo",
+  "tutorial": true,
   "startCopies": 0
  }
 ];
@@ -4154,7 +4250,7 @@ function initCards(state, mode = 'tutorial') {
     for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, actionHaste: 0, engineHaste: 0, pendingOffers: [] };
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -4290,19 +4386,39 @@ function playCard(state, handIndex, ctx = {}) {
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
+    // A freshly-installed resource engine inherits any engine-haste already bought.
+    if (res.install.every > 1 && (C.engineHaste || 0)) res.install.every = Math.max(1, res.install.every - C.engineHaste);
     C.engines.push(res.install);
     if (res.install.drawDiscount) C.drawDiscount = (C.drawDiscount || 0) + res.install.drawDiscount;
+    if (res.install.actionHaste) applyActionHaste(state, res.install.actionHaste);   // speed up installed actions
+    if (res.install.engineHaste) applyEngineHaste(state, res.install.engineHaste);   // speed up installed engines
   } else if (res.installAction) {
     // Action cards graduate to a repeatable ability in the Actions menu (right).
     const a = res.installAction;
     a.name = entry.name;
     a.used = 0; a.cd = 0;   // ready on install (cooldown/uses tick with the world)
+    // A freshly-installed action inherits any action-haste already bought.
+    if (a.every > 1 && (C.actionHaste || 0)) a.every = Math.max(1, a.every - C.actionHaste);
     C.actions.push(a);
   } else {
     C.discard.push(entry.name);
   }
   state.log(`Played ${entry.name}. ${res.message}`, 'action');
   return { ok: true, tick: true, message: res.message };
+}
+
+// --- haste upgrades ---------------------------------------------------------
+// A haste card permanently shortens the wait ("every N rounds") on installed
+// abilities. We mutate `every` in place (min 1) and track the running total so a
+// LATER-installed action/engine inherits it too — so cooldowns, cadences and the
+// UI meters (which all read `every`) reflect the reduction with no extra plumbing.
+function applyActionHaste(state, n) {
+  const C = state.cards; C.actionHaste = (C.actionHaste || 0) + n;
+  for (const a of C.actions) if (a.every > 1) a.every = Math.max(1, a.every - n);
+}
+function applyEngineHaste(state, n) {
+  const C = state.cards; C.engineHaste = (C.engineHaste || 0) + n;
+  for (const e of C.engines) if (e.every > 1) e.every = Math.max(1, e.every - n);
 }
 
 // --- per world-tick: installed engines produce (called from tickWorld) ------
@@ -4736,6 +4852,19 @@ EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould', every: 6, co
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');
+
+// --- tempo upgrades (installed modifiers, left ledger) --------------------
+// Permanently shorten the "every N rounds" wait on your installed abilities. The
+// action set speeds up player ACTIONS (right menu, e.g. Leading Cord); the engine
+// set speeds up resource ENGINES (left pill, e.g. Prospecting Cords). Each applies
+// to abilities already installed AND any installed later; the wait never drops
+// below 1 round. Bigger reduction = higher install cost (see docs/cards.json).
+EFFECTS['Quickened Reflex'] = engine({ actionHaste: 1 }, 'Installed: your actions are ready 1 round sooner.');
+EFFECTS['Impulse Relay'] = engine({ actionHaste: 2 }, 'Installed: your actions are ready 2 rounds sooner.');
+EFFECTS['Hair-Trigger Hyphae'] = engine({ actionHaste: 3 }, 'Installed: your actions are ready 3 rounds sooner.');
+EFFECTS['Brisk Metabolism'] = engine({ engineHaste: 1 }, 'Installed: your resource engines pay out 1 round sooner.');
+EFFECTS['Enzyme Overclock'] = engine({ engineHaste: 2 }, 'Installed: your resource engines pay out 2 rounds sooner.');
+EFFECTS['Metabolic Surge'] = engine({ engineHaste: 3 }, 'Installed: your resource engines pay out 3 rounds sooner.');
 
   return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
 })();
@@ -8008,6 +8137,10 @@ function summarizeEngines(engines) {
       out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
     } else if (e.drawDiscount) {
       out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `draws −${e.drawDiscount}⚡` });
+    } else if (e.actionHaste) {
+      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `actions −${e.actionHaste} rd` });
+    } else if (e.engineHaste) {
+      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `engines −${e.engineHaste} rd` });
     }
   }
   return out;
@@ -8158,15 +8291,18 @@ const networkRenderers = new Map();
 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
+let _revealPending = false;           // reveal (fade in) after the next fully-drawn frame
 let draftIntro = null;                // sequenced food-pile → card-draft animation (see updateDraftIntro)
 
-// Fade the whole map in from black. Called once art is loaded (first map) and on
-// every new map, so nothing pops in piece by piece — the finished scene fades up.
+// Fade the whole map in from black. Fired by the render loop after the FIRST fully
+// drawn frame that follows an asset load / new map (see `_revealPending`), so the
+// finished scene fades up as a whole — never a blank canvas (which is what a
+// warm-cache refresh used to show, revealing before the first frame was drawn).
 function revealMap() {
   canvas.style.transition = 'none';
   canvas.style.opacity = '0';
   void canvas.offsetWidth;            // commit opacity:0 with no transition
-  canvas.style.transition = 'opacity 0.7s ease';
+  canvas.style.transition = 'opacity 1.4s ease';
   canvas.style.opacity = '1';         // animate 0 -> 1
 }
 
@@ -8241,9 +8377,10 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
-  // On a new map, fade the finished scene in. (The very first map waits until art
-  // has loaded — see the loadAssets() boot below — so it never fades in half-drawn.)
-  if (assetsReady) revealMap();
+  // On a new map, fade the finished scene in AFTER its first frame draws (the very
+  // first map also waits for art to load — see the loadAssets() boot below), so it
+  // never fades in half-drawn or on a blank canvas.
+  if (assetsReady) _revealPending = true;
 }
 
 function buildRenderers() {
@@ -8677,6 +8814,11 @@ function renderFrame(time) {
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
+
+  // The scene is now fully drawn this frame — fade it in (once) if a reveal is due.
+  // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
+  // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
+  if (_revealPending) { _revealPending = false; revealMap(); }
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
@@ -10222,12 +10364,12 @@ loadAssets().then(() => {
   uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
   if (substrateRenderer) substrateRenderer.rebake();
   assetsReady = true;
-  revealMap();   // first map: reveal only now that the art is loaded, so it fades in whole
+  _revealPending = true;   // first map: fade in after the first art-complete frame draws
   initMusic();   // only NOW start streaming a random track — game art loads first
   initSfx();     // decode the grow SFX in the background so the first grow has sound
 });
 // Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
-setTimeout(() => { if (!assetsReady) { assetsReady = true; revealMap(); } initMusic(); initSfx(); }, 4000);
+setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();

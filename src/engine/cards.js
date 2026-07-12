@@ -104,7 +104,7 @@ export function initCards(state, mode = 'tutorial') {
     for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, actionHaste: 0, engineHaste: 0, pendingOffers: [] };
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -240,19 +240,39 @@ export function playCard(state, handIndex, ctx = {}) {
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
+    // A freshly-installed resource engine inherits any engine-haste already bought.
+    if (res.install.every > 1 && (C.engineHaste || 0)) res.install.every = Math.max(1, res.install.every - C.engineHaste);
     C.engines.push(res.install);
     if (res.install.drawDiscount) C.drawDiscount = (C.drawDiscount || 0) + res.install.drawDiscount;
+    if (res.install.actionHaste) applyActionHaste(state, res.install.actionHaste);   // speed up installed actions
+    if (res.install.engineHaste) applyEngineHaste(state, res.install.engineHaste);   // speed up installed engines
   } else if (res.installAction) {
     // Action cards graduate to a repeatable ability in the Actions menu (right).
     const a = res.installAction;
     a.name = entry.name;
     a.used = 0; a.cd = 0;   // ready on install (cooldown/uses tick with the world)
+    // A freshly-installed action inherits any action-haste already bought.
+    if (a.every > 1 && (C.actionHaste || 0)) a.every = Math.max(1, a.every - C.actionHaste);
     C.actions.push(a);
   } else {
     C.discard.push(entry.name);
   }
   state.log(`Played ${entry.name}. ${res.message}`, 'action');
   return { ok: true, tick: true, message: res.message };
+}
+
+// --- haste upgrades ---------------------------------------------------------
+// A haste card permanently shortens the wait ("every N rounds") on installed
+// abilities. We mutate `every` in place (min 1) and track the running total so a
+// LATER-installed action/engine inherits it too — so cooldowns, cadences and the
+// UI meters (which all read `every`) reflect the reduction with no extra plumbing.
+function applyActionHaste(state, n) {
+  const C = state.cards; C.actionHaste = (C.actionHaste || 0) + n;
+  for (const a of C.actions) if (a.every > 1) a.every = Math.max(1, a.every - n);
+}
+function applyEngineHaste(state, n) {
+  const C = state.cards; C.engineHaste = (C.engineHaste || 0) + n;
+  for (const e of C.engines) if (e.every > 1) e.every = Math.max(1, e.every - n);
 }
 
 // --- per world-tick: installed engines produce (called from tickWorld) ------
@@ -686,3 +706,16 @@ EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould', every: 6, co
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');
+
+// --- tempo upgrades (installed modifiers, left ledger) --------------------
+// Permanently shorten the "every N rounds" wait on your installed abilities. The
+// action set speeds up player ACTIONS (right menu, e.g. Leading Cord); the engine
+// set speeds up resource ENGINES (left pill, e.g. Prospecting Cords). Each applies
+// to abilities already installed AND any installed later; the wait never drops
+// below 1 round. Bigger reduction = higher install cost (see docs/cards.json).
+EFFECTS['Quickened Reflex'] = engine({ actionHaste: 1 }, 'Installed: your actions are ready 1 round sooner.');
+EFFECTS['Impulse Relay'] = engine({ actionHaste: 2 }, 'Installed: your actions are ready 2 rounds sooner.');
+EFFECTS['Hair-Trigger Hyphae'] = engine({ actionHaste: 3 }, 'Installed: your actions are ready 3 rounds sooner.');
+EFFECTS['Brisk Metabolism'] = engine({ engineHaste: 1 }, 'Installed: your resource engines pay out 1 round sooner.');
+EFFECTS['Enzyme Overclock'] = engine({ engineHaste: 2 }, 'Installed: your resource engines pay out 2 rounds sooner.');
+EFFECTS['Metabolic Surge'] = engine({ engineHaste: 3 }, 'Installed: your resource engines pay out 3 rounds sooner.');
