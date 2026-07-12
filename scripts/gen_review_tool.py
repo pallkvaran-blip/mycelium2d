@@ -123,26 +123,24 @@ HTML = r'''<title>Mycelium — Card Review</title>
   }
   .rv-wrap{max-width:1220px; margin:0 auto; padding:0 18px 90px;}
 
-  /* ---- header ---- */
-  .rv-head{position:sticky; top:0; z-index:40; margin:0 -18px 22px; padding:14px 18px 12px;
-    background:linear-gradient(180deg, rgba(6,10,16,0.94), rgba(6,10,16,0.80));
+  /* ---- header (compact; stays short on phones) ---- */
+  .rv-head{position:sticky; top:0; z-index:40; margin:0 -18px 16px; padding:9px 18px 9px;
+    background:linear-gradient(180deg, rgba(6,10,16,0.96), rgba(6,10,16,0.86));
     backdrop-filter:blur(9px); border-bottom:1px solid var(--panel-border);}
-  .rv-titlerow{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
-  .rv-title{font-family:var(--serif); font-size:23px; font-weight:600; letter-spacing:.01em; margin:0;}
+  .rv-titlerow{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .rv-title{font-family:var(--serif); font-size:15px; font-weight:600; letter-spacing:.01em; margin:0; white-space:nowrap;}
   .rv-title .spore{color:var(--accent);}
-  .rv-sub{color:var(--ink-dim); font-size:13px;}
-  .rv-tag{color:var(--ink-faint); font-size:12px; margin-left:auto;}
+  .rv-sub{color:var(--ink-dim); font-size:12px; flex:1 1 140px; min-width:0;}
+  .rv-actions{display:flex; gap:7px; margin-left:auto;}
 
-  .rv-metrics{display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:11px;}
-  .rv-stat{display:flex; align-items:baseline; gap:6px; font-variant-numeric:tabular-nums;}
-  .rv-stat .n{font-size:19px; font-weight:700;}
-  .rv-stat .l{font-size:11px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.09em;}
-  .rv-stat.up .n{color:var(--up);} .rv-stat.down .n{color:var(--down);} .rv-stat.edit .n{color:var(--edit);}
-  .rv-bar{flex:1 1 160px; min-width:120px; height:7px; border-radius:5px; overflow:hidden;
+  .rv-metrics{display:flex; gap:11px; flex-wrap:wrap; align-items:center; margin-top:8px; font-size:12px;}
+  .mstat{display:inline-flex; align-items:baseline; gap:4px; color:var(--ink-dim); font-variant-numeric:tabular-nums;}
+  .mstat b{font-size:13px; font-weight:700; color:var(--ink);}
+  .mstat.up b{color:var(--up);} .mstat.down b{color:var(--down);} .mstat.edit b{color:var(--edit);}
+  .rv-bar{flex:1 1 90px; min-width:70px; height:6px; border-radius:5px; overflow:hidden;
     background:rgba(255,255,255,0.07); position:relative;}
   .rv-bar .fill{position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,var(--accent-dim),var(--accent));
     transition:width .35s ease;}
-  .rv-actions{display:flex; gap:8px; flex-wrap:wrap;}
   .rv-btn{font-family:var(--ui); font-size:12.5px; font-weight:600; color:var(--ink);
     background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); border-radius:8px;
     padding:7px 12px; cursor:pointer; transition:border-color .1s, background .1s, color .1s;}
@@ -151,8 +149,19 @@ HTML = r'''<title>Mycelium — Card Review</title>
   .rv-btn.primary:hover{background:#9bf0b8;}
   .rv-btn.ghost{color:var(--ink-dim);}
   .rv-btn.ghost:hover{color:var(--down); border-color:rgba(224,106,106,0.5); background:rgba(224,106,106,0.08);}
+  .rv-btn.sm{padding:6px 11px; font-size:12px;}
 
-  .rv-filters{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px;}
+  /* filter toggle + collapsible chip tray */
+  .rv-filtoggle{display:inline-flex; align-items:center; gap:8px; margin-top:9px; cursor:pointer;
+    font-family:var(--ui); font-size:12.5px; font-weight:600; color:var(--ink);
+    background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); border-radius:8px; padding:7px 12px;}
+  .rv-filtoggle:hover{border-color:rgba(170,255,205,0.5);}
+  .rv-filtoggle .chev{font-size:10px; color:var(--ink-dim); transition:transform .2s ease;}
+  .rv-filtoggle.open .chev{transform:rotate(90deg);}
+  .rv-filtoggle .cur{color:var(--accent); font-weight:700;}
+  .rv-filters{display:flex; gap:7px; flex-wrap:wrap; max-height:0; overflow:hidden;
+    transition:max-height .25s ease, margin-top .25s ease;}
+  .rv-filters.open{max-height:62vh; overflow-y:auto; margin-top:10px;}
   .fchip{font-family:var(--ui); font-size:12px; font-weight:600; color:var(--ink-dim);
     background:rgba(255,255,255,0.04); border:1px solid var(--panel-border); border-radius:999px;
     padding:5px 11px; cursor:pointer; display:inline-flex; gap:6px; align-items:center; transition:all .1s;}
@@ -244,12 +253,18 @@ HTML = r'''<title>Mycelium — Card Review</title>
   .rv-copied{color:var(--accent); font-size:12.5px; font-weight:600; opacity:0; transition:opacity .2s;}
   .rv-copied.show{opacity:1;}
 
+  @media (max-width:640px){
+    .rv-sub{display:none;}
+  }
   @media (max-width:520px){
-    .rv-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px;}
+    .rv-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:13px;}
     .cart{height:118px;}
-    .rv-title{font-size:19px;}
-    .rv-wrap{padding:0 12px 80px;}
-    .rv-head{margin:0 -12px 18px; padding:12px 12px 10px;}
+    .rv-wrap{padding:0 11px 80px;}
+    .rv-head{margin:0 -11px 14px; padding:8px 11px 9px;}
+  }
+  @media (min-width:700px){
+    .rv-title{font-size:21px;}
+    .rv-head{padding:13px 18px 11px;}
   }
 </style>
 
@@ -257,21 +272,21 @@ HTML = r'''<title>Mycelium — Card Review</title>
 <div class="rv-wrap">
   <header class="rv-head">
     <div class="rv-titlerow">
-      <h1 class="rv-title"><span class="spore">Mycelium</span> — Card Review</h1>
-      <span class="rv-sub">Every card, archived included. Edit the description box to rewrite a card, thumb it, add notes. Export when done.</span>
-      <span class="rv-tag" id="rvTag"></span>
-    </div>
-    <div class="rv-metrics">
-      <div class="rv-stat"><span class="n" id="mReviewed">0</span><span class="l">of <span id="mTotal">0</span> reviewed</span></div>
-      <div class="rv-stat up"><span class="n" id="mUp">0</span><span class="l">liked</span></div>
-      <div class="rv-stat down"><span class="n" id="mDown">0</span><span class="l">disliked</span></div>
-      <div class="rv-stat edit"><span class="n" id="mEdit">0</span><span class="l">rewritten</span></div>
-      <div class="rv-bar"><div class="fill" id="mBar"></div></div>
+      <h1 class="rv-title"><span class="spore">&#127812;</span> Card Review</h1>
+      <span class="rv-sub">Every card (archived too) &mdash; edit a description box to rewrite it, then export.</span>
       <div class="rv-actions">
-        <button class="rv-btn primary" id="btnExport">Export results</button>
-        <button class="rv-btn ghost" id="btnReset">Reset all</button>
+        <button class="rv-btn primary sm" id="btnExport">Export</button>
+        <button class="rv-btn ghost sm" id="btnReset">Reset</button>
       </div>
     </div>
+    <div class="rv-metrics">
+      <span class="mstat">reviewed <b id="mReviewed">0</b>/<span id="mTotal">0</span></span>
+      <span class="mstat up">&#128077; <b id="mUp">0</b></span>
+      <span class="mstat down">&#128078; <b id="mDown">0</b></span>
+      <span class="mstat edit">&#9999;&#65039; <b id="mEdit">0</b></span>
+      <div class="rv-bar"><div class="fill" id="mBar"></div></div>
+    </div>
+    <button class="rv-filtoggle" id="btnFilters" aria-expanded="false"><span class="chev">&#9656;</span>Filters<span class="cur" id="filtCur">&middot; All</span></button>
     <div class="rv-filters" id="rvFilters"></div>
   </header>
 
@@ -443,8 +458,6 @@ function refreshMetrics(){
   document.getElementById('mDown').textContent=k.down;
   document.getElementById('mEdit').textContent=k.ed;
   document.getElementById('mBar').style.width=(t?Math.round(k.rev/t*100):0)+'%';
-  const arch=CARDS.filter(c=>c.archived).length;
-  document.getElementById('rvTag').textContent=`${t} cards (${t-arch} live · ${arch} archived) · saved locally`;
   buildFilters();
 }
 
@@ -470,7 +483,7 @@ function buildFilters(){
     const b=document.createElement('button');
     b.className='fchip'+(filter===k?' on':'');
     b.innerHTML=`${esc(label)}<span class="cnt">${n}</span>`;
-    b.addEventListener('click', ()=>{ filter=k; buildFilters(); applyFilter(); });
+    b.addEventListener('click', ()=>setFilter(k));
     el.appendChild(b);
   });
 }
@@ -512,6 +525,19 @@ function exportText(){
   return L.join('\n');
 }
 
+// filters: collapsible tray + a label showing the active filter, so the sticky
+// header stays short on phones. Starts open on wide screens, collapsed on narrow;
+// picking a filter on a phone auto-collapses it so the cards come back into view.
+const filtToggle=document.getElementById('btnFilters');
+const filtPanel=document.getElementById('rvFilters');
+function isWide(){ return window.matchMedia('(min-width:700px)').matches; }
+function openFilters(){ filtPanel.classList.add('open'); filtToggle.classList.add('open'); filtToggle.setAttribute('aria-expanded','true'); }
+function closeFilters(){ filtPanel.classList.remove('open'); filtToggle.classList.remove('open'); filtToggle.setAttribute('aria-expanded','false'); }
+filtToggle.addEventListener('click', ()=>{ filtPanel.classList.contains('open') ? closeFilters() : openFilters(); });
+function filtLabelOf(k){ const d=filterDefs().find(x=>x[0]===k); return d?d[1]:k; }
+function updateFiltLabel(){ const el=document.getElementById('filtCur'); if(el) el.textContent='· '+filtLabelOf(filter); }
+function setFilter(k){ filter=k; updateFiltLabel(); buildFilters(); applyFilter(); if(!isWide()) closeFilters(); }
+
 // modal
 const modal=document.getElementById('rvModal');
 document.getElementById('btnExport').addEventListener('click', ()=>{
@@ -534,6 +560,8 @@ document.getElementById('btnReset').addEventListener('click', ()=>{
 
 buildGrid();
 refreshMetrics();
+updateFiltLabel();
+if(isWide()) openFilters();
 </script>
 '''
 
