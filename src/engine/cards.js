@@ -104,7 +104,7 @@ export function initCards(state, mode = 'tutorial') {
     for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, actionHaste: 0, engineHaste: 0, pendingOffers: [] };
+  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -226,6 +226,9 @@ export function playCard(state, handIndex, ctx = {}) {
   const eff = EFFECTS[entry.name];
   if (!eff) return { ok: false, message: `${entry.name} has no effect wired.` };
   if (eff.target && ctx.x == null) return { ok: false, needTarget: true, message: `Tap a target for ${entry.name}.` };
+  // Tempo upgrades pick ONE installed ability to speed up — the UI shows a picker
+  // and replays with ctx.ability = its index into cards.actions / cards.engines.
+  if (eff.abilityScope && ctx.ability == null) return { ok: false, needAbilityPick: true, scope: eff.abilityScope, amount: eff.abilityAmount, message: `Choose an ${eff.abilityScope} to speed up.` };
 
   const res = eff.apply(state, c, ctx);
   if (!res.ok) { state.log(res.message, 'warn'); return res; }
@@ -240,19 +243,13 @@ export function playCard(state, handIndex, ctx = {}) {
   C.hand.splice(handIndex, 1);
   if (res.install) {
     res.install.name = entry.name;
-    // A freshly-installed resource engine inherits any engine-haste already bought.
-    if (res.install.every > 1 && (C.engineHaste || 0)) res.install.every = Math.max(1, res.install.every - C.engineHaste);
     C.engines.push(res.install);
     if (res.install.drawDiscount) C.drawDiscount = (C.drawDiscount || 0) + res.install.drawDiscount;
-    if (res.install.actionHaste) applyActionHaste(state, res.install.actionHaste);   // speed up installed actions
-    if (res.install.engineHaste) applyEngineHaste(state, res.install.engineHaste);   // speed up installed engines
   } else if (res.installAction) {
     // Action cards graduate to a repeatable ability in the Actions menu (right).
     const a = res.installAction;
     a.name = entry.name;
     a.used = 0; a.cd = 0;   // ready on install (cooldown/uses tick with the world)
-    // A freshly-installed action inherits any action-haste already bought.
-    if (a.every > 1 && (C.actionHaste || 0)) a.every = Math.max(1, a.every - C.actionHaste);
     C.actions.push(a);
   } else {
     C.discard.push(entry.name);
@@ -261,18 +258,12 @@ export function playCard(state, handIndex, ctx = {}) {
   return { ok: true, tick: true, message: res.message };
 }
 
-// --- haste upgrades ---------------------------------------------------------
-// A haste card permanently shortens the wait ("every N rounds") on installed
-// abilities. We mutate `every` in place (min 1) and track the running total so a
-// LATER-installed action/engine inherits it too — so cooldowns, cadences and the
-// UI meters (which all read `every`) reflect the reduction with no extra plumbing.
-function applyActionHaste(state, n) {
-  const C = state.cards; C.actionHaste = (C.actionHaste || 0) + n;
-  for (const a of C.actions) if (a.every > 1) a.every = Math.max(1, a.every - n);
-}
-function applyEngineHaste(state, n) {
-  const C = state.cards; C.engineHaste = (C.engineHaste || 0) + n;
-  for (const e of C.engines) if (e.every > 1) e.every = Math.max(1, e.every - n);
+// Tempo upgrade: which installed abilities a card can speed up + by how much.
+// Returns { scope:'action'|'engine', amount } or null. The UI uses this to offer a
+// picker of the eligible installed abilities (those still waiting >1 round).
+export function cardAbilityInfo(name) {
+  const e = EFFECTS[name];
+  return (e && e.abilityScope) ? { scope: e.abilityScope, amount: e.abilityAmount } : null;
 }
 
 // --- per world-tick: installed engines produce (called from tickWorld) ------
@@ -467,6 +458,23 @@ function cureRadius(state, ctx, r) {
 const grow = (fn) => ({ apply: fn });
 const targeted = (fn) => ({ target: true, apply: fn });
 const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
+// abilityUpgrade(): a one-shot card that permanently shortens ONE chosen installed
+// ability's "every N rounds" wait by `n` (min 1). `scope` picks the eligible list
+// ('action' → cards.actions, 'engine' → cards.engines); the UI shows a picker and
+// replays playCard with ctx.ability = the chosen index. Goes to the discard.
+const abilityUpgrade = (scope, n) => ({
+  abilityScope: scope,
+  abilityAmount: n,
+  apply: (state, c, ctx) => {
+    const list = scope === 'action' ? state.cards.actions : state.cards.engines;
+    const t = list[ctx.ability];
+    if (!t) return { ok: false, message: 'That ability is no longer installed.' };
+    if (!(t.every > 1)) return { ok: false, message: `${t.name} is already at its minimum wait.` };
+    const before = t.every;
+    t.every = Math.max(1, t.every - n);
+    return { ok: true, message: `${t.name}: wait ${before} → ${t.every} round${t.every > 1 ? 's' : ''}.` };
+  },
+});
 // action(): a card that, when PLAYED, installs a repeatable ability into the
 // Actions menu (right) instead of firing once. `spec` holds the activation gating —
 // `every` (once-per-N-rounds cooldown), `cost`+`res` (resource price per use),
@@ -707,15 +715,14 @@ EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Wat
 EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');
 
-// --- tempo upgrades (installed modifiers, left ledger) --------------------
-// Permanently shorten the "every N rounds" wait on your installed abilities. The
-// action set speeds up player ACTIONS (right menu, e.g. Leading Cord); the engine
-// set speeds up resource ENGINES (left pill, e.g. Prospecting Cords). Each applies
-// to abilities already installed AND any installed later; the wait never drops
-// below 1 round. Bigger reduction = higher install cost (see docs/cards.json).
-EFFECTS['Quickened Reflex'] = engine({ actionHaste: 1 }, 'Installed: your actions are ready 1 round sooner.');
-EFFECTS['Impulse Relay'] = engine({ actionHaste: 2 }, 'Installed: your actions are ready 2 rounds sooner.');
-EFFECTS['Hair-Trigger Hyphae'] = engine({ actionHaste: 3 }, 'Installed: your actions are ready 3 rounds sooner.');
-EFFECTS['Brisk Metabolism'] = engine({ engineHaste: 1 }, 'Installed: your resource engines pay out 1 round sooner.');
-EFFECTS['Enzyme Overclock'] = engine({ engineHaste: 2 }, 'Installed: your resource engines pay out 2 rounds sooner.');
-EFFECTS['Metabolic Surge'] = engine({ engineHaste: 3 }, 'Installed: your resource engines pay out 3 rounds sooner.');
+// --- tempo upgrades (one-shot, pick ONE installed ability) ----------------
+// Permanently shorten the "every N rounds" wait on ONE chosen installed ability
+// (min 1). The action set speeds up a player ACTION (right menu, e.g. Leading
+// Cord); the engine set speeds up a resource ENGINE (left pill, e.g. Prospecting
+// Cords). Bigger reduction = higher install cost (see docs/cards.json).
+EFFECTS['Quickened Reflex'] = abilityUpgrade('action', 1);
+EFFECTS['Impulse Relay'] = abilityUpgrade('action', 2);
+EFFECTS['Hair-Trigger Hyphae'] = abilityUpgrade('action', 3);
+EFFECTS['Brisk Metabolism'] = abilityUpgrade('engine', 1);
+EFFECTS['Enzyme Overclock'] = abilityUpgrade('engine', 2);
+EFFECTS['Metabolic Surge'] = abilityUpgrade('engine', 3);

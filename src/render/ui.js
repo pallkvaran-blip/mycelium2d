@@ -340,6 +340,9 @@ export class UI {
     if (cardsOn) {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
+      // Tempo-upgrade picker: "which installed ability should this speed up?"
+      this.el.pick = div('offer pick hidden');
+      root.appendChild(this.el.pick);
     }
 
     // ---- Tap-away: close any open drop-down when tapping elsewhere ----------
@@ -1081,6 +1084,44 @@ export class UI {
     this.handlers.onChooseCard(name);
   }
 
+  // --- tempo-upgrade picker ------------------------------------------------
+  // A tempo card (e.g. Impulse Relay) speeds up ONE chosen installed ability.
+  // `eligible` is [{ i, name, every }] — abilities still waiting >1 round, `i`
+  // is the index into cards.actions / cards.engines. Tapping a row replays the
+  // card with that index; Cancel / backdrop dismisses without spending it.
+  showAbilityPicker(handIndex, scope, amount, eligible) {
+    const el = this.el.pick;
+    if (!el) return;
+    const noun = scope === 'action' ? 'action' : 'engine';
+    const rows = eligible.map((a) => {
+      const next = Math.max(1, a.every - amount);
+      const rd = (n) => `${n} round${n > 1 ? 's' : ''}`;
+      return `<button class="pickrow" data-i="${a.i}">`
+        + `<span class="picknm">${escapeHtml(a.name)}</span>`
+        + `<span class="pickwait"><span class="pw-old">${rd(a.every)}</span>`
+        + `<span class="pw-arrow">→</span><span class="pw-new">${rd(next)}</span></span>`
+        + `</button>`;
+    }).join('');
+    el.innerHTML = `<div class="offerbox pickbox">`
+      + `<h2>Speed up which ${escapeHtml(noun)}?</h2>`
+      + `<div class="picksub">−${amount} round${amount > 1 ? 's' : ''} between uses · permanent</div>`
+      + `<div class="pickrows">${rows}</div>`
+      + `<div class="offerfooter"><button class="btn" id="pickcancel">Cancel</button></div>`
+      + `</div>`;
+    el.querySelectorAll('.pickrow').forEach((btn) => {
+      btn.onclick = () => this.handlers.onPickAbility(handIndex, +btn.dataset.i);
+    });
+    const cancel = el.querySelector('#pickcancel');
+    if (cancel) cancel.onclick = () => this.handlers.onCancelAbilityPick();
+    // Backdrop tap (outside the box) also cancels.
+    el.onclick = (e) => { if (e.target === el) this.handlers.onCancelAbilityPick(); };
+    el.classList.remove('hidden');
+  }
+  hideAbilityPicker() {
+    const el = this.el.pick;
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
+  }
+
   // --- select / play flow --------------------------------------------------
   // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
   // Card" button plays the highlighted card. The carousel stays visible whether
@@ -1199,10 +1240,6 @@ function summarizeEngines(engines) {
       out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
     } else if (e.drawDiscount) {
       out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `draws −${e.drawDiscount}⚡` });
-    } else if (e.actionHaste) {
-      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `actions −${e.actionHaste} rd` });
-    } else if (e.engineHaste) {
-      out.mods.push({ name: escapeHtml(e.name), raw: e.name, text: `engines −${e.engineHaste} rd` });
     }
   }
   return out;

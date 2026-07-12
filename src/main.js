@@ -12,7 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer, activateAction } from './engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -230,12 +230,40 @@ const handlers = {
       uiDirty = true;
       return true;
     }
+    // Tempo upgrades speed up ONE installed ability the player picks. Build the
+    // eligible list (installed abilities still waiting >1 round) and show a picker;
+    // if nothing qualifies, say so instead of silently consuming the card.
+    const info = cardAbilityInfo(entry.name);
+    if (info) {
+      const list = info.scope === 'action' ? state.cards.actions : state.cards.engines;
+      const eligible = (list || []).map((a, i) => ({ i, name: a.name, every: a.every })).filter((a) => a.every > 1);
+      if (!eligible.length) {
+        const msg = info.scope === 'action'
+          ? 'No installed action to speed up yet — install one first.'
+          : 'No resource engine to speed up yet — install one first.';
+        state.log(msg, 'warn'); ui.toast(msg); uiDirty = true; return false;
+      }
+      ui.showAbilityPicker(index, info.scope, info.amount, eligible);
+      uiDirty = true;
+      return true;
+    }
     // A card can be affordable yet no-op (e.g. "No food within sensing range"):
     // playCard returns {ok:false} and leaves it in hand. Report the real status
     // so the caller only minimizes/deselects on an actual play.
     const res = playCard(state, index);
     resolveCardOp(res);
     return !!(res && res.ok);
+  },
+  // The player picked which installed ability a tempo card should speed up.
+  // Replay the card with ctx.ability = its index; a tempo upgrade doesn't advance
+  // the world (it edits an install), so it resolves like any card op.
+  onPickAbility(handIndex, abilityIndex) {
+    ui.hideAbilityPicker();
+    resolveCardOp(playCard(state, handIndex, { ability: abilityIndex }));
+  },
+  onCancelAbilityPick() {
+    ui.hideAbilityPicker();
+    uiDirty = true;
   },
   onCancelCard() {
     ui.clearPendingCard();
