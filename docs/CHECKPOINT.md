@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-10 (engine ledger + actions menu · installed-action model + traps/wards · fixed CCG card shape · desktop vertical action tray + collapsible pills · growth no longer crosses rock · single start glow · animated (render-only) growth reveal · ALL rock types (boulders/formations/columns) WYSIWYG solid)._
+_Living status + knowledge doc. Last updated: 2026-07-12 (animated growth reveal · ALL rock types WYSIWYG solid · layered grow SFX + lazy background music + mute · dimmed sensing glow · multi-membership card filters · click-to-preview installed cards · always-on action lights + no-scroll dropdowns · **food-pile card-draft animation: glowing 3-card glyph rises at the pile, then each card morphs into its draft card (desktop) or the panel expands from the icon (phone portrait)**)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -180,7 +180,8 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   shows a **text-only preview** of what they add when armed.
 - **Card drafting:** finishing a **map food pile** (`foodKind === 'cache'`) offers a
   free pick of cards. Draft pool = `TUTORIAL_POOL` = tutorial cards **excluding
-  basics**.
+  basics**. The offer carries the pile's world `center`/`cells` and the reveal is
+  animated (glyph rises at the pile → morph/expand into the panel — see §9).
 - **Win:** a fruiting body reaches the **goal zone** (`checkGoalReached`).
   **Lose (stall):** card-dry and broke — no draw/skip/play/draft possible.
 - **Art:** each card face uses `assets/cards/<slug>.jpg` (see §7 art pipeline).
@@ -410,6 +411,37 @@ Both menus are dark, on-theme, with glowing green borders.
   - Verified headless (Playwright): small glyph at the pile → cards fly into the slots (faces
     revealing) → landed panel; WAAPI duration honoured (940ms); no console errors. Build
     ~475 KB; 94 smoke + 30 cards green.
+
+- **Audio + card-UI polish pass** (branch `claude/mycelium-phase-1-build-urvq5e`; the work
+  between the growth/rock passes and the draft animation above).
+  - **Grow SFX** (`render/sfx.js`, NEW): decodes `assets/sfx/grow.wav` once (Web Audio) and
+    `playGrowBurst(count, spreadMs)` layers ONE hit per `STRANDS_PER_HIT` (10) new strands,
+    staggered across the reveal window — a lone tendril is one soft hit, a big fan a layered
+    swell. Hard caps: `MAX_LAYERS` (6) per grow, `MAX_VOICES` (8) global, per-hit gain
+    `0.55/√layers`, a DynamicsCompressor bus + master lowpass → dark/slow/cavernous. Called from
+    `NetworkRenderer`'s reveal block. `initSfx()` decodes lazily + gesture-unlocks after boot;
+    not in the image manifest.
+  - **Lazy background music** (`render/music.js`, NEW): HTMLAudio, ONE random track streamed
+    (`assets/music/*.mp3`, ~13MB) so boot isn't blocked — the game loads and plays first, a
+    track fades in when ready and plays the next on `ended`. Volume 0.32, persisted mute
+    (`localStorage 'mycMuted'`), gesture-unlock. `initMusic()`/`toggleMusic()`/`isMusicMuted()`;
+    `#mutebtn` 🔊/🔇 in the resource pill. (⚠ the current tracks are copyrighted — confirm usage
+    rights before any public release.) Both new modules are wired into `build.mjs` MODULES
+    (`music.js` before `ui.js`, `sfx.js` before `network.js`) and `main.js` boot.
+  - **Sensing-range brightness** cut hard in `render/lighting.js`: the visible glow is the
+    per-node **network glow** (`k = bright * 0.3`, down from 0.9), not the frontier aura
+    (`senseAlpha 0.06`, measured to contribute ≈0). A/B'd with a temporary `window.__glowK` knob
+    (per-build random maps make cross-build compares unreliable).
+  - **Card-hand filters are multi-membership** (`render/ui.js` `cardGroups(c)` → array): every
+    installable card lists under **Engine**, extenders under **Draw**, everything else under
+    **Action**, plus effect tags (Grow/Substrate/Water/Mineral/Energy/Defense). "Other" is gone.
+  - **Click an installed card (either panel) to preview it** as a popup (`_showCardPopup`) — a
+    real `.cardbtn` face on a `.cardpop` backdrop, identical to a hand card but with a smaller
+    art window (`.cardpop-card .cart { aspect-ratio:5/2 }`); click away to dismiss.
+  - **Right-hand actions menu**: charge-meter lights (`every - cd`) start **ON** (usable on
+    install); left/right dropdowns share one `cadenceLightsHTML()` and are sized to avoid
+    scrollbars (`min-height`, not clipped `height`). Septal Pore Flux → "Install. Drawing cards
+    costs 3 less energy."
 
 - **ALL visible rock is now solid — no rock type can be grown over** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Foraging Fan (`growRadial`/`_fanRing`) checked only the ray's *endpoint* cell**
