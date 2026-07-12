@@ -100,7 +100,8 @@ print(f"{len(data)} cards ({live} live / {len(data)-live} archived) · {len(ARCH
 
 DATA = json.dumps(data, separators=(",", ":"))
 
-HTML = r'''<style>
+HTML = r'''<title>Mycelium — Card Review</title>
+<style>
   :root{
     --bg:#05070d; --bg2:#080d16;
     --panel:rgba(16,22,34,0.86); --panel-border:rgba(120,160,140,0.18);
