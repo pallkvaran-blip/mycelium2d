@@ -16,6 +16,24 @@ const ARCHIVED = new Set(['Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat', '
 const GROUP = { basic: 'Basics', engine: 'Resource engines', action: 'Abilities', event: 'Events', extender: 'Draw engines' };
 const GROUP_ORDER = ['basic', 'engine', 'action', 'event', 'extender'];
 
+// In-game filter tags — MUST mirror cardGroups() in src/render/ui.js (which keys
+// off `category` and `family`; `family` === cards.json `familyKey`). A card can
+// carry several. Keeps the tool's chips identical to the deck's own filters.
+const TAG_LABELS = { engine: 'Engine', action: 'Action', draw: 'Draw', grow: 'Grow', substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
+const TAG_ORDER = ['engine', 'action', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+function cardTags(c) {
+  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.familyKey || '').toLowerCase();
+  const k = new Set();
+  if (t === 'engine' || t === 'action') k.add('engine'); else if (t === 'extender') k.add('draw'); else k.add('action');
+  if (/growth|mobility|routing|utility|finisher/.test(cat)) k.add('grow');
+  if (cat.includes('substrate')) k.add('substrate');
+  if (fam === 'water' || cat.includes('water')) k.add('water');
+  if (fam === 'phosphorus' || cat.includes('phosphorus') || cat.includes('mineral')) k.add('mineral');
+  if (fam === 'energy' || cat.includes('energy')) k.add('energy');
+  if (fam === 'defense' || /defense|anti-/.test(cat)) k.add('defense');
+  return TAG_ORDER.filter((x) => k.has(x));
+}
+
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const slugOf = (n) => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 function artUri(slug) {
@@ -24,7 +42,7 @@ function artUri(slug) {
 }
 
 const cards = JSON.parse(readFileSync(CARDS_JSON, 'utf8'))
-  .map((c) => ({ ...c, slug: slugOf(c.name), archived: ARCHIVED.has(c.name) }))
+  .map((c) => ({ ...c, slug: slugOf(c.name), archived: ARCHIVED.has(c.name), tags: cardTags(c) }))
   .sort((a, b) => (GROUP_ORDER.indexOf(a.type) - GROUP_ORDER.indexOf(b.type)) || (a.archived - b.archived) || a.name.localeCompare(b.name));
 
 function pips(c) {
@@ -142,7 +160,7 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 let cells = '';
 for (const c of cards) {
   const uri = artUri(c.slug);
-  cells += `<div class="rv" data-slug="${c.slug}" data-group="${c.type}" data-arch="${c.archived ? 1 : 0}">`
+  cells += `<div class="rv" data-slug="${c.slug}" data-group="${c.type}" data-tags="${c.tags.join(' ')}" data-arch="${c.archived ? 1 : 0}">`
     + `<div class="stage">${faceHTML(c, uri)}</div>`
     + `<div class="rvctl">`
     +   `<div class="votes"><button class="vbtn up" data-v="up" title="Thumb up">👍</button><button class="vbtn down" data-v="down" title="Thumb down">👎</button></div>`
@@ -160,7 +178,7 @@ for (const c of cards) {
 }
 
 // data the client needs: slug -> {name, type, group, effect(original), archived}
-const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, group: GROUP[c.type] || c.type, effect: c.effect || '', archived: c.archived, e: c.buyCostEnergy || 0, w: c.playCostWater || 0, p: c.playCostPhosphorus || 0 })));
+const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, group: GROUP[c.type] || c.type, tags: c.tags, effect: c.effect || '', archived: c.archived, e: c.buyCostEnergy || 0, w: c.playCostWater || 0, p: c.playCostPhosphorus || 0 })));
 
 const body = `<style>${uiCss}${cardCss}</style>
 <div class="wrap">
@@ -242,22 +260,23 @@ const body = `<style>${uiCss}${cardCss}</style>
   }
 
   var filter='all';
+  var TAGLBL={engine:'Engine',action:'Action',draw:'Draw',grow:'Grow',substrate:'Substrate',water:'Water',mineral:'Mineral',energy:'Energy',defense:'Defense'};
+  var TAGORD=['engine','action','draw','grow','substrate','water','mineral','energy','defense'];
   function counts(){
     var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,cost:0,todo:0};
-    var g={};
+    var tg={};
     DATA.forEach(function(d){ var r=store[d.slug]||{}; var e=isEdited(d.slug), cc=costChanged(d.slug);
       if(d.archived)c.archived++; else c.live++;
       if(r.vote==='up')c.up++; if(r.vote==='down')c.down++; if(e)c.edited++; if(cc)c.cost++;
       if(!r.vote&&!e&&!cc&&!(r.note&&r.note.trim()))c.todo++;
-      g[d.type]=(g[d.type]||0)+1; });
-    return {c:c,g:g};
+      (d.tags||[]).forEach(function(t){ tg[t]=(tg[t]||0)+1; }); });
+    return {c:c,tg:tg};
   }
-  var GLBL={basic:'Basics',engine:'Resource engines',action:'Abilities',event:'Events',extender:'Draw engines'};
   function filterDefs(){
     var k=counts();
     var base=[['all','All',k.c.all],['live','Live',k.c.live],['archived','Archived',k.c.archived],
       ['todo','Untouched',k.c.todo],['cost','🔧 Cost changed',k.c.cost],['edited','✏️ Text edited',k.c.edited],['up','👍 Liked',k.c.up],['down','👎 Disliked',k.c.down]];
-    ['basic','engine','action','event','extender'].forEach(function(t){ if(k.g[t]) base.push([t,GLBL[t],k.g[t]]); });
+    TAGORD.forEach(function(t){ if(k.tg[t]) base.push([t,TAGLBL[t],k.tg[t]]); });
     return base;
   }
   function filtLabel(k){ var d=filterDefs().find(function(x){return x[0]===k;}); return d?d[1]:k; }
@@ -274,13 +293,13 @@ const body = `<style>${uiCss}${cardCss}</style>
       b.addEventListener('click',function(){ filter=d[0]; updateFiltCur(); buildFilters(); applyFilter(); if(!isWide()) closeFilters(); }); el.appendChild(b); });
   }
   function match(rv){
-    var slug=rv.dataset.slug, type=rv.dataset.group, arch=rv.dataset.arch==='1', r=store[slug]||{};
+    var slug=rv.dataset.slug, arch=rv.dataset.arch==='1', r=store[slug]||{};
     switch(filter){
       case 'all': return true; case 'live': return !arch; case 'archived': return arch;
       case 'todo': return !r.vote && !changed(slug) && !(r.note&&r.note.trim());
       case 'cost': return costChanged(slug); case 'edited': return isEdited(slug);
       case 'up': return r.vote==='up'; case 'down': return r.vote==='down';
-      default: return type===filter;
+      default: return (' '+(rv.dataset.tags||'')+' ').indexOf(' '+filter+' ')>=0;   // in-game effect tag
     }
   }
   function applyFilter(){ document.querySelectorAll('.rv').forEach(function(rv){ rv.classList.toggle('hide',!match(rv)); }); }
