@@ -8,13 +8,15 @@ const ROOT = join(here, '..');
 const OPTDIR = join(ROOT, 'assets', 'card_options');
 const target = process.argv[2] || join(ROOT, 'newcards-picker.html');
 
-const SLUGS = ['turgor-spark', 'vacuolar-burst', 'glycogen-crush', 'cytoplasmic-cascade',
-  'cord-capillary', 'rhizomorph-dynamo', 'amputate', 'severing-cords', 'sclerotial-rind'];
+const SLUGS = process.env.NEWPICK_SLUGS ? process.env.NEWPICK_SLUGS.split(',')
+  : ['turgor-spark', 'vacuolar-burst', 'glycogen-crush', 'cytoplasmic-cascade',
+     'cord-capillary', 'rhizomorph-dynamo', 'amputate', 'severing-cords', 'sclerotial-rind'];
+const SET = process.env.PICK_SET || '';   // '' -> <slug>-<n>.jpg ; 'c' -> <slug>-c<n>.jpg
 const cards = JSON.parse(readFileSync(join(ROOT, 'docs', 'cards.json'), 'utf8'));
 const slugOf = (n) => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const bySlug = {}; cards.forEach((c) => { bySlug[slugOf(c.name)] = c; });
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-const uri = (slug, n) => { const p = join(OPTDIR, `${slug}-${n}.jpg`); return existsSync(p) ? 'data:image/jpeg;base64,' + readFileSync(p).toString('base64') : null; };
+const uri = (slug, n) => { const p = join(OPTDIR, `${slug}-${SET}${n}.jpg`); return existsSync(p) ? 'data:image/jpeg;base64,' + readFileSync(p).toString('base64') : null; };
 
 function pips(c) {
   const g = [];
@@ -102,7 +104,7 @@ const body = `<style>${css}</style>
   function refresh(){
     var ks=Object.keys(sel);
     document.getElementById('cdone').textContent=ks.length;
-    var str=ORDER.filter(function(s){return sel[s]!=null;}).map(function(s){return s+':'+sel[s];}).join(', ');
+    var str=ORDER.filter(function(s){return sel[s]!=null;}).map(function(s){return s+':'+${JSON.stringify(SET)}+sel[s];}).join(', ');
     document.getElementById('picks').textContent=str||'(no picks yet)';
     document.getElementById('copy').disabled=ks.length===0;
   }
