@@ -19,12 +19,12 @@ const GROUP_ORDER = ['basic', 'engine', 'action', 'event', 'extender'];
 // In-game filter tags — MUST mirror cardGroups() in src/render/ui.js (which keys
 // off `category` and `family`; `family` === cards.json `familyKey`). A card can
 // carry several. Keeps the tool's chips identical to the deck's own filters.
-const TAG_LABELS = { engine: 'Engine', action: 'Action', draw: 'Draw', grow: 'Grow', substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
-const TAG_ORDER = ['engine', 'action', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+const TAG_LABELS = { basic: 'Basic', engine: 'Engine', event: 'Event', draw: 'Draw', grow: 'Grow', substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
+const TAG_ORDER = ['basic', 'engine', 'event', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
 function cardTags(c) {
-  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.familyKey || '').toLowerCase();
+  const dc = c.displayCategory || c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.familyKey || '').toLowerCase();
   const k = new Set();
-  if (t === 'engine' || t === 'action') k.add('engine'); else if (t === 'extender') k.add('draw'); else k.add('action');
+  if (dc === 'basic') k.add('basic'); else if (dc === 'engine') k.add('engine'); else if (dc === 'event') k.add('event'); else if (dc === 'extender') k.add('draw'); else k.add('event');
   if (/growth|mobility|routing|utility|finisher/.test(cat)) k.add('grow');
   if (cat.includes('substrate')) k.add('substrate');
   if (fam === 'water' || cat.includes('water')) k.add('water');
@@ -60,7 +60,7 @@ function faceHTML(c, uri) {
     + `<span class="cart">${img}</span>`
     + `<span class="pips" data-face-pips>${pips(c)}</span>`
     + (c.archived ? `<span class="archbadge">archived</span>` : '')
-    + `<span class="cplate"><span class="cn">${esc(c.name)}</span><span class="ct" data-face-type>${esc(c.type)}</span></span>`
+    + `<span class="cplate"><span class="cn">${esc(c.name)}</span><span class="ct" data-face-type>${esc(c.displayCategory || c.type)}</span></span>`
     + `<span class="crules" data-face-rules></span>`
     + `</div>`;
 }
@@ -190,7 +190,7 @@ for (const c of cards) {
 }
 
 // data the client needs: slug -> {name, type, group, effect(original), archived}
-const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, group: GROUP[c.type] || c.type, tags: c.tags, effect: c.effect || '', archived: c.archived, e: c.buyCostEnergy || 0, w: c.playCostWater || 0, p: c.playCostPhosphorus || 0 })));
+const DATA = JSON.stringify(cards.map((c) => ({ slug: c.slug, name: c.name, type: c.type, dcat: c.displayCategory || c.type, group: GROUP[c.type] || c.type, tags: c.tags, effect: c.effect || '', archived: c.archived, e: c.buyCostEnergy || 0, w: c.playCostWater || 0, p: c.playCostPhosphorus || 0 })));
 
 const body = `<style>${uiCss}${cardCss}</style>
 <div class="wrap">
@@ -228,8 +228,8 @@ const body = `<style>${uiCss}${cardCss}</style>
   function curCost(slug,r){ var c=store[slug]&&store[slug].costs; if(c&&c[r]!=null&&c[r]!=='') return Math.max(0,+c[r]||0); return BY[slug][r]; }
   function costChanged(slug){ return RES.some(function(r){ return curCost(slug,r)!==BY[slug][r]; }); }
   function costDelta(slug){ var out=[]; RES.forEach(function(r){ var o=BY[slug][r],n=curCost(slug,r); if(o!==n) out.push(RES_ICON[r]+' '+o+'→'+n); }); return out.join(', '); }
-  function curCat(slug){ var r=store[slug]; return (r&&r.cat)?r.cat:BY[slug].type; }
-  function catChanged(slug){ return curCat(slug)!==BY[slug].type; }
+  function curCat(slug){ var r=store[slug]; return (r&&r.cat)?r.cat:BY[slug].dcat; }
+  function catChanged(slug){ return curCat(slug)!==BY[slug].dcat; }
   function changed(slug){ return isEdited(slug)||costChanged(slug)||catChanged(slug); }
   function pipsHTML(slug){ var c=BY[slug],g=[],e=curCost(slug,'e'),w=curCost(slug,'w'),p=curCost(slug,'p');
     if(e) g.push('<span class="cc e">'+e+'⚡</span>');
@@ -259,8 +259,8 @@ const body = `<style>${uiCss}${cardCss}</style>
     var faceType=rv.querySelector('[data-face-type]');
     function paintCats(){ var cur=curCat(slug); rv.querySelectorAll('.catbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.cat===cur); }); if(faceType) faceType.textContent=cur; rv.classList.toggle('recat',catChanged(slug)); }
     rv.querySelectorAll('.catbtn').forEach(function(b){ b.addEventListener('click',function(){
-      r.cat = (r.cat===b.dataset.cat && b.dataset.cat===BY[slug].type) ? null : b.dataset.cat;   // click current-original again = clear
-      if(r.cat===BY[slug].type) delete r.cat;
+      r.cat = (r.cat===b.dataset.cat && b.dataset.cat===BY[slug].dcat) ? null : b.dataset.cat;   // click current baseline again = clear
+      if(r.cat===BY[slug].dcat) delete r.cat;
       paintCats(); rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter();
     }); });
     paintCats();
@@ -284,8 +284,8 @@ const body = `<style>${uiCss}${cardCss}</style>
   }
 
   var filter='all';
-  var TAGLBL={engine:'Engine',action:'Action',draw:'Draw',grow:'Grow',substrate:'Substrate',water:'Water',mineral:'Mineral',energy:'Energy',defense:'Defense'};
-  var TAGORD=['engine','action','draw','grow','substrate','water','mineral','energy','defense'];
+  var TAGLBL={basic:'Basic',engine:'Engine',event:'Event',draw:'Draw',grow:'Grow',substrate:'Substrate',water:'Water',mineral:'Mineral',energy:'Energy',defense:'Defense'};
+  var TAGORD=['basic','engine','event','draw','grow','substrate','water','mineral','energy','defense'];
   function counts(){
     var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,cost:0,recat:0,todo:0};
     var tg={};
@@ -335,7 +335,7 @@ const body = `<style>${uiCss}${cardCss}</style>
     var recat=DATA.filter(function(d){ return catChanged(d.slug); });
     if(recat.length){ L.push('## 🔀 Recategorized ('+recat.length+')'); L.push('');
       recat.forEach(function(d){ var r=store[d.slug]||{}; var note=(r.note&&r.note.trim())?(' — '+norm(r.note)):'';
-        L.push('- '+d.name+(d.archived?' [archived]':'')+': '+d.type+' → '+curCat(d.slug)+note); }); L.push(''); }
+        L.push('- '+d.name+(d.archived?' [archived]':'')+': '+d.dcat+' → '+curCat(d.slug)+note); }); L.push(''); }
     var recost=DATA.filter(function(d){ return costChanged(d.slug); });
     if(recost.length){ L.push('## 🔧 Cost changes ('+recost.length+')'); L.push('');
       recost.forEach(function(d){ var r=store[d.slug]||{}; var v=r.vote==='up'?' 👍':r.vote==='down'?' 👎':'';
@@ -371,8 +371,8 @@ const body = `<style>${uiCss}${cardCss}</style>
         var d=rv.querySelector('.desc'); d.value=BY[slug].effect; rv.querySelector('[data-face-rules]').textContent=BY[slug].effect; rv.querySelector('.note').value='';
         rv.querySelectorAll('.ci input').forEach(function(inp){ inp.value=BY[slug][inp.dataset.r]; inp.parentNode.classList.remove('changed'); });
         rv.querySelector('[data-face-pips]').innerHTML=pipsHTML(slug);
-        rv.classList.remove('recat'); rv.querySelectorAll('.catbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.cat===BY[slug].type); });
-        var ft=rv.querySelector('[data-face-type]'); if(ft) ft.textContent=BY[slug].type; });
+        rv.classList.remove('recat'); rv.querySelectorAll('.catbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.cat===BY[slug].dcat); });
+        var ft=rv.querySelector('[data-face-type]'); if(ft) ft.textContent=BY[slug].dcat; });
       metrics(); applyFilter(); } });
 
   document.getElementById('btnFilters').addEventListener('click',function(){
