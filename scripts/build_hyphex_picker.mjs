@@ -9,8 +9,9 @@ const target = process.argv[2] || join(ROOT, 'hyphex-picker.html');
 
 const CARD = { name: 'Hyphal Extension', type: 'basic', e: 0, effect: 'Grow 1 step: toward all food sources in range.' };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const uri = (n) => { const p = join(ROOT, 'assets', 'card_options', `hyphal-extension-w${n}.jpg`); return existsSync(p) ? 'data:image/jpeg;base64,' + readFileSync(p).toString('base64') : null; };
-const LENS = ['Establishing', 'Macro', 'Cord → branches', 'Dense mat', 'Sparse'];
+const SET = process.env.HYPHEX_SET || 's';   // 's' = single-colony round; 'w' = first round
+const uri = (n) => { const p = join(ROOT, 'assets', 'card_options', `hyphal-extension-${SET}${n}.jpg`); return existsSync(p) ? 'data:image/jpeg;base64,' + readFileSync(p).toString('base64') : null; };
+const LENS = ['Establishing', 'Macro', 'Trunk → branches', 'Side crown', 'Sparse'];
 
 const css = `
 :root{--bg:#0a1210;--bg2:#060d0b;--panel:#101c17;--panel2:#0c1713;--line:rgba(126,240,192,.16);--ink:#e6f4ec;--ink-dim:#8fb3a4;--mint:#7ef0c0;--ring:#eafff2;
@@ -72,9 +73,9 @@ const body = `<style>${css}</style>
 (function(){var sel=null;
  document.querySelectorAll('.opt').forEach(function(o){o.addEventListener('click',function(){
    document.querySelectorAll('.opt').forEach(function(x){x.classList.remove('sel');});o.classList.add('sel');sel=+o.dataset.opt;
-   document.getElementById('picks').textContent='hyphal-extension: option '+sel+' (w'+sel+')';document.getElementById('copy').disabled=false;});});
+   document.getElementById('picks').textContent='hyphal-extension: option '+sel+' (${SET}'+sel+')';document.getElementById('copy').disabled=false;});});
  document.getElementById('copy').addEventListener('click',function(){
-   var s='hyphal-extension: w'+sel;var t=document.getElementById('toast');
+   var s='hyphal-extension: ${SET}'+sel;var t=document.getElementById('toast');
    var done=function(){t.classList.add('on');setTimeout(function(){t.classList.remove('on');},1200);};
    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(done,done);}else{done();}});
 })();
