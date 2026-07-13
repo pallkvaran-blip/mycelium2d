@@ -38,9 +38,9 @@ console.log('# Card economy + effects');
   net.energy = 100;
   const ti = ensureHand(s, 'Rhizomorph Trunkline'); playCard(s, ti);
   ok(s.cards.engines.some((e) => e.name === 'Rhizomorph Trunkline'), 'Rhizomorph Trunkline installed as an engine');
-  ok(net.energy === 100 - 22, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 22)`);
+  ok(net.energy === 100 - 9, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 9)`);
   net.energy = 100; produceCardEngines(s);
-  ok(net.energy === 104, `energy engine produces +4/tick (got ${net.energy})`);
+  ok(net.energy === 102, `energy engine produces +2/tick (got ${net.energy})`);
 
   net.energy = 100;
   const wi = ensureHand(s, 'Aquaporin Channels'); playCard(s, wi);
@@ -70,13 +70,13 @@ console.log('# Card economy + effects');
   net.water = 1; const ci = ensureHand(s, 'Condense'); playCard(s, ci);
   ok(net.water === 4, `Condense +3 Water (got ${net.water})`);
 
-  // energy burst: Osmotic Cashout costs 12⚡ buy + 1 Water, yields +22⚡ (net +10)
-  net.water = 5; net.energy = 50; const oi = ensureHand(s, 'Osmotic Cashout'); playCard(s, oi);
-  ok(net.energy === 50 - 12 + 22 && net.water === 4, `Osmotic Cashout: −12⚡ buy +22⚡ effect, −1 Water (energy ${net.energy}, water ${net.water})`);
+  // energy burst: Osmotic Cashout now costs 4 Phosphorus (0⚡ buy), yields +22⚡
+  net.energy = 50; net.phosphorus = 9; const oi = ensureHand(s, 'Osmotic Cashout'); playCard(s, oi);
+  ok(net.energy === 50 + 22 && net.phosphorus === 5, `Osmotic Cashout: +22⚡ effect, −4 Phosphorus (energy ${net.energy}, phos ${net.phosphorus})`);
 
   // energy gate: a premium card is unplayable without its Energy cost
   net.energy = 3; net.water = 9; net.phosphorus = 9;
-  ok(/Energy/.test(cardBlockedReason(s, 'Fruiting Vigil') || ''), 'a premium card is blocked with too little Energy');
+  ok(/Energy/.test(cardBlockedReason(s, 'Hair-Trigger Hyphae') || ''), 'a premium card is blocked with too little Energy');
 
   // converted extender: Forager Bloom now INSTALLS as an every-6-rounds action
   net.energy = 100;

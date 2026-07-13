@@ -469,9 +469,14 @@ const abilityUpgrade = (scope, n) => ({
     const list = scope === 'action' ? state.cards.actions : state.cards.engines;
     const t = list[ctx.ability];
     if (!t) return { ok: false, message: 'That ability is no longer installed.' };
+    // "Max 1 per card": a given tempo card can speed up any one ability only once
+    // (different tempo cards still stack on the same ability).
+    const by = (t.boostedBy || (t.boostedBy = {}));
+    if (by[c.name]) return { ok: false, message: `${t.name} was already sped up by ${c.name} — max 1 per card.` };
     if (!(t.every > 1)) return { ok: false, message: `${t.name} is already at its minimum wait.` };
     const before = t.every;
     t.every = Math.max(1, t.every - n);
+    by[c.name] = true;
     return { ok: true, message: `${t.name}: wait ${before} → ${t.every} round${t.every > 1 ? 's' : ''}.` };
   },
 });
@@ -541,9 +546,9 @@ export const EFFECTS = {
   'Fruiting Vigil': targeted((s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);   // "up to 8 steps" (8 × 3 segments)
     checkGoalReached(s);
-    return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
+    return { ok: true, message: s.won ? 'Reached the goal!' : `Grew ${n} in your chosen direction.` };
   }),
 
   // --- substrate (Water) ---
@@ -588,18 +593,17 @@ export const EFFECTS = {
   }),
 
   // --- energy ---
-  'Rhizomorph Trunkline': engine({ energy: 4 }, 'Installed: +4⚡/round.'),
+  'Rhizomorph Trunkline': engine({ energy: 2 }, 'Installed: +2⚡/round.'),
   'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
-  'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: drawing cards costs 3 less energy.'),
 
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
-  'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
-  'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
+  'Phosphatase Cushion': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
+  'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 5, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
     const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
@@ -620,12 +624,16 @@ export const EFFECTS = {
 
   // --- defense (best-effort v1) ---
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
-  'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
+  'Sclerotial Crust': targeted((s, c, ctx) => {
+    const h = cureRadius(s, ctx, 60);
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent infection immunity
+    return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+  }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
   // --- installed ACTIONS (→ Actions menu, right) ---
   // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
+  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
     // Ward a hair wider than the cure (cure tests node position, the ward tests cell
     // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
@@ -646,11 +654,11 @@ export const EFFECTS = {
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
   // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
-    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });
-    return { ok: true, message: 'Sealed the pile — ants can’t harvest it for 3 rounds.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
+    return { ok: true, message: 'Sealed the pile — permanently ant-proof.' };
   }),
 };
 
@@ -684,7 +692,7 @@ EFFECTS['Forager Bloom'] = action({ effect: 'fan out: grow every direction', eve
   if (reason === 'crowded') return { ok: false, message: 'Packed too tightly to fan out any further.' };
   return { ok: false, message: 'Rock walls the colony in — nowhere to fan out.' };
 });
-EFFECTS['Questing Front'] = action({ effect: 'lunge to the nearest food', every: 6, cost: 1, res: 'water' }, (s) => {
+EFFECTS['Questing Front'] = action({ effect: 'grow 5 steps to the nearest food', every: 6, cost: 2, res: 'water' }, (s) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
   const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
   if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
@@ -700,20 +708,14 @@ EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cos
   depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
   return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };
 });
-EFFECTS['Boring Corps'] = action({ effect: 'bore through an in-range rock', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-  const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
-  if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
-  if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
-  return { ok: false, message: 'No rock there to punch through.' };
-});
-EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune after)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
   const h = cureRadius(s, ctx, 40);
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' };
+  s.substrate.cellsInRadius(ctx.x, ctx.y, 40 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // immune to future infection
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to future infection.` : 'Hardened the patch — immune to future infection.' };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');
+EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
+EFFECTS['Prospecting Cords'] = engine({ phosphorus: 1, every: 8 }, 'Installed: +1 Phosphorus every 8 rounds.');
 
 // --- tempo upgrades (one-shot, pick ONE installed ability) ----------------
 // Permanently shorten the "every N rounds" wait on ONE chosen installed ability

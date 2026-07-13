@@ -656,8 +656,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "e282k1";
-globalThis.__BUILD__ = "local 07-12 17:18";
+window.__ASSET_VER = "vq9ihf";
+globalThis.__BUILD__ = "local 07-13 09:19";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1124,7 +1124,7 @@ const CARD_DATA = [
   "type": "basic",
   "category": "growth",
   "buyCostEnergy": 0,
-  "costW": 2,
+  "costW": 1,
   "costP": 0,
   "timing": "any",
   "repay": 0,
@@ -1203,14 +1203,14 @@ const CARD_DATA = [
   "name": "Appressorial Punch",
   "type": "basic",
   "category": "utility",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 1,
   "costW": 1,
-  "costP": 0,
+  "costP": 1,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow hyphae through one selected rock in-range.",
+  "effect": "Grow through one in-range rock.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -1221,12 +1221,12 @@ const CARD_DATA = [
   "category": "defense",
   "buyCostEnergy": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 2,
   "timing": "mid",
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Tap a point: strands within radius 40 harden — immune to infection and eating for 2 rounds.",
+  "effect": "Tap a point: strands within radius 60 harden — permanently immune to infection and eating.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -1235,7 +1235,7 @@ const CARD_DATA = [
   "name": "Hyphal Imbibition",
   "type": "basic",
   "category": "water-harvest",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 3,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1251,7 +1251,7 @@ const CARD_DATA = [
   "name": "Phosphate Tap",
   "type": "basic",
   "category": "phosphorus-mining",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 3,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1267,7 +1267,7 @@ const CARD_DATA = [
   "name": "Condense",
   "type": "basic",
   "category": "water-harvest",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 3,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1283,14 +1283,14 @@ const CARD_DATA = [
   "name": "Rhizomorph Trunkline",
   "type": "engine",
   "category": "energy income",
-  "buyCostEnergy": 22,
+  "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
   "timing": "mid",
   "repay": 3,
   "threat": "none",
   "produces": "+4 energy/round",
-  "effect": "Install. Gain +4 energy at the end of each round.",
+  "effect": "Gain +2 energy every round.",
   "family": "energy",
   "tutorial": true,
   "startCopies": 0
@@ -1299,46 +1299,30 @@ const CARD_DATA = [
   "name": "Osmotic Cashout",
   "type": "event",
   "category": "energy burst",
-  "buyCostEnergy": 12,
-  "costW": 1,
-  "costP": 0,
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 4,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Exhaust (1 Water): gain +22 energy.",
+  "effect": "Gain +22 energy.",
   "family": "energy",
   "tutorial": true,
-  "startCopies": 0
- },
- {
-  "name": "Septal Pore Flux",
-  "type": "engine",
-  "category": "cheaper draws",
-  "buyCostEnergy": 14,
-  "costW": 0,
-  "costP": 0,
-  "timing": "early",
-  "repay": 3,
-  "threat": "none",
-  "produces": "-3 energy per draw (savings)",
-  "effect": "Install. Drawing cards costs 3 less energy.",
-  "family": "energy",
-  "tutorial": false,
   "startCopies": 0
  },
  {
   "name": "Aquaporin Channels",
   "type": "engine",
   "category": "water-engine",
-  "buyCostEnergy": 14,
+  "buyCostEnergy": 10,
   "costW": 0,
   "costP": 0,
   "timing": "early",
   "repay": 4,
   "threat": "none",
   "produces": "+1 Water / 2 rounds",
-  "effect": "Install. Gain +1 Water every 2 rounds.",
+  "effect": "Gain +1 Water every 2 rounds.",
   "family": "water",
   "tutorial": true,
   "startCopies": 0
@@ -1347,14 +1331,14 @@ const CARD_DATA = [
   "name": "Phosphatase Cushion",
   "type": "engine",
   "category": "phosphorus-producer",
-  "buyCostEnergy": 14,
+  "buyCostEnergy": 12,
   "costW": 0,
   "costP": 0,
   "timing": "early",
   "repay": 3,
   "threat": "none",
   "produces": "+1 Phosphorus / round (lifetime cap 8)",
-  "effect": "Install. Gain +1 Phosphorus at the end of each round.",
+  "effect": "Gain +2 Phosphorus every 8 rounds.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -1370,7 +1354,7 @@ const CARD_DATA = [
   "repay": 4,
   "threat": "none",
   "produces": "1 P / round (unconditional)",
-  "effect": "Install. Gain +1 Phosphorus at the end of each round.",
+  "effect": "Gain +1 Phosphorus every 5 rounds.",
   "family": "phosphorus",
   "tutorial": true,
   "startCopies": 0
@@ -1386,7 +1370,7 @@ const CARD_DATA = [
   "repay": 4,
   "threat": "none",
   "produces": "+1 cleared formation/column per round it has a target (~5 energy-equiv of barrier bypass)",
-  "effect": "Once per 5 rounds: Pay 2 P to grow through an in-range rock.",
+  "effect": "Once per 10 rounds: Pay 2 P to grow through an in-range rock.",
   "family": "growth",
   "tutorial": false,
   "startCopies": 0
@@ -1395,9 +1379,9 @@ const CARD_DATA = [
   "name": "Constricting Ring",
   "type": "action",
   "category": "anti-worm",
-  "buyCostEnergy": 5,
+  "buyCostEnergy": 6,
   "costW": 0,
-  "costP": 1,
+  "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "worm",
@@ -1412,13 +1396,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "water-repair",
   "buyCostEnergy": 7,
-  "costW": 1,
+  "costW": 3,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Exhaust (1 Water): tap a point; heal all worm/mould damage within radius 60.",
+  "effect": "Pay 3 Water: tap a point; heal all mold damage within radius 60.",
   "family": "water",
   "tutorial": false,
   "startCopies": 0
@@ -1427,14 +1411,14 @@ const CARD_DATA = [
   "name": "Nutrient Transmutation",
   "type": "action",
   "category": "resource converter",
-  "buyCostEnergy": 6,
+  "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Install. Action (once per round): spend 2 of one resource (W/P) to gain 1 of the other.",
+  "effect": "Once per round: spend 2 of one resource (W/P) to gain 1 of the other.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -1443,14 +1427,14 @@ const CARD_DATA = [
   "name": "Rhizomorph Lance",
   "type": "event",
   "category": "mobility",
-  "buyCostEnergy": 10,
+  "buyCostEnergy": 1,
   "costW": 2,
   "costP": 0,
   "timing": "mid",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Exhaust (2 Water): pick a direction; instantly grow up to 6 steps that way.",
+  "effect": "Grow up to 6 steps: choose a direction.",
   "family": "events",
   "tutorial": false,
   "startCopies": 0
@@ -1459,14 +1443,14 @@ const CARD_DATA = [
   "name": "Fruiting Vigil",
   "type": "event",
   "category": "finisher",
-  "buyCostEnergy": 12,
-  "costW": 2,
+  "buyCostEnergy": 2,
+  "costW": 1,
   "costP": 2,
   "timing": "late",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Exhaust (2 Water + 2 Phosphorus): pick the goal direction and extend up to 6 steps.",
+  "effect": "Grow up to 8 steps: choose a direction.",
   "family": "events",
   "tutorial": true,
   "startCopies": 0
@@ -1475,7 +1459,7 @@ const CARD_DATA = [
   "name": "Leading Cord",
   "type": "action",
   "category": "growth",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 6,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -1491,7 +1475,7 @@ const CARD_DATA = [
   "name": "Forager Bloom",
   "type": "action",
   "category": "growth",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 5,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -1508,13 +1492,13 @@ const CARD_DATA = [
   "type": "action",
   "category": "growth",
   "buyCostEnergy": 8,
-  "costW": 1,
+  "costW": 2,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 1 W to grow toward the nearest food, even out of range.",
+  "effect": "Once per 6 rounds: pay 2 W to grow 5 steps toward the nearest food, even out of range.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1568,9 +1552,9 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Boring Corps",
+  "name": "Crust Reserve",
   "type": "action",
-  "category": "routing",
+  "category": "anti-mould",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 2,
@@ -1578,23 +1562,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 2 P to bore through an in-range rock.",
-  "family": "installs",
-  "tutorial": true,
-  "startCopies": 0
- },
- {
-  "name": "Crust Reserve",
-  "type": "action",
-  "category": "anti-mould",
-  "buyCostEnergy": 8,
-  "costW": 0,
-  "costP": 1,
-  "timing": "any",
-  "repay": 0,
-  "threat": "none",
-  "produces": "",
-  "effect": "Once per 6 rounds: pay 1 P to harden a patch and clear mould there.",
+  "effect": "Once per 6 rounds: pay 2 P to harden a patch, clearing mold and making it immune to future infection.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1603,14 +1571,14 @@ const CARD_DATA = [
   "name": "Capillary Runners",
   "type": "engine",
   "category": "water-engine",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Install. Gain +3 Water every 6 rounds.",
+  "effect": "Gain +3 Water every 6 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1619,14 +1587,14 @@ const CARD_DATA = [
   "name": "Prospecting Cords",
   "type": "engine",
   "category": "phosphorus-producer",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 6,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Install. Gain +3 Phosphorus every 6 rounds.",
+  "effect": "Gain +1 Phosphorus every 8 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1635,14 +1603,14 @@ const CARD_DATA = [
   "name": "Dew Traps",
   "type": "engine",
   "category": "water-engine",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 12,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Install. Gain +3 Water every 6 rounds.",
+  "effect": "Gain +2 Water every 3 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1651,7 +1619,7 @@ const CARD_DATA = [
   "name": "Colonizing Front",
   "type": "action",
   "category": "growth",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 5,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -1699,14 +1667,14 @@ const CARD_DATA = [
   "name": "Sclerotial Seal",
   "type": "action",
   "category": "anti-ant",
-  "buyCostEnergy": 10,
+  "buyCostEnergy": 8,
   "costW": 0,
   "costP": 1,
   "timing": "any",
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 4 rounds: Pay 1 P to seal any food pile from ant access.",
+  "effect": "Once per 4 rounds: Pay 1 P to permanently seal any food pile from ant access.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1717,12 +1685,12 @@ const CARD_DATA = [
   "category": "anti-mould",
   "buyCostEnergy": 10,
   "costW": 0,
-  "costP": 1,
+  "costP": 3,
   "timing": "any",
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Once per 3 rounds: tap a point to clear all infection and protect from reinfection for 2 rounds.",
+  "effect": "Once per 6 rounds: Pay 3 P to tap a point to clear all infection and protect from reinfection for 2 rounds.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1732,13 +1700,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 10,
-  "costW": 0,
-  "costP": 0,
+  "costW": 2,
+  "costP": 2,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1748,13 +1716,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 18,
-  "costW": 0,
-  "costP": 0,
+  "costW": 4,
+  "costP": 4,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1764,13 +1732,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 28,
-  "costW": 0,
-  "costP": 0,
+  "costW": 6,
+  "costP": 6,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1780,13 +1748,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 10,
-  "costW": 0,
-  "costP": 0,
+  "costW": 2,
+  "costP": 2,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1796,13 +1764,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 18,
-  "costW": 0,
-  "costP": 0,
+  "costW": 4,
+  "costP": 4,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1812,13 +1780,13 @@ const CARD_DATA = [
   "type": "event",
   "category": "tempo",
   "buyCostEnergy": 28,
-  "costW": 0,
-  "costP": 0,
+  "costW": 6,
+  "costP": 6,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -4636,9 +4604,14 @@ const abilityUpgrade = (scope, n) => ({
     const list = scope === 'action' ? state.cards.actions : state.cards.engines;
     const t = list[ctx.ability];
     if (!t) return { ok: false, message: 'That ability is no longer installed.' };
+    // "Max 1 per card": a given tempo card can speed up any one ability only once
+    // (different tempo cards still stack on the same ability).
+    const by = (t.boostedBy || (t.boostedBy = {}));
+    if (by[c.name]) return { ok: false, message: `${t.name} was already sped up by ${c.name} — max 1 per card.` };
     if (!(t.every > 1)) return { ok: false, message: `${t.name} is already at its minimum wait.` };
     const before = t.every;
     t.every = Math.max(1, t.every - n);
+    by[c.name] = true;
     return { ok: true, message: `${t.name}: wait ${before} → ${t.every} round${t.every > 1 ? 's' : ''}.` };
   },
 });
@@ -4708,9 +4681,9 @@ const EFFECTS = {
   'Fruiting Vigil': targeted((s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);   // "up to 8 steps" (8 × 3 segments)
     checkGoalReached(s);
-    return { ok: true, message: s.won ? 'Reached the goal!' : `Extended ${n} toward the goal.` };
+    return { ok: true, message: s.won ? 'Reached the goal!' : `Grew ${n} in your chosen direction.` };
   }),
 
   // --- substrate (Water) ---
@@ -4755,18 +4728,17 @@ const EFFECTS = {
   }),
 
   // --- energy ---
-  'Rhizomorph Trunkline': engine({ energy: 4 }, 'Installed: +4⚡/round.'),
+  'Rhizomorph Trunkline': engine({ energy: 2 }, 'Installed: +2⚡/round.'),
   'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
-  'Septal Pore Flux': engine({ drawDiscount: 3 }, 'Installed: drawing cards costs 3 less energy.'),
 
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
-  'Phosphatase Cushion': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
-  'Mineralizing Saprobe': engine({ phosphorus: 1 }, 'Installed: +1 Phosphorus/round.'),
+  'Phosphatase Cushion': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
+  'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 5, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
     const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
@@ -4787,12 +4759,16 @@ const EFFECTS = {
 
   // --- defense (best-effort v1) ---
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
-  'Sclerotial Crust': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 40); return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' }; }),
+  'Sclerotial Crust': targeted((s, c, ctx) => {
+    const h = cureRadius(s, ctx, 60);
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent infection immunity
+    return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+  }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
   // --- installed ACTIONS (→ Actions menu, right) ---
   // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 3, target: true }, (s, ctx) => {
+  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
     // Ward a hair wider than the cure (cure tests node position, the ward tests cell
     // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
@@ -4813,11 +4789,11 @@ const EFFECTS = {
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
   // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
-    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 3; });
-    return { ok: true, message: 'Sealed the pile — ants can’t harvest it for 3 rounds.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
+    return { ok: true, message: 'Sealed the pile — permanently ant-proof.' };
   }),
 };
 
@@ -4851,7 +4827,7 @@ EFFECTS['Forager Bloom'] = action({ effect: 'fan out: grow every direction', eve
   if (reason === 'crowded') return { ok: false, message: 'Packed too tightly to fan out any further.' };
   return { ok: false, message: 'Rock walls the colony in — nowhere to fan out.' };
 });
-EFFECTS['Questing Front'] = action({ effect: 'lunge to the nearest food', every: 6, cost: 1, res: 'water' }, (s) => {
+EFFECTS['Questing Front'] = action({ effect: 'grow 5 steps to the nearest food', every: 6, cost: 2, res: 'water' }, (s) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
   const n = s.active.growToNearestFood(s.substrate, s.rng, s.config.cards.lungeSegments);
   if (n > 0) return { ok: true, message: `Lunged ${n} toward the nearest food.` };
@@ -4867,20 +4843,14 @@ EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cos
   depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
   return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };
 });
-EFFECTS['Boring Corps'] = action({ effect: 'bore through an in-range rock', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-  const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
-  if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
-  if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
-  return { ok: false, message: 'No rock there to punch through.' };
-});
-EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune after)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
   const h = cureRadius(s, ctx, 40);
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands.` : 'Hardened the patch.' };
+  s.substrate.cellsInRadius(ctx.x, ctx.y, 40 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // immune to future infection
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to future infection.` : 'Hardened the patch — immune to future infection.' };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Dew Traps'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Prospecting Cords'] = engine({ phosphorus: 3, every: 6 }, 'Installed: +3 Phosphorus every 6 rounds.');
+EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
+EFFECTS['Prospecting Cords'] = engine({ phosphorus: 1, every: 8 }, 'Installed: +1 Phosphorus every 8 rounds.');
 
 // --- tempo upgrades (one-shot, pick ONE installed ability) ----------------
 // Permanently shorten the "every N rounds" wait on ONE chosen installed ability
