@@ -13,7 +13,7 @@
       --panel-border: rgba(120, 160, 140, 0.18);
       --ink: #d7e6dc;
       --ink-dim: #8aa193;
-      --accent: #7fe6a3;
+      --accent: #e9f1ed;
       --accent-dim: #3a6f50;
       --warn: #e0a85a;
       --danger: #e06a6a;
@@ -45,8 +45,8 @@
       box-shadow: none; backdrop-filter: none; z-index: 30; }
     .resrow { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 40px; cursor: pointer;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
-      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 999px;
-      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
+      border: 1.5px solid rgba(218,227,224,0.5); border-radius: 999px;
+      box-shadow: 0 0 14px -2px rgba(218,227,224,0.5), inset 0 0 0 1px rgba(218,227,224,0.14), 0 6px 20px -8px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
     /* Icon + number + income-delta all vertically CENTRED so the three resources
        read as one coherent row (energy/water/phosphorus now all use same-size SVGs). */
@@ -63,25 +63,25 @@
     .ri { display: inline-block; width: 1em; height: 1em; flex: 0 0 auto; vertical-align: -0.14em; }
     .res .ri { width: 16px; height: 16px; align-self: center; }
     .logbtn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
-      background: rgba(127,230,163,0.12); border: 1px solid rgba(130,230,166,0.4); border-radius: 999px;
+      background: rgba(218,227,224,0.12); border: 1px solid rgba(218,227,224,0.4); border-radius: 999px;
       padding: 4px 11px; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; gap: 4px; }
-    .logbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .logbtn:hover { background: rgba(218,227,224,0.22); border-color: rgba(242,247,245,0.6); }
     .logbtn .lchev { font-size: 9px; color: var(--ink-dim); }
-    .mutebtn { font-size: 13px; line-height: 1; background: rgba(127,230,163,0.12);
-      border: 1px solid rgba(130,230,166,0.4); border-radius: 999px; cursor: pointer;
+    .mutebtn { font-size: 13px; line-height: 1; background: rgba(218,227,224,0.12);
+      border: 1px solid rgba(218,227,224,0.4); border-radius: 999px; cursor: pointer;
       width: 26px; height: 26px; padding: 0; margin-left: 2px; display: inline-flex;
       align-items: center; justify-content: center; }
-    .mutebtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .mutebtn:hover { background: rgba(218,227,224,0.22); border-color: rgba(242,247,245,0.6); }
     .logdrop { margin-top: 8px; max-width: 340px; padding: 8px 12px;
       background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
-      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
-      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6); backdrop-filter: blur(6px); }
+      border: 1px solid rgba(218,227,224,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(218,227,224,0.35), 0 8px 24px -8px rgba(0,0,0,0.6); backdrop-filter: blur(6px); }
     .logdrop.hidden { display: none; }
     .logdrop .loglist { max-height: 34vh; overflow-y: auto; }
     .traits { display: flex; gap: 6px; margin-top: 10px; }
     .traits .tr { font-size: 11px; color: var(--ink-dim); background: rgba(255,255,255,0.05);
       padding: 2px 7px; border-radius: 6px; }
-    .traits .tr.on { color: var(--accent); background: rgba(127,230,163,0.12); }
+    .traits .tr.on { color: var(--accent); background: rgba(218,227,224,0.12); }
     .traits .tr b { color: var(--ink); margin-left: 2px; }
 
     /* Action bar — glowing on-theme tray. DESKTOP: a vertical column pinned to the
@@ -90,8 +90,8 @@
     .actionbar { bottom: 16px; right: 12px; left: auto; transform: none; display: flex; flex-direction: column; gap: 8px;
       align-items: stretch; flex-wrap: nowrap; width: 164px; padding: 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
-      border: 1.5px solid rgba(130,230,166,0.5); border-radius: 14px;
-      box-shadow: 0 0 14px -2px rgba(130,230,166,0.5), inset 0 0 0 1px rgba(130,230,166,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
+      border: 1.5px solid rgba(218,227,224,0.5); border-radius: 14px;
+      box-shadow: 0 0 14px -2px rgba(218,227,224,0.5), inset 0 0 0 1px rgba(218,227,224,0.14), 0 6px 20px -8px rgba(0,0,0,0.7); }
     /* Buttons stack vertically (Show Hand · Draw · Skip · Play Card), each full-width. */
     .actionbar .abgroup { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; }
     /* Action buttons — "Lumen": a bioluminescent frosted-glass finish. An icon,
@@ -100,8 +100,8 @@
     .actionbar .abtn { display: inline-flex; flex-direction: row; align-items: center; justify-content: center;
       gap: 9px; min-height: 52px; padding: 7px 15px; line-height: 1.14; white-space: nowrap; border-radius: 13px;
       background: linear-gradient(180deg, rgba(34,50,42,0.92), rgba(15,24,20,0.94));
-      border: 1px solid rgba(130,230,166,0.26);
-      box-shadow: inset 0 1px 0 rgba(198,255,224,0.10), 0 6px 16px -10px rgba(0,0,0,0.9);
+      border: 1px solid rgba(218,227,224,0.26);
+      box-shadow: inset 0 1px 0 rgba(232,240,236,0.10), 0 6px 16px -10px rgba(0,0,0,0.9);
       transition: background .16s, border-color .16s, box-shadow .16s, transform .06s; }
     /* Icons removed from the bottom bar on every screen — text-only buttons (matches phone). */
     .actionbar .abtn .ic { display: none; }
@@ -114,26 +114,26 @@
     /* No cost (Show Hand, or Play Card with nothing selected) → drop the empty row
        so the single label centres next to the icon. */
     .actionbar .abtn .bcost:empty { display: none; }
-    .actionbar .abtn:hover:not(:disabled) { border-color: rgba(130,230,166,0.6);
+    .actionbar .abtn:hover:not(:disabled) { border-color: rgba(218,227,224,0.6);
       background: linear-gradient(180deg, rgba(42,62,52,0.96), rgba(18,30,24,0.96));
-      box-shadow: inset 0 1px 0 rgba(198,255,224,0.16), 0 0 16px -4px rgba(127,230,163,0.4), 0 6px 16px -10px rgba(0,0,0,0.9); }
+      box-shadow: inset 0 1px 0 rgba(232,240,236,0.16), 0 0 16px -4px rgba(218,227,224,0.4), 0 6px 16px -10px rgba(0,0,0,0.9); }
     .actionbar .abtn:active:not(:disabled) { transform: translateY(1px); }
     /* Show Hand — a mint-tinted glass toggle */
-    .actionbar .handbtn { background: linear-gradient(180deg, rgba(127,230,163,0.18), rgba(127,230,163,0.055));
-      border-color: rgba(130,230,166,0.42); }
-    .actionbar .handbtn:hover:not(:disabled) { background: linear-gradient(180deg, rgba(127,230,163,0.26), rgba(127,230,163,0.10)); }
+    .actionbar .handbtn { background: linear-gradient(180deg, rgba(218,227,224,0.18), rgba(218,227,224,0.055));
+      border-color: rgba(218,227,224,0.42); }
+    .actionbar .handbtn:hover:not(:disabled) { background: linear-gradient(180deg, rgba(218,227,224,0.26), rgba(218,227,224,0.10)); }
     /* Play Card — radiant mint primary when a card is armed */
-    .actionbar .playbtn { background: linear-gradient(180deg, #9bf0b8, #57cf8c); border-color: rgba(155,240,184,0.9);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px -4px rgba(127,230,163,0.7), 0 6px 16px -10px rgba(0,0,0,0.9); }
-    .actionbar .playbtn:hover:not(:disabled) { background: linear-gradient(180deg, #b6ffd0, #6ee0a0);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 0 26px -2px rgba(127,230,163,0.9), 0 6px 16px -10px rgba(0,0,0,0.9); }
+    .actionbar .playbtn { background: linear-gradient(180deg, #eef4f0, #c4d2cc); border-color: rgba(230,236,233,0.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px -4px rgba(218,227,224,0.7), 0 6px 16px -10px rgba(0,0,0,0.9); }
+    .actionbar .playbtn:hover:not(:disabled) { background: linear-gradient(180deg, #f6faf8, #d2ddd7);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 0 26px -2px rgba(218,227,224,0.9), 0 6px 16px -10px rgba(0,0,0,0.9); }
     .actionbar .playbtn .ic, .actionbar .playbtn .blabel { color: #06110a; }
     .actionbar .playbtn .bcost, .actionbar .playbtn .bcost .w, .actionbar .playbtn .bcost .p { color: #0a2417; }
     /* Play Card disabled (no card selected) — a quiet glass button, still legible */
     .actionbar .playbtn:disabled { opacity: 1;
       background: linear-gradient(180deg, rgba(34,50,42,0.92), rgba(15,24,20,0.94));
-      border-color: rgba(130,230,166,0.2);
-      box-shadow: inset 0 1px 0 rgba(198,255,224,0.08), 0 6px 16px -10px rgba(0,0,0,0.9); }
+      border-color: rgba(218,227,224,0.2);
+      box-shadow: inset 0 1px 0 rgba(232,240,236,0.08), 0 6px 16px -10px rgba(0,0,0,0.9); }
     .actionbar .playbtn:disabled .ic, .actionbar .playbtn:disabled .blabel { color: var(--ink-dim); }
     /* Narrow phones: drop the icon so the four buttons still fit the width. */
     @media (max-width: 560px) { .actionbar .abtn .ic { display: none; } }
@@ -143,7 +143,7 @@
     .btn:hover:not(:disabled) { background: rgba(60,84,72,0.95); }
     .btn:active:not(:disabled) { transform: translateY(1px); }
     .btn:disabled { opacity: 0.38; cursor: not-allowed; }
-    .btn.selected { border-color: var(--accent); background: rgba(127,230,163,0.18);
+    .btn.selected { border-color: var(--accent); background: rgba(218,227,224,0.18);
       box-shadow: 0 0 0 1px var(--accent) inset; }
     .btn .cost { color: var(--accent); font-size: 11px; margin-left: 4px; }
     .btn .lvl { color: var(--ink-dim); font-size: 11px; }
@@ -212,14 +212,14 @@
     .engledger { margin-top: 8px; width: 238px; max-width: calc(100vw - 28px);
       padding: 9px 11px; font-size: 12px; color: var(--ink);
       background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
-      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
-      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
+      border: 1px solid rgba(218,227,224,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(218,227,224,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
       backdrop-filter: blur(6px);
       max-height: 90vh; overflow-y: auto; overflow-x: hidden;
-      scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
+      scrollbar-width: thin; scrollbar-color: rgba(218,227,224,0.4) transparent; }
     .engledger::-webkit-scrollbar, .actmenu::-webkit-scrollbar { width: 5px; }
     .engledger::-webkit-scrollbar-thumb, .actmenu::-webkit-scrollbar-thumb {
-      background: rgba(127,230,163,0.35); border-radius: 5px; }
+      background: rgba(218,227,224,0.35); border-radius: 5px; }
     .lgblock { margin-bottom: 7px; }
     .lgblock:last-child { margin-bottom: 0; }
     .lghead { display: flex; align-items: baseline; gap: 6px; font-family: var(--serif);
@@ -248,7 +248,7 @@
     .clight { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
       background: rgba(220,235,225,0.13); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
     .clight.on { background: radial-gradient(circle at 35% 35%, #fff2d0, var(--warn)); box-shadow: 0 0 5px var(--warn); }
-    .ck-e .clight.on { background: radial-gradient(circle at 35% 35%, #d7ffe8, var(--accent)); box-shadow: 0 0 5px var(--accent); }
+    .ck-e .clight.on { background: radial-gradient(circle at 35% 35%, #f2faf6, var(--accent)); box-shadow: 0 0 5px var(--accent); }
     .ck-w .clight.on { background: radial-gradient(circle at 35% 35%, #dff6fb, #7fd0e0); box-shadow: 0 0 5px #7fd0e0; }
     .ck-p .clight.on { background: radial-gradient(circle at 35% 35%, #efe0fb, #c79be6); box-shadow: 0 0 5px #c79be6; }
     .ck-t .clight.on { background: radial-gradient(circle at 35% 35%, #fff2d0, var(--warn)); box-shadow: 0 0 5px var(--warn); }
@@ -257,7 +257,7 @@
     /* glow dots — shared by ledger rows (full keys energy/water/phosphorus/t) and
        action rows (short keys e/w/p/t), so both spellings are styled. */
     .edot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-    .edot.e, .edot.energy { background: radial-gradient(circle at 35% 35%, #d7ffe8, var(--accent)); box-shadow: 0 0 6px var(--accent); }
+    .edot.e, .edot.energy { background: radial-gradient(circle at 35% 35%, #f2faf6, var(--accent)); box-shadow: 0 0 6px var(--accent); }
     .edot.w, .edot.water { background: radial-gradient(circle at 35% 35%, #dff6fb, #7fd0e0); box-shadow: 0 0 6px #7fd0e0; }
     .edot.p, .edot.phosphorus { background: radial-gradient(circle at 35% 35%, #efe0fb, #c79be6); box-shadow: 0 0 6px #c79be6; }
     .edot.t { background: radial-gradient(circle at 35% 35%, #ffe6c2, var(--warn)); box-shadow: 0 0 6px var(--warn); }
@@ -287,7 +287,7 @@
       box-shadow: 0 0 12px -3px rgba(224,106,106,0.35), 0 8px 24px -8px rgba(0,0,0,0.6);
       backdrop-filter: blur(6px);
       max-height: 90vh; overflow-y: auto; overflow-x: hidden;
-      scrollbar-width: thin; scrollbar-color: rgba(127,230,163,0.4) transparent; }
+      scrollbar-width: thin; scrollbar-color: rgba(218,227,224,0.4) transparent; }
     .actrow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center;
       padding: 7px 4px; border-top: 1px solid var(--panel-border); }
     .actrow:first-child { border-top: 0; }
@@ -340,7 +340,7 @@
     .overlay p { color: var(--ink); font-size: 14px; line-height: 1.5; margin: 8px 0; }
     .overlay p.dim { color: var(--ink-dim); }
     .overlay p.small { font-size: 12px; }
-    .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(127,230,163,0.16);
+    .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(218,227,224,0.16);
       border-color: var(--accent); }
 
     /* mobile-ish */
@@ -383,8 +383,8 @@
       background: none; border: none; box-shadow: none; backdrop-filter: none; }
     .handbar.open { padding: 8px 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
-      border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
-      box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
+      border: 1.5px solid rgba(218,227,224,0.45); border-radius: 14px;
+      box-shadow: 0 0 14px -3px rgba(218,227,224,0.45), inset 0 0 0 1px rgba(218,227,224,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
     /* A collapsed tray keeps a thin transparent padding band on phones; make it
        pass taps through to the map. Keep the aiming chip (its ✕) interactive.
@@ -402,9 +402,9 @@
       background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0 6px; }
     .handtoggle .htchev { color: var(--ink-dim); font-size: 10px; }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
-      padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
-      border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
-      box-shadow: 0 0 10px -3px rgba(130,230,166,0.5); }
+      padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(218,227,224,0.12);
+      border: 1px solid rgba(218,227,224,0.55); color: var(--ink);
+      box-shadow: 0 0 10px -3px rgba(218,227,224,0.5); }
     .handsel.hidden { display: none; }
     .handsel .hslabel { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.13em; color: var(--accent); flex: 0 0 auto; }
     .handsel .hsname { font-family: var(--serif); font-size: 14px; font-weight: 600; white-space: nowrap;
@@ -417,8 +417,8 @@
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
       padding: 3px 9px; border-radius: 999px; background: rgba(40,54,48,0.9); color: var(--ink-dim);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; }
-    .fchip:hover { color: var(--ink); border-color: rgba(130,230,166,0.4); }
-    .fchip.on { background: rgba(127,230,163,0.18); color: var(--accent); border-color: rgba(130,230,166,0.6); }
+    .fchip:hover { color: var(--ink); border-color: rgba(218,227,224,0.4); }
+    .fchip.on { background: rgba(218,227,224,0.18); color: var(--accent); border-color: rgba(218,227,224,0.6); }
     .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
@@ -439,7 +439,7 @@
     .handnav[hidden] { display: none; }
     /* text-only preview of what a draw-engine (+5) card shuffles into the deck */
     .handpreview { width: 100%; max-width: 520px; text-align: center; padding: 8px 12px; border-radius: 10px;
-      background: rgba(10,16,13,0.6); border: 1px solid rgba(130,230,166,0.3); }
+      background: rgba(10,16,13,0.6); border: 1px solid rgba(218,227,224,0.3); }
     .handpreview.hidden { display: none; }
     .handpreview .hplabel { font-size: 12px; color: var(--accent); }
     .handpreview .hplabel b { color: #eafff2; }
@@ -447,7 +447,7 @@
     .handpreview .hpname { color: #eafff2; }
     /* stack count badge (×N) */
     .stackn { position: absolute; top: 6px; right: 6px; z-index: 6; font-weight: 700; font-size: 11px; color: #eafff2;
-      background: rgba(6,12,9,0.82); border: 1px solid rgba(130,230,166,0.5); border-radius: 10px; padding: 1px 6px;
+      background: rgba(6,12,9,0.82); border: 1px solid rgba(218,227,224,0.5); border-radius: 10px; padding: 1px 6px;
       box-shadow: 0 0 6px rgba(0,0,0,0.6); }
     /* Portrait CCG card face: framed art window + name plate + full-text rules box.
        Card size is a FIXED 5:7 aspect (below); the rules font/box are tuned so every
@@ -495,7 +495,7 @@
       background: linear-gradient(180deg, rgba(10,16,13,0.5), rgba(6,10,8,0.68));
       font-size: 10px; line-height: 1.3; color: #d3e2da; }
     .cc { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 5px; }
-    .cc.e { color: var(--accent); background: rgba(127,230,163,0.14); }
+    .cc.e { color: var(--accent); background: rgba(218,227,224,0.14); }
     .cc.w { color: #7fd0e0; background: rgba(70,184,204,0.15); }
     .cc.n { color: #93cf52; background: rgba(147,207,82,0.15); }
     .cc.p { color: #c79be6; background: rgba(179,128,224,0.15); }
@@ -520,8 +520,8 @@
     /* Draft morph: glowing 3-card glyph flying up from the pile, each frame
        growing into a draft-card slot with its face revealing inside. */
     .draftmorph { position: fixed; z-index: 60; box-sizing: border-box; overflow: hidden;
-      border: 1.8px solid rgba(182,255,207,0.96); background: rgba(9,15,12,0.86);
-      box-shadow: 0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26);
+      border: 1.8px solid rgba(232,240,236,0.96); background: rgba(9,15,12,0.86);
+      box-shadow: 0 0 18px rgba(218,227,224,0.8), inset 0 0 14px rgba(218,227,224,0.26);
       pointer-events: none; }
     .draftmorph .dmclone { width: 100% !important; height: 100% !important; margin: 0 !important;
       border: none !important; box-shadow: none !important; background: transparent !important;
@@ -536,18 +536,18 @@
     .offercard { width: 172px; align-self: flex-start; }   /* same size as a hand card (.cardbtn) */
     /* a static (non-interactive) card face inside the confirm/preview overlay */
     .offercard.static { cursor: default; }
-    .offercard.static:hover { transform: none; border-color: rgba(130,230,166,0.5);
-      box-shadow: 0 0 9px -2px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.16), 0 8px 18px -9px rgba(0,0,0,0.75); }
+    .offercard.static:hover { transform: none; border-color: rgba(218,227,224,0.5);
+      box-shadow: 0 0 9px -2px rgba(218,227,224,0.45), inset 0 0 0 1px rgba(218,227,224,0.16), 0 8px 18px -9px rgba(0,0,0,0.75); }
     /* Confirm/preview overlay (play a card / draft a card) */
     /* Draft selection + confirm */
-    .offercard.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(130,230,166,0.9), 0 0 16px rgba(130,230,166,0.6); }
+    .offercard.selected { border-color: #eafff2; box-shadow: 0 0 0 2px rgba(218,227,224,0.9), 0 0 16px rgba(218,227,224,0.6); }
     .offercard.selected:hover { transform: translateY(-3px); }
     .offerpreview { margin: 14px auto 0; }
     .offerfooter { display: flex; justify-content: center; margin-top: 16px; }
     .offerfooter .btn.big { font-size: 14px; padding: 11px 24px; font-weight: 600; color: #06110a;
-      background: linear-gradient(180deg, #9bf0b8, #57cf8c); border-color: rgba(155,240,184,0.9);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 18px -5px rgba(127,230,163,0.7); }
-    .offerfooter .btn.big:hover:not(:disabled) { background: linear-gradient(180deg, #b6ffd0, #6ee0a0); }
+      background: linear-gradient(180deg, #eef4f0, #c4d2cc); border-color: rgba(230,236,233,0.9);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 18px -5px rgba(218,227,224,0.7); }
+    .offerfooter .btn.big:hover:not(:disabled) { background: linear-gradient(180deg, #f6faf8, #d2ddd7); }
     .offerfooter .btn.big:disabled { opacity: 1; color: var(--ink-dim);
       background: rgba(40,54,48,0.85); border-color: var(--panel-border); box-shadow: none; }
     /* Tempo-upgrade picker (choose which installed ability to speed up) */
@@ -558,7 +558,7 @@
     .pickrow { display: flex; align-items: center; justify-content: space-between; gap: 12px;
       padding: 11px 14px; border-radius: 11px; cursor: pointer; color: var(--ink);
       background: rgba(20,30,25,0.7); border: 1px solid var(--panel-border); transition: border-color .12s, background .12s, transform .06s; }
-    .pickrow:hover { border-color: rgba(170,255,205,0.85); background: rgba(28,44,36,0.85); }
+    .pickrow:hover { border-color: rgba(242,247,245,0.85); background: rgba(28,44,36,0.85); }
     .pickrow:active { transform: translateY(1px); }
     .picknm { font-weight: 600; font-size: 14px; }
     .pickwait { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -570,7 +570,7 @@
     .confirmbtns { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
     .confirmbtns .btn { font-size: 14px; padding: 11px 20px; }
     .confirmbtns .btn.big { background: var(--accent); color: #06110a; border-color: var(--accent); font-weight: 600; }
-    .confirmbtns .btn.big:hover:not(:disabled) { background: #9bf0b8; }
+    .confirmbtns .btn.big:hover:not(:disabled) { background: #eef4f0; }
     .confirmbtns .confirmno { background: rgba(255,255,255,0.06); }
     /* PHONE PORTRAIT (and narrow windows): compact controls + a swipeable card carousel. */
     @media (max-width: 760px) {
@@ -661,8 +661,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "bti2zw";
-globalThis.__BUILD__ = "local 07-13 15:28";
+window.__ASSET_VER = "1q408b3";
+globalThis.__BUILD__ = "local 07-13 15:48";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8146,9 +8146,9 @@ class UI {
         { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
       ], opts);
       frame.animate([
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
-        { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
+        { boxShadow: '0 0 18px rgba(218,227,224,0.8), inset 0 0 14px rgba(218,227,224,0.26)', borderColor: 'rgba(232,240,236,0.98)', offset: 0 },
+        { boxShadow: '0 0 18px rgba(218,227,224,0.8), inset 0 0 14px rgba(218,227,224,0.26)', borderColor: 'rgba(232,240,236,0.98)', offset: 0.42 },
+        { boxShadow: '0 0 10px rgba(218,227,224,0.3), inset 0 0 6px rgba(218,227,224,0.08)', borderColor: 'rgba(218,227,224,0.55)', offset: 1 },
       ], opts);
       clone.animate([
         { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },

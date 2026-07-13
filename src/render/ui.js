@@ -964,9 +964,9 @@ export class UI {
         { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
       ], opts);
       frame.animate([
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
-        { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
+        { boxShadow: '0 0 18px rgba(218,227,224,0.8), inset 0 0 14px rgba(218,227,224,0.26)', borderColor: 'rgba(232,240,236,0.98)', offset: 0 },
+        { boxShadow: '0 0 18px rgba(218,227,224,0.8), inset 0 0 14px rgba(218,227,224,0.26)', borderColor: 'rgba(232,240,236,0.98)', offset: 0.42 },
+        { boxShadow: '0 0 10px rgba(218,227,224,0.3), inset 0 0 6px rgba(218,227,224,0.08)', borderColor: 'rgba(218,227,224,0.55)', offset: 1 },
       ], opts);
       clone.animate([
         { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },
