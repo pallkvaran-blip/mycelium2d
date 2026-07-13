@@ -469,14 +469,13 @@ const abilityUpgrade = (scope, n) => ({
     const list = scope === 'action' ? state.cards.actions : state.cards.engines;
     const t = list[ctx.ability];
     if (!t) return { ok: false, message: 'That ability is no longer installed.' };
-    // "Max 1 per card": a given tempo card can speed up any one ability only once
-    // (different tempo cards still stack on the same ability).
-    const by = (t.boostedBy || (t.boostedBy = {}));
-    if (by[c.name]) return { ok: false, message: `${t.name} was already sped up by ${c.name} — max 1 per card.` };
+    // "Max 1 speed up per card": each installed ability can be sped up by exactly
+    // ONE tempo card, of any kind, ever.
+    if (t.tempoUsed) return { ok: false, message: `${t.name} has already been sped up — max 1 speed up per card.` };
     if (!(t.every > 1)) return { ok: false, message: `${t.name} is already at its minimum wait.` };
     const before = t.every;
     t.every = Math.max(1, t.every - n);
-    by[c.name] = true;
+    t.tempoUsed = true;
     return { ok: true, message: `${t.name}: wait ${before} → ${t.every} round${t.every > 1 ? 's' : ''}.` };
   },
 });

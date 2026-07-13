@@ -655,7 +655,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -671,7 +671,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -687,7 +687,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -703,7 +703,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -719,7 +719,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -735,7 +735,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
