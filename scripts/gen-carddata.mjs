@@ -9,6 +9,9 @@ const cards = JSON.parse(readFileSync(join(root, 'docs/cards.json'), 'utf8'));
 
 const slim = cards.map((c) => ({
   name: c.name, type: c.type, category: c.category,
+  // displayCategory = the label shown under the name + the in-game filter bucket
+  // (Basic/Engine/Event). PURELY cosmetic — `type` still drives all behavior.
+  displayCategory: c.displayCategory || c.type,
   buyCostEnergy: c.buyCostEnergy || 0,
   // Two-resource model: Water + Phosphorus. Any legacy Nitrogen cost folds into Phosphorus.
   costW: c.playCostWater || 0, costP: (c.playCostPhosphorus || 0) + (c.playCostNitrogen || 0),

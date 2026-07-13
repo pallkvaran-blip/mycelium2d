@@ -197,7 +197,8 @@
   "notes": "DIRECTIONAL single-rock target: clears the nearest in-range ROCK feature and threads a strand through it. Works on ANY solid rock — loose boulders, big formations and path-blocking columns all read the same to players, so they clear the same way (lakes/water excluded). Clears the whole connected feature (capped). NO weak-Grow fallback — if no rock is in range the card is UNPLAYABLE (R6: no do-nothing). Free floor basic, not resource-gated (keeps the basic floor playable when resource-dry). familyKey:basics.",
   "familyKey": "basics",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "event"
  },
  {
   "name": "Sclerotial Crust",
@@ -217,7 +218,8 @@
   "notes": "RADIUS-AROUND-A-TAP targeting; radius=40 (small member of the protect/heal radius family, copying the Amputate radius-60 primitive). Replaces the CUT Septal Plug, which was single-node (R7 — illegal on phone); same reactive-defense identity, now radius-based (R7/R9). Dead card if no threat is near the tapped pocket (NOT auto-include); valuable when a mould cloud or nematode swarm is about to chew your only route. 2-round window forces timing — play too early and immunity lapses before the threat arrives. Free floor basic, ungated. familyKey:basics.",
   "familyKey": "basics",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "event"
  },
  {
   "name": "Hyphal Imbibition",
@@ -237,7 +239,8 @@
   "notes": "Floor water source, free deck-floor basic (buyCostEnergy 0, R2). GLOBAL targeting: checks whole-network lake adjacency, no tap. Never a full dud (inv. 6/7): +2 lakeside, +1 off-lake, but lakeside double yield keeps routing the point. Below the +3 lake-action so installs stay worth it. Payload of Capillary Runners. You still paid drawCostEnergy 8 to draw it.",
   "familyKey": "water",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "event"
  },
  {
   "name": "Phosphate Tap",
@@ -247,7 +250,7 @@
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
-  "effect": "If your network contacts any mineral, crystal, or boulder, harvest +3 Phosphorus.",
+  "effect": "If your network contacts any mineral, crystal, or boulder, harvest +5 Phosphorus.",
   "timing": "any",
   "repayRounds": 0,
   "axis": "resource",
@@ -257,17 +260,18 @@
   "notes": "The basic P HARVEST card the family direction explicitly asks for (parity with the basic W harvest). Free deck-floor; the canonical +3 harvest from CONFIG.resources.harvestPhosphorus. Global contact check (R7, no node/strand targeting). Unplayable when not in contact with a P feature (R6-style: no do-nothing fallback) -> rewards routing to rock first. Rhizomorph Drill upgrades this to +5.",
   "familyKey": "phosphorus",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "event"
  },
  {
   "name": "Condense",
   "type": "basic",
   "category": "water-harvest",
-  "buyCostEnergy": 3,
+  "buyCostEnergy": 2,
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
-  "effect": "Gain 3 Water.",
+  "effect": "Gain 5 Water.",
   "timing": "any",
   "axis": "resource",
   "threat": "none",
@@ -277,13 +281,14 @@
   "notes": "Free +1 W producer basic, the Water parallel to Mineralize (free +1 P) for W/P/N basic-floor parity. One-shot, not an engine (repay 0). Critical because Water is the scarce one-lake resource; this keeps W-gated cards from being dead on low-lake routing without breaking the harvest economy (only +1, vs +3 lake tap).",
   "familyKey": "water",
   "tutorial": false,
-  "startCopies": 5
+  "startCopies": 5,
+  "displayCategory": "event"
  },
  {
   "name": "Rhizomorph Trunkline",
   "type": "engine",
   "category": "energy income",
-  "buyCostEnergy": 9,
+  "buyCostEnergy": 8,
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
@@ -397,13 +402,14 @@
   "notes": "R2 buy 14, repay 4 (uncommon band 4-5). R6: TIER-3 dig ENGINE, clears=[formation,column], whole-rock per round. UNPLAYABLE with no eligible rock in range. 2 PHOSPHORUS gate (tier-3 P-ladder). GROWTH/routing engine, no produce.energy => EXEMPT from energy ceiling. clears formation,column. targeting directional.",
   "familyKey": "growth",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Constricting Ring",
   "type": "action",
   "category": "anti-worm",
-  "buyCostEnergy": 6,
+  "buyCostEnergy": 12,
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
@@ -417,7 +423,8 @@
   "notes": "R7: RADIUS-around-a-tap (small radius 40). Free deck-floor basic (buyCostEnergy 0). +2 N matches eat-a-worm yield. ACTIVE constriction trap (distinct from adhesive-glue lineage). Dud on a clean map, strong where worms roam = placement-dependent, never auto-include. Extenders can flood worm-heavy decks with these.",
   "familyKey": "phosphorus",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Rehydration Pulse",
@@ -457,7 +464,8 @@
   "notes": "The generic W<->P<->N converter at a loss (2->1) so a card gated on a map-absent resource is never fully dead. GLOBAL on stockpiles, no targeting. Lives in the nitrogen family as its N-routing utility. Action cooldown 1, repay 0. 2->1 loss keeps hoarding weak (soft cap 6 still bites) so it's a relief valve, not an engine. Situational = not auto-include.",
   "familyKey": "phosphorus",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Rhizomorph Lance",
@@ -479,7 +487,8 @@
   "targeting": "directional",
   "familyKey": "events",
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "basic"
  },
  {
   "name": "Fruiting Vigil",
@@ -521,7 +530,8 @@
   "notes": "Draw-engine: adds NEW basics to the draw deck (extends the depletion clock), then goes to the graveyard (not recycled). One per non-starting basic — this is how every basic beyond the two starters enters your deck.",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Forager Bloom",
@@ -536,12 +546,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 1 W to fan out and grow 1 step in every direction.",
+  "effect": "Once per 6 rounds: pay 1 W to fan out, growing 1 step in every direction.",
   "flavor": "The colony commits cords toward a repeated task, pre-loading the draw deck.",
   "notes": "Draw-engine: adds NEW basics to the draw deck (extends the depletion clock), then goes to the graveyard (not recycled). One per non-starting basic — this is how every basic beyond the two starters enters your deck.",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Questing Front",
@@ -561,7 +572,8 @@
   "notes": "Draw-engine: adds NEW basics to the draw deck (extends the depletion clock), then goes to the graveyard (not recycled). One per non-starting basic — this is how every basic beyond the two starters enters your deck.",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Humus Cache",
@@ -641,7 +653,8 @@
   "notes": "Draw-engine: adds NEW basics to the draw deck (extends the depletion clock), then goes to the graveyard (not recycled). One per non-starting basic — this is how every basic beyond the two starters enters your deck.",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Capillary Runners",
@@ -687,7 +700,7 @@
   "name": "Dew Traps",
   "type": "engine",
   "category": "water-engine",
-  "buyCostEnergy": 12,
+  "buyCostEnergy": 11,
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
@@ -721,7 +734,8 @@
   "notes": "Draw-engine for a STARTING basic: lets you replenish Hyphal Extension (you begin with 5) so the core loop keeps flowing as the deck depletes. Adds NEW basics then graveyards (not recycled).",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Leaf Fall",
@@ -761,7 +775,8 @@
   "notes": "Draw-engine for a STARTING basic: replenishes Acorn Cache (you begin with 5) so the core loop keeps flowing as the deck depletes. Adds NEW basics then graveyards (not recycled). REPLACES Leaf Fall.",
   "familyKey": "installs",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Sclerotial Seal",
@@ -775,13 +790,14 @@
   "axis": "defense",
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 4 rounds: Pay 1 P to permanently seal any food pile from ant access.",
+  "effect": "Once per 10 rounds: Pay 1 P to permanently seal any food pile from ant access.",
   "flavor": "The colony crusts the cache in a hard sclerotial rind; the raiding column mills at the seal and carries nothing home.",
   "notes": "REPLACES Fungus-Garden Mat (removed: ants only steal from FOOD PILES, so 'turning back ants touching the network' did nothing). Protects the thing ants actually attack — locks a chosen pile for 3 rounds so the column steals 0 leaves from it. ACTION type, so per the directive it costs P (ATP) to activate: playCostPhosphorus 1 each use. CADENCE FIX (adversarial): cooldown raised from 2 to 3 so protection window (3) and cooldown (3) match and coverage cannot fully overlap — it mitigates single-pile ant maps rather than permanently sealing one pile for a trivial 1 P; forces rotation/tradeoff when multiple piles are threatened. Buy 10 (below the old 16 engine — the P gate + cadence is the second cost per BUY-COST REBALANCE). Produces no resource -> energy-ceiling exempt, produces \"\". RADIUS-free single-pile tap (R7-safe: target a pile, not 'N nearest strands'). Situational: dead on ant-free maps and needs a threatened pile worth sealing, so never auto-include; strong on ant-heavy food-economy maps. Distinct from Picket Hyphae (flat pile-theft reduction) and Aphid Ranch (ant->energy).",
   "familyKey": "defense",
   "playCostEnergy": 0,
   "tutorial": false,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Suberin Wall",
@@ -795,7 +811,7 @@
   "axis": "defense",
   "threat": "mould",
   "produces": "",
-  "effect": "Once per 6 rounds: Pay 3 P to tap a point to clear all infection and protect from reinfection for 2 rounds.",
+  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and permanently protect from reinfection.",
   "flavor": "Corky suberin laid down through every cell wall seals the whole colony against Trichoderma's enzymes at once.",
   "notes": "Radius cure-on-tap (round-5 fix: it must not pick specific strands). Tap a point; cures mould infection within radius 80 and blocks reinfection there 2 rounds. ACTION -> costs 1 P per use (P gates repeatable actions). Distinct from Sclerotial Crust (basic pre-emptive protect) and Rehydration Pulse (heals worm/mould DAMAGE, not infection).",
   "familyKey": "defense",
@@ -803,7 +819,8 @@
   "tutorial": false,
   "startCopies": 0,
   "radius": 80,
-  "targeting": "radius"
+  "targeting": "radius",
+  "displayCategory": "engine"
  },
  {
   "name": "Quickened Reflex",
@@ -818,12 +835,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 per card.",
   "flavor": "Signals race the cords; the colony reacts before the world settles.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Impulse Relay",
@@ -838,12 +856,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 per card.",
   "flavor": "Each hypha relays the impulse onward, halving the pause between strikes.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Hair-Trigger Hyphae",
@@ -858,12 +877,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 per card.",
   "flavor": "The mat is primed to fire at the faintest cue — barely a breath between uses.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Brisk Metabolism",
@@ -878,12 +898,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 per card.",
   "flavor": "Enzymes turn over a little faster; the harvest comes round quicker.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Enzyme Overclock",
@@ -898,12 +919,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 per card.",
   "flavor": "Catalysis driven hard — the producers cycle well ahead of schedule.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Metabolic Surge",
@@ -918,12 +940,13 @@
   "axis": "utility",
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 per card.",
   "flavor": "The whole colony runs hot, dumping resource on a breakneck clock.",
   "notes": "Tempo upgrade — permanently shortens the every-N-rounds wait on installed abilities (min 1); applies to abilities already installed and any installed later.",
   "familyKey": "tempo",
   "tutorial": true,
-  "startCopies": 0
+  "startCopies": 0,
+  "displayCategory": "engine"
  },
  {
   "name": "Turgor Spark",
@@ -1009,7 +1032,7 @@
   "name": "Cord Capillary",
   "type": "engine",
   "category": "energy income",
-  "buyCostEnergy": 5,
+  "buyCostEnergy": 6,
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
@@ -1052,7 +1075,7 @@
   "buyCostEnergy": 0,
   "playCostEnergy": 0,
   "playCostWater": 0,
-  "playCostPhosphorus": 0,
+  "playCostPhosphorus": 2,
   "effect": "Tap a point: remove all mycelium within a radius — cut off infection.",
   "timing": "any",
   "repayRounds": 0,
@@ -1063,7 +1086,8 @@
   "notes": "Basic targeted anti-Trichoderma tool: removes every node within cards.amputateRadius. Refuses to wipe the whole colony. Seeded in the draw deck (basic).",
   "familyKey": "defense",
   "startCopies": 4,
-  "tutorial": false
+  "tutorial": false,
+  "displayCategory": "event"
  },
  {
   "name": "Severing Cords",
@@ -1072,8 +1096,8 @@
   "buyCostEnergy": 8,
   "playCostEnergy": 0,
   "playCostWater": 0,
-  "playCostPhosphorus": 0,
-  "effect": "Once per 5 rounds: tap to remove all mycelium within a radius.",
+  "playCostPhosphorus": 2,
+  "effect": "Once per 8 rounds: Pay 2P to tap to remove all mycelium within a radius.",
   "timing": "any",
   "repayRounds": 0,
   "axis": "defense",
@@ -1083,7 +1107,8 @@
   "notes": "Installed ACTION version of Amputate (every 5 rounds, free per use, targeted).",
   "familyKey": "defense",
   "startCopies": 0,
-  "tutorial": true
+  "tutorial": true,
+  "displayCategory": "engine"
  },
  {
   "name": "Sclerotial Rind",
@@ -1103,6 +1128,7 @@
   "notes": "Installed ACTION version of Sclerotial Crust: cure + permanent mouldProof + hardened (eat-proof) in radius 60. Per-use 1 P (spec cost).",
   "familyKey": "defense",
   "startCopies": 0,
-  "tutorial": true
+  "tutorial": true,
+  "displayCategory": "engine"
  }
 ]

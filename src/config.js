@@ -119,7 +119,7 @@ export const CONFIG = {
     // resource harvest amounts (used by harvest-card effects)
     harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
     harvestWaterSoil: 3,         // …off a lake
-    harvestPhosphorus: 3,        // Phosphate Tap on mineral/boulder contact
+    harvestPhosphorus: 5,        // Phosphate Tap on mineral/boulder contact
     // substrate patch sizes (nutrient) placed at the sensing-range edge
     substrateSmall: 40,
     substrateMedium: 70,

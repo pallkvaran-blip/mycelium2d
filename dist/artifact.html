@@ -650,8 +650,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "l0qvwm";
-globalThis.__BUILD__ = "local 07-13 13:46";
+window.__ASSET_VER = "lmvmhl";
+globalThis.__BUILD__ = "local 07-13 14:57";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -776,7 +776,7 @@ const CONFIG = {
     // resource harvest amounts (used by harvest-card effects)
     harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
     harvestWaterSoil: 3,         // …off a lake
-    harvestPhosphorus: 3,        // Phosphate Tap on mineral/boulder contact
+    harvestPhosphorus: 5,        // Phosphate Tap on mineral/boulder contact
     // substrate patch sizes (nutrient) placed at the sensing-range edge
     substrateSmall: 40,
     substrateMedium: 70,
@@ -1054,6 +1054,7 @@ const CARD_DATA = [
   "name": "Hyphal Extension",
   "type": "basic",
   "category": "growth",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1070,6 +1071,7 @@ const CARD_DATA = [
   "name": "Leaf Litter Cache",
   "type": "basic",
   "category": "substrate",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1086,6 +1088,7 @@ const CARD_DATA = [
   "name": "Acorn Cache",
   "type": "basic",
   "category": "substrate",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1102,6 +1105,7 @@ const CARD_DATA = [
   "name": "Apical Drive",
   "type": "basic",
   "category": "growth",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1118,6 +1122,7 @@ const CARD_DATA = [
   "name": "Foraging Fan",
   "type": "basic",
   "category": "growth",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1134,6 +1139,7 @@ const CARD_DATA = [
   "name": "Tropic Lunge",
   "type": "basic",
   "category": "growth",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 2,
   "costP": 0,
@@ -1150,6 +1156,7 @@ const CARD_DATA = [
   "name": "Humus Bed",
   "type": "basic",
   "category": "substrate",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 1,
   "costP": 0,
@@ -1166,6 +1173,7 @@ const CARD_DATA = [
   "name": "Mycorrhizal Mat",
   "type": "basic",
   "category": "substrate",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 2,
   "costP": 0,
@@ -1182,6 +1190,7 @@ const CARD_DATA = [
   "name": "Saprotrophic Digest",
   "type": "basic",
   "category": "economy",
+  "displayCategory": "basic",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 1,
@@ -1198,6 +1207,7 @@ const CARD_DATA = [
   "name": "Appressorial Punch",
   "type": "basic",
   "category": "utility",
+  "displayCategory": "event",
   "buyCostEnergy": 1,
   "costW": 1,
   "costP": 1,
@@ -1214,6 +1224,7 @@ const CARD_DATA = [
   "name": "Sclerotial Crust",
   "type": "basic",
   "category": "defense",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 2,
@@ -1230,6 +1241,7 @@ const CARD_DATA = [
   "name": "Hyphal Imbibition",
   "type": "basic",
   "category": "water-harvest",
+  "displayCategory": "event",
   "buyCostEnergy": 3,
   "costW": 0,
   "costP": 0,
@@ -1246,6 +1258,7 @@ const CARD_DATA = [
   "name": "Phosphate Tap",
   "type": "basic",
   "category": "phosphorus-mining",
+  "displayCategory": "event",
   "buyCostEnergy": 3,
   "costW": 0,
   "costP": 0,
@@ -1253,7 +1266,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "+3 Phosphorus on harvest",
-  "effect": "If your network contacts any mineral, crystal, or boulder, harvest +3 Phosphorus.",
+  "effect": "If your network contacts any mineral, crystal, or boulder, harvest +5 Phosphorus.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -1262,14 +1275,15 @@ const CARD_DATA = [
   "name": "Condense",
   "type": "basic",
   "category": "water-harvest",
-  "buyCostEnergy": 3,
+  "displayCategory": "event",
+  "buyCostEnergy": 2,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "+3 Water",
-  "effect": "Gain 3 Water.",
+  "effect": "Gain 5 Water.",
   "family": "water",
   "tutorial": false,
   "startCopies": 5
@@ -1278,7 +1292,8 @@ const CARD_DATA = [
   "name": "Rhizomorph Trunkline",
   "type": "engine",
   "category": "energy income",
-  "buyCostEnergy": 9,
+  "displayCategory": "engine",
+  "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
   "timing": "mid",
@@ -1294,6 +1309,7 @@ const CARD_DATA = [
   "name": "Osmotic Cashout",
   "type": "event",
   "category": "energy burst",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 4,
@@ -1310,6 +1326,7 @@ const CARD_DATA = [
   "name": "Aquaporin Channels",
   "type": "engine",
   "category": "water-engine",
+  "displayCategory": "engine",
   "buyCostEnergy": 10,
   "costW": 0,
   "costP": 0,
@@ -1326,6 +1343,7 @@ const CARD_DATA = [
   "name": "Phosphatase Cushion",
   "type": "engine",
   "category": "phosphorus-producer",
+  "displayCategory": "engine",
   "buyCostEnergy": 12,
   "costW": 0,
   "costP": 0,
@@ -1342,6 +1360,7 @@ const CARD_DATA = [
   "name": "Mineralizing Saprobe",
   "type": "engine",
   "category": "decay / unconditional P production",
+  "displayCategory": "engine",
   "buyCostEnergy": 14,
   "costW": 0,
   "costP": 0,
@@ -1358,6 +1377,7 @@ const CARD_DATA = [
   "name": "Tap-Root Rhizomorph",
   "type": "action",
   "category": "routing",
+  "displayCategory": "engine",
   "buyCostEnergy": 12,
   "costW": 0,
   "costP": 2,
@@ -1374,7 +1394,8 @@ const CARD_DATA = [
   "name": "Constricting Ring",
   "type": "action",
   "category": "anti-worm",
-  "buyCostEnergy": 6,
+  "displayCategory": "engine",
+  "buyCostEnergy": 12,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1390,6 +1411,7 @@ const CARD_DATA = [
   "name": "Rehydration Pulse",
   "type": "event",
   "category": "water-repair",
+  "displayCategory": "event",
   "buyCostEnergy": 7,
   "costW": 3,
   "costP": 0,
@@ -1406,6 +1428,7 @@ const CARD_DATA = [
   "name": "Nutrient Transmutation",
   "type": "action",
   "category": "resource converter",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
@@ -1422,6 +1445,7 @@ const CARD_DATA = [
   "name": "Rhizomorph Lance",
   "type": "event",
   "category": "mobility",
+  "displayCategory": "basic",
   "buyCostEnergy": 1,
   "costW": 2,
   "costP": 0,
@@ -1438,6 +1462,7 @@ const CARD_DATA = [
   "name": "Fruiting Vigil",
   "type": "event",
   "category": "finisher",
+  "displayCategory": "event",
   "buyCostEnergy": 2,
   "costW": 1,
   "costP": 2,
@@ -1454,6 +1479,7 @@ const CARD_DATA = [
   "name": "Leading Cord",
   "type": "action",
   "category": "growth",
+  "displayCategory": "engine",
   "buyCostEnergy": 6,
   "costW": 1,
   "costP": 0,
@@ -1470,6 +1496,7 @@ const CARD_DATA = [
   "name": "Forager Bloom",
   "type": "action",
   "category": "growth",
+  "displayCategory": "engine",
   "buyCostEnergy": 5,
   "costW": 1,
   "costP": 0,
@@ -1477,7 +1504,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 1 W to fan out and grow 1 step in every direction.",
+  "effect": "Once per 6 rounds: pay 1 W to fan out, growing 1 step in every direction.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1486,6 +1513,7 @@ const CARD_DATA = [
   "name": "Questing Front",
   "type": "action",
   "category": "growth",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 2,
   "costP": 0,
@@ -1502,6 +1530,7 @@ const CARD_DATA = [
   "name": "Humus Cache",
   "type": "extender",
   "category": "draw-engine",
+  "displayCategory": "extender",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
@@ -1518,6 +1547,7 @@ const CARD_DATA = [
   "name": "Symbiont Weave",
   "type": "extender",
   "category": "draw-engine",
+  "displayCategory": "extender",
   "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
@@ -1534,6 +1564,7 @@ const CARD_DATA = [
   "name": "Enzyme Priming",
   "type": "extender",
   "category": "draw-engine",
+  "displayCategory": "extender",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
@@ -1550,6 +1581,7 @@ const CARD_DATA = [
   "name": "Crust Reserve",
   "type": "action",
   "category": "anti-mould",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 2,
@@ -1566,6 +1598,7 @@ const CARD_DATA = [
   "name": "Capillary Runners",
   "type": "engine",
   "category": "water-engine",
+  "displayCategory": "engine",
   "buyCostEnergy": 9,
   "costW": 0,
   "costP": 0,
@@ -1582,6 +1615,7 @@ const CARD_DATA = [
   "name": "Prospecting Cords",
   "type": "engine",
   "category": "phosphorus-producer",
+  "displayCategory": "engine",
   "buyCostEnergy": 6,
   "costW": 0,
   "costP": 0,
@@ -1598,7 +1632,8 @@ const CARD_DATA = [
   "name": "Dew Traps",
   "type": "engine",
   "category": "water-engine",
-  "buyCostEnergy": 12,
+  "displayCategory": "engine",
+  "buyCostEnergy": 11,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1614,6 +1649,7 @@ const CARD_DATA = [
   "name": "Colonizing Front",
   "type": "action",
   "category": "growth",
+  "displayCategory": "engine",
   "buyCostEnergy": 5,
   "costW": 1,
   "costP": 0,
@@ -1630,6 +1666,7 @@ const CARD_DATA = [
   "name": "Leaf Fall",
   "type": "extender",
   "category": "draw-engine",
+  "displayCategory": "extender",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 0,
@@ -1646,6 +1683,7 @@ const CARD_DATA = [
   "name": "Acorn Fall",
   "type": "action",
   "category": "substrate",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 1,
   "costP": 0,
@@ -1662,6 +1700,7 @@ const CARD_DATA = [
   "name": "Sclerotial Seal",
   "type": "action",
   "category": "anti-ant",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 0,
   "costP": 1,
@@ -1669,7 +1708,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 4 rounds: Pay 1 P to permanently seal any food pile from ant access.",
+  "effect": "Once per 10 rounds: Pay 1 P to permanently seal any food pile from ant access.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1678,6 +1717,7 @@ const CARD_DATA = [
   "name": "Suberin Wall",
   "type": "action",
   "category": "anti-mould",
+  "displayCategory": "engine",
   "buyCostEnergy": 10,
   "costW": 0,
   "costP": 3,
@@ -1685,7 +1725,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Once per 6 rounds: Pay 3 P to tap a point to clear all infection and protect from reinfection for 2 rounds.",
+  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and permanently protect from reinfection.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1694,6 +1734,7 @@ const CARD_DATA = [
   "name": "Quickened Reflex",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 10,
   "costW": 2,
   "costP": 2,
@@ -1701,7 +1742,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 1 round faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1710,6 +1751,7 @@ const CARD_DATA = [
   "name": "Impulse Relay",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 18,
   "costW": 4,
   "costP": 4,
@@ -1717,7 +1759,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 2 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1726,6 +1768,7 @@ const CARD_DATA = [
   "name": "Hair-Trigger Hyphae",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 28,
   "costW": 6,
   "costP": 6,
@@ -1733,7 +1776,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed \"use\" card: it becomes ready 3 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1742,6 +1785,7 @@ const CARD_DATA = [
   "name": "Brisk Metabolism",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 10,
   "costW": 2,
   "costP": 2,
@@ -1749,7 +1793,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 1 round faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1758,6 +1802,7 @@ const CARD_DATA = [
   "name": "Enzyme Overclock",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 18,
   "costW": 4,
   "costP": 4,
@@ -1765,7 +1810,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 2 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1774,6 +1819,7 @@ const CARD_DATA = [
   "name": "Metabolic Surge",
   "type": "event",
   "category": "tempo",
+  "displayCategory": "engine",
   "buyCostEnergy": 28,
   "costW": 6,
   "costP": 6,
@@ -1781,7 +1827,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
+  "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 per card.",
   "family": "tempo",
   "tutorial": true,
   "startCopies": 0
@@ -1790,6 +1836,7 @@ const CARD_DATA = [
   "name": "Turgor Spark",
   "type": "event",
   "category": "energy burst",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 2,
@@ -1806,6 +1853,7 @@ const CARD_DATA = [
   "name": "Vacuolar Burst",
   "type": "event",
   "category": "energy burst",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 5,
@@ -1822,6 +1870,7 @@ const CARD_DATA = [
   "name": "Glycogen Crush",
   "type": "event",
   "category": "energy burst",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 8,
@@ -1838,6 +1887,7 @@ const CARD_DATA = [
   "name": "Cytoplasmic Cascade",
   "type": "event",
   "category": "energy burst",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
   "costP": 12,
@@ -1854,7 +1904,8 @@ const CARD_DATA = [
   "name": "Cord Capillary",
   "type": "engine",
   "category": "energy income",
-  "buyCostEnergy": 5,
+  "displayCategory": "engine",
+  "buyCostEnergy": 6,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1870,6 +1921,7 @@ const CARD_DATA = [
   "name": "Rhizomorph Dynamo",
   "type": "engine",
   "category": "energy income",
+  "displayCategory": "engine",
   "buyCostEnergy": 15,
   "costW": 0,
   "costP": 0,
@@ -1886,9 +1938,10 @@ const CARD_DATA = [
   "name": "Amputate",
   "type": "basic",
   "category": "defense",
+  "displayCategory": "event",
   "buyCostEnergy": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 2,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1902,14 +1955,15 @@ const CARD_DATA = [
   "name": "Severing Cords",
   "type": "action",
   "category": "defense",
+  "displayCategory": "engine",
   "buyCostEnergy": 8,
   "costW": 0,
-  "costP": 0,
+  "costP": 2,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 5 rounds: tap to remove all mycelium within a radius.",
+  "effect": "Once per 8 rounds: Pay 2P to tap to remove all mycelium within a radius.",
   "family": "defense",
   "tutorial": true,
   "startCopies": 0
@@ -1918,6 +1972,7 @@ const CARD_DATA = [
   "name": "Sclerotial Rind",
   "type": "action",
   "category": "defense",
+  "displayCategory": "engine",
   "buyCostEnergy": 10,
   "costW": 0,
   "costP": 1,
@@ -4859,7 +4914,7 @@ const EFFECTS = {
   // --- harvest ---
   'Condense': grow((s) => {
     const cc = s.config.cards, before = s.active.water;
-    s.active.water = gain(s.active.water, 3, cc.softCapWater);
+    s.active.water = gain(s.active.water, 5, cc.softCapWater);
     const got = s.active.water - before;
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
@@ -4921,12 +4976,12 @@ const EFFECTS = {
   // --- installed ACTIONS (→ Actions menu, right) ---
   // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Suberin Wall': action({ effect: 'clear mould + permanent ward', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
     // Ward a hair wider than the cure (cure tests node position, the ward tests cell
     // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 2; });
-    return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent reinfection ward
+    return { ok: true, message: h ? `Cured ${h} strands; permanently warded.` : 'Permanently warded the area against mould.' };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
@@ -4942,7 +4997,7 @@ const EFFECTS = {
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
   // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
     s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
@@ -5032,7 +5087,7 @@ EFFECTS['Rhizomorph Dynamo'] = engine({ energy: 3 }, 'Installed: +3⚡/round.');
 // --- amputate (anti-Trichoderma): remove mycelium in a radius ----------------
 // One-shot basic (tap to cut) + an installed ACTION version on a cooldown.
 EFFECTS['Amputate'] = targeted((s, c, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
-EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 5, target: true },
+EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 8, cost: 2, res: 'phosphorus', target: true },
   (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
 
 // --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
@@ -8423,15 +8478,19 @@ function cardArt(name) {
 //    (extenders) -> Draw; everything else (one-shot plays) -> Action.
 //  • EFFECT tags (what the card AFFECTS) from its category/family — cross-cutting,
 //    zero or more per card (Grow, Substrate, Water, Mineral, Energy, Defense).
-const GROUP_LABELS = { engine: 'Engine', action: 'Action', draw: 'Draw', grow: 'Grow',
+const GROUP_LABELS = { basic: 'Basic', engine: 'Engine', event: 'Event', draw: 'Draw', grow: 'Grow',
   substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
-const GROUP_ORDER = ['engine', 'action', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+const GROUP_ORDER = ['basic', 'engine', 'event', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
 function cardGroups(c) {
-  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
+  // Verb bucket comes from the DISPLAY category (Basic/Engine/Event) — cosmetic,
+  // set per card; `type` still drives behavior. Effect tags below are unchanged.
+  const dc = c.displayCategory || c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
   const keys = new Set();
-  if (t === 'engine' || t === 'action') keys.add('engine');       // you install it
-  else if (t === 'extender') keys.add('draw');                    // a deck / draw engine
-  else keys.add('action');                                        // a one-shot play
+  if (dc === 'basic') keys.add('basic');
+  else if (dc === 'engine') keys.add('engine');
+  else if (dc === 'event') keys.add('event');
+  else if (dc === 'extender') keys.add('draw');                   // archived draw-engines
+  else keys.add('event');                                         // fallback (one-shot play)
   if (/growth|mobility|routing|utility|finisher/.test(cat)) keys.add('grow');   // grows / digs / fruits the network
   if (cat.includes('substrate')) keys.add('substrate');
   if (fam === 'water' || cat.includes('water')) keys.add('water');
@@ -8457,7 +8516,7 @@ function cardFaceHTML(name, c, count) {
   return cardArt(name)
     + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
     + `<span class="pips">${gateChips(c) || '<span class="cc free">free</span>'}</span>`
-    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.type || '')}</span></span>`
+    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.displayCategory || c.type || '')}</span></span>`
     + `<span class="crules">${escapeHtml(c.effect || '')}</span>`;
 }
 function vitalityColor(v) {

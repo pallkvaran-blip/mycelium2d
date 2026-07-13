@@ -1307,15 +1307,19 @@ function cardArt(name) {
 //    (extenders) -> Draw; everything else (one-shot plays) -> Action.
 //  • EFFECT tags (what the card AFFECTS) from its category/family — cross-cutting,
 //    zero or more per card (Grow, Substrate, Water, Mineral, Energy, Defense).
-const GROUP_LABELS = { engine: 'Engine', action: 'Action', draw: 'Draw', grow: 'Grow',
+const GROUP_LABELS = { basic: 'Basic', engine: 'Engine', event: 'Event', draw: 'Draw', grow: 'Grow',
   substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
-const GROUP_ORDER = ['engine', 'action', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+const GROUP_ORDER = ['basic', 'engine', 'event', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
 function cardGroups(c) {
-  const t = c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
+  // Verb bucket comes from the DISPLAY category (Basic/Engine/Event) — cosmetic,
+  // set per card; `type` still drives behavior. Effect tags below are unchanged.
+  const dc = c.displayCategory || c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
   const keys = new Set();
-  if (t === 'engine' || t === 'action') keys.add('engine');       // you install it
-  else if (t === 'extender') keys.add('draw');                    // a deck / draw engine
-  else keys.add('action');                                        // a one-shot play
+  if (dc === 'basic') keys.add('basic');
+  else if (dc === 'engine') keys.add('engine');
+  else if (dc === 'event') keys.add('event');
+  else if (dc === 'extender') keys.add('draw');                   // archived draw-engines
+  else keys.add('event');                                         // fallback (one-shot play)
   if (/growth|mobility|routing|utility|finisher/.test(cat)) keys.add('grow');   // grows / digs / fruits the network
   if (cat.includes('substrate')) keys.add('substrate');
   if (fam === 'water' || cat.includes('water')) keys.add('water');
@@ -1341,7 +1345,7 @@ function cardFaceHTML(name, c, count) {
   return cardArt(name)
     + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
     + `<span class="pips">${gateChips(c) || '<span class="cc free">free</span>'}</span>`
-    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.type || '')}</span></span>`
+    + `<span class="cplate"><span class="cn">${escapeHtml(name)}</span><span class="ct">${escapeHtml(c.displayCategory || c.type || '')}</span></span>`
     + `<span class="crules">${escapeHtml(c.effect || '')}</span>`;
 }
 function vitalityColor(v) {

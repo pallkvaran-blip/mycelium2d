@@ -40,7 +40,7 @@ console.log('# Card economy + effects');
   net.energy = 100;
   const ti = ensureHand(s, 'Rhizomorph Trunkline'); playCard(s, ti);
   ok(s.cards.engines.some((e) => e.name === 'Rhizomorph Trunkline'), 'Rhizomorph Trunkline installed as an engine');
-  ok(net.energy === 100 - 9, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 9)`);
+  ok(net.energy === 100 - 8, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 8)`);
   net.energy = 100; produceCardEngines(s);
   ok(net.energy === 102, `energy engine produces +2/tick (got ${net.energy})`);
 
@@ -68,9 +68,9 @@ console.log('# Card economy + effects');
   const lp = playCard(s, li, { x: fp.x + 200, y: fp.y });
   ok(lp.ok && s.substrate.totalNutrient() > nut0 && net.water === 2, 'Leaf Litter Cache deposits substrate and spends 1 Water');
 
-  // harvest: Condense +3 water
+  // harvest: Condense +5 water
   net.water = 1; const ci = ensureHand(s, 'Condense'); playCard(s, ci);
-  ok(net.water === 4, `Condense +3 Water (got ${net.water})`);
+  ok(net.water === 6, `Condense +5 Water (got ${net.water})`);
 
   // energy burst: Osmotic Cashout now costs 4 Phosphorus (0⚡ buy), yields +22⚡
   net.energy = 50; net.phosphorus = 9; const oi = ensureHand(s, 'Osmotic Cashout'); playCard(s, oi);

@@ -584,7 +584,7 @@ export const EFFECTS = {
   // --- harvest ---
   'Condense': grow((s) => {
     const cc = s.config.cards, before = s.active.water;
-    s.active.water = gain(s.active.water, 3, cc.softCapWater);
+    s.active.water = gain(s.active.water, 5, cc.softCapWater);
     const got = s.active.water - before;
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
@@ -646,12 +646,12 @@ export const EFFECTS = {
   // --- installed ACTIONS (→ Actions menu, right) ---
   // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
   // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + protect 2 rounds', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Suberin Wall': action({ effect: 'clear mould + permanent ward', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const h = cureRadius(s, ctx, 80);
     // Ward a hair wider than the cure (cure tests node position, the ward tests cell
     // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 2; });
-    return { ok: true, message: h ? `Cured ${h} strands; warded for 2 rounds.` : 'Warded the area against mould for 2 rounds.' };
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent reinfection ward
+    return { ok: true, message: h ? `Cured ${h} strands; permanently warded.` : 'Permanently warded the area against mould.' };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
@@ -667,7 +667,7 @@ export const EFFECTS = {
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
   // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 4, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
     s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
@@ -757,7 +757,7 @@ EFFECTS['Rhizomorph Dynamo'] = engine({ energy: 3 }, 'Installed: +3⚡/round.');
 // --- amputate (anti-Trichoderma): remove mycelium in a radius ----------------
 // One-shot basic (tap to cut) + an installed ACTION version on a cooldown.
 EFFECTS['Amputate'] = targeted((s, c, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
-EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 5, target: true },
+EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 8, cost: 2, res: 'phosphorus', target: true },
   (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
 
 // --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
