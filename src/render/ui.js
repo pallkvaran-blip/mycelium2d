@@ -548,7 +548,7 @@ export class UI {
       document.body.appendChild(el);
       this._cardPop = el;
     }
-    this._cardPop.innerHTML = `<div class="cardbtn cardpop-card">${cardFaceHTML(name, c, 0)}</div>`;
+    this._cardPop.innerHTML = `<div class="cardbtn ${catClass(c)} cardpop-card">${cardFaceHTML(name, c, 0)}</div>`;
     this._cardPop.classList.add('show');
   }
   _hideCardPopup() { if (this._cardPop) this._cardPop.classList.remove('show'); }
@@ -748,7 +748,7 @@ export class UI {
         && !s.runOver && net.alive;
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
-      const cls = 'cardbtn' + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');
+      const cls = 'cardbtn ' + catClass(c) + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');
       const b = button(cls, cardFaceHTML(g.name, c, g.count));
       b.setAttribute('data-name', g.name);
       b.title = c.effect;
@@ -812,7 +812,7 @@ export class UI {
       const cards = off.choices.map((name) => {
         const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
         const sel = name === this.armedOffer ? ' selected' : '';
-        return `<button class="offercard${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+        return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
       }).join('');
       el.innerHTML = `<div class="offerbox">`
         + `<h2>Choose one</h2>`
@@ -1341,6 +1341,12 @@ function gateChips(c) {
   return g.join('');
 }
 // One portrait card face: framed art window + cost pips + name plate + FULL rules.
+// Category tint class for a card face (Basic = green, Engine = red, Event = orange).
+// Keys off the cosmetic displayCategory; colours are defined in index.html.
+function catClass(c) {
+  const dc = (c && (c.displayCategory || c.type)) || '';
+  return dc === 'engine' ? 'cat-engine' : dc === 'event' ? 'cat-event' : 'cat-basic';
+}
 function cardFaceHTML(name, c, count) {
   return cardArt(name)
     + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
