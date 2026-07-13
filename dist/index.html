@@ -656,8 +656,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "pr40vv";
-globalThis.__BUILD__ = "local 07-13 10:23";
+window.__ASSET_VER = "1a73pwh";
+globalThis.__BUILD__ = "local 07-13 11:07";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -792,6 +792,7 @@ const CONFIG = {
     directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
+    amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -1788,6 +1789,150 @@ const CARD_DATA = [
   "produces": "",
   "effect": "Permanently speed up one installed resource generation card: it becomes ready 3 rounds faster. Max 1 speed up per card.",
   "family": "tempo",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Turgor Spark",
+  "type": "event",
+  "category": "energy burst",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 2,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+13 energy",
+  "effect": "Gain +13 energy.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Vacuolar Burst",
+  "type": "event",
+  "category": "energy burst",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 5,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+33 energy",
+  "effect": "Gain +33 energy.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Glycogen Crush",
+  "type": "event",
+  "category": "energy burst",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 8,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+54 energy",
+  "effect": "Gain +54 energy.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Cytoplasmic Cascade",
+  "type": "event",
+  "category": "energy burst",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 12,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+82 energy",
+  "effect": "Gain +82 energy.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Cord Capillary",
+  "type": "engine",
+  "category": "energy income",
+  "buyCostEnergy": 5,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+1 energy/round",
+  "effect": "Gain +1 energy every round.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Rhizomorph Dynamo",
+  "type": "engine",
+  "category": "energy income",
+  "buyCostEnergy": 15,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "+3 energy/round",
+  "effect": "Gain +3 energy every round.",
+  "family": "energy",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Amputate",
+  "type": "basic",
+  "category": "defense",
+  "buyCostEnergy": 0,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Tap a point: remove all mycelium within a radius — cut off infection.",
+  "family": "defense",
+  "tutorial": false,
+  "startCopies": 4
+ },
+ {
+  "name": "Severing Cords",
+  "type": "action",
+  "category": "defense",
+  "buyCostEnergy": 8,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Once per 5 rounds: tap to remove all mycelium within a radius.",
+  "family": "defense",
+  "tutorial": true,
+  "startCopies": 0
+ },
+ {
+  "name": "Sclerotial Rind",
+  "type": "action",
+  "category": "defense",
+  "buyCostEnergy": 10,
+  "costW": 0,
+  "costP": 1,
+  "timing": "any",
+  "repay": 0,
+  "threat": "none",
+  "produces": "",
+  "effect": "Once per 6 rounds: Pay 1 P to harden strands in a radius — permanently immune to infection and eating.",
+  "family": "defense",
   "tutorial": true,
   "startCopies": 0
  }
@@ -4577,6 +4722,18 @@ function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
   return state.active.digThrough(state.substrate, fp.x, fp.y, classes);
 }
+// Remove every node of the active network within radius `r` of the tap. Refuses
+// to wipe the whole colony (aim tighter). The key anti-Trichoderma tool: cut off
+// an infected region before it spreads. _removeNodes recomputes vitality.
+function amputateAt(state, ctx, r) {
+  const net = state.active;
+  const doomed = new Set();
+  for (const n of net.nodes) if ((n.x - ctx.x) ** 2 + (n.y - ctx.y) ** 2 <= r * r) doomed.add(n.id);
+  if (!doomed.size) return { ok: false, message: 'No mycelium there to amputate.' };
+  if (doomed.size >= net.nodes.length) return { ok: false, message: 'That would remove the whole colony — aim tighter.' };
+  net._removeNodes(doomed);
+  return { ok: true, message: `Amputated ${doomed.size} strand${doomed.size > 1 ? 's' : ''}.` };
+}
 function cureRadius(state, ctx, r) {
   let healed = 0;
   for (const n of state.active.nodes) {
@@ -4865,6 +5022,33 @@ EFFECTS['Hair-Trigger Hyphae'] = abilityUpgrade('action', 3);
 EFFECTS['Brisk Metabolism'] = abilityUpgrade('engine', 1);
 EFFECTS['Enzyme Overclock'] = abilityUpgrade('engine', 2);
 EFFECTS['Metabolic Surge'] = abilityUpgrade('engine', 3);
+
+// --- energy bursts (one-shot: pay Phosphorus → gain a lump of Energy) --------
+// Sizes scale a touch better per-P as they get bigger. P cost is charged from
+// data (playCostPhosphorus), like Osmotic Cashout.
+EFFECTS['Turgor Spark'] = grow((s) => { s.active.energy += 13; return { ok: true, message: '+13⚡.' }; });
+EFFECTS['Vacuolar Burst'] = grow((s) => { s.active.energy += 33; return { ok: true, message: '+33⚡.' }; });
+EFFECTS['Glycogen Crush'] = grow((s) => { s.active.energy += 54; return { ok: true, message: '+54⚡.' }; });
+EFFECTS['Cytoplasmic Cascade'] = grow((s) => { s.active.energy += 82; return { ok: true, message: '+82⚡.' }; });
+
+// --- energy engines (installed: +N⚡/round; total energy income clamped by cc) -
+EFFECTS['Cord Capillary'] = engine({ energy: 1 }, 'Installed: +1⚡/round.');
+EFFECTS['Rhizomorph Dynamo'] = engine({ energy: 3 }, 'Installed: +3⚡/round.');
+
+// --- amputate (anti-Trichoderma): remove mycelium in a radius ----------------
+// One-shot basic (tap to cut) + an installed ACTION version on a cooldown.
+EFFECTS['Amputate'] = targeted((s, c, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
+EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 5, target: true },
+  (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
+
+// --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
+// Every 6 rounds, pay 1 P to harden strands in a radius — permanent immunity to
+// BOTH infection (mouldProof) and eating (hardened), same as the one-shot Crust.
+EFFECTS['Sclerotial Rind'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  const h = cureRadius(s, ctx, 60);
+  s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+});
 
   return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
 })();

@@ -129,6 +129,7 @@ export const CONFIG = {
     directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
+    amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------

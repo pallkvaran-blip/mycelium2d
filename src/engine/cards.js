@@ -441,6 +441,18 @@ function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
   return state.active.digThrough(state.substrate, fp.x, fp.y, classes);
 }
+// Remove every node of the active network within radius `r` of the tap. Refuses
+// to wipe the whole colony (aim tighter). The key anti-Trichoderma tool: cut off
+// an infected region before it spreads. _removeNodes recomputes vitality.
+function amputateAt(state, ctx, r) {
+  const net = state.active;
+  const doomed = new Set();
+  for (const n of net.nodes) if ((n.x - ctx.x) ** 2 + (n.y - ctx.y) ** 2 <= r * r) doomed.add(n.id);
+  if (!doomed.size) return { ok: false, message: 'No mycelium there to amputate.' };
+  if (doomed.size >= net.nodes.length) return { ok: false, message: 'That would remove the whole colony — aim tighter.' };
+  net._removeNodes(doomed);
+  return { ok: true, message: `Amputated ${doomed.size} strand${doomed.size > 1 ? 's' : ''}.` };
+}
 function cureRadius(state, ctx, r) {
   let healed = 0;
   for (const n of state.active.nodes) {
@@ -729,3 +741,30 @@ EFFECTS['Hair-Trigger Hyphae'] = abilityUpgrade('action', 3);
 EFFECTS['Brisk Metabolism'] = abilityUpgrade('engine', 1);
 EFFECTS['Enzyme Overclock'] = abilityUpgrade('engine', 2);
 EFFECTS['Metabolic Surge'] = abilityUpgrade('engine', 3);
+
+// --- energy bursts (one-shot: pay Phosphorus → gain a lump of Energy) --------
+// Sizes scale a touch better per-P as they get bigger. P cost is charged from
+// data (playCostPhosphorus), like Osmotic Cashout.
+EFFECTS['Turgor Spark'] = grow((s) => { s.active.energy += 13; return { ok: true, message: '+13⚡.' }; });
+EFFECTS['Vacuolar Burst'] = grow((s) => { s.active.energy += 33; return { ok: true, message: '+33⚡.' }; });
+EFFECTS['Glycogen Crush'] = grow((s) => { s.active.energy += 54; return { ok: true, message: '+54⚡.' }; });
+EFFECTS['Cytoplasmic Cascade'] = grow((s) => { s.active.energy += 82; return { ok: true, message: '+82⚡.' }; });
+
+// --- energy engines (installed: +N⚡/round; total energy income clamped by cc) -
+EFFECTS['Cord Capillary'] = engine({ energy: 1 }, 'Installed: +1⚡/round.');
+EFFECTS['Rhizomorph Dynamo'] = engine({ energy: 3 }, 'Installed: +3⚡/round.');
+
+// --- amputate (anti-Trichoderma): remove mycelium in a radius ----------------
+// One-shot basic (tap to cut) + an installed ACTION version on a cooldown.
+EFFECTS['Amputate'] = targeted((s, c, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
+EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', every: 5, target: true },
+  (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
+
+// --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
+// Every 6 rounds, pay 1 P to harden strands in a radius — permanent immunity to
+// BOTH infection (mouldProof) and eating (hardened), same as the one-shot Crust.
+EFFECTS['Sclerotial Rind'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  const h = cureRadius(s, ctx, 60);
+  s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+});

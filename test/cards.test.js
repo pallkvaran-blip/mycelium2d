@@ -5,7 +5,9 @@ import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
 import { tickWorld } from '../src/engine/turn.js';
 import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason, chooseOffer } from '../src/engine/cards.js';
-import { CARD_BY_NAME } from '../src/cards-data.js';
+import { CARD_BY_NAME, CARD_DATA } from '../src/cards-data.js';
+const ARCHIVED_TEST = new Set(['Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat', 'Leaf Fall', 'Humus Cache', 'Symbiont Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
+const BUILT_DECK = CARD_DATA.filter((c) => !ARCHIVED_TEST.has(c.name)).reduce((n, c) => n + (c.startCopies || 0), 0);
 
 let passed = 0, failed = 0;
 const ok = (c, m) => { if (c) { passed++; console.log('  ok  -', m); } else { failed++; console.error('  FAIL-', m); } };
@@ -26,7 +28,7 @@ console.log('# Card economy + effects');
   const net = s.active, cc = s.config.cards;
 
   ok(s.cards.hand.length === cc.drawCount, `hand starts with a free opening draw of ${cc.drawCount} (got ${s.cards.hand.length})`);
-  ok(s.cards.drawDeck.length === 15 - cc.drawCount, `starting draw deck = ${15 - cc.drawCount} (15 built minus the ${cc.drawCount}-card opening hand), got ${s.cards.drawDeck.length}`);
+  ok(s.cards.drawDeck.length === BUILT_DECK - cc.drawCount, `starting draw deck = ${BUILT_DECK - cc.drawCount} (${BUILT_DECK} built minus the ${cc.drawCount}-card opening hand), got ${s.cards.drawDeck.length}`);
   ok(net.water === cc.startWater && net.phosphorus === cc.startPhosphorus, 'starting W/P buffers set');
 
   // draw: −energy, +drawCount to hand, −drawCount from deck (check before the world tick)
