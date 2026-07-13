@@ -60,7 +60,7 @@ function faceHTML(c, uri) {
     + `<span class="cart">${img}</span>`
     + `<span class="pips" data-face-pips>${pips(c)}</span>`
     + (c.archived ? `<span class="archbadge">archived</span>` : '')
-    + `<span class="cplate"><span class="cn">${esc(c.name)}</span><span class="ct">${esc(c.type)}</span></span>`
+    + `<span class="cplate"><span class="cn">${esc(c.name)}</span><span class="ct" data-face-type>${esc(c.type)}</span></span>`
     + `<span class="crules" data-face-rules></span>`
     + `</div>`;
 }
@@ -91,7 +91,7 @@ const cardCss = `
 
 const uiCss = `
 :root{ --bg:#0a1210; --bg2:#060d0b; --panel:#101c17; --panel2:#0c1713; --line:rgba(126,240,192,.16);
-  --tink:#e6f4ec; --tink-dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --up:#57cf8c; --down:#ff7a7a; --edit:#ffd479; }
+  --tink:#e6f4ec; --tink-dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --up:#57cf8c; --down:#ff7a7a; --edit:#ffd479; --cat:#c79be6; }
 *{box-sizing:border-box}
 .wrap{max-width:1280px;margin:0 auto;padding:24px 18px 132px;color:var(--tink);
   font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
@@ -133,6 +133,12 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 .ci input{width:40px;font:inherit;font-size:13px;font-weight:800;text-align:center;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:6px;color:var(--tink);padding:2px 0}
 .ci input:focus{outline:none;border-color:var(--mint)}
 .ci input::-webkit-outer-spin-button,.ci input::-webkit-inner-spin-button{opacity:.5}
+.cats{display:flex;gap:6px}
+.catbtn{flex:1;font:inherit;font-weight:700;font-size:11.5px;letter-spacing:.02em;border:1px solid var(--line);background:var(--panel2);color:var(--tink);border-radius:9px;padding:6px 0;cursor:pointer;transition:.12s}
+.catbtn:hover{border-color:rgba(126,240,192,.5)}
+.catbtn.on{background:rgba(199,155,230,.22);border-color:var(--cat);color:#f0e6ff}
+.recat-tag{color:var(--cat);font-weight:700;display:none}
+.rv.recat .recat-tag{display:inline}
 .lbl{font-size:10.5px;color:var(--tink-dim);margin:2px 0 -4px;display:flex;justify-content:space-between}
 .edited-tag{color:var(--edit);font-weight:700;display:none}
 .rv.edited .edited-tag{display:inline}
@@ -144,7 +150,7 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 .note:focus{outline:none;border-color:var(--mint)}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 18px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;backdrop-filter:blur(6px);box-shadow:0 -10px 30px -20px rgba(0,0,0,.8);z-index:40}
 .barwrap{max-width:1280px;margin:0 auto;width:100%;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-.metric{font-size:13px;color:var(--tink-dim)} .metric b{color:var(--tink)} .metric .u{color:var(--up)} .metric .d{color:var(--down)} .metric .e{color:var(--edit)}
+.metric{font-size:13px;color:var(--tink-dim)} .metric b{color:var(--tink)} .metric .u{color:var(--up)} .metric .d{color:var(--down)} .metric .e{color:var(--edit)} .metric .c{color:var(--cat)}
 .btn{font:inherit;font-weight:700;font-size:13px;border:none;border-radius:10px;padding:10px 16px;cursor:pointer;color:#04140d;background:linear-gradient(180deg,#9bf0b8,#57cf8c)}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--tink)}
 .modal{position:fixed;inset:0;background:rgba(3,7,5,.72);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
@@ -164,6 +170,12 @@ for (const c of cards) {
     + `<div class="stage">${faceHTML(c, uri)}</div>`
     + `<div class="rvctl">`
     +   `<div class="votes"><button class="vbtn up" data-v="up" title="Thumb up">👍</button><button class="vbtn down" data-v="down" title="Thumb down">👎</button></div>`
+    +   `<div class="lbl"><span>Category <span class="recat-tag">· changed</span></span></div>`
+    +   `<div class="cats">`
+    +     `<button class="catbtn" data-cat="basic">Basic</button>`
+    +     `<button class="catbtn" data-cat="engine">Engine</button>`
+    +     `<button class="catbtn" data-cat="event">Event</button>`
+    +   `</div>`
     +   `<div class="lbl"><span>Costs — install ⚡ · play 💧 ✦</span></div>`
     +   `<div class="costs">`
     +     `<label class="ci e" title="Energy (install / play)">⚡<input type="number" min="0" step="1" inputmode="numeric" data-r="e"></label>`
@@ -184,13 +196,13 @@ const body = `<style>${uiCss}${cardCss}</style>
 <div class="wrap">
   <p class="eyebrow">Mycelium · full deck review</p>
   <h1>Review the whole deck</h1>
-  <p class="lede">Every card on its real face. Retune costs in the ⚡/💧/✦ boxes and rewrite the description right in its box — both are prefilled with the current values and the card face updates live. 👍/👎 and note anything you want. When you're done, Export &amp; copy and paste it back to me; I'll apply the new costs, rewrites and votes. Your work is saved in this browser. <b>Note:</b> ⚡ is the install/play cost; for abilities, 💧/✦ are the per-use costs (shown in the Actions menu, not on the face).</p>
+  <p class="lede">Every card on its real face. Re-categorize with the Basic/Engine/Event buttons, retune costs in the ⚡/💧/✦ boxes, and rewrite the description right in its box — all prefilled with the current values, and the card face updates live. 👍/👎 and note anything you want. When you're done, Export &amp; copy and paste it back to me; I'll apply the new categories, costs, rewrites and votes. Your work is saved in this browser. <b>Note:</b> ⚡ is the install/play cost; for abilities, 💧/✦ are the per-use costs (shown in the Actions menu, not on the face).</p>
   <div class="filterbar"><button class="fToggle" id="btnFilters" aria-expanded="true">Filters <span id="filtCur">· All</span> <span class="chev">▾</span></button></div>
   <div class="filters" id="filters"></div>
   <div class="grid" id="grid">${cells}</div>
 </div>
 <div class="bar"><div class="barwrap">
-  <span class="metric"><b id="mRev">0</b>/<b id="mTot">0</b> reviewed · <span class="u">👍 <b id="mUp">0</b></span> · <span class="d">👎 <b id="mDown">0</b></span> · <span class="e">✏️ <b id="mEd">0</b></span> · <span class="e">🔧 <b id="mCost">0</b></span></span>
+  <span class="metric"><b id="mRev">0</b>/<b id="mTot">0</b> reviewed · <span class="u">👍 <b id="mUp">0</b></span> · <span class="d">👎 <b id="mDown">0</b></span> · <span class="e">✏️ <b id="mEd">0</b></span> · <span class="e">🔧 <b id="mCost">0</b></span> · <span class="c">🔀 <b id="mReCat">0</b></span></span>
   <span style="flex:1"></span>
   <button class="btn ghost" id="btnReset">Reset</button>
   <button class="btn" id="btnExport">Export &amp; copy</button>
@@ -216,7 +228,9 @@ const body = `<style>${uiCss}${cardCss}</style>
   function curCost(slug,r){ var c=store[slug]&&store[slug].costs; if(c&&c[r]!=null&&c[r]!=='') return Math.max(0,+c[r]||0); return BY[slug][r]; }
   function costChanged(slug){ return RES.some(function(r){ return curCost(slug,r)!==BY[slug][r]; }); }
   function costDelta(slug){ var out=[]; RES.forEach(function(r){ var o=BY[slug][r],n=curCost(slug,r); if(o!==n) out.push(RES_ICON[r]+' '+o+'→'+n); }); return out.join(', '); }
-  function changed(slug){ return isEdited(slug)||costChanged(slug); }
+  function curCat(slug){ var r=store[slug]; return (r&&r.cat)?r.cat:BY[slug].type; }
+  function catChanged(slug){ return curCat(slug)!==BY[slug].type; }
+  function changed(slug){ return isEdited(slug)||costChanged(slug)||catChanged(slug); }
   function pipsHTML(slug){ var c=BY[slug],g=[],e=curCost(slug,'e'),w=curCost(slug,'w'),p=curCost(slug,'p');
     if(e) g.push('<span class="cc e">'+e+'⚡</span>');
     if(c.type!=='action'){ if(w) g.push('<span class="cc w">'+w+'💧</span>'); if(p) g.push('<span class="cc p">'+p+'✦</span>'); }
@@ -241,6 +255,15 @@ const body = `<style>${uiCss}${cardCss}</style>
         facePips.innerHTML=pipsHTML(slug); rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter();
       });
     });
+    // category re-assignment (Basic / Engine / Event) — live-updates the face type
+    var faceType=rv.querySelector('[data-face-type]');
+    function paintCats(){ var cur=curCat(slug); rv.querySelectorAll('.catbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.cat===cur); }); if(faceType) faceType.textContent=cur; rv.classList.toggle('recat',catChanged(slug)); }
+    rv.querySelectorAll('.catbtn').forEach(function(b){ b.addEventListener('click',function(){
+      r.cat = (r.cat===b.dataset.cat && b.dataset.cat===BY[slug].type) ? null : b.dataset.cat;   // click current-original again = clear
+      if(r.cat===BY[slug].type) delete r.cat;
+      paintCats(); rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter();
+    }); });
+    paintCats();
     up.addEventListener('click',function(){ r.vote=r.vote==='up'?null:'up'; up.classList.toggle('on',r.vote==='up'); down.classList.remove('on'); persist(); metrics(); applyFilter(); });
     down.addEventListener('click',function(){ r.vote=r.vote==='down'?null:'down'; down.classList.toggle('on',r.vote==='down'); up.classList.remove('on'); persist(); metrics(); applyFilter(); });
     desc.addEventListener('input',function(){ r.desc=desc.value; face.textContent=desc.value; rv.classList.toggle('edited',changed(slug)); persist(); metrics(); applyFilter(); });
@@ -248,12 +271,13 @@ const body = `<style>${uiCss}${cardCss}</style>
   });
 
   function metrics(){
-    var up=0,down=0,ed=0,cost=0,rev=0;
-    DATA.forEach(function(c){ var r=store[c.slug]||{}; var e=isEdited(c.slug), cc=costChanged(c.slug);
-      if(r.vote==='up')up++; if(r.vote==='down')down++; if(e)ed++; if(cc)cost++;
-      if(r.vote||e||cc||(r.note&&r.note.trim()))rev++; });
+    var up=0,down=0,ed=0,cost=0,recat=0,rev=0;
+    DATA.forEach(function(c){ var r=store[c.slug]||{}; var e=isEdited(c.slug), cc=costChanged(c.slug), rc=catChanged(c.slug);
+      if(r.vote==='up')up++; if(r.vote==='down')down++; if(e)ed++; if(cc)cost++; if(rc)recat++;
+      if(r.vote||e||cc||rc||(r.note&&r.note.trim()))rev++; });
     document.getElementById('mUp').textContent=up; document.getElementById('mDown').textContent=down;
     document.getElementById('mEd').textContent=ed; document.getElementById('mCost').textContent=cost;
+    document.getElementById('mReCat').textContent=recat;
     document.getElementById('mRev').textContent=rev;
     document.getElementById('mTot').textContent=DATA.length;
     buildFilters();
@@ -263,19 +287,19 @@ const body = `<style>${uiCss}${cardCss}</style>
   var TAGLBL={engine:'Engine',action:'Action',draw:'Draw',grow:'Grow',substrate:'Substrate',water:'Water',mineral:'Mineral',energy:'Energy',defense:'Defense'};
   var TAGORD=['engine','action','draw','grow','substrate','water','mineral','energy','defense'];
   function counts(){
-    var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,cost:0,todo:0};
+    var c={all:DATA.length,live:0,archived:0,up:0,down:0,edited:0,cost:0,recat:0,todo:0};
     var tg={};
-    DATA.forEach(function(d){ var r=store[d.slug]||{}; var e=isEdited(d.slug), cc=costChanged(d.slug);
+    DATA.forEach(function(d){ var r=store[d.slug]||{}; var e=isEdited(d.slug), cc=costChanged(d.slug), rc=catChanged(d.slug);
       if(d.archived)c.archived++; else c.live++;
-      if(r.vote==='up')c.up++; if(r.vote==='down')c.down++; if(e)c.edited++; if(cc)c.cost++;
-      if(!r.vote&&!e&&!cc&&!(r.note&&r.note.trim()))c.todo++;
+      if(r.vote==='up')c.up++; if(r.vote==='down')c.down++; if(e)c.edited++; if(cc)c.cost++; if(rc)c.recat++;
+      if(!r.vote&&!e&&!cc&&!rc&&!(r.note&&r.note.trim()))c.todo++;
       (d.tags||[]).forEach(function(t){ tg[t]=(tg[t]||0)+1; }); });
     return {c:c,tg:tg};
   }
   function filterDefs(){
     var k=counts();
     var base=[['all','All',k.c.all],['live','Live',k.c.live],['archived','Archived',k.c.archived],
-      ['todo','Untouched',k.c.todo],['cost','🔧 Cost changed',k.c.cost],['edited','✏️ Text edited',k.c.edited],['up','👍 Liked',k.c.up],['down','👎 Disliked',k.c.down]];
+      ['todo','Untouched',k.c.todo],['recat','🔀 Recategorized',k.c.recat],['cost','🔧 Cost changed',k.c.cost],['edited','✏️ Text edited',k.c.edited],['up','👍 Liked',k.c.up],['down','👎 Disliked',k.c.down]];
     TAGORD.forEach(function(t){ if(k.tg[t]) base.push([t,TAGLBL[t],k.tg[t]]); });
     return base;
   }
@@ -297,7 +321,7 @@ const body = `<style>${uiCss}${cardCss}</style>
     switch(filter){
       case 'all': return true; case 'live': return !arch; case 'archived': return arch;
       case 'todo': return !r.vote && !changed(slug) && !(r.note&&r.note.trim());
-      case 'cost': return costChanged(slug); case 'edited': return isEdited(slug);
+      case 'cost': return costChanged(slug); case 'edited': return isEdited(slug); case 'recat': return catChanged(slug);
       case 'up': return r.vote==='up'; case 'down': return r.vote==='down';
       default: return (' '+(rv.dataset.tags||'')+' ').indexOf(' '+filter+' ')>=0;   // in-game effect tag
     }
@@ -307,7 +331,11 @@ const body = `<style>${uiCss}${cardCss}</style>
   function exportText(){
     var L=['# Mycelium — Full deck review',''];
     var k=counts();
-    L.push(k.c.up+' 👍 · '+k.c.down+' 👎 · '+k.c.cost+' 🔧 re-costed · '+k.c.edited+' ✏️ text edits (of '+DATA.length+' cards)'); L.push('');
+    L.push(k.c.up+' 👍 · '+k.c.down+' 👎 · '+k.c.recat+' 🔀 recategorized · '+k.c.cost+' 🔧 re-costed · '+k.c.edited+' ✏️ text edits (of '+DATA.length+' cards)'); L.push('');
+    var recat=DATA.filter(function(d){ return catChanged(d.slug); });
+    if(recat.length){ L.push('## 🔀 Recategorized ('+recat.length+')'); L.push('');
+      recat.forEach(function(d){ var r=store[d.slug]||{}; var note=(r.note&&r.note.trim())?(' — '+norm(r.note)):'';
+        L.push('- '+d.name+(d.archived?' [archived]':'')+': '+d.type+' → '+curCat(d.slug)+note); }); L.push(''); }
     var recost=DATA.filter(function(d){ return costChanged(d.slug); });
     if(recost.length){ L.push('## 🔧 Cost changes ('+recost.length+')'); L.push('');
       recost.forEach(function(d){ var r=store[d.slug]||{}; var v=r.vote==='up'?' 👍':r.vote==='down'?' 👎':'';
@@ -342,7 +370,9 @@ const body = `<style>${uiCss}${cardCss}</style>
         rv.classList.remove('edited'); rv.querySelector('.vbtn.up').classList.remove('on'); rv.querySelector('.vbtn.down').classList.remove('on');
         var d=rv.querySelector('.desc'); d.value=BY[slug].effect; rv.querySelector('[data-face-rules]').textContent=BY[slug].effect; rv.querySelector('.note').value='';
         rv.querySelectorAll('.ci input').forEach(function(inp){ inp.value=BY[slug][inp.dataset.r]; inp.parentNode.classList.remove('changed'); });
-        rv.querySelector('[data-face-pips]').innerHTML=pipsHTML(slug); });
+        rv.querySelector('[data-face-pips]').innerHTML=pipsHTML(slug);
+        rv.classList.remove('recat'); rv.querySelectorAll('.catbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.cat===BY[slug].type); });
+        var ft=rv.querySelector('[data-face-type]'); if(ft) ft.textContent=BY[slug].type; });
       metrics(); applyFilter(); } });
 
   document.getElementById('btnFilters').addEventListener('click',function(){
