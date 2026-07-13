@@ -12,6 +12,7 @@ const SLUGS = process.env.NEWPICK_SLUGS ? process.env.NEWPICK_SLUGS.split(',')
   : ['turgor-spark', 'vacuolar-burst', 'glycogen-crush', 'cytoplasmic-cascade',
      'cord-capillary', 'rhizomorph-dynamo', 'amputate', 'severing-cords', 'sclerotial-rind'];
 const SET = process.env.PICK_SET || '';   // '' -> <slug>-<n>.jpg ; 'c' -> <slug>-c<n>.jpg
+const NOPT = +(process.env.NEWPICK_OPTS || 3);   // options per card
 const cards = JSON.parse(readFileSync(join(ROOT, 'docs', 'cards.json'), 'utf8'));
 const slugOf = (n) => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const bySlug = {}; cards.forEach((c) => { bySlug[slugOf(c.name)] = c; });
@@ -48,7 +49,7 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800}
 .card{margin-top:24px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px 15px 17px;box-shadow:0 14px 40px -24px rgba(0,0,0,.7)}
 .chead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 3px 13px}
 .cn2{font-size:17px;font-weight:800}.ceff{color:var(--ink-dim);font-size:12.5px;flex:1 1 220px;min-width:180px}
-.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
 @media(max-width:620px){.opts{grid-template-columns:1fr}}
 .opt{position:relative;cursor:pointer;border:2px solid transparent;border-radius:12px;padding:6px;background:var(--panel2);transition:.12s}
 .opt:hover{transform:translateY(-2px);border-color:rgba(126,240,192,.5)}
@@ -75,7 +76,7 @@ let sections = ''; const missing = [];
 for (const slug of SLUGS) {
   const c = bySlug[slug]; if (!c) continue;
   let opts = '';
-  for (let n = 1; n <= 3; n++) {
+  for (let n = 1; n <= NOPT; n++) {
     const u = uri(slug, n); if (!u) missing.push(`${slug}-${n}`);
     opts += `<div class="opt" data-slug="${slug}" data-opt="${n}"><div class="check">✓</div>${face(c, u)}<div class="olbl">option ${n}</div></div>`;
   }
