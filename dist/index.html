@@ -656,8 +656,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "144hdho";
-globalThis.__BUILD__ = "local 07-13 09:47";
+window.__ASSET_VER = "436p02";
+globalThis.__BUILD__ = "local 07-13 09:50";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3311,7 +3311,8 @@ function stepNematodes(state) {
         if (w.feedCd <= 0) {
           const bite = claimed.has(seen.id) ? nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed) : seen;
           if (bite && Math.hypot(bite.x - w.x, bite.y - w.y) <= n.reach * cs) {
-            claimed.add(bite.id); w.feedCd = n.eatEveryTicks;
+            const bcell = sub.cellAtWorld(bite.x, bite.y);
+            if (!(bcell && bcell.hardened)) { claimed.add(bite.id); w.feedCd = n.eatEveryTicks; }   // Sclerotial Crust: hardened strands can't be eaten
           }
         } else w.feedCd -= 1;
       } else {
@@ -3916,7 +3917,7 @@ function eatStrandsOnTrail(state) {
     const remove = new Set();
     for (const n of net.nodes) {
       const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail) remove.add(n.id);
+      if (cell && cell.antTrail && !cell.hardened) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof
     }
     if (remove.size) net._removeNodes(remove);
   }
@@ -4761,7 +4762,9 @@ const EFFECTS = {
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
   'Sclerotial Crust': targeted((s, c, ctx) => {
     const h = cureRadius(s, ctx, 60);
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent infection immunity
+    // Permanent immunity to BOTH infection (mouldProof) and eating (hardened →
+    // worms/ants skip these cells in nematodes.js / ants.js).
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
     return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
   }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),

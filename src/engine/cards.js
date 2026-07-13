@@ -626,7 +626,9 @@ export const EFFECTS = {
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
   'Sclerotial Crust': targeted((s, c, ctx) => {
     const h = cureRadius(s, ctx, 60);
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent infection immunity
+    // Permanent immunity to BOTH infection (mouldProof) and eating (hardened →
+    // worms/ants skip these cells in nematodes.js / ants.js).
+    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
     return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
   }),
   'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),

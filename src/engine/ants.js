@@ -147,7 +147,7 @@ function eatStrandsOnTrail(state) {
     const remove = new Set();
     for (const n of net.nodes) {
       const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail) remove.add(n.id);
+      if (cell && cell.antTrail && !cell.hardened) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof
     }
     if (remove.size) net._removeNodes(remove);
   }
