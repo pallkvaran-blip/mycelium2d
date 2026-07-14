@@ -688,8 +688,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1mfs3jy";
-globalThis.__BUILD__ = "local 07-14 13:59";
+window.__ASSET_VER = "hwti59";
+globalThis.__BUILD__ = "local 07-14 14:29";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4708,6 +4708,21 @@ function cardNeedsTarget(name) {
   const e = EFFECTS[name];
   return !!(e && e.target);
 }
+// True for the directional grow cards whose target is set by a PRESS-AND-DRAG
+// gesture (press = where growth starts, drag = which way it heads) rather than a
+// single tap. The UI reads this to switch the hand card into drag-aim mode.
+function cardUsesDragAim(name) {
+  const e = EFFECTS[name];
+  return !!(e && e.aim === 'drag');
+}
+// World-space reach (px) a directional drag-aim card/action grows — drives the aim
+// preview line so the player sees how far the strand will push. `ref` is a card
+// name (looks it up in EFFECTS) or an installed action object (carries reachFn).
+function dragAimReach(state, ref) {
+  const e = typeof ref === 'string' ? EFFECTS[ref] : ref;
+  const segs = (e && e.reachFn) ? e.reachFn(state) : state.config.cards.directionalSteps;
+  return segs * state.config.growth.segmentLength;
+}
 
 // --- operations (do NOT tick; the caller advances the world after) ----------
 function drawCard(state) {
@@ -4901,7 +4916,14 @@ function checkGoalReached(state) {
 // point `fp`, the source `tip` node (for growth to start from), and the direction
 // from that source to the tapped point.
 function dirFrom(state, ctx) {
-  const tip = state.active.nearestNode(ctx.x, ctx.y);
+  // Directional drag-aim plays (Apical Drive, Rhizomorph Lance, Fruiting Vigil,
+  // Leading Cord) carry a press ORIGIN in ctx.srcX/srcY: the player pressed to pick
+  // where growth starts, then dragged to pick which way it heads. The source is the
+  // living strand nearest that press point, and growth aims from there toward the
+  // drag point (ctx.x/y). Single-tap plays (no origin — e.g. substrate caches) keep
+  // the old behaviour: source = strand nearest the tap, direction toward the tap.
+  const hasOrigin = ctx.srcX != null && ctx.srcY != null;
+  const tip = state.active.nearestNode(hasOrigin ? ctx.srcX : ctx.x, hasOrigin ? ctx.srcY : ctx.y);
   const fp = tip ? { x: tip.x, y: tip.y } : (state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY });
   let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
@@ -4987,6 +5009,11 @@ function cureRadius(state, ctx, r) {
 // --- the effect registry (all 40 cards) -------------------------------------
 const grow = (fn) => ({ apply: fn });
 const targeted = (fn) => ({ target: true, apply: fn });
+// directional(): a targeted grow whose target is set by a PRESS-AND-DRAG gesture
+// (aim:'drag') instead of a single tap — the press picks where growth starts in the
+// colony, the drag picks the direction. `reachFn(state)` returns the segment count
+// it grows, for the UI aim-line preview. See dirFrom + main.js drawAimLine.
+const directional = (reachFn, fn) => ({ target: true, aim: 'drag', reachFn, apply: fn });
 const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
 // abilityUpgrade(): a one-shot card that permanently shortens ONE chosen installed
 // ability's "every N rounds" wait by `n` (min 1). `scope` picks the eligible list
@@ -5029,7 +5056,7 @@ const EFFECTS = {
     const c = s.active.grow(s.substrate, s.rng);
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
-  'Apical Drive': targeted((s, c, ctx) => {
+  'Apical Drive': directional((s) => s.config.cards.directionalSteps, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
@@ -5066,16 +5093,16 @@ const EFFECTS = {
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to punch through.' };
   }),
-  'Rhizomorph Lance': targeted((s, c, ctx) => {
+  'Rhizomorph Lance': directional((s) => s.config.cards.reachSegments, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
-  'Fruiting Vigil': targeted((s, c, ctx) => {
+  'Fruiting Vigil': directional(() => 24, (s, c, ctx) => {   // "up to 8 steps" (8 × 3 segments)
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);   // "up to 8 steps" (8 × 3 segments)
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);
     checkGoalReached(s);
     return { ok: true, message: s.won ? 'Reached the goal!' : `Grew ${n} in your chosen direction.` };
   }),
@@ -5208,7 +5235,7 @@ for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
 // player-triggered ACTIONS (right menu): ready every 6 rounds, aim + pay a per-use
 // resource. Harvest ones install as passive resource ENGINES (left ledger). All
 // cost 8⚡ to install (see docs/cards.json).
-EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true }, (s, ctx) => {
+EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.directionalSteps }, (s, ctx) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
   const { dx, dy, tip } = dirFrom(s, ctx);
   const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
@@ -5363,7 +5390,7 @@ EFFECTS['Cordyceps Bloom'] = grow((s) => eruptNearestNest(s));
 // 3b. Cordyceps Stroma — installed ACTION (engine): destroy a sensed ant nest every 10 rounds.
 EFFECTS['Cordyceps Stroma'] = action({ effect: 'destroy a sensed ant nest', every: 10 }, (s) => eruptNearestNest(s));
 
-  return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
+  return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, cardUsesDragAim, dragAimReach, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
 })();
 
 // ===================== src/engine/turn.js =====================
@@ -8814,7 +8841,7 @@ const __m_main = (function () {
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { spawnNematodeAt } = __m_engine_nematodes;
   const { tickWorld } = __m_engine_turn;
-  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo } = __m_engine_cards;
+  const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardUsesDragAim, dragAimReach, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo } = __m_engine_cards;
   const { Camera } = __m_render_camera;
   const { SubstrateRenderer } = __m_render_substrate;
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
@@ -8870,6 +8897,13 @@ const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
 let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
+// Active press-drag aim for a directional grow (Apical Drive / Rhizomorph Lance /
+// Fruiting Vigil / Leading Cord): the press picks where growth starts, the drag its
+// direction. Null when not aiming. See beginAim/updateAim/fireAim + drawAimLine.
+let aim = null;
+const AIM_MIN_PX = 12;                // drag this far (screen) to register a direction
+// Drag past this (screen) to CANCEL — the line vanishes and releasing does nothing.
+const aimCancelPx = () => Math.max(220, Math.min(window.innerWidth, window.innerHeight) * 0.55);
 
 // --- setup / restart --------------------------------------------------------
 function start(seed) {
@@ -9037,7 +9071,9 @@ const handlers = {
     if (cardNeedsTarget(entry.name)) {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
-      ui.setHint(`Tap the map to aim/target ${entry.name}.`);
+      ui.setHint(cardUsesDragAim(entry.name)
+        ? `Press on your colony and drag to aim ${entry.name} — release to grow there, or drag far to cancel.`
+        : `Tap the map to aim/target ${entry.name}.`);
       uiDirty = true;
       return true;
     }
@@ -9077,11 +9113,13 @@ const handlers = {
     uiDirty = true;
   },
   onCancelCard() {
+    aim = null;
     ui.clearPendingCard();
     ui.resetHint();
     uiDirty = true;
   },
   onCancelAction() {
+    aim = null;
     if (ui.clearPendingAction) ui.clearPendingAction();
     ui.resetHint();
     uiDirty = true;
@@ -9095,7 +9133,10 @@ const handlers = {
       ui.clearPendingCard();
       ui.setSelectedAction(null);
       ui.setPendingAction(i);
-      ui.setHint(res.message);
+      const act = state.cards.actions[i];
+      ui.setHint(act && act.aim === 'drag'
+        ? `Press on your colony and drag to aim ${act.name} — release to grow there, or drag far to cancel.`
+        : res.message);
       uiDirty = true;
       return;
     }
@@ -9126,6 +9167,7 @@ const handlers = {
 // and restore the default hint. Called whenever a new op starts so a stale aim
 // can never survive to fire on an unrelated later tap.
 function cancelAiming() {
+  aim = null;
   if (ui.clearPendingCard) ui.clearPendingCard();
   if (ui.clearPendingAction) ui.clearPendingAction();
   ui.resetHint();
@@ -9208,6 +9250,87 @@ function pointerMid() {
   return { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
 }
 
+// --- directional press-drag aiming -----------------------------------------
+// The four "choose a direction" grows (Apical Drive, Rhizomorph Lance, Fruiting
+// Vigil, Leading Cord) used to guess their start point from a single tap, which
+// often grew from the wrong strand. Now the player presses to pick the start and
+// drags to pick the direction; dragging too far cancels. beginAim/updateAim/fireAim
+// own the whole gesture, drawAimLine shows it, and the engine's dirFrom starts the
+// growth exactly at the pressed source (ctx.srcX/srcY).
+
+// The currently-armed drag target, or null. For a hand card, ref is {id,name}; for
+// an installed action, ref is its index into state.cards.actions.
+function armedDragTarget() {
+  if (ui.pendingCard && cardUsesDragAim(ui.pendingCard.name)) return { kind: 'card', ref: ui.pendingCard };
+  if (ui.pendingAction != null && state.cards) {
+    const a = state.cards.actions[ui.pendingAction];
+    if (a && a.aim === 'drag') return { kind: 'action', ref: ui.pendingAction };
+  }
+  return null;
+}
+
+// Begin an aim if a directional grow is armed (no-op otherwise). The press point
+// picks the SOURCE: growth starts from the living strand nearest it, snapped so the
+// drawn line originates exactly where growth will.
+function beginAim(e) {
+  const t = armedDragTarget();
+  if (!t) { aim = null; return; }
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const w = camera.screenToWorld(sx, sy);
+  const src = (state.active && state.active.nearestNode(w.x, w.y)) || { x: w.x, y: w.y };
+  const reachRef = t.kind === 'card' ? t.ref.name : state.cards.actions[t.ref];
+  aim = {
+    kind: t.kind, ref: t.ref,
+    origin: { x: src.x, y: src.y },   // world source, snapped to a strand
+    cur: { x: w.x, y: w.y },          // world drag point
+    startScreen: { x: sx, y: sy },
+    curScreen: { x: sx, y: sy },
+    reach: dragAimReach(state, reachRef),
+    dragged: false, cancelled: false,
+  };
+  uiDirty = true;
+}
+
+// Track the drag point: refresh the end, and flag whether it's far enough to
+// register a direction (dragged) or so far it should CANCEL (line vanishes).
+function updateAim(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  aim.curScreen = { x: sx, y: sy };
+  aim.cur = camera.screenToWorld(sx, sy);
+  const d = Math.hypot(sx - aim.startScreen.x, sy - aim.startScreen.y);
+  aim.dragged = d >= AIM_MIN_PX;
+  aim.cancelled = d >= aimCancelPx();
+  uiDirty = true;
+}
+
+// Commit a completed aim: grow from the pressed source toward the drag point.
+// ctx.srcX/srcY tell the engine to start growth exactly where the player pressed.
+function fireAim(a) {
+  const ctx = { x: a.cur.x, y: a.cur.y, srcX: a.origin.x, srcY: a.origin.y };
+  if (a.kind === 'card') {
+    const idx = state.cards.hand.findIndex((h) => h.id === a.ref.id);
+    ui.clearPendingCard();
+    if (ui.clearPendingAction) ui.clearPendingAction();
+    ui.resetHint();
+    if (idx >= 0) resolveCardOp(playCard(state, idx, ctx));
+  } else {
+    const idx = a.ref;
+    ui.clearPendingAction();
+    ui.resetHint();
+    const res = activateAction(state, idx, ctx);
+    if (res && res.ok) {
+      substrateRenderer.markDirty();
+      rendererFor(state.active).markStructureDirty();
+      if (state.runOver) ui.showOverlay(state.runResult);
+    } else if (res && res.message) {
+      ui.toast(res.message);
+    }
+    uiDirty = true;
+  }
+}
+
 function setupInput() {
   canvas.addEventListener('pointerdown', (e) => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -9216,9 +9339,11 @@ function setupInput() {
       mouse.down = true; mouse.moved = false;
       mouse.startX = e.clientX; mouse.startY = e.clientY;
       mouse.x = e.clientX; mouse.y = e.clientY;
+      beginAim(e);          // start a directional press-drag aim if one is armed
     } else if (pointers.size === 2) {
       pinchDist = pointerSpread();
-      mouse.moved = true; // a second finger cancels tap/pan
+      mouse.moved = true;   // a second finger cancels tap/pan…
+      aim = null;           // …and any in-progress aim drag
     }
   });
   canvas.addEventListener('pointermove', (e) => {
@@ -9240,6 +9365,7 @@ function setupInput() {
     // targeting preview — e.g. the Amputate cut radius — follows the mouse.
     const dx = e.clientX - mouse.x, dy = e.clientY - mouse.y;
     mouse.x = e.clientX; mouse.y = e.clientY;
+    if (aim && mouse.down) { updateAim(e); return; }   // aiming a directional grow — steer, don't pan
     if (mouse.down) {
       if (Math.abs(e.clientX - mouse.startX) + Math.abs(e.clientY - mouse.startY) > 4) mouse.moved = true;
       if (mouse.moved) camera.panByScreen(dx, dy);
@@ -9251,6 +9377,14 @@ function setupInput() {
     if (pointers.size < 2) pinchDist = 0;
     if (!had || pointers.size !== 0 || !mouse.down) return;
     mouse.down = false;
+    // A directional aim owns this gesture: fire it, or abort (pointercancel, dragged
+    // too far, or too short to point) and stay armed so the player can try again.
+    if (aim) {
+      const a = aim; aim = null;
+      if (e.type === 'pointercancel' || a.cancelled || !a.dragged) { uiDirty = true; return; }
+      fireAim(a);
+      return;
+    }
     if (mouse.moved) return;
     const rect = canvas.getBoundingClientRect();
     if (placingWorm) {
@@ -9313,7 +9447,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { aim = null; ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -10847,11 +10981,13 @@ function drawTargetingCursor(time) {
     ctx.restore();
   }
 
-  // Card awaiting a target: draw NO pre-click aim line — it would anchor a source
-  // before you've decided where to grow. The origin is chosen only when you tap:
-  // whichever living strand is closest to the tapped point grows toward it (see
-  // dirFrom). So targeting mode shows only the hint text / "Aiming" chip until you
-  // click.
+  // A directional grow is mid press-drag: show where growth starts and which way.
+  if (aim) { drawAimLine(time); return; }
+
+  // Card awaiting its FIRST touch: draw NO pre-touch aim line — it would anchor a
+  // source before you've decided where to grow. Single-tap targets resolve on tap;
+  // directional grows resolve via the press-drag aim above. So targeting mode shows
+  // only the hint text / "Aiming" chip until you act.
   if (ui && ui.pendingCard) return;
 
   const sel = ui && ui.selectedAction;
@@ -10938,6 +11074,61 @@ function drawTargetingCursor(time) {
     }
     ctx.restore();
   }
+}
+
+// The directional press-drag aim overlay: an origin ring where growth starts, a
+// bright arrow showing the projected reach + direction, and a faint guide out to
+// the finger. When the player drags too far it flips to a red "cancel" marker and
+// the arrow vanishes (releasing then does nothing). Screen-space; recomputed each
+// frame from the live world coords so it stays put under zoom.
+function drawAimLine(time) {
+  const o = camera.worldToScreen(aim.origin.x, aim.origin.y);
+  const glow = 0.55 + 0.45 * Math.sin(time * 0.006);
+  const GREEN = '127,230,163', RED = '224,106,106';
+  ctx.save();
+
+  if (aim.cancelled) {
+    // Dragged too far → cancel: red ring + cross-out, no aim line.
+    ctx.strokeStyle = `rgba(${RED},0.95)`; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(o.x, o.y, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(o.x - 6, o.y - 6); ctx.lineTo(o.x + 6, o.y + 6);
+    ctx.moveTo(o.x + 6, o.y - 6); ctx.lineTo(o.x - 6, o.y + 6);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  // Origin ring + dot — where growth will start.
+  ctx.strokeStyle = `rgba(${GREEN},${0.7 + 0.25 * glow})`; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = `rgba(${GREEN},0.95)`;
+  ctx.beginPath(); ctx.arc(o.x, o.y, 2.6, 0, Math.PI * 2); ctx.fill();
+
+  if (aim.dragged) {
+    // Aim direction (world) from the source toward the drag point.
+    const ddx = aim.cur.x - aim.origin.x, ddy = aim.cur.y - aim.origin.y;
+    const len = Math.hypot(ddx, ddy) || 1, ux = ddx / len, uy = ddy / len;
+    // Bright arrow spans the projected growth reach; its head is the growth tip.
+    const tip = camera.worldToScreen(aim.origin.x + ux * aim.reach, aim.origin.y + uy * aim.reach);
+    const end = camera.worldToScreen(aim.cur.x, aim.cur.y);
+    // Faint dashed guide from the tip out to the finger (you're still steering).
+    ctx.strokeStyle = `rgba(${GREEN},0.28)`; ctx.setLineDash([4, 5]); ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(end.x, end.y); ctx.stroke();
+    ctx.setLineDash([]);
+    // Solid growth path, origin → tip.
+    ctx.strokeStyle = `rgba(${GREEN},${0.8 + 0.15 * glow})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+    // Arrowhead at the tip, pointing along the aim.
+    const ang = Math.atan2(tip.y - o.y, tip.x - o.x), ah = 10;
+    ctx.fillStyle = `rgba(${GREEN},${0.85 + 0.15 * glow})`;
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x - ah * Math.cos(ang - 0.4), tip.y - ah * Math.sin(ang - 0.4));
+    ctx.lineTo(tip.x - ah * Math.cos(ang + 0.4), tip.y - ah * Math.sin(ang + 0.4));
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
 }
 
 // --- boot -------------------------------------------------------------------

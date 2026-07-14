@@ -210,6 +210,21 @@ export function cardNeedsTarget(name) {
   const e = EFFECTS[name];
   return !!(e && e.target);
 }
+// True for the directional grow cards whose target is set by a PRESS-AND-DRAG
+// gesture (press = where growth starts, drag = which way it heads) rather than a
+// single tap. The UI reads this to switch the hand card into drag-aim mode.
+export function cardUsesDragAim(name) {
+  const e = EFFECTS[name];
+  return !!(e && e.aim === 'drag');
+}
+// World-space reach (px) a directional drag-aim card/action grows — drives the aim
+// preview line so the player sees how far the strand will push. `ref` is a card
+// name (looks it up in EFFECTS) or an installed action object (carries reachFn).
+export function dragAimReach(state, ref) {
+  const e = typeof ref === 'string' ? EFFECTS[ref] : ref;
+  const segs = (e && e.reachFn) ? e.reachFn(state) : state.config.cards.directionalSteps;
+  return segs * state.config.growth.segmentLength;
+}
 
 // --- operations (do NOT tick; the caller advances the world after) ----------
 export function drawCard(state) {
@@ -403,7 +418,14 @@ export function checkGoalReached(state) {
 // point `fp`, the source `tip` node (for growth to start from), and the direction
 // from that source to the tapped point.
 function dirFrom(state, ctx) {
-  const tip = state.active.nearestNode(ctx.x, ctx.y);
+  // Directional drag-aim plays (Apical Drive, Rhizomorph Lance, Fruiting Vigil,
+  // Leading Cord) carry a press ORIGIN in ctx.srcX/srcY: the player pressed to pick
+  // where growth starts, then dragged to pick which way it heads. The source is the
+  // living strand nearest that press point, and growth aims from there toward the
+  // drag point (ctx.x/y). Single-tap plays (no origin — e.g. substrate caches) keep
+  // the old behaviour: source = strand nearest the tap, direction toward the tap.
+  const hasOrigin = ctx.srcX != null && ctx.srcY != null;
+  const tip = state.active.nearestNode(hasOrigin ? ctx.srcX : ctx.x, hasOrigin ? ctx.srcY : ctx.y);
   const fp = tip ? { x: tip.x, y: tip.y } : (state.active.frontierPoint() || { x: 0, y: state.substrate.surfaceY });
   let dx = ctx.x - fp.x, dy = ctx.y - fp.y;
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
@@ -489,6 +511,11 @@ function cureRadius(state, ctx, r) {
 // --- the effect registry (all 40 cards) -------------------------------------
 const grow = (fn) => ({ apply: fn });
 const targeted = (fn) => ({ target: true, apply: fn });
+// directional(): a targeted grow whose target is set by a PRESS-AND-DRAG gesture
+// (aim:'drag') instead of a single tap — the press picks where growth starts in the
+// colony, the drag picks the direction. `reachFn(state)` returns the segment count
+// it grows, for the UI aim-line preview. See dirFrom + main.js drawAimLine.
+const directional = (reachFn, fn) => ({ target: true, aim: 'drag', reachFn, apply: fn });
 const engine = (produce, msg) => ({ apply: () => ({ ok: true, install: { ...produce }, message: msg }) });
 // abilityUpgrade(): a one-shot card that permanently shortens ONE chosen installed
 // ability's "every N rounds" wait by `n` (min 1). `scope` picks the eligible list
@@ -531,7 +558,7 @@ export const EFFECTS = {
     const c = s.active.grow(s.substrate, s.rng);
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
-  'Apical Drive': targeted((s, c, ctx) => {
+  'Apical Drive': directional((s) => s.config.cards.directionalSteps, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
@@ -568,16 +595,16 @@ export const EFFECTS = {
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to punch through.' };
   }),
-  'Rhizomorph Lance': targeted((s, c, ctx) => {
+  'Rhizomorph Lance': directional((s) => s.config.cards.reachSegments, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
-  'Fruiting Vigil': targeted((s, c, ctx) => {
+  'Fruiting Vigil': directional(() => 24, (s, c, ctx) => {   // "up to 8 steps" (8 × 3 segments)
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);   // "up to 8 steps" (8 × 3 segments)
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, 24, true, tip);
     checkGoalReached(s);
     return { ok: true, message: s.won ? 'Reached the goal!' : `Grew ${n} in your chosen direction.` };
   }),
@@ -710,7 +737,7 @@ for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
 // player-triggered ACTIONS (right menu): ready every 6 rounds, aim + pay a per-use
 // resource. Harvest ones install as passive resource ENGINES (left ledger). All
 // cost 8⚡ to install (see docs/cards.json).
-EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true }, (s, ctx) => {
+EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.directionalSteps }, (s, ctx) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
   const { dx, dy, tip } = dirFrom(s, ctx);
   const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
