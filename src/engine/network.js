@@ -277,53 +277,64 @@ export class Network {
     return created;
   }
 
-  // Foraging Fan: the colony spreads outward everywhere at once (a radial burst,
-  // no food needed). One play = "1 step" = `foragingFanCells` (~3) cells outward in
-  // every direction, grown as that many successive frontier rings so the fan reads
-  // as a filled 3-cell expansion, not a single-cell nudge.
+  // Foraging Fan: EVERY frontier strand fans OUTWARD at once — a slow even ring of
+  // probing tips (no food needed). Each current tip sprouts a small outward fan of
+  // short probe-chains (`foragingFanCells` deep): the straight-out chain guarantees
+  // the strand advances, wider side chains bush it out where there's room and route
+  // around rock. Growing along each tip's real OUTWARD heading (away from its parent)
+  // with a relaxed min-spacing is what makes it work on a DENSE colony — the old
+  // 8-fixed-compass-ray burst fell back over existing tissue and was crowd-rejected
+  // everywhere except a lone isolated tip, so only one strand appeared to grow.
+  // Fanning the ORIGINAL tips once (not re-fanning each new child) keeps it bounded
+  // instead of exploding exponentially over the depth.
   growRadial(substrate, rng) {
     const g = this.config.growth;
-    const cells = Math.max(1, g.foragingFanCells || 3);
-    let created = 0;
-    for (let ring = 0; ring < cells; ring++) created += this._fanRing(substrate, rng);
-    // Fanning out also fully colonises any substrate pile within reach, in one step.
-    created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
-    return created;
-  }
-
-  // One ring of the fan: every current tip sprouts new hyphae around the circle;
-  // a min-spacing check drops candidates that fall back over the colony (and rock /
-  // edge / above-surface ones), so the frontier expands OUTWARD into open ground.
-  _fanRing(substrate, rng) {
-    const g = this.config.growth;
-    const rays = Math.max(3, g.foragingFanRays || 8);
+    const cells = Math.max(1, g.foragingFanCells || 3);          // probe depth per ray
+    const spacing = Math.max(4, g.minTipSpacing * 0.55);         // relaxed so a packed frontier can still push out
     const key = (c, r) => c + ',' + r;
     const buckets = new Map();
     const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
     for (const n of this.nodes) if (!n.infected) bucket(n);
-    // Fan from EVERY frontier tip FAIRLY: shuffle the tips, then go ray-by-ray (one
-    // ray per tip per pass). This spreads the burst across the WHOLE frontier — a
-    // dense near-side cluster (which has many tips and comes first in node order) no
-    // longer eats the entire node budget before the far side gets a turn, so the
-    // colony fans out all over instead of only where it's already thick.
-    const tips = this.tips();
-    for (let i = tips.length - 1; i > 0; i--) { const j = rng.int(0, i); const tmp = tips[i]; tips[i] = tips[j]; tips[j] = tmp; }
-    let created = 0;
-    for (let k = 0; k < rays; k++) {
-      if (this.nodes.length >= g.maxNodes) break;
-      for (const t of tips) {
+    // Colony centroid — outward fallback for a tip with no parent (a free fragment).
+    let cx = 0, cy = 0; for (const n of this.nodes) { cx += n.x; cy += n.y; } cx /= this.nodes.length || 1; cy /= this.nodes.length || 1;
+    // Grow a chain of up to `cells` segments from `start` toward `ang0`; returns count.
+    const growChain = (start, ang0) => {
+      let parent = start, made = 0;
+      for (let step = 0; step < cells; step++) {
         if (this.nodes.length >= g.maxNodes) break;
-        const ang = (k / rays) * Math.PI * 2 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
-        const nx = t.x + Math.cos(ang) * g.segmentLength;
-        const ny = t.y + Math.sin(ang) * g.segmentLength;
-        if (!this._segmentClear(substrate, t.x, t.y, nx, ny)) continue;          // rock/edge ANYWHERE along the ray, not just its endpoint (no clipping over a rock)
-        if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, 1)) continue;  // already occupied
-        const child = this.addNode(nx, ny, t);
-        bucket(child);
-        created++;
+        const ang = ang0 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
+        const nx = parent.x + Math.cos(ang) * g.segmentLength, ny = parent.y + Math.sin(ang) * g.segmentLength;
+        if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // rock/edge/surface
+        if (this._tooClose(nx, ny, spacing, substrate, buckets, key, 1)) break;   // already occupied
+        parent = this.addNode(nx, ny, parent); bucket(parent); made++;
       }
+      return made;
+    };
+    const ARC = [0, 0.6, -0.6, 1.15, -1.15];   // outward fan: straight out first, then widening spread rays
+    const tips = this.tips();
+    let created = 0;
+    for (const t of tips) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const p = t.parentId != null ? this.byId.get(t.parentId) : null;
+      let ox = p ? t.x - p.x : t.x - cx, oy = p ? t.y - p.y : t.y - cy;
+      if (ox * ox + oy * oy < 1e-6) { ox = t.x - cx; oy = t.y - cy; if (ox * ox + oy * oy < 1e-6) ox = 1; }  // rootless tip at centroid → arbitrary outward
+      const base = Math.atan2(oy, ox);
+      let advanced = false;
+      for (const off of ARC) {
+        if (this.nodes.length >= g.maxNodes) break;
+        // If the straight-out ray is blocked, dodge wider so the strand still advances.
+        if (off === 0 && !this._segmentClear(substrate, t.x, t.y, t.x + Math.cos(base) * g.segmentLength, t.y + Math.sin(base) * g.segmentLength)) {
+          for (const d of [0.9, -0.9, 1.6, -1.6]) { if (growChain(t, base + d) > 0) { advanced = true; created++; break; } }
+          continue;
+        }
+        if (growChain(t, base + off) > 0) { advanced = true; created++; }
+        else if (off === 0) break;   // straight-out truly walled in (rock+crowd) → skip the side rays too
+      }
+      void advanced;
     }
+    // Fanning out also fully colonises any substrate pile within reach, in one step.
+    created += this.colonizeReachablePiles(substrate, rng);
+    if (created) this.recomputeVitality();
     return created;
   }
 

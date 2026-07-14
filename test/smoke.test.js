@@ -647,5 +647,22 @@ for (const name of ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete',
   ok(typeof cfg.actions[name].moveCost === 'number', `${name} has moveCost in CONFIG`);
 }
 
+// --- Foraging Fan (growRadial) fans from EVERY strand, not just one ----------
+// Regression: a bug made the fan grow only from an isolated tip (crowd-locked
+// everywhere else), so a colony with several strands only expanded in one place.
+{
+  const s = createState(cfg, 4747);
+  const net = s.active, sub = s.substrate;
+  const okOpen = (x, y) => { const c = sub.cellAtWorld(x, y); return y > sub.surfaceY + 40 && (!c || !c.rock); };
+  const openAt = (xf) => { const x0 = sub.worldWidth * xf, y = sub.surfaceY + 200; for (let d = 0; d < 400; d += 20) for (const x of [x0 + d, x0 - d]) if (okOpen(x, y)) return { x, y }; return { x: x0, y }; };
+  const A = openAt(0.25), B = openAt(0.75);
+  net.addNode(A.x, A.y, net.nodes[0]);
+  net.addNode(B.x, B.y, net.nodes[0]);
+  const near = (p) => net.nodes.filter((n) => (n.x - p.x) ** 2 + (n.y - p.y) ** 2 <= 60 * 60).length;
+  const a0 = near(A), b0 = near(B);
+  net.growRadial(sub, s.rng);
+  ok(near(A) > a0 && near(B) > b0, 'Foraging Fan grows from BOTH separated strands (not just one)');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
