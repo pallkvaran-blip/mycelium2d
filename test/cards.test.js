@@ -193,7 +193,9 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
   ok(s.cards.pendingOffers.length === offers0 + 1, 'finishing a colonized map pile queues a draft offer');
   const offer = s.cards.pendingOffers[0];
   ok(offer && offer.choices.length === 3, `draft offers 3 cards (got ${offer ? offer.choices.length : 0})`);
-  ok(offer.choices.every((n) => CARD_BY_NAME[n] && CARD_BY_NAME[n].tutorial), 'all offered cards are from the tutorial set');
+  const dcat = (n) => { const c = CARD_BY_NAME[n]; return (c && (c.displayCategory || c.type)) || ''; };
+  ok(offer.choices.every((n) => dcat(n) === 'basic' || dcat(n) === 'event'), 'a NORMAL pile offers only Basic/Event cards (no engines)');
+  ok(!offer.kind || offer.kind === 'normal', `normal pile offer is tagged normal (got ${offer.kind})`);
 
   // Choosing adds it to hand for free — no Energy or resources spent to acquire.
   const e0 = net.energy, h0 = s.cards.hand.length;
@@ -210,6 +212,26 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
   net.energy = 50;
   tickWorld(s);
   ok(s.cards.pendingOffers.length === before, 'finishing a player-placed pile grants NO draft');
+}
+
+// ============================ E2: engine-cache draft ========================
+console.log('# Engine caches draft ENGINE cards');
+{
+  const s = createState(clone(), 20260714); isolate(s); initCards(s);
+  const sub = s.substrate, net = s.active;
+  const engPiles = (sub.foodPiles || []).filter((p) => p.kind === 'engine');
+  ok(engPiles.length >= 3 && engPiles.length <= 5, `map registers 3-5 engine caches (got ${engPiles.length})`);
+
+  const pile = engPiles[0];
+  for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; }
+  net.energy = 50;
+  const offers0 = s.cards.pendingOffers.length;
+  tickWorld(s);
+  ok(s.cards.pendingOffers.length === offers0 + 1, 'finishing a colonized engine cache queues a draft offer');
+  const offer = s.cards.pendingOffers[0];
+  const dcat2 = (n) => { const c = CARD_BY_NAME[n]; return (c && (c.displayCategory || c.type)) || ''; };
+  ok(offer && offer.kind === 'engine', `engine-cache offer is tagged engine (got ${offer ? offer.kind : 'none'})`);
+  ok(offer && offer.choices.length === 3 && offer.choices.every((n) => dcat2(n) === 'engine'), 'an ENGINE cache offers only Engine cards');
 }
 
 // ============= E: anti-nematode & anti-ant predation cards ==================

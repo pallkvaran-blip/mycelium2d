@@ -582,6 +582,7 @@ function renderFrame(time) {
   drawAnts(time);
   drawNematodes(time);
   drawTraps(time);
+  drawEnginePileMarkers(time);   // red 3-card icons over the high-value engine caches
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -590,6 +591,48 @@ function renderFrame(time) {
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
   // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
   if (_revealPending) { _revealPending = false; revealMap(); }
+}
+
+// Engine caches: a small RED 3-card icon hovering over each uncleared engine pile,
+// so the player can spot these high-value drafts and climb up to grow into them.
+// The red outline matches the engine-card tint; normal caches carry no marker.
+function drawEnginePileMarkers(time) {
+  const sub = state.substrate;
+  if (!sub || !sub.foodPiles) return;
+  const z = camera.zoom;
+  const bob = Math.sin(time * 0.003) * 3;
+  for (const pile of sub.foodPiles) {
+    if (pile.kind !== 'engine' || pile.rewarded) continue;
+    if (pile._cx == null) {   // cache the pile's world centre once
+      let sx = 0, sy = 0, n = 0;
+      for (const idx of pile.cells) { const col = idx % sub.cols, row = Math.floor(idx / sub.cols); const c = sub.cellCenter(col, row); sx += c.x; sy += c.y; n++; }
+      pile._cx = n ? sx / n : 0; pile._cy = n ? sy / n : 0;
+    }
+    const s = camera.worldToScreen(pile._cx, pile._cy);
+    drawThreeCardIcon(s.x, s.y - sub.cellSize * 1.4 * z + bob, z, time);
+  }
+}
+// A little fan of three cards with RED outlines — the "draft an engine card" glyph.
+function drawThreeCardIcon(cx, cy, z, time) {
+  const w = 15 * z, h = 21 * z, r = 3 * z;
+  const pulse = 0.6 + 0.4 * Math.sin(time * 0.004);
+  const cards = [{ dx: -8 * z, rot: -0.28 }, { dx: 8 * z, rot: 0.28 }, { dx: 0, rot: 0 }];   // centre drawn last (on top)
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (const c of cards) {
+    ctx.save();
+    ctx.translate(c.dx, 0); ctx.rotate(c.rot);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
+    ctx.fillStyle = 'rgba(14,20,17,0.82)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, 1.6 * z);
+    ctx.strokeStyle = `rgba(226,118,108,${0.2 + 0.75 * pulse})`;   // engine red (--cacc 226,118,108)
+    ctx.shadowColor = 'rgba(226,118,108,0.7)'; ctx.shadowBlur = 8 * z;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where

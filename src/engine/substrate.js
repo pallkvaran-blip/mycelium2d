@@ -446,24 +446,26 @@ export function generateSubstrate(config, rng) {
   // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
   // through Substrate.deposit() and are NOT registered, so they grant nothing.
   sub.foodPiles = [];
-  const drop = (cc, cr, radius) => {
+  const drop = (cc, cr, radius, kind = 'normal') => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
     const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
+      if (kind === 'engine' && cell.nutrient > 0) return;   // don't cannibalise an existing cache
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = 'cache';                     // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
     });
     if (!cells.length) return;
     // A drop can be relocated onto an existing cache (findClear). Merge overlapping
-    // drops into ONE pile so a single connected blob grants exactly one draft.
+    // drops of the SAME kind into ONE pile so a connected blob grants exactly one
+    // draft; never merge an engine cache into a normal one (they draft different pools).
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
+    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
     if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false });
+    else sub.foodPiles.push({ cells, rewarded: false, kind });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -480,6 +482,23 @@ export function generateSubstrate(config, rng) {
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
+  }
+
+  // ENGINE caches — rarer, high-value piles that draft an ENGINE card (normal caches
+  // draft basic/event). Placed mostly right under the SURFACE so the player must climb
+  // UP (away from the deeper goal path) to reach them; a few sit deeper. The render
+  // layer marks each with a red 3-card icon (see main.js).
+  const engCount = Math.max(0, s.engineClusterCount || 0);
+  const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
+  const band = Math.max(0, s.engineSurfaceRows || 2);
+  for (let i = 0; i < engCount; i++) {
+    const t = (i + 0.5) / engCount;
+    let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
+    cc = Math.max(1, Math.min(sub.cols - 2, cc));
+    const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
+    const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
+                    : rng.int(0, band);            // near-surface band by default
+    drop(cc, cr, engRadius, 'engine');
   }
 
   return sub;

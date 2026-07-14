@@ -39,6 +39,13 @@ export const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    // ENGINE caches: rarer, high-value piles that draft an ENGINE card (normal piles
+    // draft basic/event). Marked on the map with a red 3-card icon. Placed mostly
+    // near the surface so the player must climb UP (away from the goal) to get them.
+    engineClusterCount: 4,       // how many engine caches per map (3–5)
+    engineClusterRadius: 1,      // footprint radius (cells) — same small pocket as normal caches
+    engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
+    engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
     // Rock landmarks come in two kinds:
     //   • FORMATIONS — a few large, unique AI-rendered rock-formation sprites
     //     (crystal / ember / fungal / glow). Wide-and-low footprints so the art

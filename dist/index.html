@@ -557,6 +557,9 @@
       border: 1.8px solid rgba(182,255,207,0.96); background: rgba(9,15,12,0.86);
       box-shadow: 0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26);
       pointer-events: none; }
+    /* Engine caches read RED (matching engine cards) instead of mint. */
+    .draftmorph.engine { border-color: rgba(244,158,148,0.96);
+      box-shadow: 0 0 18px rgba(226,118,108,0.8), inset 0 0 14px rgba(226,118,108,0.26); }
     .draftmorph .dmclone { width: 100% !important; height: 100% !important; margin: 0 !important;
       border: none !important; box-shadow: none !important; background: transparent !important;
       opacity: 0; }   /* icon reads as a glowing outline until the face reveals (morph path animates this) */
@@ -691,8 +694,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "p6j4vo";
-globalThis.__BUILD__ = "local 07-14 11:15";
+window.__ASSET_VER = "1fn9e2v";
+globalThis.__BUILD__ = "local 07-14 12:58";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -737,6 +740,13 @@ const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    // ENGINE caches: rarer, high-value piles that draft an ENGINE card (normal piles
+    // draft basic/event). Marked on the map with a red 3-card icon. Placed mostly
+    // near the surface so the player must climb UP (away from the goal) to get them.
+    engineClusterCount: 4,       // how many engine caches per map (3–5)
+    engineClusterRadius: 1,      // footprint radius (cells) — same small pocket as normal caches
+    engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
+    engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
     // Rock landmarks come in two kinds:
     //   • FORMATIONS — a few large, unique AI-rendered rock-formation sprites
     //     (crystal / ember / fungal / glow). Wide-and-low footprints so the art
@@ -2594,24 +2604,26 @@ function generateSubstrate(config, rng) {
   // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
   // through Substrate.deposit() and are NOT registered, so they grant nothing.
   sub.foodPiles = [];
-  const drop = (cc, cr, radius) => {
+  const drop = (cc, cr, radius, kind = 'normal') => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
     const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
+      if (kind === 'engine' && cell.nutrient > 0) return;   // don't cannibalise an existing cache
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = 'cache';                     // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
     });
     if (!cells.length) return;
     // A drop can be relocated onto an existing cache (findClear). Merge overlapping
-    // drops into ONE pile so a single connected blob grants exactly one draft.
+    // drops of the SAME kind into ONE pile so a connected blob grants exactly one
+    // draft; never merge an engine cache into a normal one (they draft different pools).
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
+    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
     if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false });
+    else sub.foodPiles.push({ cells, rewarded: false, kind });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -2628,6 +2640,23 @@ function generateSubstrate(config, rng) {
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
+  }
+
+  // ENGINE caches — rarer, high-value piles that draft an ENGINE card (normal caches
+  // draft basic/event). Placed mostly right under the SURFACE so the player must climb
+  // UP (away from the deeper goal path) to reach them; a few sit deeper. The render
+  // layer marks each with a red 3-card icon (see main.js).
+  const engCount = Math.max(0, s.engineClusterCount || 0);
+  const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
+  const band = Math.max(0, s.engineSurfaceRows || 2);
+  for (let i = 0; i < engCount; i++) {
+    const t = (i + 0.5) / engCount;
+    let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
+    cc = Math.max(1, Math.min(sub.cols - 2, cc));
+    const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
+    const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
+                    : rng.int(0, band);            // near-surface band by default
+    drop(cc, cr, engRadius, 'engine');
   }
 
   return sub;
@@ -4527,10 +4556,19 @@ function shuffle(arr, rng) {
   return arr;
 }
 
-// The "tutorial set": the pool a finished food pile drafts 3 random cards from.
-// Basics are EXCLUDED — drafts hand out premium cards / draw-engines only (you
-// already get basics from the draw deck), so a pile reward always feels premium.
-const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic' && !isArchived(c.name)).map((c) => c.name);
+// Draft pools, split by the card's displayed category. A NORMAL substrate cache
+// drafts a Basic or Event card; a rare ENGINE cache (the red-iconed piles near the
+// surface) drafts an Engine card — the recurring, high-value stuff. Built lazily so
+// EFFECTS (defined later in this module) is available: only playable, non-archived
+// cards are eligible. `engine=true` → the engine pool, else the basic/event pool.
+const dcatOf = (c) => c.displayCategory || c.type;
+function draftPool(engine) {
+  return CARD_DATA.filter((c) => {
+    if (isArchived(c.name) || !EFFECTS[c.name]) return false;
+    const d = dcatOf(c);
+    return engine ? d === 'engine' : (d === 'basic' || d === 'event');
+  }).map((c) => c.name);
+}
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
 // Returns { name, count } or null for non-engine (or archived) cards.
@@ -4586,9 +4624,10 @@ function initCards(state, mode = 'tutorial') {
 // Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
 function offerPileReward(state, pile) {
   const C = state.cards;
-  const bag = TUTORIAL_POOL.slice();
+  const engine = !!(pile && pile.kind === 'engine');
+  const bag = draftPool(engine);
   shuffle(bag, state.rng);
-  const offer = { choices: bag.slice(0, Math.min(3, bag.length)) };
+  const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
   // Capture the pile's world footprint (centre + cells) so the render layer can
   // play the draft animation FROM where the pile stood — a 3-card glyph fades in
   // there, then the draft panel expands out of it. Pure world coords; no view state.
@@ -4603,7 +4642,7 @@ function offerPileReward(state, pile) {
     if (n) { offer.center = { x: sx / n, y: sy / n }; offer.cells = pile.cells.slice(); }
   }
   C.pendingOffers.push(offer);
-  state.log('A food pile is fully digested — choose a new card to add to your hand.', 'good');
+  state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
 }
 
 function checkPileRewards(state) {
@@ -8309,13 +8348,14 @@ class UI {
 
     const ICON_H = allFit ? 78 : 96;   // a touch larger when it won't fly into slots
     const fan = this._draftFanCards(origin, ICON_H);
+    const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');   // red glyph for engine caches
 
     // Three glowing glyph frames at the pile — a clone of each card inside, hidden
     // (CSS opacity 0) so the icon reads as an outline until it becomes the card.
     const frames = cardEls.map((cardEl, i) => {
       const f = fan[Math.min(i, fan.length - 1)];
       const frame = document.createElement('div');
-      frame.className = 'draftmorph';
+      frame.className = 'draftmorph' + (engine ? ' engine' : '');
       const clone = cardEl.cloneNode(true);
       clone.classList.add('dmclone'); clone.classList.remove('selected');
       frame.appendChild(clone);
@@ -8338,6 +8378,9 @@ class UI {
   // the border stays crisp at icon size); real cards cross-fade in at the end.
   _draftMorphToSlots(el, cardEls, targets, frames) {
     const MORPH_MS = 940, STAGGER = 80;
+    // Glyph glow colour: engine caches read RED (matching engine cards), else mint.
+    const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');
+    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '127,230,163', ring: '182,255,207' };
     cardEls.forEach((c) => { c.style.opacity = '0'; });   // real cards hidden until handoff
     const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
       { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
@@ -8358,9 +8401,9 @@ class UI {
         { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
       ], opts);
       frame.animate([
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
-        { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
+        { boxShadow: `0 0 18px rgba(${G.hi},0.8), inset 0 0 14px rgba(${G.hi},0.26)`, borderColor: `rgba(${G.ring},0.98)`, offset: 0 },
+        { boxShadow: `0 0 18px rgba(${G.hi},0.8), inset 0 0 14px rgba(${G.hi},0.26)`, borderColor: `rgba(${G.ring},0.98)`, offset: 0.42 },
+        { boxShadow: `0 0 10px rgba(${G.hi},0.3), inset 0 0 6px rgba(${G.hi},0.08)`, borderColor: `rgba(${G.ring},0.55)`, offset: 1 },
       ], opts);
       clone.animate([
         { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },
@@ -9342,6 +9385,7 @@ function renderFrame(time) {
   drawAnts(time);
   drawNematodes(time);
   drawTraps(time);
+  drawEnginePileMarkers(time);   // red 3-card icons over the high-value engine caches
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -9350,6 +9394,48 @@ function renderFrame(time) {
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
   // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
   if (_revealPending) { _revealPending = false; revealMap(); }
+}
+
+// Engine caches: a small RED 3-card icon hovering over each uncleared engine pile,
+// so the player can spot these high-value drafts and climb up to grow into them.
+// The red outline matches the engine-card tint; normal caches carry no marker.
+function drawEnginePileMarkers(time) {
+  const sub = state.substrate;
+  if (!sub || !sub.foodPiles) return;
+  const z = camera.zoom;
+  const bob = Math.sin(time * 0.003) * 3;
+  for (const pile of sub.foodPiles) {
+    if (pile.kind !== 'engine' || pile.rewarded) continue;
+    if (pile._cx == null) {   // cache the pile's world centre once
+      let sx = 0, sy = 0, n = 0;
+      for (const idx of pile.cells) { const col = idx % sub.cols, row = Math.floor(idx / sub.cols); const c = sub.cellCenter(col, row); sx += c.x; sy += c.y; n++; }
+      pile._cx = n ? sx / n : 0; pile._cy = n ? sy / n : 0;
+    }
+    const s = camera.worldToScreen(pile._cx, pile._cy);
+    drawThreeCardIcon(s.x, s.y - sub.cellSize * 1.4 * z + bob, z, time);
+  }
+}
+// A little fan of three cards with RED outlines — the "draft an engine card" glyph.
+function drawThreeCardIcon(cx, cy, z, time) {
+  const w = 15 * z, h = 21 * z, r = 3 * z;
+  const pulse = 0.6 + 0.4 * Math.sin(time * 0.004);
+  const cards = [{ dx: -8 * z, rot: -0.28 }, { dx: 8 * z, rot: 0.28 }, { dx: 0, rot: 0 }];   // centre drawn last (on top)
+  ctx.save();
+  ctx.translate(cx, cy);
+  for (const c of cards) {
+    ctx.save();
+    ctx.translate(c.dx, 0); ctx.rotate(c.rot);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
+    ctx.fillStyle = 'rgba(14,20,17,0.82)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, 1.6 * z);
+    ctx.strokeStyle = `rgba(226,118,108,${0.2 + 0.75 * pulse})`;   // engine red (--cacc 226,118,108)
+    ctx.shadowColor = 'rgba(226,118,108,0.7)'; ctx.shadowBlur = 8 * z;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where

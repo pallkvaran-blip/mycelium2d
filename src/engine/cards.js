@@ -58,10 +58,19 @@ function shuffle(arr, rng) {
   return arr;
 }
 
-// The "tutorial set": the pool a finished food pile drafts 3 random cards from.
-// Basics are EXCLUDED — drafts hand out premium cards / draw-engines only (you
-// already get basics from the draw deck), so a pile reward always feels premium.
-const TUTORIAL_POOL = CARD_DATA.filter((c) => c.tutorial && c.type !== 'basic' && !isArchived(c.name)).map((c) => c.name);
+// Draft pools, split by the card's displayed category. A NORMAL substrate cache
+// drafts a Basic or Event card; a rare ENGINE cache (the red-iconed piles near the
+// surface) drafts an Engine card — the recurring, high-value stuff. Built lazily so
+// EFFECTS (defined later in this module) is available: only playable, non-archived
+// cards are eligible. `engine=true` → the engine pool, else the basic/event pool.
+const dcatOf = (c) => c.displayCategory || c.type;
+function draftPool(engine) {
+  return CARD_DATA.filter((c) => {
+    if (isArchived(c.name) || !EFFECTS[c.name]) return false;
+    const d = dcatOf(c);
+    return engine ? d === 'engine' : (d === 'basic' || d === 'event');
+  }).map((c) => c.name);
+}
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
 // Returns { name, count } or null for non-engine (or archived) cards.
@@ -117,9 +126,10 @@ export function initCards(state, mode = 'tutorial') {
 // Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
 function offerPileReward(state, pile) {
   const C = state.cards;
-  const bag = TUTORIAL_POOL.slice();
+  const engine = !!(pile && pile.kind === 'engine');
+  const bag = draftPool(engine);
   shuffle(bag, state.rng);
-  const offer = { choices: bag.slice(0, Math.min(3, bag.length)) };
+  const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
   // Capture the pile's world footprint (centre + cells) so the render layer can
   // play the draft animation FROM where the pile stood — a 3-card glyph fades in
   // there, then the draft panel expands out of it. Pure world coords; no view state.
@@ -134,7 +144,7 @@ function offerPileReward(state, pile) {
     if (n) { offer.center = { x: sx / n, y: sy / n }; offer.cells = pile.cells.slice(); }
   }
   C.pendingOffers.push(offer);
-  state.log('A food pile is fully digested — choose a new card to add to your hand.', 'good');
+  state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
 }
 
 export function checkPileRewards(state) {

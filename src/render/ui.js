@@ -921,13 +921,14 @@ export class UI {
 
     const ICON_H = allFit ? 78 : 96;   // a touch larger when it won't fly into slots
     const fan = this._draftFanCards(origin, ICON_H);
+    const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');   // red glyph for engine caches
 
     // Three glowing glyph frames at the pile — a clone of each card inside, hidden
     // (CSS opacity 0) so the icon reads as an outline until it becomes the card.
     const frames = cardEls.map((cardEl, i) => {
       const f = fan[Math.min(i, fan.length - 1)];
       const frame = document.createElement('div');
-      frame.className = 'draftmorph';
+      frame.className = 'draftmorph' + (engine ? ' engine' : '');
       const clone = cardEl.cloneNode(true);
       clone.classList.add('dmclone'); clone.classList.remove('selected');
       frame.appendChild(clone);
@@ -950,6 +951,9 @@ export class UI {
   // the border stays crisp at icon size); real cards cross-fade in at the end.
   _draftMorphToSlots(el, cardEls, targets, frames) {
     const MORPH_MS = 940, STAGGER = 80;
+    // Glyph glow colour: engine caches read RED (matching engine cards), else mint.
+    const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');
+    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '127,230,163', ring: '182,255,207' };
     cardEls.forEach((c) => { c.style.opacity = '0'; });   // real cards hidden until handoff
     const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
       { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
@@ -970,9 +974,9 @@ export class UI {
         { ...base, opacity: 1, offset: 1 },       // then flies + grows + straightens into the slot
       ], opts);
       frame.animate([
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0 },
-        { boxShadow: '0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26)', borderColor: 'rgba(182,255,207,0.98)', offset: 0.42 },
-        { boxShadow: '0 0 10px rgba(127,230,163,0.3), inset 0 0 6px rgba(127,230,163,0.08)', borderColor: 'rgba(130,230,166,0.55)', offset: 1 },
+        { boxShadow: `0 0 18px rgba(${G.hi},0.8), inset 0 0 14px rgba(${G.hi},0.26)`, borderColor: `rgba(${G.ring},0.98)`, offset: 0 },
+        { boxShadow: `0 0 18px rgba(${G.hi},0.8), inset 0 0 14px rgba(${G.hi},0.26)`, borderColor: `rgba(${G.ring},0.98)`, offset: 0.42 },
+        { boxShadow: `0 0 10px rgba(${G.hi},0.3), inset 0 0 6px rgba(${G.hi},0.08)`, borderColor: `rgba(${G.ring},0.55)`, offset: 1 },
       ], opts);
       clone.animate([
         { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.46 },
