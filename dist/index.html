@@ -440,7 +440,7 @@
     /* Single scrollable row (never wraps) with a soft fade at both ends so the chips
        melt out near the ▾ minimize and » Skip buttons instead of ending abruptly.
        The 14px side padding parks the first/last chip just past the fade at rest. */
-    .handfilter { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-start; flex: 1 1 auto;
+    .handfilter { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: safe center; flex: 1 1 auto;
       min-width: 0; overflow-x: auto; padding: 0 14px; scrollbar-width: none;
       -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
       mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); }
@@ -633,7 +633,7 @@
       .actionbar .abtn .bcost { font-size: 10.5px; }
       .handbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
       .handhead { display: flex; }              /* selected/aiming chip visible on phone */
-      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
+      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
       .handcarousel { align-self: stretch; }
@@ -670,7 +670,7 @@
       .actionbar .abtn .bcost { font-size: 10px; }
       .handbar { bottom: 6px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
       .handhead { display: flex; }
-      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
+      .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: safe center; align-self: stretch; scrollbar-width: none; }
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
       .handcarousel { align-self: stretch; }
@@ -694,8 +694,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1exd850";
-globalThis.__BUILD__ = "local 07-14 15:00";
+window.__ASSET_VER = "x1boz5";
+globalThis.__BUILD__ = "local 07-14 15:14";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
