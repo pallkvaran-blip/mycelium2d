@@ -393,6 +393,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Start economy tuned + dev scaffold turned off** (branch same). `energy.start` 120→**50**,
+  `cards.startWater` 7→**10**, `cards.startPhosphorus` 3→**0**; `main.js` now calls the real
+  `initCards(state)` (was the `'testall'` all-cards/300-resource dev scaffold). Turn-1 is viable
+  (opening hand has playable grows; P-gated cards like Amputate wait for Phosphate Tap; ~3 draws
+  or 4 skips affordable before you must feed). Deeper balance is a playtest question now that the
+  real opening is live.
+
 - **Draft economy: infinite basics (3 copies) + events (1 copy); unique engines** (branch same).
   - Was: every draft re-sampled the full category pool, so cards could be drafted repeatedly and
     basics gave only 1 copy. Now: **basics** are infinite → drafting one grants
@@ -920,13 +927,12 @@ Both menus are dark, on-theme, with glowing green borders.
   background `http.server` must be spawned in the SAME node process as the run (a separately-launched
   server dies when its launching Bash command ends). Avoid `pkill` (exit 144 aborts compound cmds).
   Transient draft-glyph frames are best caught by polling for a live `.draftmorph` element.
-- **TEMP test scaffolding — REVERT before release.** For card testing the run boots with
-  (1) `initCards(state, 'testall')` in `main.js` `begin()` — a hand of **5× of every
-  non-archived card** — and (2) **300 of each resource** (Water/Energy/Phosphorus set in
-  the `'testall'` branch of `initCards`). Revert to `initCards(state)` and remove the
-  `'testall'` branch to restore the normal opening hand + resources. (The old
-  `seedDemoActions` demo-abilities scaffold has been **removed** — the Actions menu is now
-  populated by playing real `action`-type cards.)
+- **Dev card-testing scaffold (now OFF).** `main.js begin()` calls the normal `initCards(state)`
+  — the real opening hand + start economy (`energy.start` 50, `cards.startWater` 10,
+  `cards.startPhosphorus` 0). To dev-test with 5× of every card + 300 of each resource, pass
+  `'testall'` again (`initCards(state, 'testall')`); the `'testall'` branch is still in `initCards`.
+  (The old `seedDemoActions` demo-abilities scaffold was removed — the Actions menu is populated by
+  playing real `action`-type cards.)
 - **Suberin Wall's "block reinfection for 2 rounds"** is now implemented via `cell.mouldProof`
   (set in radius 80, decremented each tick; `threats.js cellProofed` skips warded nodes in both
   the contact and the along-filament spread vectors). Note it wards the AREA's nodes against

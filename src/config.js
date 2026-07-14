@@ -95,7 +95,7 @@ export const CONFIG = {
 
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
-    start: 120,                  // starting Energy (SLIDER)
+    start: 50,                   // starting Energy (SLIDER) — tight: ~3 draws or 4 skips before you must feed
     baselineTrickle: 1,          // tiny per-action free trickle (you depend on colonising food)
     passiveIncomeRate: 25,       // nutrient pulled from each colonised cell/turn — a fully-colonised pile (50/cell) empties in 2 steps (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
@@ -119,8 +119,8 @@ export const CONFIG = {
     draftBasicCopies: 3,         // drafting an (infinite) BASIC card grants this many copies; event/engine give 1
     skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
-    startWater: 7,               // starting Water (now covers grow AND substrate)
-    startPhosphorus: 3,          // starting Phosphorus (digest/defense/work; topped up from rocks)
+    startWater: 10,              // starting Water (covers grow AND substrate; ~10 grows before you must harvest)
+    startPhosphorus: 0,          // starting Phosphorus (earn it from rocks via Phosphate Tap; gates digest/defense)
     softCapWater: 999,           // per-resource stockpile caps — set high so harvesting/income
     softCapPhosphorus: 999,      //   keeps paying off and you can bank resources for big plays
 

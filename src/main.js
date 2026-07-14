@@ -87,7 +87,7 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 function begin(newState) {
   state = newState;
   // Card layer online for procedural (non-puzzle) runs.
-  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state, 'testall');   // TEMP: 5× of every card for testing (revert to initCards(state))
+  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state);   // normal opening hand + start economy (was 'testall' dev scaffold)
   buildRenderers();
   // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing
   // even with the dev-tools panel off; remove for a public release.
