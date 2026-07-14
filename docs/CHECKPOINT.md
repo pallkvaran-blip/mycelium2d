@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-14 (**engine-cache draft = a distinct RED-leaf litter pile** that drafts an Engine card on clearing — normal orange piles draft Basic/Event · 5 predation cards + art · Foraging Fan grows from ALL strands · bottom carousel control-row: minimize arrow + skip chip + edge-fade, unified gold energy icons · contextual hints float above the carousel & auto-dismiss · normal draft glyph white / engine glyph red)._
+_Living status + knowledge doc. Last updated: 2026-07-14 (**directional grows use a press-and-drag aim — press away from the colony to pan** · **engine-cache draft = a distinct RED-leaf litter pile** that drafts an Engine card on clearing, normal orange piles draft Basic/Event · 5 predation cards + art · Foraging Fan grows from ALL strands · bottom carousel control-row: minimize arrow + skip chip + edge-fade, unified gold energy icons · contextual hints float above the carousel & auto-dismiss · normal draft glyph white / engine glyph red)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -386,6 +386,25 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Directional grows use a press-and-drag aim; press away from the colony to pan** (branch same).
+  - The four directional grows (**Apical Drive, Rhizomorph Lance, Fruiting Vigil, Leading Cord**)
+    used to guess their start from a single tap (nearest strand), so growth often erupted from the
+    wrong place. Now you **press** to pick where in the colony growth starts and **drag** to pick the
+    direction; a live line shows origin + projected reach + aim; dragging past `aimCancelPx()` cancels
+    (red ✕). Engine side: `cards.js dirFrom()` honours a press origin (`ctx.srcX/srcY`); new
+    `directional()` helper marks the cards `aim:'drag'` + a `reachFn`; `cardUsesDragAim`/`dragAimReach`
+    exports drive the UI. Gesture owned by `main.js beginAim/updateAim/fireAim` + `drawAimLine`.
+  - **Refinement (pan vs aim):** a press **within `AIM_NEAR_PX` (90 screen px) of the nearest strand**
+    starts an aim; a press **farther away PANS** the map — so you can reposition the view without
+    cancelling the armed card first (replaces the old "cancel → pan → re-arm" trade-off). `beginAim`
+    no-ops (leaves `aim=null`) on a far press so the normal pan path runs; `endPointer` guards the
+    single-tap play path with `if (armedDragTarget()) return;` so a stray far *tap* can't play the card.
+    Two-finger / Esc still abort; pinch-zoom unaffected. Verified (Playwright): near press-drag grows &
+    doesn't pan; far press-drag pans, doesn't grow, stays armed.
+  - **Arming flow (for reference):** single-tap a hand card = SELECT (`ui.armed`, enables Play);
+    double-tap / Play = `playArmed → onPlayCard`, which for a target card calls `setPendingCard`
+    (`ui.pendingCard`) + shows the aim hint. `armedDragTarget()` reads `pendingCard`, not `armed`.
 
 - **Engine-cache draft = a distinct RED-leaf litter pile** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Goal:** normal substrate piles draft only Basic/Event cards; a rarer, high-value pile drafts

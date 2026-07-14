@@ -688,8 +688,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "hwti59";
-globalThis.__BUILD__ = "local 07-14 14:29";
+window.__ASSET_VER = "1exd850";
+globalThis.__BUILD__ = "local 07-14 15:00";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8902,6 +8902,9 @@ let lastTapTime = 0, lastTapX = 0, lastTapY = 0; // double-tap-to-refit
 // direction. Null when not aiming. See beginAim/updateAim/fireAim + drawAimLine.
 let aim = null;
 const AIM_MIN_PX = 12;                // drag this far (screen) to register a direction
+// Press within this (screen px) of the colony to AIM; press farther and the gesture
+// PANS the map instead — so the player can reposition the view without cancelling.
+const AIM_NEAR_PX = 90;
 // Drag past this (screen) to CANCEL — the line vanishes and releasing does nothing.
 const aimCancelPx = () => Math.max(220, Math.min(window.innerWidth, window.innerHeight) * 0.55);
 
@@ -9072,7 +9075,7 @@ const handlers = {
       ui.setPendingCard(index);
       ui.setSelectedAction(null);
       ui.setHint(cardUsesDragAim(entry.name)
-        ? `Press on your colony and drag to aim ${entry.name} — release to grow there, or drag far to cancel.`
+        ? `Press on your colony and drag to aim ${entry.name} — release to grow. Press away from it to pan.`
         : `Tap the map to aim/target ${entry.name}.`);
       uiDirty = true;
       return true;
@@ -9135,7 +9138,7 @@ const handlers = {
       ui.setPendingAction(i);
       const act = state.cards.actions[i];
       ui.setHint(act && act.aim === 'drag'
-        ? `Press on your colony and drag to aim ${act.name} — release to grow there, or drag far to cancel.`
+        ? `Press on your colony and drag to aim ${act.name} — release to grow. Press away from it to pan.`
         : res.message);
       uiDirty = true;
       return;
@@ -9279,6 +9282,11 @@ function beginAim(e) {
   const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
   const w = camera.screenToWorld(sx, sy);
   const src = (state.active && state.active.nearestNode(w.x, w.y)) || { x: w.x, y: w.y };
+  // Press FAR from the colony → don't aim; let the gesture PAN the map instead (the
+  // player repositions the view without having to cancel the armed card first). Only
+  // a press near a living strand starts an aim, snapping the origin to that strand.
+  const ss = camera.worldToScreen(src.x, src.y);
+  if (Math.hypot(sx - ss.x, sy - ss.y) > AIM_NEAR_PX) { aim = null; return; }
   const reachRef = t.kind === 'card' ? t.ref.name : state.cards.actions[t.ref];
   aim = {
     kind: t.kind, ref: t.ref,
@@ -9386,6 +9394,11 @@ function setupInput() {
       return;
     }
     if (mouse.moved) return;
+    // A directional drag-aim card/action is armed but this was a plain tap that never
+    // started an aim (pressed too far from the colony — a pan intent that didn't move).
+    // Do nothing and stay armed; the press-drag gesture is the only way to play it, so
+    // a stray tap must NOT fall through to the single-tap play path below.
+    if (armedDragTarget()) return;
     const rect = canvas.getBoundingClientRect();
     if (placingWorm) {
       // Dev placement: each tap drops a worm where you click (mode stays on).
