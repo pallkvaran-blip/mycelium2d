@@ -685,8 +685,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "8nep16";
-globalThis.__BUILD__ = "local 07-14 09:21";
+window.__ASSET_VER = "xnwfwe";
+globalThis.__BUILD__ = "local 07-14 10:29";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4451,6 +4451,7 @@ function newRun(config, seed) {
 // ===================== src/engine/cards.js =====================
 const __m_engine_cards = (function () {
   const { CARD_DATA, CARD_BY_NAME } = __m_cards_data;
+  const { attackNest } = __m_engine_ants;
 // =============================================================================
 // Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
 //
@@ -4470,7 +4471,7 @@ const __m_engine_cards = (function () {
 // (main.js handler / test), exactly like performAction/afterAction.
 // =============================================================================
 
-import { attackNest } from './ants.js';   // Cordyceps cards destroy an ant nest (frac 1 = full kill)
+// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill).
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over

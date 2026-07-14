@@ -18,7 +18,8 @@
 // =============================================================================
 
 import { CARD_DATA, CARD_BY_NAME } from '../cards-data.js';
-import { attackNest } from './ants.js';   // Cordyceps cards destroy an ant nest (frac 1 = full kill)
+// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill).
+import { attackNest } from './ants.js';
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over

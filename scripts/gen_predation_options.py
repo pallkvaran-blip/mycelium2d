@@ -41,9 +41,9 @@ PROMPTS = {
    f"extreme macro of an Ophiocordyceps stroma: a glowing orange fungal club erupting from a zombie ant's head above a ruined anthill, a haze of spores in the air, dark forest floor, {STYLE}",
  ],
  "cordyceps-stroma": [
-   f"a graveyard of cordyceps-infected ants across a dark forest floor, many dead ants each sprouting slender orange fungal fruiting stalks, a perennial fungal stroma blanketing a ruined ant nest, spores drifting, {STYLE}",
-   f"a dense colony-wide zombie-ant fungus outbreak — dozens of ant corpses on twigs tipped with bright orange Ophiocordyceps clubs, a self-renewing fungal graveyard over an anthill, {STYLE}",
-   f"a standing field of orange cordyceps stalks rising from a carpet of infected dead ants above a destroyed nest, ongoing infection, dark damp earth, dramatic depth, {STYLE}",
+   f"several large dead ants clustered close on dark forest soil, the ants clearly the subject in sharp focus, pale white and teal fungal mycelium and fine hyphal threads erupting from their bodies, heads and every joint, a few slender orange cordyceps stalks among the threads, a fungal graveyard over a ruined ant nest, macro, shallow depth of field, {STYLE}",
+   f"extreme macro of two or three ants overtaken by fungus, the ants prominent and detailed, dense white mycelium bursting out of each ant's body and wrapping around them, threadlike hyphae rising from every segment, dark damp earth, {STYLE}",
+   f"a close group of ants half-consumed by fungus, mycelium and delicate white filaments growing directly out of the ants' bodies and heads, the ants unmistakable in the foreground, a colony being devoured, dark soil with faint spores drifting, {STYLE}",
  ],
 }
 
