@@ -58,18 +58,22 @@ function shuffle(arr, rng) {
   return arr;
 }
 
-// Draft pools, split by the card's displayed category. A NORMAL substrate cache
-// drafts a Basic or Event card; a rare ENGINE cache (the red-iconed piles near the
-// surface) drafts an Engine card — the recurring, high-value stuff. Built lazily so
-// EFFECTS (defined later in this module) is available: only playable, non-archived
-// cards are eligible. `engine=true` → the engine pool, else the basic/event pool.
+// Draft pools, split by the card's displayed category (built lazily so EFFECTS,
+// defined later in this module, is ready — only playable, non-archived cards count):
+//   • BASIC cards are INFINITE — always draftable, and drafting one grants 3 copies
+//     (config cards.draftBasicCopies). They never leave the pool.
+//   • EVENT + ENGINE cards are UNIQUE — one of each per playthrough, held in
+//     state.cards.draftable. Drafting one removes it for the rest of the run; being
+//     offered but NOT chosen leaves it in the pool, so it can turn up in a later draft.
+// A NORMAL substrate cache offers Basic/Event; a red ENGINE cache offers Engine.
 const dcatOf = (c) => c.displayCategory || c.type;
-function draftPool(engine) {
-  return CARD_DATA.filter((c) => {
-    if (isArchived(c.name) || !EFFECTS[c.name]) return false;
-    const d = dcatOf(c);
-    return engine ? d === 'engine' : (d === 'basic' || d === 'event');
-  }).map((c) => c.name);
+const draftCat = (name) => { const c = CARD_BY_NAME[name]; return c ? dcatOf(c) : ''; };
+const playable = (c) => !isArchived(c.name) && !!EFFECTS[c.name];
+function basicDraftNames() {
+  return CARD_DATA.filter((c) => playable(c) && dcatOf(c) === 'basic').map((c) => c.name);
+}
+function uniqueDraftNames() {   // the consumable per-run pool: one of each event + engine
+  return CARD_DATA.filter((c) => playable(c) && (dcatOf(c) === 'event' || dcatOf(c) === 'engine')).map((c) => c.name);
 }
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
@@ -115,7 +119,8 @@ export function initCards(state, mode = 'tutorial') {
     for (let i = 0; i < opening; i++) hand.push({ id: seq++, name: drawDeck.shift() });
   }
 
-  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [] };
+  state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [],
+    draftable: uniqueDraftNames() };   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -127,9 +132,23 @@ export function initCards(state, mode = 'tutorial') {
 // basic/event); `center` is pure world coords (no view state).
 function pushCardDraft(state, engine, center) {
   const C = state.cards;
-  const bag = draftPool(engine);
-  shuffle(bag, state.rng);
-  const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
+  // Uniques already offered in OTHER pending offers are reserved, so the same one-of-a-kind
+  // card can't be double-offered (and thus double-granted) when several piles finish at once.
+  const reserved = new Set();
+  for (const o of C.pendingOffers) for (const n of o.choices) if (draftCat(n) !== 'basic') reserved.add(n);
+  const avail = (C.draftable || []).filter((n) => !reserved.has(n));
+  let choices;
+  if (engine) {
+    // Engine caches draft an ENGINE card from the remaining unique engines. If that pool is
+    // dry (all engines already drafted), fall back to basics so the valuable pile isn't wasted.
+    choices = shuffle(avail.filter((n) => draftCat(n) === 'engine'), state.rng).slice(0, 3);
+    if (!choices.length) choices = shuffle(basicDraftNames(), state.rng).slice(0, 3);
+  } else {
+    // Normal caches draft BASIC (infinite) or EVENT (unique, one-of-each) cards.
+    const pool = [...basicDraftNames(), ...avail.filter((n) => draftCat(n) === 'event')];
+    choices = shuffle(pool, state.rng).slice(0, 3);
+  }
+  const offer = { choices, kind: engine ? 'engine' : 'normal' };
   if (center) offer.center = { x: center.x, y: center.y };
   C.pendingOffers.push(offer);
   state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
@@ -178,10 +197,18 @@ export function chooseOffer(state, cardName) {
   const offer = C.pendingOffers && C.pendingOffers[0];
   if (!offer) return { ok: false, message: 'No card reward to pick.' };
   if (!offer.choices.includes(cardName)) return { ok: false, message: 'That card is not on offer.' };
-  C.hand.push({ id: C.seq++, name: cardName });
+  // Basics are infinite → drafting one grants several copies. Event/Engine cards are
+  // unique → grant one and remove it from the pool for the rest of the run. (Un-chosen
+  // cards were never removed, so they stay draftable and can reappear later.)
+  const cat = draftCat(cardName);
+  const copies = cat === 'basic' ? Math.max(1, (state.config.cards.draftBasicCopies || 3)) : 1;
+  for (let i = 0; i < copies; i++) C.hand.push({ id: C.seq++, name: cardName });
+  if (cat !== 'basic' && C.draftable) { const i = C.draftable.indexOf(cardName); if (i >= 0) C.draftable.splice(i, 1); }
   C.pendingOffers.shift();
-  state.log(`Drafted ${cardName} into your hand (free — you still pay to play it).`, 'good');
-  return { ok: true, card: cardName };
+  state.log(copies > 1
+    ? `Drafted ${copies}× ${cardName} into your hand (free — you still pay to play them).`
+    : `Drafted ${cardName} into your hand (free — you still pay to play it).`, 'good');
+  return { ok: true, card: cardName, copies };
 }
 
 // --- costs / gating ---------------------------------------------------------

@@ -198,9 +198,10 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
   ok(!offer.kind || offer.kind === 'normal', `normal pile offer is tagged normal (got ${offer.kind})`);
 
   // Choosing adds it to hand for free — no Energy or resources spent to acquire.
+  // (Copies vary: a basic grants 3, an event 1 — assert on cr.copies, not a fixed +1.)
   const e0 = net.energy, h0 = s.cards.hand.length;
   const cr = chooseOffer(s, offer.choices[0]);
-  ok(cr.ok && s.cards.hand.length === h0 + 1 && net.energy === e0, 'drafting a card adds it to hand for free (no cost)');
+  ok(cr.ok && s.cards.hand.length === h0 + cr.copies && net.energy === e0, `drafting a card adds ${cr.copies} to hand for free (no cost)`);
   ok(s.cards.pendingOffers.length === offers0, 'the resolved offer is cleared from the queue');
 
   // A pile the PLAYER placed grants NO draft (only map piles are tracked).
@@ -239,6 +240,52 @@ console.log('# Engine caches are RED-leaf food piles that draft ENGINE cards on 
   ok(offer && offer.kind === 'engine', `the engine cache drafts an engine-kind offer (got ${offer ? offer.kind : 'none'})`);
   ok(offer && offer.choices.length === 3 && offer.choices.every((n) => dcat2(n) === 'engine'), 'an ENGINE cache offers only Engine cards');
   ok(offer && offer.center, 'the offer is anchored at the pile for the fly-in animation');
+}
+
+// ===================== E3: draft rules (infinite basics vs unique) ==========
+console.log('# Drafting: basics are infinite (3 copies); event/engine are one-of-each');
+{
+  const dcat = (n) => { const c = CARD_BY_NAME[n]; return (c && (c.displayCategory || c.type)) || ''; };
+  // A BASIC draft grants 3 copies and never leaves the pool.
+  {
+    const s = createState(clone(), 7001); isolate(s); initCards(s);
+    const C = s.cards;
+    const basic = CARD_DATA.find((c) => (c.displayCategory || c.type) === 'basic' && CARD_BY_NAME[c.name]).name;
+    const h0 = C.hand.length, poolLen = C.draftable.length;
+    C.pendingOffers.push({ choices: [basic], kind: 'normal' });
+    const r = chooseOffer(s, basic);
+    ok(r.ok && C.hand.length === h0 + 3 && C.hand.filter((h) => h.name === basic).length >= 3, `drafting a BASIC adds 3 copies (hand +${C.hand.length - h0})`);
+    ok(C.draftable.length === poolLen && !C.draftable.includes(basic), 'a basic never enters/leaves the unique pool (infinite)');
+  }
+  // An EVENT/ENGINE draft grants exactly 1 copy and is removed from the pool.
+  {
+    const s = createState(clone(), 7002); isolate(s); initCards(s);
+    const C = s.cards;
+    const uniq = C.draftable.find((n) => dcat(n) === 'engine');
+    const h0 = C.hand.length, poolLen = C.draftable.length;
+    C.pendingOffers.push({ choices: [uniq], kind: 'engine' });
+    const r = chooseOffer(s, uniq);
+    ok(r.ok && C.hand.length === h0 + 1 && C.hand.filter((h) => h.name === uniq).length === 1, 'drafting an ENGINE adds exactly 1 copy');
+    ok(!C.draftable.includes(uniq) && C.draftable.length === poolLen - 1, 'a drafted unique leaves the pool');
+  }
+  // Uniqueness across drafts via the real flow: a drafted engine never reappears, and the
+  // two un-chosen engines from that offer stay draftable.
+  {
+    const s = createState(clone(), 7003); isolate(s); initCards(s);
+    const sub = s.substrate, net = s.active, C = s.cards;
+    const engPiles = (sub.foodPiles || []).filter((p) => p.kind === 'engine');
+    ok(engPiles.length >= 2, `map has >=2 engine caches to test uniqueness (got ${engPiles.length})`);
+    const digest = (pile) => { for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; } net.energy = 50; tickWorld(s); };
+    digest(engPiles[0]);
+    const off0 = C.pendingOffers[0];
+    const picked = off0.choices[0], spared = off0.choices.slice(1);
+    chooseOffer(s, picked);
+    ok(!C.draftable.includes(picked), 'the drafted engine left the pool');
+    ok(spared.every((n) => C.draftable.includes(n)), 'engines that were offered but NOT chosen stay in the pool');
+    digest(engPiles[1]);
+    const off1 = C.pendingOffers[0];
+    ok(off1 && !off1.choices.includes(picked), 'the drafted engine never reappears in a later engine draft');
+  }
 }
 
 // ============= E: anti-nematode & anti-ant predation cards ==================

@@ -116,6 +116,7 @@ export const CONFIG = {
     enabled: true,               // turn the card layer on
     drawCostEnergy: 16,          // energy to DRAW (pulls drawCount cards at once)
     drawCount: 3,                // cards pulled per Draw
+    draftBasicCopies: 3,         // drafting an (infinite) BASIC card grants this many copies; event/engine give 1
     skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
     startWater: 7,               // starting Water (now covers grow AND substrate)
