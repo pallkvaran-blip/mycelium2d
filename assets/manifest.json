@@ -12,6 +12,36 @@
    "kind": "sprite"
   },
   {
+   "key": "leafRedMaple",
+   "file": "leafRedMaple.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafRedOak",
+   "file": "leafRedOak.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafRedSweetgum",
+   "file": "leafRedSweetgum.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafRedJapanese",
+   "file": "leafRedJapanese.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafRedDogwood",
+   "file": "leafRedDogwood.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafRedBeech",
+   "file": "leafRedBeech.png",
+   "kind": "sprite"
+  },
+  {
    "key": "acorn",
    "file": "acorn.png",
    "kind": "sprite"

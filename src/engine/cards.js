@@ -132,13 +132,14 @@ function pushCardDraft(state, engine, center) {
   const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
   if (center) offer.center = { x: center.x, y: center.y };
   C.pendingOffers.push(offer);
-  state.log(engine ? 'An engine cache is reached — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
+  state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
 }
 
 // --- pile-reward draft ------------------------------------------------------
 // Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
-// one of 3 random Basic/Event cards, FREE (into hand). You still pay to play it.
-// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
+// one of 3 random cards, FREE (into hand). You still pay to play it. A NORMAL
+// (orange-leaf) pile drafts Basic/Event; an ENGINE (red-leaf) pile drafts an
+// Engine card. Piles you placed yourself (Substrate.deposit) grant nothing.
 function offerPileReward(state, pile) {
   const sub = state.substrate;
   let center = null;
@@ -151,7 +152,7 @@ function offerPileReward(state, pile) {
     }
     if (n) center = { x: sx / n, y: sy / n };
   }
-  pushCardDraft(state, false, center);
+  pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
 }
 
 export function checkPileRewards(state) {
@@ -167,33 +168,6 @@ export function checkPileRewards(state) {
       if (cell.colonized > 0) touched = true;   // the colony actually digested it
     }
     if (touched && total <= 1e-6) { pile.rewarded = true; offerPileReward(state, pile); }
-  }
-}
-
-// --- engine-cache draft -----------------------------------------------------
-// Engine caches are FREE-STANDING draft markers (not food/substrate). Growing the
-// network INTO one — any node within its reach — triggers an ENGINE-card draft;
-// there's nothing to digest, reaching it is enough. Fires once per cache.
-export function checkEngineCaches(state) {
-  const C = state.cards; if (!C || !C.pendingOffers || state.runOver) return;
-  const sub = state.substrate; if (!sub || !sub.engineCaches || !sub.engineCaches.length) return;
-  const net = state.active; if (!net || !net.alive || !net.nodes) return;
-  for (const cache of sub.engineCaches) {
-    if (cache.rewarded) continue;
-    const r2 = cache.r * cache.r;
-    let reached = false;
-    for (const nd of net.nodes) {
-      const dx = nd.x - cache.x, dy = nd.y - cache.y;
-      if (dx * dx + dy * dy <= r2) { reached = true; break; }
-    }
-    if (reached) {
-      cache.rewarded = true;
-      pushCardDraft(state, true, { x: cache.x, y: cache.y });
-      // Back-reference so the render layer can hide THIS cache's marker exactly when
-      // its draft reveal begins (the marker "becomes" the flying 3-card glyph).
-      const off = C.pendingOffers[C.pendingOffers.length - 1];
-      if (off) off.engineCache = cache;
-    }
   }
 }
 

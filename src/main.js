@@ -582,7 +582,6 @@ function renderFrame(time) {
   drawAnts(time);
   drawNematodes(time);
   drawTraps(time);
-  drawEngineCacheMarkers();   // red 3-card icons over the high-value engine caches
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -591,49 +590,6 @@ function renderFrame(time) {
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
   // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
   if (_revealPending) { _revealPending = false; revealMap(); }
-}
-
-// Engine caches: a small, STATIC red 3-card icon sitting on each engine cache, so
-// the player can spot these high-value drafts and climb up to grow into them. Free-
-// standing markers (not tied to substrate); no motion, no flashing. The icon stays
-// put while the colony grows into it, then vanishes the instant its draft reveal
-// begins (`_drafted`) — handing off to the 3-card glyph that lifts into the panel.
-// Clamped to stay entirely below the surface line — never poking into the sky. Drawn
-// last, so it reads clearly on top of the colony that grew into it.
-function drawEngineCacheMarkers() {
-  const sub = state.substrate;
-  if (!sub || !sub.engineCaches) return;
-  const z = camera.zoom;
-  const surfY = camera.worldToScreen(0, sub.surfaceY).y;
-  const iconHalf = 22 * z;   // half the fanned-card height (incl. rotation + shadow slack)
-  for (const cache of sub.engineCaches) {
-    if (cache._drafted) continue;   // gone once its draft reveal starts (becomes the flying glyph)
-    const s = camera.worldToScreen(cache.x, cache.y);
-    const cy = Math.max(s.y, surfY + 2 + iconHalf);   // keep the whole icon under the surface
-    drawThreeCardIcon(s.x, cy, z);
-  }
-}
-// A little fan of three cards with steady RED outlines — the "draft an engine card"
-// glyph. No animation: static outline, fixed glow.
-function drawThreeCardIcon(cx, cy, z) {
-  const w = 15 * z, h = 21 * z, r = 3 * z;
-  const cards = [{ dx: -8 * z, rot: -0.28 }, { dx: 8 * z, rot: 0.28 }, { dx: 0, rot: 0 }];   // centre drawn last (on top)
-  ctx.save();
-  ctx.translate(cx, cy);
-  for (const c of cards) {
-    ctx.save();
-    ctx.translate(c.dx, 0); ctx.rotate(c.rot);
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
-    ctx.fillStyle = 'rgba(14,20,17,0.9)';
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, 1.6 * z);
-    ctx.strokeStyle = 'rgba(226,118,108,0.92)';   // engine red (--cacc 226,118,108), steady
-    ctx.shadowColor = 'rgba(226,118,108,0.5)'; ctx.shadowBlur = 6 * z;
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.restore();
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
@@ -1050,12 +1006,16 @@ function drawTerrainAssets() {
 // position/size/type is hashed from (col,row,k) so the heap is stable across
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
+const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
 function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
   const leaves = (oak || maple) ? [oak || maple, maple || oak] : null;
+  // ENGINE caches: a mix drawn from ALL SIX red/autumn leaves so each pile reads
+  // as its own varied red litter (the heap picks a leaf per piece from this set).
+  const red = RED_LEAF_KEYS.map(asset).filter(Boolean);
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  return { leaves, nuts: nutSet.length ? nutSet : null };
+  return { leaves, red: red.length ? red : null, nuts: nutSet.length ? nutSet : null };
 }
 
 // Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The
@@ -1063,8 +1023,11 @@ function _leafSets() {
 // ORIGINAL footprint (maxNutrient), NOT the live nutrient — so a pile never
 // changes shape or rearranges as it's eaten. It simply fades (via alphaMul) once
 // consumed. Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
-function _drawLeafHeap(sets, col, row, isNut, alphaMul) {
-  const set = isNut ? sets.nuts : sets.leaves;
+function _drawLeafHeap(sets, col, row, kind, alphaMul) {
+  const isNut = kind === 'nut';
+  // 'cache-engine' → red litter (fall back to normal leaves if red art missing);
+  // 'nut' → acorn/chestnut scatter; 'cache' (or anything else) → orange leaves.
+  const set = isNut ? sets.nuts : (kind === 'cache-engine' ? (sets.red || sets.leaves) : sets.leaves);
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const margin = cs * 1.6 * z;
@@ -1113,18 +1076,18 @@ function _drawLeafHeap(sets, col, row, isNut, alphaMul) {
 const LEAF_FADE_MS = 460;
 function drawSubstrateLeaves() {
   const sets = _leafSets();
-  if (!sets.leaves && !sets.nuts) return;
+  if (!sets.leaves && !sets.nuts && !sets.red) return;
   const sub = state.substrate;
   sub.forEachCell((cell, col, row) => {
     if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
-    const isNut = cell.foodKind === 'nut';
+    const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'nut'
     if (cell.nutrient > 0) {
       cell._leafGone = 0;                                 // still has food → full heap, no fade
-      _drawLeafHeap(sets, col, row, isNut, 1);
+      _drawLeafHeap(sets, col, row, kind, 1);
     } else if (cell.maxNutrient > 0) {                    // just emptied → fade the same heap out, then stop
       if (!cell._leafGone) cell._leafGone = lastTime;
       const a = 1 - (lastTime - cell._leafGone) / LEAF_FADE_MS;
-      if (a > 0) _drawLeafHeap(sets, col, row, isNut, a);
+      if (a > 0) _drawLeafHeap(sets, col, row, kind, a);
     }
   });
 }
@@ -1164,7 +1127,6 @@ function updateDraftIntro(time) {
   if (!offer.center) {
     if (!draftIntro || draftIntro.offer !== offer) {
       draftIntro = { offer, phase: 'done' };
-      if (offer.engineCache) offer.engineCache._drafted = true;   // hide the marker (no anim to hand off to)
       if (ui && ui.releaseOffer) ui.releaseOffer(null);
     }
     return;
@@ -1190,9 +1152,6 @@ function updateDraftIntro(time) {
       di.phase = 'done';
       if (!di.released) {
         const scr = camera.worldToScreen(offer.center.x, offer.center.y);
-        // Hand the engine-cache marker off to the reveal: hide it exactly as the
-        // 3-card glyph lifts off from this spot, so it reads as one continuous motion.
-        if (offer.engineCache) offer.engineCache._drafted = true;
         if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
         di.released = true;
       }

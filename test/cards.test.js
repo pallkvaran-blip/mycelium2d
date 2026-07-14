@@ -215,32 +215,30 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
 }
 
 // ============================ E2: engine-cache draft ========================
-console.log('# Engine caches are free-standing markers that draft ENGINE cards on reach');
+console.log('# Engine caches are RED-leaf food piles that draft ENGINE cards on digest');
 {
   const s = createState(clone(), 20260714); isolate(s); initCards(s);
   const sub = s.substrate, net = s.active;
-  const caches = sub.engineCaches || [];
-  ok(caches.length >= 3 && caches.length <= 5, `map registers 3-5 engine caches (got ${caches.length})`);
-  ok(caches.every((c) => c.y > sub.surfaceY), 'every engine cache sits below the surface');
-  ok(caches.every((c) => c.r > 0 && !c.rewarded), 'engine caches start un-drafted with a positive reach');
+  const engPiles = (sub.foodPiles || []).filter((p) => p.kind === 'engine');
+  ok(engPiles.length >= 3 && engPiles.length <= 5, `map registers 3-5 engine caches (got ${engPiles.length})`);
+  // Engine caches are near the surface; their cells carry the distinct red-leaf foodKind.
+  const engRows = engPiles.flatMap((p) => p.cells.map((idx) => Math.floor(idx / sub.cols)));
+  ok(Math.min(...engRows) <= (s.config.substrate.engineSurfaceRows + 1), 'engine caches placed near the surface');
+  ok(engPiles.every((p) => p.cells.every((idx) => sub.cells[idx].foodKind === 'cache-engine')), 'engine cache cells use the red-leaf foodKind');
+  ok((sub.foodPiles || []).filter((p) => (p.kind || 'normal') === 'normal').every((p) => p.cells.every((idx) => sub.cells[idx].foodKind === 'cache')), 'normal cache cells keep the orange-leaf foodKind');
 
-  // Pick a cache with no strand yet within reach — it must NOT fire on its own.
-  const within = (c) => net.nodes.some((n) => (n.x - c.x) ** 2 + (n.y - c.y) ** 2 <= c.r * c.r);
-  const cache = caches.find((c) => !within(c)) || caches[0];
+  // Colonise + fully digest one engine pile → it drafts on clearing, like a normal pile.
+  const pile = engPiles[0];
+  for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; }
   net.energy = 50;
+  const offers0 = s.cards.pendingOffers.length;
   tickWorld(s);
-  ok(!cache.rewarded && !s.cards.pendingOffers.some((o) => o.kind === 'engine'),
-    'an unreached engine cache grants nothing (no digest, no auto-draft)');
-
-  // Grow a strand INTO it — a single node within reach is enough (no colonizing/digesting).
-  net.addNode(cache.x, cache.y, net.nodes[0]);
-  tickWorld(s);
-  ok(cache.rewarded, 'growing a node into an engine cache marks it reached');
-  const offer = s.cards.pendingOffers.find((o) => o.kind === 'engine');
+  ok(s.cards.pendingOffers.length === offers0 + 1, 'finishing a colonized engine cache queues a draft offer');
+  const offer = s.cards.pendingOffers[0];
   const dcat2 = (n) => { const c = CARD_BY_NAME[n]; return (c && (c.displayCategory || c.type)) || ''; };
-  ok(offer, 'reaching an engine cache queues an engine-kind draft offer');
+  ok(offer && offer.kind === 'engine', `the engine cache drafts an engine-kind offer (got ${offer ? offer.kind : 'none'})`);
   ok(offer && offer.choices.length === 3 && offer.choices.every((n) => dcat2(n) === 'engine'), 'an ENGINE cache offers only Engine cards');
-  ok(offer && offer.center && Math.abs(offer.center.x - cache.x) < 1e-6, 'the offer is anchored at the cache for the fly-in animation');
+  ok(offer && offer.center, 'the offer is anchored at the pile for the fly-in animation');
 }
 
 // ============= E: anti-nematode & anti-ant predation cards ==================
