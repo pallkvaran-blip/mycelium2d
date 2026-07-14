@@ -582,7 +582,7 @@ function renderFrame(time) {
   drawAnts(time);
   drawNematodes(time);
   drawTraps(time);
-  drawEnginePileMarkers(time);   // red 3-card icons over the high-value engine caches
+  drawEngineCacheMarkers();   // red 3-card icons over the high-value engine caches
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -593,29 +593,27 @@ function renderFrame(time) {
   if (_revealPending) { _revealPending = false; revealMap(); }
 }
 
-// Engine caches: a small RED 3-card icon hovering over each uncleared engine pile,
-// so the player can spot these high-value drafts and climb up to grow into them.
-// The red outline matches the engine-card tint; normal caches carry no marker.
-function drawEnginePileMarkers(time) {
+// Engine caches: a small, STATIC red 3-card icon sitting on each uncleared engine
+// cache, so the player can spot these high-value drafts and climb up to grow into
+// them. Free-standing markers (not tied to substrate); no motion, no flashing. The
+// icon is clamped to stay entirely below the surface line — never poking into the sky.
+function drawEngineCacheMarkers() {
   const sub = state.substrate;
-  if (!sub || !sub.foodPiles) return;
+  if (!sub || !sub.engineCaches) return;
   const z = camera.zoom;
-  const bob = Math.sin(time * 0.003) * 3;
-  for (const pile of sub.foodPiles) {
-    if (pile.kind !== 'engine' || pile.rewarded) continue;
-    if (pile._cx == null) {   // cache the pile's world centre once
-      let sx = 0, sy = 0, n = 0;
-      for (const idx of pile.cells) { const col = idx % sub.cols, row = Math.floor(idx / sub.cols); const c = sub.cellCenter(col, row); sx += c.x; sy += c.y; n++; }
-      pile._cx = n ? sx / n : 0; pile._cy = n ? sy / n : 0;
-    }
-    const s = camera.worldToScreen(pile._cx, pile._cy);
-    drawThreeCardIcon(s.x, s.y - sub.cellSize * 1.4 * z + bob, z, time);
+  const surfY = camera.worldToScreen(0, sub.surfaceY).y;
+  const iconHalf = 22 * z;   // half the fanned-card height (incl. rotation + shadow slack)
+  for (const cache of sub.engineCaches) {
+    if (cache.rewarded) continue;
+    const s = camera.worldToScreen(cache.x, cache.y);
+    const cy = Math.max(s.y, surfY + 2 + iconHalf);   // keep the whole icon under the surface
+    drawThreeCardIcon(s.x, cy, z);
   }
 }
-// A little fan of three cards with RED outlines — the "draft an engine card" glyph.
-function drawThreeCardIcon(cx, cy, z, time) {
+// A little fan of three cards with steady RED outlines — the "draft an engine card"
+// glyph. No animation: static outline, fixed glow.
+function drawThreeCardIcon(cx, cy, z) {
   const w = 15 * z, h = 21 * z, r = 3 * z;
-  const pulse = 0.6 + 0.4 * Math.sin(time * 0.004);
   const cards = [{ dx: -8 * z, rot: -0.28 }, { dx: 8 * z, rot: 0.28 }, { dx: 0, rot: 0 }];   // centre drawn last (on top)
   ctx.save();
   ctx.translate(cx, cy);
@@ -624,11 +622,11 @@ function drawThreeCardIcon(cx, cy, z, time) {
     ctx.translate(c.dx, 0); ctx.rotate(c.rot);
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
-    ctx.fillStyle = 'rgba(14,20,17,0.82)';
+    ctx.fillStyle = 'rgba(14,20,17,0.9)';
     ctx.fill();
     ctx.lineWidth = Math.max(1, 1.6 * z);
-    ctx.strokeStyle = `rgba(226,118,108,${0.2 + 0.75 * pulse})`;   // engine red (--cacc 226,118,108)
-    ctx.shadowColor = 'rgba(226,118,108,0.7)'; ctx.shadowBlur = 8 * z;
+    ctx.strokeStyle = 'rgba(226,118,108,0.92)';   // engine red (--cacc 226,118,108), steady
+    ctx.shadowColor = 'rgba(226,118,108,0.5)'; ctx.shadowBlur = 6 * z;
     ctx.stroke();
     ctx.restore();
   }

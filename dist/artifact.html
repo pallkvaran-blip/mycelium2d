@@ -688,8 +688,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1fn9e2v";
-globalThis.__BUILD__ = "local 07-14 12:58";
+window.__ASSET_VER = "1tx81cu";
+globalThis.__BUILD__ = "local 07-14 13:14";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -734,11 +734,12 @@ const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
-    // ENGINE caches: rarer, high-value piles that draft an ENGINE card (normal piles
-    // draft basic/event). Marked on the map with a red 3-card icon. Placed mostly
-    // near the surface so the player must climb UP (away from the goal) to get them.
+    // ENGINE caches: rarer, high-value FREE-STANDING draft markers (not food/substrate)
+    // that draft an ENGINE card — normal piles draft basic/event. Marked with a red
+    // 3-card icon. Growing the network INTO one triggers the draft (nothing to digest).
+    // Placed mostly near the surface so the player must climb UP (away from the goal).
     engineClusterCount: 4,       // how many engine caches per map (3–5)
-    engineClusterRadius: 1,      // footprint radius (cells) — same small pocket as normal caches
+    engineReachCells: 1.6,       // grow a strand within this many cells of one to trigger its draft
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
     // Rock landmarks come in two kinds:
@@ -2598,26 +2599,24 @@ function generateSubstrate(config, rng) {
   // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
   // through Substrate.deposit() and are NOT registered, so they grant nothing.
   sub.foodPiles = [];
-  const drop = (cc, cr, radius, kind = 'normal') => {
+  const drop = (cc, cr, radius) => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
     const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
-      if (kind === 'engine' && cell.nutrient > 0) return;   // don't cannibalise an existing cache
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = 'cache';                     // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
     });
     if (!cells.length) return;
     // A drop can be relocated onto an existing cache (findClear). Merge overlapping
-    // drops of the SAME kind into ONE pile so a connected blob grants exactly one
-    // draft; never merge an engine cache into a normal one (they draft different pools).
+    // drops into ONE pile so a single connected blob grants exactly one draft.
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
+    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
     if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false, kind });
+    else sub.foodPiles.push({ cells, rewarded: false });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -2636,13 +2635,16 @@ function generateSubstrate(config, rng) {
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
   }
 
-  // ENGINE caches — rarer, high-value piles that draft an ENGINE card (normal caches
-  // draft basic/event). Placed mostly right under the SURFACE so the player must climb
-  // UP (away from the deeper goal path) to reach them; a few sit deeper. The render
-  // layer marks each with a red 3-card icon (see main.js).
+  // ENGINE caches — rarer, high-value draft markers that draft an ENGINE card (normal
+  // caches draft basic/event). Unlike food piles these are FREE-STANDING: not substrate,
+  // no nutrient to digest — the player just grows a strand INTO one (a node within
+  // `engineReachCells`) to trigger the draft (see cards.js). Placed mostly right under
+  // the SURFACE so the player must climb UP (away from the deeper goal path) to reach
+  // them; a few sit deeper. The render layer marks each with a red 3-card icon (main.js).
+  sub.engineCaches = [];
   const engCount = Math.max(0, s.engineClusterCount || 0);
-  const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
   const band = Math.max(0, s.engineSurfaceRows || 2);
+  const engReach = sub.cellSize * (s.engineReachCells != null ? s.engineReachCells : 1.6);
   for (let i = 0; i < engCount; i++) {
     const t = (i + 0.5) / engCount;
     let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
@@ -2650,7 +2652,10 @@ function generateSubstrate(config, rng) {
     const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
     const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
                     : rng.int(0, band);            // near-surface band by default
-    drop(cc, cr, engRadius, 'engine');
+    const spot = findClear(cc, cr);                // land on clear ground, never inside rock
+    if (!spot) continue;
+    const c = sub.cellCenter(spot.col, spot.row);  // world centre — always below the surface (row ≥ 0)
+    sub.engineCaches.push({ x: c.x, y: c.y, r: engReach, rewarded: false });
   }
 
   return sub;
@@ -4612,20 +4617,28 @@ function initCards(state, mode = 'tutorial') {
   return state.cards;
 }
 
-// --- pile-reward draft ------------------------------------------------------
-// Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
-// one of 3 random tutorial-set cards, FREE (into hand). You still pay to play it.
-// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
-function offerPileReward(state, pile) {
+// --- draft offers -----------------------------------------------------------
+// Queue a draft of 3 cards from the given pool, tagged by kind, and (optionally)
+// anchored at a world point so the render layer can fly the 3-card glyph FROM
+// there and expand the panel out of it. `engine` picks the Engine pool (else
+// basic/event); `center` is pure world coords (no view state).
+function pushCardDraft(state, engine, center) {
   const C = state.cards;
-  const engine = !!(pile && pile.kind === 'engine');
   const bag = draftPool(engine);
   shuffle(bag, state.rng);
   const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
-  // Capture the pile's world footprint (centre + cells) so the render layer can
-  // play the draft animation FROM where the pile stood — a 3-card glyph fades in
-  // there, then the draft panel expands out of it. Pure world coords; no view state.
+  if (center) offer.center = { x: center.x, y: center.y };
+  C.pendingOffers.push(offer);
+  state.log(engine ? 'An engine cache is reached — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
+}
+
+// --- pile-reward draft ------------------------------------------------------
+// Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
+// one of 3 random Basic/Event cards, FREE (into hand). You still pay to play it.
+// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
+function offerPileReward(state, pile) {
   const sub = state.substrate;
+  let center = null;
   if (pile && pile.cells && pile.cells.length && sub && sub.cellCenter) {
     let sx = 0, sy = 0, n = 0;
     for (const idx of pile.cells) {
@@ -4633,10 +4646,9 @@ function offerPileReward(state, pile) {
       const c = sub.cellCenter(col, row);
       sx += c.x; sy += c.y; n++;
     }
-    if (n) { offer.center = { x: sx / n, y: sy / n }; offer.cells = pile.cells.slice(); }
+    if (n) center = { x: sx / n, y: sy / n };
   }
-  C.pendingOffers.push(offer);
-  state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
+  pushCardDraft(state, false, center);
 }
 
 function checkPileRewards(state) {
@@ -4652,6 +4664,26 @@ function checkPileRewards(state) {
       if (cell.colonized > 0) touched = true;   // the colony actually digested it
     }
     if (touched && total <= 1e-6) { pile.rewarded = true; offerPileReward(state, pile); }
+  }
+}
+
+// --- engine-cache draft -----------------------------------------------------
+// Engine caches are FREE-STANDING draft markers (not food/substrate). Growing the
+// network INTO one — any node within its reach — triggers an ENGINE-card draft;
+// there's nothing to digest, reaching it is enough. Fires once per cache.
+function checkEngineCaches(state) {
+  const C = state.cards; if (!C || !C.pendingOffers || state.runOver) return;
+  const sub = state.substrate; if (!sub || !sub.engineCaches || !sub.engineCaches.length) return;
+  const net = state.active; if (!net || !net.alive || !net.nodes) return;
+  for (const cache of sub.engineCaches) {
+    if (cache.rewarded) continue;
+    const r2 = cache.r * cache.r;
+    let reached = false;
+    for (const nd of net.nodes) {
+      const dx = nd.x - cache.x, dy = nd.y - cache.y;
+      if (dx * dx + dy * dy <= r2) { reached = true; break; }
+    }
+    if (reached) { cache.rewarded = true; pushCardDraft(state, true, { x: cache.x, y: cache.y }); }
   }
 }
 
@@ -5349,7 +5381,7 @@ EFFECTS['Cordyceps Bloom'] = grow((s) => eruptNearestNest(s));
 // 3b. Cordyceps Stroma — installed ACTION (engine): destroy a sensed ant nest every 10 rounds.
 EFFECTS['Cordyceps Stroma'] = action({ effect: 'destroy a sensed ant nest', every: 10 }, (s) => eruptNearestNest(s));
 
-  return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
+  return { cardDeckAdditions, initCards, checkPileRewards, checkEngineCaches, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
 })();
 
 // ===================== src/engine/turn.js =====================
@@ -5357,7 +5389,7 @@ const __m_engine_turn = (function () {
   const { infectNetwork, spreadTrichoderma, checkPuzzleGoal } = __m_engine_threats;
   const { stepAnts } = __m_engine_ants;
   const { stepNematodes } = __m_engine_nematodes;
-  const { produceCardEngines, checkGoalReached, checkPileRewards } = __m_engine_cards;
+  const { produceCardEngines, checkGoalReached, checkPileRewards, checkEngineCaches } = __m_engine_cards;
 // =============================================================================
 // World tick (A2, B4).
 //
@@ -5428,7 +5460,8 @@ function tickWorld(state) {
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
   if (state.cards) {
     produceCardEngines(state);
-    checkPileRewards(state);   // a finished map pile grants a card draft
+    checkPileRewards(state);     // a finished map pile grants a card draft
+    checkEngineCaches(state);    // growing into a free-standing engine cache drafts an Engine card
     checkGoalReached(state);
   }
 
@@ -9379,7 +9412,7 @@ function renderFrame(time) {
   drawAnts(time);
   drawNematodes(time);
   drawTraps(time);
-  drawEnginePileMarkers(time);   // red 3-card icons over the high-value engine caches
+  drawEngineCacheMarkers();   // red 3-card icons over the high-value engine caches
   drawTargetingCursor(time);
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -9390,29 +9423,27 @@ function renderFrame(time) {
   if (_revealPending) { _revealPending = false; revealMap(); }
 }
 
-// Engine caches: a small RED 3-card icon hovering over each uncleared engine pile,
-// so the player can spot these high-value drafts and climb up to grow into them.
-// The red outline matches the engine-card tint; normal caches carry no marker.
-function drawEnginePileMarkers(time) {
+// Engine caches: a small, STATIC red 3-card icon sitting on each uncleared engine
+// cache, so the player can spot these high-value drafts and climb up to grow into
+// them. Free-standing markers (not tied to substrate); no motion, no flashing. The
+// icon is clamped to stay entirely below the surface line — never poking into the sky.
+function drawEngineCacheMarkers() {
   const sub = state.substrate;
-  if (!sub || !sub.foodPiles) return;
+  if (!sub || !sub.engineCaches) return;
   const z = camera.zoom;
-  const bob = Math.sin(time * 0.003) * 3;
-  for (const pile of sub.foodPiles) {
-    if (pile.kind !== 'engine' || pile.rewarded) continue;
-    if (pile._cx == null) {   // cache the pile's world centre once
-      let sx = 0, sy = 0, n = 0;
-      for (const idx of pile.cells) { const col = idx % sub.cols, row = Math.floor(idx / sub.cols); const c = sub.cellCenter(col, row); sx += c.x; sy += c.y; n++; }
-      pile._cx = n ? sx / n : 0; pile._cy = n ? sy / n : 0;
-    }
-    const s = camera.worldToScreen(pile._cx, pile._cy);
-    drawThreeCardIcon(s.x, s.y - sub.cellSize * 1.4 * z + bob, z, time);
+  const surfY = camera.worldToScreen(0, sub.surfaceY).y;
+  const iconHalf = 22 * z;   // half the fanned-card height (incl. rotation + shadow slack)
+  for (const cache of sub.engineCaches) {
+    if (cache.rewarded) continue;
+    const s = camera.worldToScreen(cache.x, cache.y);
+    const cy = Math.max(s.y, surfY + 2 + iconHalf);   // keep the whole icon under the surface
+    drawThreeCardIcon(s.x, cy, z);
   }
 }
-// A little fan of three cards with RED outlines — the "draft an engine card" glyph.
-function drawThreeCardIcon(cx, cy, z, time) {
+// A little fan of three cards with steady RED outlines — the "draft an engine card"
+// glyph. No animation: static outline, fixed glow.
+function drawThreeCardIcon(cx, cy, z) {
   const w = 15 * z, h = 21 * z, r = 3 * z;
-  const pulse = 0.6 + 0.4 * Math.sin(time * 0.004);
   const cards = [{ dx: -8 * z, rot: -0.28 }, { dx: 8 * z, rot: 0.28 }, { dx: 0, rot: 0 }];   // centre drawn last (on top)
   ctx.save();
   ctx.translate(cx, cy);
@@ -9421,11 +9452,11 @@ function drawThreeCardIcon(cx, cy, z, time) {
     ctx.translate(c.dx, 0); ctx.rotate(c.rot);
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
-    ctx.fillStyle = 'rgba(14,20,17,0.82)';
+    ctx.fillStyle = 'rgba(14,20,17,0.9)';
     ctx.fill();
     ctx.lineWidth = Math.max(1, 1.6 * z);
-    ctx.strokeStyle = `rgba(226,118,108,${0.2 + 0.75 * pulse})`;   // engine red (--cacc 226,118,108)
-    ctx.shadowColor = 'rgba(226,118,108,0.7)'; ctx.shadowBlur = 8 * z;
+    ctx.strokeStyle = 'rgba(226,118,108,0.92)';   // engine red (--cacc 226,118,108), steady
+    ctx.shadowColor = 'rgba(226,118,108,0.5)'; ctx.shadowBlur = 6 * z;
     ctx.stroke();
     ctx.restore();
   }

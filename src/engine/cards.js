@@ -120,20 +120,28 @@ export function initCards(state, mode = 'tutorial') {
   return state.cards;
 }
 
-// --- pile-reward draft ------------------------------------------------------
-// Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
-// one of 3 random tutorial-set cards, FREE (into hand). You still pay to play it.
-// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
-function offerPileReward(state, pile) {
+// --- draft offers -----------------------------------------------------------
+// Queue a draft of 3 cards from the given pool, tagged by kind, and (optionally)
+// anchored at a world point so the render layer can fly the 3-card glyph FROM
+// there and expand the panel out of it. `engine` picks the Engine pool (else
+// basic/event); `center` is pure world coords (no view state).
+function pushCardDraft(state, engine, center) {
   const C = state.cards;
-  const engine = !!(pile && pile.kind === 'engine');
   const bag = draftPool(engine);
   shuffle(bag, state.rng);
   const offer = { choices: bag.slice(0, Math.min(3, bag.length)), kind: engine ? 'engine' : 'normal' };
-  // Capture the pile's world footprint (centre + cells) so the render layer can
-  // play the draft animation FROM where the pile stood — a 3-card glyph fades in
-  // there, then the draft panel expands out of it. Pure world coords; no view state.
+  if (center) offer.center = { x: center.x, y: center.y };
+  C.pendingOffers.push(offer);
+  state.log(engine ? 'An engine cache is reached — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
+}
+
+// --- pile-reward draft ------------------------------------------------------
+// Finishing (fully digesting) a MAP-placed food pile you colonised lets you pick
+// one of 3 random Basic/Event cards, FREE (into hand). You still pay to play it.
+// Piles you placed yourself (Substrate.deposit) are untracked and grant nothing.
+function offerPileReward(state, pile) {
   const sub = state.substrate;
+  let center = null;
   if (pile && pile.cells && pile.cells.length && sub && sub.cellCenter) {
     let sx = 0, sy = 0, n = 0;
     for (const idx of pile.cells) {
@@ -141,10 +149,9 @@ function offerPileReward(state, pile) {
       const c = sub.cellCenter(col, row);
       sx += c.x; sy += c.y; n++;
     }
-    if (n) { offer.center = { x: sx / n, y: sy / n }; offer.cells = pile.cells.slice(); }
+    if (n) center = { x: sx / n, y: sy / n };
   }
-  C.pendingOffers.push(offer);
-  state.log(engine ? 'An engine cache is digested — choose a powerful ENGINE card.' : 'A food pile is fully digested — choose a new card to add to your hand.', 'good');
+  pushCardDraft(state, false, center);
 }
 
 export function checkPileRewards(state) {
@@ -160,6 +167,26 @@ export function checkPileRewards(state) {
       if (cell.colonized > 0) touched = true;   // the colony actually digested it
     }
     if (touched && total <= 1e-6) { pile.rewarded = true; offerPileReward(state, pile); }
+  }
+}
+
+// --- engine-cache draft -----------------------------------------------------
+// Engine caches are FREE-STANDING draft markers (not food/substrate). Growing the
+// network INTO one — any node within its reach — triggers an ENGINE-card draft;
+// there's nothing to digest, reaching it is enough. Fires once per cache.
+export function checkEngineCaches(state) {
+  const C = state.cards; if (!C || !C.pendingOffers || state.runOver) return;
+  const sub = state.substrate; if (!sub || !sub.engineCaches || !sub.engineCaches.length) return;
+  const net = state.active; if (!net || !net.alive || !net.nodes) return;
+  for (const cache of sub.engineCaches) {
+    if (cache.rewarded) continue;
+    const r2 = cache.r * cache.r;
+    let reached = false;
+    for (const nd of net.nodes) {
+      const dx = nd.x - cache.x, dy = nd.y - cache.y;
+      if (dx * dx + dy * dy <= r2) { reached = true; break; }
+    }
+    if (reached) { cache.rewarded = true; pushCardDraft(state, true, { x: cache.x, y: cache.y }); }
   }
 }
 

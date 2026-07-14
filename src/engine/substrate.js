@@ -446,26 +446,24 @@ export function generateSubstrate(config, rng) {
   // grants a card draft (engine/cards.js). Piles the PLAYER drops later go
   // through Substrate.deposit() and are NOT registered, so they grant nothing.
   sub.foodPiles = [];
-  const drop = (cc, cr, radius, kind = 'normal') => {
+  const drop = (cc, cr, radius) => {
     const c0 = findClear(cc, cr);                  // relocate the cluster to clear ground
     if (!c0) return;
     const cells = [];
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
-      if (kind === 'engine' && cell.nutrient > 0) return;   // don't cannibalise an existing cache
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = 'cache';                     // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
     });
     if (!cells.length) return;
     // A drop can be relocated onto an existing cache (findClear). Merge overlapping
-    // drops of the SAME kind into ONE pile so a connected blob grants exactly one
-    // draft; never merge an engine cache into a normal one (they draft different pools).
+    // drops into ONE pile so a single connected blob grants exactly one draft.
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
+    const merged = sub.foodPiles.find((p) => p.cells.some((idx) => set.has(idx)));
     if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false, kind });
+    else sub.foodPiles.push({ cells, rewarded: false });
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -484,13 +482,16 @@ export function generateSubstrate(config, rng) {
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
   }
 
-  // ENGINE caches — rarer, high-value piles that draft an ENGINE card (normal caches
-  // draft basic/event). Placed mostly right under the SURFACE so the player must climb
-  // UP (away from the deeper goal path) to reach them; a few sit deeper. The render
-  // layer marks each with a red 3-card icon (see main.js).
+  // ENGINE caches — rarer, high-value draft markers that draft an ENGINE card (normal
+  // caches draft basic/event). Unlike food piles these are FREE-STANDING: not substrate,
+  // no nutrient to digest — the player just grows a strand INTO one (a node within
+  // `engineReachCells`) to trigger the draft (see cards.js). Placed mostly right under
+  // the SURFACE so the player must climb UP (away from the deeper goal path) to reach
+  // them; a few sit deeper. The render layer marks each with a red 3-card icon (main.js).
+  sub.engineCaches = [];
   const engCount = Math.max(0, s.engineClusterCount || 0);
-  const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
   const band = Math.max(0, s.engineSurfaceRows || 2);
+  const engReach = sub.cellSize * (s.engineReachCells != null ? s.engineReachCells : 1.6);
   for (let i = 0; i < engCount; i++) {
     const t = (i + 0.5) / engCount;
     let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
@@ -498,7 +499,10 @@ export function generateSubstrate(config, rng) {
     const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
     const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
                     : rng.int(0, band);            // near-surface band by default
-    drop(cc, cr, engRadius, 'engine');
+    const spot = findClear(cc, cr);                // land on clear ground, never inside rock
+    if (!spot) continue;
+    const c = sub.cellCenter(spot.col, spot.row);  // world centre — always below the surface (row ≥ 0)
+    sub.engineCaches.push({ x: c.x, y: c.y, r: engReach, rewarded: false });
   }
 
   return sub;

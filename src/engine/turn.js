@@ -15,7 +15,7 @@
 import { infectNetwork, spreadTrichoderma, checkPuzzleGoal } from './threats.js';
 import { stepAnts } from './ants.js';
 import { stepNematodes } from './nematodes.js';
-import { produceCardEngines, checkGoalReached, checkPileRewards } from './cards.js';
+import { produceCardEngines, checkGoalReached, checkPileRewards, checkEngineCaches } from './cards.js';
 
 export function tickWorld(state) {
   if (state.runOver) return;
@@ -72,7 +72,8 @@ export function tickWorld(state) {
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
   if (state.cards) {
     produceCardEngines(state);
-    checkPileRewards(state);   // a finished map pile grants a card draft
+    checkPileRewards(state);     // a finished map pile grants a card draft
+    checkEngineCaches(state);    // growing into a free-standing engine cache drafts an Engine card
     checkGoalReached(state);
   }
 
