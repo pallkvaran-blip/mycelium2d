@@ -192,54 +192,36 @@ export class UI {
       this.el.actbtn.onclick = () => this.toggleActions();
     }
 
-    // ---- Bottom action bar ----
-    const bar = div('panel actionbar');
+    // ---- Bottom action bar (only when the CARD layer is OFF — cards replace it) ----
     this.el.buttons = {};
-
-    // Old always-available actions: only when the card layer is OFF (cards replace them).
     if (!cardsOn) {
+      const bar = div('panel actionbar');
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
-    } else {
-      // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
-      // right. Every button is two rows — function on top, cost below.
-      const handBtn = button('btn handbtn abtn', `${ICON('hand')}<span class="txt"><span class="blabel">Show Hand</span></span>`);
-      handBtn.onclick = () => this.toggleHand();
-      this.el.handbtn = handBtn;
-
-      // Draw removed — cards enter the hand only by drafting them (choosing after a
-      // finished food pile). Skip stays as the "pass / advance a round" control.
-      const skipBtn = button('btn deckbtn abtn', 'Skip');
-      skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.skipBtn = skipBtn;
-
-      const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span></span>`);
-      playBtn.id = 'handplay';
-      playBtn.disabled = true;
-      playBtn.onclick = () => this.playArmed();
-      this.el.handplay = playBtn;
-
-      const left = div('abgroup left'); left.appendChild(handBtn);
-      const centre = div('abgroup centre'); centre.appendChild(skipBtn);
-      const right = div('abgroup right'); right.appendChild(playBtn);
-      bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
+      root.appendChild(bar);
     }
-
-    root.appendChild(bar);
+    // In card mode there is no separate action bar: the controls ride ON the hand
+    // bar's filter row — a show/hide arrow at the far left and a Skip chip at the
+    // far right — and a card is played by double-clicking it (no Play button).
 
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
         // Header (phone only): a chip showing which card is selected/aiming.
-        // The open/close toggle now lives in the bottom action bar (Show Hand).
         `<div class="handhead">`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
+        // Always-visible control row: [▾ show/hide arrow] · filter chips · [» Skip chip].
+        // The arrow collapses/expands just the card carousel; the row itself stays put.
+        + `<div class="handrow">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
         + `<div class="handfilter" id="handfilter"></div>`
-        // Drag-to-scroll carousel. Phones swipe; browsers also get ‹ › nav arrows
-        // (hidden by CSS on phones, and auto-hidden when the hand doesn't overflow).
+        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
+        + `</div>`
+        // Drag-to-scroll carousel (hidden when collapsed). Phones swipe; browsers also
+        // get ‹ › nav arrows (hidden by CSS on phones + when the hand doesn't overflow).
         + `<div class="handcarousel">`
         + `<button class="handnav prev" id="handprev" aria-label="Scroll cards left" hidden>‹</button>`
         + `<div class="handlist" id="handlist"></div>`
@@ -255,12 +237,16 @@ export class UI {
       this.el.handpreview = hand.querySelector('#handpreview');
       this.el.handprev = hand.querySelector('#handprev');
       this.el.handnext = hand.querySelector('#handnext');
+      this.el.handtoggle = hand.querySelector('#handtoggle');
+      this.el.skipchip = hand.querySelector('#skipchip');
+      this.el.handtoggle.onclick = () => this.toggleHand();
+      this.el.skipchip.onclick = () => this.handlers.onSkip();
       const nav = (dir) => { const l = this.el.handlist; if (l) l.scrollBy({ left: dir * Math.max(220, l.clientWidth * 0.8), behavior: 'smooth' }); };
       if (this.el.handprev) this.el.handprev.onclick = () => nav(-1);
       if (this.el.handnext) this.el.handnext.onclick = () => nav(1);
       this._enableDragScroll(this.el.handlist);
       root.appendChild(hand);
-      this.setHandOpen(this.handOpen);   // sync the Show Hand chevron + open class
+      this.setHandOpen(this.handOpen);   // sync the arrow chevron + open class
     }
 
     // ---- Hint line ----
@@ -415,13 +401,15 @@ export class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray. The open/close toggle is the "Show Hand" button in
-  // the bottom action bar; this keeps its chevron + the tray's .open class in sync.
+  // Collapsible hand tray. The open/close toggle is the ▾/▴ arrow at the left of
+  // the hand bar's filter row; this keeps its chevron + the tray's .open class in
+  // sync (open ⇒ ▾ "collapse", closed ⇒ ▴ "expand"). The filter row + Skip chip
+  // stay visible either way — only the card carousel shows/hides.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
-    const lab = this.el.handbtn && this.el.handbtn.querySelector('.blabel');
-    if (lab) lab.textContent = open ? 'Hide Hand' : 'Show Hand';
+    const chev = this.el.handtoggle && this.el.handtoggle.querySelector('.htchev');
+    if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
 
@@ -679,9 +667,10 @@ export class UI {
       text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
-      if (this.el.skipBtn) {
-        this.el.skipBtn.innerHTML = `${ICON('skip')}<span class="txt"><span class="blabel">Skip</span><span class="bcost">${costHTML(cc.skipCostEnergy, 0, 0)}</span></span>`;
-        this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
+      if (this.el.skipchip) {
+        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipchip.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
+        this.el.skipchip.title = `Skip this round — advance without playing a card (${cc.skipCostEnergy}⚡)`;
       }
       this._renderOffer();
       this._renderEngines();

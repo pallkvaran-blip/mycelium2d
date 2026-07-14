@@ -376,31 +376,40 @@
     .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
-    /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
-       glowing on-theme frame appears only when the carousel is open. */
-    .handbar { bottom: 16px; left: 12px; right: 192px; transform: none; max-width: none; padding: 0;
+    /* Hand tray (bottom): the control row — [▾ arrow] · filter chips · [» Skip] —
+       is ALWAYS visible and docked; the ▾/▴ arrow shows/hides only the card
+       carousel. There is no separate action bar in card mode. */
+    .handbar { bottom: 16px; left: 12px; right: 12px; transform: none; max-width: none; padding: 8px 10px;
       display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-      background: none; border: none; box-shadow: none; backdrop-filter: none; }
-    .handbar.open { padding: 8px 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
       border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
       box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
-    /* A collapsed tray keeps a thin transparent padding band on phones; make it
-       pass taps through to the map. Keep the aiming chip (its ✕) interactive.
-       (#ui specificity is needed to beat the "#ui > * { pointer-events:auto }" rule.) */
-    #ui > .handbar:not(.open) { pointer-events: none; }
-    #ui > .handbar:not(.open) .handsel { pointer-events: auto; }
-    /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
+    /* hand header: just the selected/aiming chip (phone only) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
-    .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
-    .handbar.open .handbody { display: flex; }   /* Hand button toggles this on every screen */
-    .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
-      padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
-      border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
-    .handtoggle .htcount { font-size: 11px; font-weight: 700; color: var(--accent);
-      background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0 6px; }
-    .handtoggle .htchev { color: var(--ink-dim); font-size: 10px; }
+    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; }
+    /* control row: arrow (left) · filters (fill/centre) · skip chip (right) */
+    .handrow { display: flex; align-items: center; gap: 8px; width: 100%; }
+    /* Card carousel + preview appear only when expanded (.open). */
+    .handcarousel, .handpreview { display: none; }
+    .handbar.open .handcarousel { display: flex; }
+    .handbar.open .handpreview:not(.hidden) { display: block; }
+    /* ▾/▴ show-hide arrow — a small round glass button at the row's left edge */
+    .handtoggle { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(40,54,48,0.9); color: var(--ink); border: 1px solid rgba(130,230,166,0.4); }
+    .handtoggle:hover { border-color: rgba(170,255,205,0.6); background: rgba(52,70,60,0.95); }
+    .handtoggle .htchev { font-size: 12px; line-height: 1; color: var(--accent); }
+    /* » Skip chip — a small round button at the row's right edge; "»<cost>⚡".
+       Muted blue-grey so it reads as a distinct "pass / advance a round" control. */
+    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-family: inherit;
+      font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap;
+      padding: 6px 12px; border-radius: 999px; background: rgba(70,90,120,0.85);
+      border: 1px solid rgba(130,160,200,0.5); box-shadow: 0 0 10px -3px rgba(90,120,170,0.5); }
+    .skipchip:hover:not(:disabled) { border-color: rgba(160,190,230,0.85); background: rgba(84,106,140,0.92); }
+    .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
+    .skipchip .skgl { font-size: 15px; line-height: 1; opacity: 0.9; }
+    .skipchip .skn { font-variant-numeric: tabular-nums; color: var(--warn); }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -413,7 +422,7 @@
       background: rgba(0,0,0,0.32); color: var(--ink-dim); cursor: pointer; font-size: 12px; line-height: 1; }
     .handsel .hscancel:active { background: rgba(224,106,106,0.35); color: #fff; }
     /* filter chips */
-    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; }
+    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; flex: 1 1 auto; min-width: 0; }
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
       padding: 3px 9px; border-radius: 999px; background: rgba(40,54,48,0.9); color: var(--ink-dim);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; }
@@ -422,7 +431,7 @@
     .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
-    .handcarousel { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+    .handcarousel { align-items: center; gap: 8px; max-width: 100%; }   /* display gated by .handbar.open above */
     .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start;
       max-width: min(88vw, 1400px); overflow-x: auto; overflow-y: hidden;
       scrollbar-width: none; scroll-snap-type: none; cursor: grab; }
@@ -594,10 +603,8 @@
       .actionbar .abtn { min-height: 44px; padding: 5px 8px; }
       .actionbar .abtn .blabel { font-size: 12px; }
       .actionbar .abtn .bcost { font-size: 10.5px; }
-      .handbar { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
       .handhead { display: flex; }              /* selected/aiming chip visible on phone */
-      .handbody { display: none; }              /* carousel hidden until the tray is expanded */
-      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
@@ -633,10 +640,8 @@
       .actionbar .abtn { min-height: 38px; padding: 4px 9px; }
       .actionbar .abtn .blabel { font-size: 11.5px; }
       .actionbar .abtn .bcost { font-size: 10px; }
-      .handbar { bottom: 58px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .handbar { bottom: 6px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
       .handhead { display: flex; }
-      .handbody { display: none; }
-      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
@@ -661,8 +666,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "86imsg";
-globalThis.__BUILD__ = "local 07-14 07:20";
+window.__ASSET_VER = "1mwp3t1";
+globalThis.__BUILD__ = "local 07-14 07:44";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7374,54 +7379,36 @@ class UI {
       this.el.actbtn.onclick = () => this.toggleActions();
     }
 
-    // ---- Bottom action bar ----
-    const bar = div('panel actionbar');
+    // ---- Bottom action bar (only when the CARD layer is OFF — cards replace it) ----
     this.el.buttons = {};
-
-    // Old always-available actions: only when the card layer is OFF (cards replace them).
     if (!cardsOn) {
+      const bar = div('panel actionbar');
       const order = ['grow', 'addSubstrate', 'amputate', 'attackAnts', 'excrete', 'digest', 'fruit'];
       for (const name of order) bar.appendChild(this._actionButton(name));
-    } else {
-      // Three groups: [Show Hand] far left · [Draw][Skip] centre · [Play Card] far
-      // right. Every button is two rows — function on top, cost below.
-      const handBtn = button('btn handbtn abtn', `${ICON('hand')}<span class="txt"><span class="blabel">Show Hand</span></span>`);
-      handBtn.onclick = () => this.toggleHand();
-      this.el.handbtn = handBtn;
-
-      // Draw removed — cards enter the hand only by drafting them (choosing after a
-      // finished food pile). Skip stays as the "pass / advance a round" control.
-      const skipBtn = button('btn deckbtn abtn', 'Skip');
-      skipBtn.onclick = () => this.handlers.onSkip();
-      this.el.skipBtn = skipBtn;
-
-      const playBtn = button('btn playbtn abtn', `${ICON('play')}<span class="txt"><span class="blabel">Play Card</span></span>`);
-      playBtn.id = 'handplay';
-      playBtn.disabled = true;
-      playBtn.onclick = () => this.playArmed();
-      this.el.handplay = playBtn;
-
-      const left = div('abgroup left'); left.appendChild(handBtn);
-      const centre = div('abgroup centre'); centre.appendChild(skipBtn);
-      const right = div('abgroup right'); right.appendChild(playBtn);
-      bar.appendChild(left); bar.appendChild(centre); bar.appendChild(right);
+      root.appendChild(bar);
     }
-
-    root.appendChild(bar);
+    // In card mode there is no separate action bar: the controls ride ON the hand
+    // bar's filter row — a show/hide arrow at the far left and a Skip chip at the
+    // far right — and a card is played by double-clicking it (no Play button).
 
     // ---- Hand bar (card layer) ----
     if (cardsOn) {
       const hand = div('panel handbar' + (this.handOpen ? ' open' : ''));
       hand.innerHTML =
         // Header (phone only): a chip showing which card is selected/aiming.
-        // The open/close toggle now lives in the bottom action bar (Show Hand).
         `<div class="handhead">`
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
+        // Always-visible control row: [▾ show/hide arrow] · filter chips · [» Skip chip].
+        // The arrow collapses/expands just the card carousel; the row itself stays put.
+        + `<div class="handrow">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
         + `<div class="handfilter" id="handfilter"></div>`
-        // Drag-to-scroll carousel. Phones swipe; browsers also get ‹ › nav arrows
-        // (hidden by CSS on phones, and auto-hidden when the hand doesn't overflow).
+        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
+        + `</div>`
+        // Drag-to-scroll carousel (hidden when collapsed). Phones swipe; browsers also
+        // get ‹ › nav arrows (hidden by CSS on phones + when the hand doesn't overflow).
         + `<div class="handcarousel">`
         + `<button class="handnav prev" id="handprev" aria-label="Scroll cards left" hidden>‹</button>`
         + `<div class="handlist" id="handlist"></div>`
@@ -7437,12 +7424,16 @@ class UI {
       this.el.handpreview = hand.querySelector('#handpreview');
       this.el.handprev = hand.querySelector('#handprev');
       this.el.handnext = hand.querySelector('#handnext');
+      this.el.handtoggle = hand.querySelector('#handtoggle');
+      this.el.skipchip = hand.querySelector('#skipchip');
+      this.el.handtoggle.onclick = () => this.toggleHand();
+      this.el.skipchip.onclick = () => this.handlers.onSkip();
       const nav = (dir) => { const l = this.el.handlist; if (l) l.scrollBy({ left: dir * Math.max(220, l.clientWidth * 0.8), behavior: 'smooth' }); };
       if (this.el.handprev) this.el.handprev.onclick = () => nav(-1);
       if (this.el.handnext) this.el.handnext.onclick = () => nav(1);
       this._enableDragScroll(this.el.handlist);
       root.appendChild(hand);
-      this.setHandOpen(this.handOpen);   // sync the Show Hand chevron + open class
+      this.setHandOpen(this.handOpen);   // sync the arrow chevron + open class
     }
 
     // ---- Hint line ----
@@ -7597,13 +7588,15 @@ class UI {
   }
   clearPendingCard() { this.pendingCard = null; this._renderHandSelection(); }
 
-  // Collapsible hand tray. The open/close toggle is the "Show Hand" button in
-  // the bottom action bar; this keeps its chevron + the tray's .open class in sync.
+  // Collapsible hand tray. The open/close toggle is the ▾/▴ arrow at the left of
+  // the hand bar's filter row; this keeps its chevron + the tray's .open class in
+  // sync (open ⇒ ▾ "collapse", closed ⇒ ▴ "expand"). The filter row + Skip chip
+  // stay visible either way — only the card carousel shows/hides.
   setHandOpen(open) {
     this.handOpen = open;
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
-    const lab = this.el.handbtn && this.el.handbtn.querySelector('.blabel');
-    if (lab) lab.textContent = open ? 'Hide Hand' : 'Show Hand';
+    const chev = this.el.handtoggle && this.el.handtoggle.querySelector('.htchev');
+    if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
 
@@ -7861,9 +7854,10 @@ class UI {
       text('hud-phosphorus-inc', incStr(inc.phosphorus));
       this._renderHand();
       const cc = s.config.cards;
-      if (this.el.skipBtn) {
-        this.el.skipBtn.innerHTML = `${ICON('skip')}<span class="txt"><span class="blabel">Skip</span><span class="bcost">${costHTML(cc.skipCostEnergy, 0, 0)}</span></span>`;
-        this.el.skipBtn.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
+      if (this.el.skipchip) {
+        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}⚡</span>`;
+        this.el.skipchip.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
+        this.el.skipchip.title = `Skip this round — advance without playing a card (${cc.skipCostEnergy}⚡)`;
       }
       this._renderOffer();
       this._renderEngines();

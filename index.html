@@ -375,31 +375,40 @@
     .stat.res-w .v { color: #7fd0e0; } .stat.res-n .v { color: #93cf52; } .stat.res-p .v { color: #c79be6; }
     .btn.deckbtn { background: rgba(70,90,120,0.85); }
     .btn .deckn { color: var(--ink-dim); font-size: 10px; margin-left: 4px; }
-    /* Hand tray: no chrome when collapsed (so an empty tray is invisible); a
-       glowing on-theme frame appears only when the carousel is open. */
-    .handbar { bottom: 16px; left: 12px; right: 192px; transform: none; max-width: none; padding: 0;
+    /* Hand tray (bottom): the control row — [▾ arrow] · filter chips · [» Skip] —
+       is ALWAYS visible and docked; the ▾/▴ arrow shows/hides only the card
+       carousel. There is no separate action bar in card mode. */
+    .handbar { bottom: 16px; left: 12px; right: 12px; transform: none; max-width: none; padding: 8px 10px;
       display: flex; flex-direction: column; gap: 8px; align-items: stretch;
-      background: none; border: none; box-shadow: none; backdrop-filter: none; }
-    .handbar.open { padding: 8px 10px;
       background: linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9));
       border: 1.5px solid rgba(130,230,166,0.45); border-radius: 14px;
       box-shadow: 0 0 14px -3px rgba(130,230,166,0.45), inset 0 0 0 1px rgba(130,230,166,0.12), 0 8px 22px -9px rgba(0,0,0,0.7);
       backdrop-filter: blur(6px); }
-    /* A collapsed tray keeps a thin transparent padding band on phones; make it
-       pass taps through to the map. Keep the aiming chip (its ✕) interactive.
-       (#ui specificity is needed to beat the "#ui > * { pointer-events:auto }" rule.) */
-    #ui > .handbar:not(.open) { pointer-events: none; }
-    #ui > .handbar:not(.open) .handsel { pointer-events: auto; }
-    /* hand header: just the selected/aiming chip now (toggle moved to the action bar) */
+    /* hand header: just the selected/aiming chip (phone only) */
     .handhead { display: none; align-items: center; gap: 8px; width: 100%; }
-    .handbody { display: none; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
-    .handbar.open .handbody { display: flex; }   /* Hand button toggles this on every screen */
-    .handtoggle { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 13px;
-      padding: 7px 13px; border-radius: 999px; background: rgba(40,54,48,0.95); color: var(--ink);
-      border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
-    .handtoggle .htcount { font-size: 11px; font-weight: 700; color: var(--accent);
-      background: rgba(0,0,0,0.3); border-radius: 8px; padding: 0 6px; }
-    .handtoggle .htchev { color: var(--ink-dim); font-size: 10px; }
+    .handbody { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; }
+    /* control row: arrow (left) · filters (fill/centre) · skip chip (right) */
+    .handrow { display: flex; align-items: center; gap: 8px; width: 100%; }
+    /* Card carousel + preview appear only when expanded (.open). */
+    .handcarousel, .handpreview { display: none; }
+    .handbar.open .handcarousel { display: flex; }
+    .handbar.open .handpreview:not(.hidden) { display: block; }
+    /* ▾/▴ show-hide arrow — a small round glass button at the row's left edge */
+    .handtoggle { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(40,54,48,0.9); color: var(--ink); border: 1px solid rgba(130,230,166,0.4); }
+    .handtoggle:hover { border-color: rgba(170,255,205,0.6); background: rgba(52,70,60,0.95); }
+    .handtoggle .htchev { font-size: 12px; line-height: 1; color: var(--accent); }
+    /* » Skip chip — a small round button at the row's right edge; "»<cost>⚡".
+       Muted blue-grey so it reads as a distinct "pass / advance a round" control. */
+    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-family: inherit;
+      font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap;
+      padding: 6px 12px; border-radius: 999px; background: rgba(70,90,120,0.85);
+      border: 1px solid rgba(130,160,200,0.5); box-shadow: 0 0 10px -3px rgba(90,120,170,0.5); }
+    .skipchip:hover:not(:disabled) { border-color: rgba(160,190,230,0.85); background: rgba(84,106,140,0.92); }
+    .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
+    .skipchip .skgl { font-size: 15px; line-height: 1; opacity: 0.9; }
+    .skipchip .skn { font-variant-numeric: tabular-nums; color: var(--warn); }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -412,7 +421,7 @@
       background: rgba(0,0,0,0.32); color: var(--ink-dim); cursor: pointer; font-size: 12px; line-height: 1; }
     .handsel .hscancel:active { background: rgba(224,106,106,0.35); color: #fff; }
     /* filter chips */
-    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 1000px; }
+    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; flex: 1 1 auto; min-width: 0; }
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
       padding: 3px 9px; border-radius: 999px; background: rgba(40,54,48,0.9); color: var(--ink-dim);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; }
@@ -421,7 +430,7 @@
     .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
-    .handcarousel { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+    .handcarousel { align-items: center; gap: 8px; max-width: 100%; }   /* display gated by .handbar.open above */
     .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start;
       max-width: min(88vw, 1400px); overflow-x: auto; overflow-y: hidden;
       scrollbar-width: none; scroll-snap-type: none; cursor: grab; }
@@ -593,10 +602,8 @@
       .actionbar .abtn { min-height: 44px; padding: 5px 8px; }
       .actionbar .abtn .blabel { font-size: 12px; }
       .actionbar .abtn .bcost { font-size: 10.5px; }
-      .handbar { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
+      .handbar { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: 6px; right: 6px; transform: none; max-width: none; padding: 6px; gap: 6px; }
       .handhead { display: flex; }              /* selected/aiming chip visible on phone */
-      .handbody { display: none; }              /* carousel hidden until the tray is expanded */
-      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: none;
         align-self: stretch; scrollbar-width: none; padding-bottom: 1px; }
       .handfilter::-webkit-scrollbar { display: none; }
@@ -632,10 +639,8 @@
       .actionbar .abtn { min-height: 38px; padding: 4px 9px; }
       .actionbar .abtn .blabel { font-size: 11.5px; }
       .actionbar .abtn .bcost { font-size: 10px; }
-      .handbar { bottom: 58px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
+      .handbar { bottom: 6px; left: 6px; right: 6px; transform: none; max-width: none; padding: 4px 6px; gap: 4px; }
       .handhead { display: flex; }
-      .handbody { display: none; }
-      .handbar.open .handbody { display: flex; }
       .handfilter { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; align-self: stretch; scrollbar-width: none; }
       .handfilter::-webkit-scrollbar { display: none; }
       .fchip { font-size: 10px; padding: 2px 7px; }
