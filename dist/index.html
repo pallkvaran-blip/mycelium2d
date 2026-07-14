@@ -554,8 +554,8 @@
     /* Draft morph: glowing 3-card glyph flying up from the pile, each frame
        growing into a draft-card slot with its face revealing inside. */
     .draftmorph { position: fixed; z-index: 60; box-sizing: border-box; overflow: hidden;
-      border: 1.8px solid rgba(182,255,207,0.96); background: rgba(9,15,12,0.86);
-      box-shadow: 0 0 18px rgba(127,230,163,0.8), inset 0 0 14px rgba(127,230,163,0.26);
+      border: 1.8px solid rgba(255,255,255,0.96); background: rgba(9,15,12,0.86);
+      box-shadow: 0 0 18px rgba(255,255,255,0.72), inset 0 0 14px rgba(255,255,255,0.22);
       pointer-events: none; }
     /* Engine caches read RED (matching engine cards) instead of mint. */
     .draftmorph.engine { border-color: rgba(244,158,148,0.96);
@@ -694,8 +694,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "eh6kf4";
-globalThis.__BUILD__ = "local 07-14 13:26";
+window.__ASSET_VER = "14gajtv";
+globalThis.__BUILD__ = "local 07-14 13:37";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8418,9 +8418,9 @@ class UI {
   // the border stays crisp at icon size); real cards cross-fade in at the end.
   _draftMorphToSlots(el, cardEls, targets, frames) {
     const MORPH_MS = 940, STAGGER = 80;
-    // Glyph glow colour: engine caches read RED (matching engine cards), else mint.
+    // Glyph glow colour: engine caches read RED (matching engine cards), else WHITE.
     const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');
-    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '127,230,163', ring: '182,255,207' };
+    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '255,255,255', ring: '255,255,255' };
     cardEls.forEach((c) => { c.style.opacity = '0'; });   // real cards hidden until handoff
     const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
       { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });

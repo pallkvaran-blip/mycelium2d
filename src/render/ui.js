@@ -951,9 +951,9 @@ export class UI {
   // the border stays crisp at icon size); real cards cross-fade in at the end.
   _draftMorphToSlots(el, cardEls, targets, frames) {
     const MORPH_MS = 940, STAGGER = 80;
-    // Glyph glow colour: engine caches read RED (matching engine cards), else mint.
+    // Glyph glow colour: engine caches read RED (matching engine cards), else WHITE.
     const engine = !!(this._offerReleased && this._offerReleased.kind === 'engine');
-    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '127,230,163', ring: '182,255,207' };
+    const G = engine ? { hi: '226,118,108', ring: '244,158,148' } : { hi: '255,255,255', ring: '255,255,255' };
     cardEls.forEach((c) => { c.style.opacity = '0'; });   // real cards hidden until handoff
     const dim = el.animate([{ opacity: 0 }, { opacity: 1 }],
       { duration: 320, delay: MORPH_MS * 0.40, easing: 'ease-out', fill: 'both' });
