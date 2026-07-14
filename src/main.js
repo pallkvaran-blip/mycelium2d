@@ -339,6 +339,7 @@ const handlers = {
 function draftLocked() {
   const c = state.cards;
   if (c && c.pendingOffers && c.pendingOffers.length && !state.runOver) {
+    if (ui.restoreOffer) ui.restoreOffer();   // pop the draft back open so they can act on the nudge
     ui.toast('Finish your draft first — choose one of the cards.');
     return true;
   }
