@@ -670,7 +670,7 @@ export class UI {
       this._renderHand();
       const cc = s.config.cards;
       if (this.el.skipchip) {
-        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">${RES_ICON.energy}</span>`;
+        this.el.skipchip.innerHTML = `<span class="skgl">${ICON('skip')}</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">${RES_ICON.energy}</span>`;
         this.el.skipchip.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
         this.el.skipchip.title = `Skip this round — advance without playing a card (${cc.skipCostEnergy}⚡)`;
       }
