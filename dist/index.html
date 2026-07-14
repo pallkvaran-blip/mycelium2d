@@ -402,14 +402,14 @@
     .handtoggle .htchev { font-size: 12px; line-height: 1; color: var(--accent); }
     /* » Skip chip — a small round button at the row's right edge; "»<cost>⚡".
        Muted blue-grey so it reads as a distinct "pass / advance a round" control. */
-    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-family: inherit;
+    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
       font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap;
-      padding: 6px 12px; border-radius: 999px; background: rgba(70,90,120,0.85);
-      border: 1px solid rgba(130,160,200,0.5); box-shadow: 0 0 10px -3px rgba(90,120,170,0.5); }
-    .skipchip:hover:not(:disabled) { border-color: rgba(160,190,230,0.85); background: rgba(84,106,140,0.92); }
+      padding: 6px 12px; border-radius: 999px; background: rgba(40,54,48,0.9);
+      border: 1px solid rgba(130,230,166,0.4); }
+    .skipchip:hover:not(:disabled) { border-color: rgba(170,255,205,0.6); background: rgba(52,70,60,0.95); }
     .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
-    .skipchip .skgl { font-size: 15px; line-height: 1; opacity: 0.9; }
-    .skipchip .skn { font-variant-numeric: tabular-nums; color: var(--warn); }
+    .skipchip .skgl { font-size: 15px; line-height: 1; color: var(--accent); }
+    .skipchip .skn { font-variant-numeric: tabular-nums; color: var(--accent); }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -431,20 +431,23 @@
     .fchip .fn { font-size: 9px; opacity: 0.75; background: rgba(0,0,0,0.28); border-radius: 8px; padding: 0 4px; }
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
-    .handcarousel { align-items: center; gap: 8px; max-width: 100%; }   /* display gated by .handbar.open above */
+    .handcarousel { position: relative; align-items: center; gap: 8px; max-width: 100%; }   /* display gated by .handbar.open above; position:relative anchors the edge-fade nav arrows */
     .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start;
-      max-width: min(88vw, 1400px); overflow-x: auto; overflow-y: hidden;
+      max-width: none; overflow-x: auto; overflow-y: hidden;
       scrollbar-width: none; scroll-snap-type: none; cursor: grab; }
     .handlist::-webkit-scrollbar { display: none; }
     .handlist:active { cursor: grabbing; }
-    /* Carousel nav arrows — browser only (phones swipe). Just faint pointers, no
-       button chrome and no dark band: a transparent full-height hit area that
-       brightens on hover. */
-    .handnav { flex: 0 0 auto; width: 30px; align-self: stretch; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center; font-size: 30px; line-height: 1;
-      font-family: inherit; color: rgba(215,235,222,0.42); background: none; border: none;
-      box-shadow: none; padding: 0; transition: color .15s; }
-    .handnav:hover { color: rgba(232,255,242,0.9); }
+    /* Carousel nav arrows — browser only (phones swipe). Overlaid on the carousel's
+       left/right edges (so cards run full-width beneath them) with a dark→transparent
+       fade so the edge cards melt out under the arrow instead of hitting a hard band. */
+    .handnav { position: absolute; top: 0; bottom: 0; width: 54px; z-index: 5; cursor: pointer;
+      display: inline-flex; align-items: center; font-size: 30px; line-height: 1;
+      font-family: inherit; color: rgba(215,235,222,0.5); border: none; padding: 0; transition: color .15s; }
+    .handnav.prev { left: 0; justify-content: flex-start; padding-left: 3px; border-radius: 11px 0 0 11px;
+      background: linear-gradient(to right, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
+    .handnav.next { right: 0; justify-content: flex-end; padding-right: 3px; border-radius: 0 11px 11px 0;
+      background: linear-gradient(to left, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
+    .handnav:hover { color: rgba(232,255,242,0.95); }
     .handnav[hidden] { display: none; }
     /* text-only preview of what a draw-engine (+5) card shuffles into the deck */
     .handpreview { width: 100%; max-width: 520px; text-align: center; padding: 8px 12px; border-radius: 10px;
@@ -666,8 +669,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1mwp3t1";
-globalThis.__BUILD__ = "local 07-14 07:44";
+window.__ASSET_VER = "dqvygf";
+globalThis.__BUILD__ = "local 07-14 07:55";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
