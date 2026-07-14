@@ -593,10 +593,12 @@ function renderFrame(time) {
   if (_revealPending) { _revealPending = false; revealMap(); }
 }
 
-// Engine caches: a small, STATIC red 3-card icon sitting on each uncleared engine
-// cache, so the player can spot these high-value drafts and climb up to grow into
-// them. Free-standing markers (not tied to substrate); no motion, no flashing. The
-// icon is clamped to stay entirely below the surface line — never poking into the sky.
+// Engine caches: a small, STATIC red 3-card icon sitting on each engine cache, so
+// the player can spot these high-value drafts and climb up to grow into them. Free-
+// standing markers (not tied to substrate); no motion, no flashing. The icon STAYS
+// put after the colony reaches it (drafting is one-time, but the marker persists as
+// a landmark). Clamped to stay entirely below the surface line — never poking into
+// the sky. Drawn last, so it reads clearly on top of the colony that grew into it.
 function drawEngineCacheMarkers() {
   const sub = state.substrate;
   if (!sub || !sub.engineCaches) return;
@@ -604,7 +606,6 @@ function drawEngineCacheMarkers() {
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   const iconHalf = 22 * z;   // half the fanned-card height (incl. rotation + shadow slack)
   for (const cache of sub.engineCaches) {
-    if (cache.rewarded) continue;
     const s = camera.worldToScreen(cache.x, cache.y);
     const cy = Math.max(s.y, surfY + 2 + iconHalf);   // keep the whole icon under the surface
     drawThreeCardIcon(s.x, cy, z);
