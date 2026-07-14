@@ -667,6 +667,9 @@
       .cardbtn .crules, .offercard .crules { font-size: 10.5px; }
       .offerbox { padding: 14px; max-width: 94vw; }
       .offerrow { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 10px;
+        /* overflow-x:auto forces overflow-y to clip, which would cut the SELECTED card's ring +
+           glow at the top/bottom — pad so the highlight renders inside the scroll box. */
+        padding: 15px 6px; margin-top: 4px;
         scroll-snap-type: x mandatory; scrollbar-width: none; }
       .offerrow::-webkit-scrollbar { display: none; }
       .offercard { width: min(46vw, 172px); flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
@@ -710,8 +713,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "z5izq8";
-globalThis.__BUILD__ = "local 07-14 18:44";
+window.__ASSET_VER = "1jwhtez";
+globalThis.__BUILD__ = "local 07-14 18:51";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
