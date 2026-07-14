@@ -387,6 +387,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Nematode swarms fan out instead of bunching** (branch same).
+  - Cause: every worm's movement target was `nearestVisibleNode(..., null)` — the plain nearest
+    strand — so the whole swarm converged on ONE node. Fix (`nematodes.js stepNematodes`): a per-tick
+    `targeted` Set; each worm heads for the nearest in-sight strand **no other worm has already picked
+    this tick**, falling back to the plain nearest only when every visible strand is taken (more worms
+    than strands). Worms now store `w.targetId` (their chosen strand — also handy for a future
+    locked-on render). Eating is unchanged (still claims a distinct strand per worm/tick).
+  - Test: new smoke case — 4 clustered worms + 4 spread strands → 4 DISTINCT targets. Also hardened
+    the puzzle-route winnability test, which shared one RNG stream with the threats via `tickWorld`
+    (so ANY worm-behaviour tweak perturbed its seed-sensitive growth): it now drops all threats
+    (no respawn) and does a deterministic final grow straight at the chest, so it purely checks the
+    route is growable / chest reachable. 97 smoke + 45 card green.
+
 - **Draft panel: minimize to a chip; no Draft button; locks play until chosen** (branch same).
   - Removed the "Draft Card" button — **double-click** a card drafts it (single click previews).
   - Added a **▾ minimize** button (top-left of `.offerbox`, `#offerminbtn`) that sets the draft aside:

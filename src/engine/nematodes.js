@@ -53,6 +53,7 @@ export function stepNematodes(state) {
   const cs = sub.cellSize;
   const nodes = net && net.alive ? net.nodes : [];
   const claimed = new Set();    // node ids eaten this tick (one worm per strand)
+  const targeted = new Set();   // node ids a worm is already HEADING for this tick (fan-out)
   const newborns = [];
 
   for (const w of state.nematodes) {
@@ -60,11 +61,15 @@ export function stepNematodes(state) {
     if (w.stuck > 0) { w.stuck -= 1; w.feeding = false; continue; }
     w.feeding = false;
 
-    // Movement/feeding target is the nearest strand it can SEE (clear LOS),
-    // regardless of whether another worm is already eating it. (Eating below
-    // claims a DISTINCT strand — so the swarm's CONSUMPTION scales with its
-    // size, but BREEDING isn't throttled by how many strands are in reach.)
-    const seen = nearestVisibleNode(sub, nodes, w, n.sightRadius, null);
+    // Each worm heads for the nearest strand it can SEE (clear LOS) that NO other worm
+    // has already picked this tick — so the swarm FANS OUT across the colony instead of
+    // piling onto one node. If every visible strand is already taken (more worms than
+    // strands in sight), fall back to the plain nearest so it still closes in. (Eating
+    // below independently claims a DISTINCT strand, so consumption still scales.)
+    let seen = nearestVisibleNode(sub, nodes, w, n.sightRadius, targeted);
+    if (!seen) seen = nearestVisibleNode(sub, nodes, w, n.sightRadius, null);
+    if (seen) targeted.add(seen.id);
+    w.targetId = seen ? seen.id : null;
     w.sees = !!seen;                                    // searching vs locked-on (sight overlay)
 
     if (seen) {

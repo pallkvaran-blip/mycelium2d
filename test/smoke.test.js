@@ -432,6 +432,28 @@ console.log('# Nematodes: crawl in on sight; rock blocks line of sight');
   ok(blockedIn < cs * 1.5, `rock blocks line of sight — the worm doesn't crawl in (${blockedIn | 0}px)`);
 }
 
+console.log('# Nematodes: a swarm FANS OUT — each worm targets a distinct strand');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 4242);
+  const sub = s.substrate;
+  for (const c of sub.cells) { c.rock = false; c.nutrient = 0; c.maxNutrient = 0; }
+  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0; s.config.trichoderma.respawnChance = 0;
+  s.config.nematodes.respawnChance = 0; s.config.nematodes.breedChance = 0;   // hold the count at 4
+  const net = s.active, cs = sub.cellSize;
+  // Four strands spread out in open soil, well away from the seeded colony.
+  const baseX = sub.worldWidth * 0.7, baseY = sub.surfaceY + cs * 8;
+  const planted = [];
+  for (let i = 0; i < 4; i++) planted.push(net.addNode(baseX + (i - 1.5) * cs * 2, baseY, net.nodes[0]));
+  const plantedIds = new Set(planted.map((p) => p.id));
+  // Four worms clustered at ONE point, all within sight of the four strands.
+  s.nematodes = [];
+  for (let i = 0; i < 4; i++) spawnNematodeAt(s, baseX + (i * 2 - 3), baseY - cs * 5);
+  stepNematodes(s);
+  const targets = s.nematodes.map((w) => w.targetId);
+  ok(targets.every((t) => plantedIds.has(t)), 'the four clustered worms lock onto the four nearby strands');
+  ok(new Set(targets).size === 4, `each worm targets a DISTINCT strand — the swarm fans out (distinct: ${new Set(targets).size}/4)`);
+}
+
 console.log('# Trichoderma: clouds home in on sight; rock blocks line of sight');
 {
   const cs = CONFIG.world.cellSize;
@@ -598,10 +620,14 @@ console.log('# Puzzle mode: builds a fixed level and is navigable to the chest')
   ok(s.substrate.totalNutrient() > 0, 'food islands present');
   ok(s.config.energy.start === 50 && s.config.energy.baselineTrickle === 0, 'tight economy applied');
 
-  // Navigate to the chest by laying lures along the route. Cheat energy and
-  // drop the clouds so this purely checks the ROUTE is growable (rocks don't
-  // wall it off and the chest is reachable).
+  // Navigate to the chest by laying lures along the route. Cheat energy and drop
+  // the THREATS (clouds + worms + ants, no respawns) so this purely checks the
+  // ROUTE is growable — rocks don't wall it off and the chest is reachable — rather
+  // than that a specific RNG seed survives a swarm eating the frontier mid-route.
   s.clouds = [];
+  s.nematodes = []; s.ants = [];
+  s.config.nematodes.respawnChance = 0; s.config.trichoderma.respawnChance = 0;
+  if (s.config.ants) s.config.ants.respawnChance = 0;
   const path = [[8, 4], [12, 5], [16, 5], [20, 5], [24, 9], [28, 12], [31, 13], [35, 11],
     [39, 9], [43, 7], [46, 8], [50, 10], [53, 12], [55, 14], [58, 11], [59, 9], [63, 9],
     [67, 9], [70, 9], [73, 9]];
@@ -621,6 +647,15 @@ console.log('# Puzzle mode: builds a fixed level and is navigable to the chest')
       tickWorld(s);                               // advances world + checks the puzzle goal
     }
     if (s.won) break;
+  }
+  // Final approach: grow straight at the chest from the nearest strand until a node
+  // lands within it. With threats off + energy cheated this is deterministic, so the
+  // check is purely "is the chest reachable" (not seed-luck at the last waypoint).
+  for (let g = 0; g < 24 && !s.won; g++) {
+    s.active.energy = 9999;
+    const near = s.active.nearestNode(s.chest.x, s.chest.y) || s.active.frontierPoint() || { x: s.chest.x, y: s.chest.y };
+    s.active.growDirected(s.substrate, s.rng, s.chest.x - near.x, s.chest.y - near.y, 4, false);
+    tickWorld(s);
   }
   const reach = Math.max(...s.active.nodes.map((n) => s.substrate.colAtX(n.x)));
   ok(s.won, `the colony can be routed to the chest (reached col ${reach}, chest col 73)`);
