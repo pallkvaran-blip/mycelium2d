@@ -56,9 +56,8 @@
     .res .rd { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.82; margin-left: 1px; }
     .res .rd:empty { display: none; }
     .res.e .rk, .res.e .rv, .res.e .ri, .res.e .rd { color: var(--accent); }
-    /* Energy BOLT icon is yellow/gold to match the ⚡ used on card costs + the Skip
-       chip (green number, yellow bolt — same pairing everywhere). */
-    .res.e .ri { color: #f4c22e; }
+    /* (Energy bolt icon carries its own gold fill in RES_ICON — see ui.js — so it's
+       the same yellow here as on card costs + the Skip chip; the number stays green.) */
     .res.w .rk, .res.w .rv, .res.w .ri, .res.w .rd { color: #7fd0e0; }
     .res.p .rk, .res.p .rv, .res.p .ri, .res.p .rd { color: #c79be6; }
     /* Resource marks (bolt / water drop / phosphorus spark) — inherit currentColor. */
@@ -414,7 +413,7 @@
     .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
     .skipchip .skgl { font-size: 12px; line-height: 1; color: var(--accent); }
     .skipchip .skn { font-size: 10px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
-    .skipchip .ske { font-size: 9px; line-height: 1; }
+    .skipchip .ske { display: inline-flex; align-items: center; font-size: 11px; line-height: 1; }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -448,10 +447,10 @@
     .handnav { position: absolute; top: 0; bottom: 0; width: 54px; z-index: 5; cursor: pointer;
       display: inline-flex; align-items: center; font-size: 30px; line-height: 1;
       font-family: inherit; color: rgba(215,235,222,0.5); border: none; padding: 0; transition: color .15s; }
-    .handnav.prev { left: 0; justify-content: flex-start; padding-left: 3px; border-radius: 11px 0 0 11px;
-      background: linear-gradient(to right, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
-    .handnav.next { right: 0; justify-content: flex-end; padding-right: 3px; border-radius: 0 11px 11px 0;
-      background: linear-gradient(to left, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
+    .handnav.prev { left: 0; justify-content: flex-start; padding-left: 3px;
+      background: linear-gradient(to right, rgba(9,14,11,0.92) 0%, rgba(9,14,11,0) 100%); }
+    .handnav.next { right: 0; justify-content: flex-end; padding-right: 3px;
+      background: linear-gradient(to left, rgba(9,14,11,0.92) 0%, rgba(9,14,11,0) 100%); }
     .handnav:hover { color: rgba(232,255,242,0.95); }
     .handnav[hidden] { display: none; }
     /* text-only preview of what a draw-engine (+5) card shuffles into the deck */

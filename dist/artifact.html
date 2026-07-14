@@ -51,9 +51,8 @@
     .res .rd { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.82; margin-left: 1px; }
     .res .rd:empty { display: none; }
     .res.e .rk, .res.e .rv, .res.e .ri, .res.e .rd { color: var(--accent); }
-    /* Energy BOLT icon is yellow/gold to match the ⚡ used on card costs + the Skip
-       chip (green number, yellow bolt — same pairing everywhere). */
-    .res.e .ri { color: #f4c22e; }
+    /* (Energy bolt icon carries its own gold fill in RES_ICON — see ui.js — so it's
+       the same yellow here as on card costs + the Skip chip; the number stays green.) */
     .res.w .rk, .res.w .rv, .res.w .ri, .res.w .rd { color: #7fd0e0; }
     .res.p .rk, .res.p .rv, .res.p .ri, .res.p .rd { color: #c79be6; }
     /* Resource marks (bolt / water drop / phosphorus spark) — inherit currentColor. */
@@ -409,7 +408,7 @@
     .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
     .skipchip .skgl { font-size: 12px; line-height: 1; color: var(--accent); }
     .skipchip .skn { font-size: 10px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
-    .skipchip .ske { font-size: 9px; line-height: 1; }
+    .skipchip .ske { display: inline-flex; align-items: center; font-size: 11px; line-height: 1; }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -443,10 +442,10 @@
     .handnav { position: absolute; top: 0; bottom: 0; width: 54px; z-index: 5; cursor: pointer;
       display: inline-flex; align-items: center; font-size: 30px; line-height: 1;
       font-family: inherit; color: rgba(215,235,222,0.5); border: none; padding: 0; transition: color .15s; }
-    .handnav.prev { left: 0; justify-content: flex-start; padding-left: 3px; border-radius: 11px 0 0 11px;
-      background: linear-gradient(to right, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
-    .handnav.next { right: 0; justify-content: flex-end; padding-right: 3px; border-radius: 0 11px 11px 0;
-      background: linear-gradient(to left, rgba(9,14,11,0.9) 8%, rgba(9,14,11,0) 100%); }
+    .handnav.prev { left: 0; justify-content: flex-start; padding-left: 3px;
+      background: linear-gradient(to right, rgba(9,14,11,0.92) 0%, rgba(9,14,11,0) 100%); }
+    .handnav.next { right: 0; justify-content: flex-end; padding-right: 3px;
+      background: linear-gradient(to left, rgba(9,14,11,0.92) 0%, rgba(9,14,11,0) 100%); }
     .handnav:hover { color: rgba(232,255,242,0.95); }
     .handnav[hidden] { display: none; }
     /* text-only preview of what a draw-engine (+5) card shuffles into the deck */
@@ -669,8 +668,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1ignynr";
-globalThis.__BUILD__ = "local 07-14 08:10";
+window.__ASSET_VER = "1szgtzm";
+globalThis.__BUILD__ = "local 07-14 08:28";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7217,7 +7216,9 @@ const ICON = (id) => ICON_SVG[id] || '';
 // Phosphorus = spark/shine). Self-contained inline SVGs so they survive the
 // single-file bundle; coloured by the surrounding context via currentColor.
 const RES_ICON = {
-  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="currentColor"/></svg>',
+  // Energy bolt is a fixed gold fill (not currentColor) so every energy icon —
+  // pill, card costs, Skip chip — is the SAME yellow, regardless of its container.
+  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="#f4c22e"/></svg>',
   water: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 1 0 13 0C18.5 10 12 2.5 12 2.5Z" fill="currentColor"/></svg>',
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
@@ -7238,7 +7239,7 @@ const WARN_SVG = '<svg class="tk" viewBox="0 0 24 24" fill="none" stroke="curren
 // (cyan drop) and phosphorus (violet spark). Returns inner HTML for a .bcost span.
 function costHTML(energy, w, p) {
   const parts = [];
-  if (energy) parts.push(`${energy}⚡`);
+  if (energy) parts.push(`<span class="e">${energy}${RES_ICON.energy}</span>`);
   if (w) parts.push(`<span class="w">${w}${RES_ICON.water}</span>`);
   if (p) parts.push(`<span class="p">${p}${RES_ICON.phos}</span>`);
   return parts.join(' ');
@@ -7403,13 +7404,6 @@ class UI {
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
-        // Always-visible control row: [▾ show/hide arrow] · filter chips · [» Skip chip].
-        // The arrow collapses/expands just the card carousel; the row itself stays put.
-        + `<div class="handrow">`
-        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
-        + `<div class="handfilter" id="handfilter"></div>`
-        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
-        + `</div>`
         // Drag-to-scroll carousel (hidden when collapsed). Phones swipe; browsers also
         // get ‹ › nav arrows (hidden by CSS on phones + when the hand doesn't overflow).
         + `<div class="handcarousel">`
@@ -7419,6 +7413,13 @@ class UI {
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
+        // Always-visible control row at the BOTTOM: [▾ show/hide arrow] · filter chips ·
+        // [» Skip chip]. The arrow collapses/expands the carousel above; the row stays put.
+        + `<div class="handrow">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
+        + `<div class="handfilter" id="handfilter"></div>`
+        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
+        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
@@ -7858,7 +7859,7 @@ class UI {
       this._renderHand();
       const cc = s.config.cards;
       if (this.el.skipchip) {
-        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">⚡</span>`;
+        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">${RES_ICON.energy}</span>`;
         this.el.skipchip.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
         this.el.skipchip.title = `Skip this round — advance without playing a card (${cc.skipCostEnergy}⚡)`;
       }
@@ -8510,7 +8511,7 @@ function cardGroups(c) {
 // Themed cost pips (Energy / Water / Phosphorus).
 function gateChips(c) {
   const g = [];
-  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}${RES_ICON.energy}</span>`);
   // Action cards install for Energy only; their W/P is a per-activation cost shown
   // in the Actions menu (not an install gate), so don't imply it on the card face.
   if (c.type !== 'action') {

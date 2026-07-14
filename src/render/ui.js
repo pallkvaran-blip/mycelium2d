@@ -27,7 +27,9 @@ const ICON = (id) => ICON_SVG[id] || '';
 // Phosphorus = spark/shine). Self-contained inline SVGs so they survive the
 // single-file bundle; coloured by the surrounding context via currentColor.
 const RES_ICON = {
-  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="currentColor"/></svg>',
+  // Energy bolt is a fixed gold fill (not currentColor) so every energy icon —
+  // pill, card costs, Skip chip — is the SAME yellow, regardless of its container.
+  energy: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z" fill="#f4c22e"/></svg>',
   water: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 1 0 13 0C18.5 10 12 2.5 12 2.5Z" fill="currentColor"/></svg>',
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
@@ -48,7 +50,7 @@ const WARN_SVG = '<svg class="tk" viewBox="0 0 24 24" fill="none" stroke="curren
 // (cyan drop) and phosphorus (violet spark). Returns inner HTML for a .bcost span.
 function costHTML(energy, w, p) {
   const parts = [];
-  if (energy) parts.push(`${energy}⚡`);
+  if (energy) parts.push(`<span class="e">${energy}${RES_ICON.energy}</span>`);
   if (w) parts.push(`<span class="w">${w}${RES_ICON.water}</span>`);
   if (p) parts.push(`<span class="p">${p}${RES_ICON.phos}</span>`);
   return parts.join(' ');
@@ -213,13 +215,6 @@ export class UI {
         + `<div class="handsel hidden" id="handsel"></div>`
         + `</div>`
         + `<div class="handbody" id="handbody">`
-        // Always-visible control row: [▾ show/hide arrow] · filter chips · [» Skip chip].
-        // The arrow collapses/expands just the card carousel; the row itself stays put.
-        + `<div class="handrow">`
-        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
-        + `<div class="handfilter" id="handfilter"></div>`
-        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
-        + `</div>`
         // Drag-to-scroll carousel (hidden when collapsed). Phones swipe; browsers also
         // get ‹ › nav arrows (hidden by CSS on phones + when the hand doesn't overflow).
         + `<div class="handcarousel">`
@@ -229,6 +224,13 @@ export class UI {
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
+        // Always-visible control row at the BOTTOM: [▾ show/hide arrow] · filter chips ·
+        // [» Skip chip]. The arrow collapses/expands the carousel above; the row stays put.
+        + `<div class="handrow">`
+        + `<button class="handtoggle" id="handtoggle" aria-label="Show or hide cards"><span class="htchev">▾</span></button>`
+        + `<div class="handfilter" id="handfilter"></div>`
+        + `<button class="skipchip" id="skipchip" aria-label="Skip round — advance without playing"></button>`
+        + `</div>`
         + `</div>`;
       this.el.handbar = hand;
       this.el.handlist = hand.querySelector('#handlist');
@@ -668,7 +670,7 @@ export class UI {
       this._renderHand();
       const cc = s.config.cards;
       if (this.el.skipchip) {
-        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">⚡</span>`;
+        this.el.skipchip.innerHTML = `<span class="skgl">»</span><span class="skn">${cc.skipCostEnergy}</span><span class="ske">${RES_ICON.energy}</span>`;
         this.el.skipchip.disabled = s.runOver || !net.alive || net.energy < cc.skipCostEnergy;
         this.el.skipchip.title = `Skip this round — advance without playing a card (${cc.skipCostEnergy}⚡)`;
       }
@@ -1320,7 +1322,7 @@ function cardGroups(c) {
 // Themed cost pips (Energy / Water / Phosphorus).
 function gateChips(c) {
   const g = [];
-  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}⚡</span>`);
+  if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}${RES_ICON.energy}</span>`);
   // Action cards install for Energy only; their W/P is a per-activation cost shown
   // in the Actions menu (not an install gate), so don't imply it on the card face.
   if (c.type !== 'action') {
