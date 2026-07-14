@@ -18,6 +18,7 @@
 // =============================================================================
 
 import { CARD_DATA, CARD_BY_NAME } from '../cards-data.js';
+import { attackNest } from './ants.js';   // Cordyceps cards destroy an ant nest (frac 1 = full kill)
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over
@@ -768,3 +769,79 @@ EFFECTS['Sclerotial Rind'] = action({ effect: 'harden + clear mould (immune)', e
   s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
   return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
 });
+
+// --- anti-nematode & anti-ant predation (real fungal biology) ----------------
+// Fungi kill nematodes two ways and parasitise ant colonies three cards model:
+//   • Constricting ring (Drechslerella) — a 3-celled ring inflates in ~0.1 s and
+//     throttles ONE passing worm. Constricting Snap fires it on the nearest worm now.
+//   • Toxocysts (Pleurotus, the oyster mushroom) — hyphae bristle with droplet
+//     glands that paralyse EVERY worm they touch. Toxocyst Burst/Array clear a radius.
+//   • Ophiocordyceps (the "zombie-ant" fungus) — threads a nest, then erupts fruiting
+//     stalks from its workers, collapsing it. Cordyceps Bloom/Stroma destroy a sensed nest.
+const gainPhos = (net, r, cap) => { net.phosphorus = Math.max(net.phosphorus, Math.min(cap, net.phosphorus + r)); };
+
+// Digest every nematode within `r` of (x,y); returns how many were removed.
+function killWormsInRadius(state, x, y, r) {
+  const worms = state.nematodes;
+  if (!worms || !worms.length) return 0;
+  const r2 = r * r, survivors = [];
+  let killed = 0;
+  for (const w of worms) { if ((w.x - x) ** 2 + (w.y - y) ** 2 <= r2) killed++; else survivors.push(w); }
+  state.nematodes = survivors;
+  return killed;
+}
+
+// Nearest ant nest whose closest colony node is within sensing range; null if none.
+function nestInSensingRange(state) {
+  const nests = state.ants || [];
+  if (!nests.length) return null;
+  const sense2 = state.config.growth.sensingRadius ** 2;
+  let best = null, bd = Infinity;
+  for (const nest of nests) {
+    const nn = state.active.nearestNode(nest.x, nest.y);
+    if (!nn) continue;
+    const d = (nn.x - nest.x) ** 2 + (nn.y - nest.y) ** 2;
+    if (d <= sense2 && d < bd) { bd = d; best = nest; }
+  }
+  return best;
+}
+function eruptNearestNest(state) {
+  const nest = nestInSensingRange(state);
+  if (!nest) return { ok: false, message: 'No ant nest within sensing range — grow closer first.' };
+  attackNest(state, nest.x, nest.y, state.substrate.cellSize, 1);   // frac 1 → destroy outright
+  return { ok: true, message: 'Cordyceps erupted through the nest — the raiding column is gone.' };
+}
+
+// 1. Constricting Snap — EVENT version of Constricting Ring: throttle the nearest worm now.
+EFFECTS['Constricting Snap'] = targeted((s, c, ctx) => {
+  const worms = s.nematodes || [], r2 = s.config.cards.snapRadius ** 2;
+  let wi = -1, bd = r2;
+  for (let i = 0; i < worms.length; i++) {
+    const d = (worms[i].x - ctx.x) ** 2 + (worms[i].y - ctx.y) ** 2;
+    if (d <= bd) { bd = d; wi = i; }
+  }
+  if (wi < 0) return { ok: false, message: 'No nematode within reach of the ring.' };
+  worms.splice(wi, 1);
+  gainPhos(s.active, 3, s.config.cards.softCapPhosphorus);
+  return { ok: true, message: 'Throttled and digested a nematode: +3 Phosphorus.' };
+});
+
+// 2a. Toxocyst Burst — EVENT: paralyse & digest EVERY worm in a radius (+1 P each).
+EFFECTS['Toxocyst Burst'] = targeted((s, c, ctx) => {
+  const n = killWormsInRadius(s, ctx.x, ctx.y, s.config.cards.toxocystRadius);
+  if (!n) return { ok: false, message: 'No nematodes in range.' };
+  gainPhos(s.active, n, s.config.cards.softCapPhosphorus);
+  return { ok: true, message: `Toxin paralysed ${n} nematode${n > 1 ? 's' : ''}: +${n} Phosphorus.` };
+});
+
+// 2b. Toxocyst Array — installed ACTION (engine): clear a radius of worms every 8 rounds (no reward).
+EFFECTS['Toxocyst Array'] = action({ effect: 'digest every worm in a radius', every: 8, target: true }, (s, ctx) => {
+  const n = killWormsInRadius(s, ctx.x, ctx.y, s.config.cards.toxocystRadius);
+  return n ? { ok: true, message: `Toxocysts cleared ${n} nematode${n > 1 ? 's' : ''}.` } : { ok: false, message: 'No nematodes in range.' };
+});
+
+// 3a. Cordyceps Bloom — EVENT: destroy the nearest ant nest within sensing range.
+EFFECTS['Cordyceps Bloom'] = grow((s) => eruptNearestNest(s));
+
+// 3b. Cordyceps Stroma — installed ACTION (engine): destroy a sensed ant nest every 10 rounds.
+EFFECTS['Cordyceps Stroma'] = action({ effect: 'destroy a sensed ant nest', every: 10 }, (s) => eruptNearestNest(s));

@@ -4,7 +4,7 @@
 import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
 import { tickWorld } from '../src/engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason, chooseOffer } from '../src/engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason, chooseOffer, activateAction } from '../src/engine/cards.js';
 import { CARD_BY_NAME, CARD_DATA } from '../src/cards-data.js';
 const ARCHIVED_TEST = new Set(['Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat', 'Leaf Fall', 'Humus Cache', 'Symbiont Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
 const BUILT_DECK = CARD_DATA.filter((c) => !ARCHIVED_TEST.has(c.name)).reduce((n, c) => n + (c.startCopies || 0), 0);
@@ -210,6 +210,59 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
   net.energy = 50;
   tickWorld(s);
   ok(s.cards.pendingOffers.length === before, 'finishing a player-placed pile grants NO draft');
+}
+
+// ============= E: anti-nematode & anti-ant predation cards ==================
+console.log('# Anti-nematode & anti-ant cards');
+{
+  const firstNode = (s) => s.active.nodes.find((n) => !n.infected) || s.active.nodes[0];
+  // Constricting Snap — kill the nearest worm, +3 P (leave a far one).
+  {
+    const s = createState(clone(), 5150); isolate(s); initCards(s); s.active.phosphorus = 0;
+    const nd = firstNode(s);
+    s.nematodes = [{ x: nd.x + 20, y: nd.y }, { x: nd.x + 6000, y: nd.y }];
+    const r = playCard(s, ensureHand(s, 'Constricting Snap'), { x: nd.x + 20, y: nd.y });
+    ok(r.ok && s.nematodes.length === 1 && s.active.phosphorus === 3, 'Constricting Snap digests the nearest worm for +3 P');
+  }
+  // Toxocyst Burst — clear ALL worms in radius, +1 P each (leave a far one).
+  {
+    const s = createState(clone(), 5151); isolate(s); initCards(s); s.active.phosphorus = 0;
+    const nd = firstNode(s);
+    s.nematodes = [{ x: nd.x + 10, y: nd.y }, { x: nd.x - 10, y: nd.y }, { x: nd.x, y: nd.y + 15 }, { x: nd.x + 6000, y: nd.y }];
+    const r = playCard(s, ensureHand(s, 'Toxocyst Burst'), { x: nd.x, y: nd.y });
+    ok(r.ok && s.nematodes.length === 1 && s.active.phosphorus === 3, 'Toxocyst Burst clears the swarm in radius for +1 P each');
+  }
+  // Toxocyst Array — installs; firing clears worms with NO phosphorus reward.
+  {
+    const s = createState(clone(), 5152); isolate(s); initCards(s); s.active.phosphorus = 0; s.active.energy = 500;
+    playCard(s, ensureHand(s, 'Toxocyst Array'));
+    const ai = s.cards.actions.findIndex((a) => a.name === 'Toxocyst Array');
+    const nd = firstNode(s); s.nematodes = [{ x: nd.x + 10, y: nd.y }, { x: nd.x - 20, y: nd.y }];
+    const fr = activateAction(s, ai, { x: nd.x, y: nd.y });
+    ok(ai >= 0 && fr.ok && s.nematodes.length === 0 && s.active.phosphorus === 0, 'Toxocyst Array installs and clears worms for no reward');
+  }
+  // Cordyceps Bloom — destroy the nearest nest in sensing range; leave the far one.
+  {
+    const s = createState(clone(), 5153); isolate(s); initCards(s);
+    const nd = firstNode(s);
+    s.ants = [{ x: nd.x + 30, y: nd.y, hp: 100, maxHp: 100 }, { x: nd.x + 6000, y: nd.y, hp: 100, maxHp: 100 }];
+    const r = playCard(s, ensureHand(s, 'Cordyceps Bloom'));
+    ok(r.ok && s.ants.length === 1 && s.ants[0].x > nd.x + 5000, 'Cordyceps Bloom destroys the sensed nest, spares the far one');
+    // no nest in range → no-op
+    const s2 = createState(clone(), 5154); isolate(s2); initCards(s2);
+    const nd2 = firstNode(s2); s2.ants = [{ x: nd2.x + 6000, y: nd2.y, hp: 100, maxHp: 100 }];
+    const r2 = playCard(s2, ensureHand(s2, 'Cordyceps Bloom'));
+    ok(!r2.ok && s2.ants.length === 1, 'Cordyceps Bloom no-ops with no nest in sensing range');
+  }
+  // Cordyceps Stroma — installs; firing destroys a sensed nest.
+  {
+    const s = createState(clone(), 5155); isolate(s); initCards(s); s.active.energy = 500;
+    playCard(s, ensureHand(s, 'Cordyceps Stroma'));
+    const ai = s.cards.actions.findIndex((a) => a.name === 'Cordyceps Stroma');
+    const nd = firstNode(s); s.ants = [{ x: nd.x + 30, y: nd.y, hp: 100, maxHp: 100 }];
+    const fr = activateAction(s, ai, {});
+    ok(ai >= 0 && fr.ok && s.ants.length === 0, 'Cordyceps Stroma installs and destroys a sensed nest');
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

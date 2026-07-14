@@ -130,6 +130,8 @@ export const CONFIG = {
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
+    snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
+    toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
