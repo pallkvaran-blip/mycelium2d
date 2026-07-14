@@ -186,7 +186,14 @@ export function checkEngineCaches(state) {
       const dx = nd.x - cache.x, dy = nd.y - cache.y;
       if (dx * dx + dy * dy <= r2) { reached = true; break; }
     }
-    if (reached) { cache.rewarded = true; pushCardDraft(state, true, { x: cache.x, y: cache.y }); }
+    if (reached) {
+      cache.rewarded = true;
+      pushCardDraft(state, true, { x: cache.x, y: cache.y });
+      // Back-reference so the render layer can hide THIS cache's marker exactly when
+      // its draft reveal begins (the marker "becomes" the flying 3-card glyph).
+      const off = C.pendingOffers[C.pendingOffers.length - 1];
+      if (off) off.engineCache = cache;
+    }
   }
 }
 

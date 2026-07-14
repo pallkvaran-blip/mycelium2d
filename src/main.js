@@ -595,10 +595,11 @@ function renderFrame(time) {
 
 // Engine caches: a small, STATIC red 3-card icon sitting on each engine cache, so
 // the player can spot these high-value drafts and climb up to grow into them. Free-
-// standing markers (not tied to substrate); no motion, no flashing. The icon STAYS
-// put after the colony reaches it (drafting is one-time, but the marker persists as
-// a landmark). Clamped to stay entirely below the surface line — never poking into
-// the sky. Drawn last, so it reads clearly on top of the colony that grew into it.
+// standing markers (not tied to substrate); no motion, no flashing. The icon stays
+// put while the colony grows into it, then vanishes the instant its draft reveal
+// begins (`_drafted`) — handing off to the 3-card glyph that lifts into the panel.
+// Clamped to stay entirely below the surface line — never poking into the sky. Drawn
+// last, so it reads clearly on top of the colony that grew into it.
 function drawEngineCacheMarkers() {
   const sub = state.substrate;
   if (!sub || !sub.engineCaches) return;
@@ -606,6 +607,7 @@ function drawEngineCacheMarkers() {
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   const iconHalf = 22 * z;   // half the fanned-card height (incl. rotation + shadow slack)
   for (const cache of sub.engineCaches) {
+    if (cache._drafted) continue;   // gone once its draft reveal starts (becomes the flying glyph)
     const s = camera.worldToScreen(cache.x, cache.y);
     const cy = Math.max(s.y, surfY + 2 + iconHalf);   // keep the whole icon under the surface
     drawThreeCardIcon(s.x, cy, z);
@@ -1162,6 +1164,7 @@ function updateDraftIntro(time) {
   if (!offer.center) {
     if (!draftIntro || draftIntro.offer !== offer) {
       draftIntro = { offer, phase: 'done' };
+      if (offer.engineCache) offer.engineCache._drafted = true;   // hide the marker (no anim to hand off to)
       if (ui && ui.releaseOffer) ui.releaseOffer(null);
     }
     return;
@@ -1187,6 +1190,9 @@ function updateDraftIntro(time) {
       di.phase = 'done';
       if (!di.released) {
         const scr = camera.worldToScreen(offer.center.x, offer.center.y);
+        // Hand the engine-cache marker off to the reveal: hide it exactly as the
+        // 3-card glyph lifts off from this spot, so it reads as one continuous motion.
+        if (offer.engineCache) offer.engineCache._drafted = true;
         if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
         di.released = true;
       }
