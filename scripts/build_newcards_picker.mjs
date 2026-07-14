@@ -88,12 +88,12 @@ const ORDER = JSON.stringify(SLUGS);
 const body = `<style>${css}</style>
 <div class="wrap">
   <p class="eyebrow">Mycelium · new card art</p>
-  <h1>Pick art for the 9 new cards</h1>
+  <h1>Pick art for the ${SLUGS.length} new cards</h1>
   <p class="lede">Three options per card, on the real card face. Tap one per card, then Copy picks and paste them back to me and I'll bake them in.</p>
   ${sections}
 </div>
 <div class="bar"><div class="barwrap">
-  <span class="count"><b id="cdone">0</b> / 9 chosen</span>
+  <span class="count"><b id="cdone">0</b> / ${SLUGS.length} chosen</span>
   <span class="picks" id="picks">(no picks yet)</span>
   <button class="btn ghost" id="clear">Clear</button>
   <button class="btn" id="copy" disabled>Copy picks</button>
