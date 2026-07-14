@@ -80,6 +80,23 @@ function eventDraftNames() {   // infinite; 1 copy on draft
 function uniqueDraftNames() {  // the consumable per-run pool: one of each ENGINE
   return CARD_DATA.filter((c) => playable(c) && dcatOf(c) === 'engine').map((c) => c.name);
 }
+// Pick `n` DISTINCT normal-draft cards, weighting each slot toward BASIC (`pBasic`, ~0.6)
+// vs EVENT, so your bread-and-butter grows show up more often than the many event cards.
+// Draws without replacement within each category; falls back to the other if one runs dry.
+function weightedNormalChoices(rng, pBasic, n) {
+  const basics = shuffle(basicDraftNames(), rng);
+  const events = shuffle(eventDraftNames(), rng);
+  const out = [];
+  let bi = 0, ei = 0;
+  while (out.length < n && (bi < basics.length || ei < events.length)) {
+    const wantBasic = rng() < pBasic;
+    if (wantBasic && bi < basics.length) out.push(basics[bi++]);
+    else if (!wantBasic && ei < events.length) out.push(events[ei++]);
+    else if (bi < basics.length) out.push(basics[bi++]);   // wanted event, none left
+    else out.push(events[ei++]);                            // wanted basic, none left
+  }
+  return out;
+}
 
 // What a draw-engine card shuffles into your deck (for the confirm/preview UI).
 // Returns { name, count } or null for non-engine (or archived) cards.
@@ -149,8 +166,10 @@ function pushCardDraft(state, engine, center) {
     choices = shuffle(avail, state.rng).slice(0, 3);
     if (!choices.length) choices = shuffle(basicDraftNames(), state.rng).slice(0, 3);
   } else {
-    // Normal caches draft BASIC or EVENT cards — both INFINITE (repeatable across drafts).
-    choices = shuffle([...basicDraftNames(), ...eventDraftNames()], state.rng).slice(0, 3);
+    // Normal caches draft BASIC or EVENT cards — both INFINITE (repeatable across drafts),
+    // weighted toward basics (config draftBasicWeight ~0.6).
+    const w = state.config.cards.draftBasicWeight;
+    choices = weightedNormalChoices(state.rng, (w != null ? w : 0.6), 3);
   }
   const offer = { choices, kind: engine ? 'engine' : 'normal' };
   if (center) offer.center = { x: center.x, y: center.y };

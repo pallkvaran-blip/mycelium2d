@@ -302,6 +302,22 @@ console.log('# Drafting: basics infinite (3 copies), events infinite (1 copy), e
     const off1 = C.pendingOffers[0];
     ok(off1 && !off1.choices.includes(picked), 'the drafted engine never reappears in a later engine draft');
   }
+  // Normal drafts are WEIGHTED toward basics (~60/40) — sample many offers via the real flow.
+  {
+    let basics = 0, total = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const s = createState(clone(), seed * 1000 + 7); isolate(s); initCards(s);
+      const sub = s.substrate, net = s.active;
+      for (const pile of (sub.foodPiles || []).filter((p) => (p.kind || 'normal') === 'normal')) {
+        for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; }
+      }
+      net.energy = 50; tickWorld(s);
+      for (const off of s.cards.pendingOffers) for (const n of off.choices) { total++; if (dcat(n) === 'basic') basics++; }
+    }
+    const frac = basics / total;
+    ok(total > 100, `sampled ${total} normal-draft choices across seeds`);
+    ok(frac > 0.48 && frac < 0.72, `normal drafts favour Basic ~60% (got ${(frac * 100).toFixed(0)}% of ${total})`);
+  }
 }
 
 // ============= E: anti-nematode & anti-ant predation cards ==================
