@@ -257,10 +257,10 @@ export const CONFIG = {
     crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
     wanderSpeed: 1.0,            // cells/tick while searching
     reach: 0.7,                  // cells: how close to a strand before it feeds
-    eatEveryTicks: 1,            // cooldown ticks between bites: a feeding worm eats a strand,
+    eatEveryTicks: 0,            // cooldown ticks between bites: a feeding worm eats a strand,
                                  //   then waits this many ticks — so it devours one every N+1
-                                 //   ticks (1 → every other tick; 0 → every tick). Lower = deadlier. (SLIDER)
-    breedChance: 0.5,            // chance a feeding worm splits each tick — snowballs the swarm (SLIDER)
+                                 //   ticks (0 → every tick; 1 → every other tick). Lower = deadlier. (SLIDER)
+    breedChance: 0.8,            // chance a feeding worm splits each tick — snowballs the swarm fast (SLIDER)
     killHits: 3,                 // Excrete hits to kill one
     maxPopulation: 150,          // hard cap — a safety net, not a visible ceiling (SLIDER)
     respawnChance: 0.06,         // slow trickle of new wanderers up to initialCount
