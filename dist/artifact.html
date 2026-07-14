@@ -400,18 +400,19 @@
     .handtoggle .htchev { font-size: 9px; line-height: 1; color: var(--accent); }
     /* » Skip chip — a small green-glass pill at the row's right edge: "»<cost>⚡".
        All three parts are vertically centred; the number + ⚡ are sized down. */
-    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; font-family: inherit;
+    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px; font-family: inherit;
       font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; line-height: 1;
-      padding: 3px 10px; border-radius: 999px; background: rgba(40,54,48,0.9);
+      padding: 3px 7px; border-radius: 999px; background: rgba(40,54,48,0.9);
       border: 1px solid rgba(130,230,166,0.4); }
     .skipchip:hover:not(:disabled) { border-color: rgba(170,255,205,0.6); background: rgba(52,70,60,0.95); }
     .skipchip:disabled { opacity: 0.45; cursor: not-allowed; }
-    /* all three marks are box-centred SVG/text at ~13px so they line up cleanly */
+    /* all three marks are box-centred SVG/text at ~13px so they line up cleanly; the
+       negative margins trim the SVGs' internal viewBox whitespace so it reads tight */
     .skipchip .skgl { display: inline-flex; align-items: center; color: var(--accent); }
-    .skipchip .skgl svg { width: 13px; height: 13px; display: block; }
+    .skipchip .skgl svg { width: 13px; height: 13px; display: block; margin: 0 -2px; }
     .skipchip .skn { font-size: 11px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
     .skipchip .ske { display: inline-flex; align-items: center; }
-    .skipchip .ske svg { width: 13px; height: 13px; display: block; }
+    .skipchip .ske svg { width: 13px; height: 13px; display: block; margin: 0 -2px; }
     .handsel { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
       padding: 5px 6px 5px 11px; border-radius: 11px; background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.55); color: var(--ink);
@@ -424,7 +425,14 @@
       background: rgba(0,0,0,0.32); color: var(--ink-dim); cursor: pointer; font-size: 12px; line-height: 1; }
     .handsel .hscancel:active { background: rgba(224,106,106,0.35); color: #fff; }
     /* filter chips */
-    .handfilter { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; flex: 1 1 auto; min-width: 0; }
+    /* Single scrollable row (never wraps) with a soft fade at both ends so the chips
+       melt out near the ▾ minimize and » Skip buttons instead of ending abruptly.
+       The 14px side padding parks the first/last chip just past the fade at rest. */
+    .handfilter { display: flex; gap: 6px; flex-wrap: nowrap; justify-content: flex-start; flex: 1 1 auto;
+      min-width: 0; overflow-x: auto; padding: 0 14px; scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%); }
+    .handfilter::-webkit-scrollbar { display: none; }
     .fchip { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11px;
       padding: 3px 9px; border-radius: 999px; background: rgba(40,54,48,0.9); color: var(--ink-dim);
       border: 1px solid var(--panel-border); cursor: pointer; white-space: nowrap; }
@@ -671,8 +679,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "psl60m";
-globalThis.__BUILD__ = "local 07-14 08:43";
+window.__ASSET_VER = "1bamgg2";
+globalThis.__BUILD__ = "local 07-14 08:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
