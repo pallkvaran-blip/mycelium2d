@@ -257,8 +257,10 @@ export const CONFIG = {
     crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
     wanderSpeed: 1.0,            // cells/tick while searching
     reach: 0.7,                  // cells: how close to a strand before it feeds
-    eatEveryTicks: 2,            // a feeding worm eats one strand every N ticks
-    breedChance: 0.35,           // chance a feeding worm splits each tick (SLIDER)
+    eatEveryTicks: 1,            // cooldown ticks between bites: a feeding worm eats a strand,
+                                 //   then waits this many ticks — so it devours one every N+1
+                                 //   ticks (1 → every other tick; 0 → every tick). Lower = deadlier. (SLIDER)
+    breedChance: 0.5,            // chance a feeding worm splits each tick — snowballs the swarm (SLIDER)
     killHits: 3,                 // Excrete hits to kill one
     maxPopulation: 150,          // hard cap — a safety net, not a visible ceiling (SLIDER)
     respawnChance: 0.06,         // slow trickle of new wanderers up to initialCount
@@ -370,6 +372,7 @@ export const SLIDERS = [
   { path: 'actions.attackAnts.energyCost', label: 'Attack Ants Cost',  min: 0,   max: 80,  step: 5 },
   { path: 'nematodes.sightRadius',       label: 'Nematode Sight',      min: 100, max: 700, step: 20 },
   { path: 'nematodes.crawlSpeed',        label: 'Nematode Speed',      min: 0.5, max: 6,   step: 0.5 },
+  { path: 'nematodes.eatEveryTicks',     label: 'Worm Eat Cooldown',   min: 0,   max: 5,   step: 1 },
   { path: 'nematodes.breedChance',       label: 'Nematode Breed Rate', min: 0,   max: 1,   step: 0.05 },
   { path: 'nematodes.maxPopulation',     label: 'Nematode Max',        min: 20,  max: 400, step: 10 },
   { path: 'actions.excrete.energyCost',  label: 'Excrete Cost',        min: 0,   max: 40,  step: 2 },
