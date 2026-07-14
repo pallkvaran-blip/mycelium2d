@@ -156,9 +156,15 @@
     .expr-group .btn.trait { padding: 6px 8px; font-size: 12px; }
     .ctrl { display: flex; gap: 8px; }
 
+    /* Transient contextual hint (e.g. "Tap the map to aim …"). bottom is set from
+       JS to sit just above the hand bar; pointer-events:none so it can never block
+       the filter row / carousel controls beneath it; fades out on auto-dismiss. */
     .hint { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
       font-size: 12px; color: var(--ink-dim); background: rgba(10,14,22,0.7); padding: 5px 12px;
-      border-radius: 14px; max-width: 80vw; text-align: center; }
+      border-radius: 14px; max-width: 80vw; text-align: center; z-index: 25; transition: opacity .3s; }
+    /* Beat the "#ui > * { pointer-events:auto }" rule so map taps (aiming) and the
+       filter row pass straight through the hint. */
+    #ui > .hint { pointer-events: none; }
 
     /* Error toast — transient banner near the top, on-theme dark glass with a
        warning-amber edge + glow. Non-blocking; fades in then auto-clears. */

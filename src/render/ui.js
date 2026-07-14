@@ -586,7 +586,22 @@ export class UI {
     }
   }
 
-  setHint(text) { const el = this.el.hint; if (!el) return; el.textContent = text || ''; el.style.display = text ? '' : 'none'; }
+  setHint(text) {
+    const el = this.el.hint; if (!el) return;
+    if (this._hintTimer) { clearTimeout(this._hintTimer); this._hintTimer = null; }
+    el.textContent = text || '';
+    if (!text) { el.style.display = 'none'; return; }
+    // Park it just above the (bottom-anchored, variable-height) hand bar so it never
+    // covers the filter row / carousel controls.
+    const hb = this.el.handbar;
+    if (hb) { const r = hb.getBoundingClientRect(); el.style.bottom = Math.round(window.innerHeight - r.top + 8) + 'px'; }
+    el.style.display = ''; el.style.opacity = '1';
+    // Auto-dismiss after a few seconds — aiming still works; this is only the label.
+    this._hintTimer = setTimeout(() => {
+      el.style.opacity = '0';
+      this._hintTimer = setTimeout(() => { el.style.display = 'none'; el.style.opacity = '1'; this._hintTimer = null; }, 320);
+    }, 4000);
+  }
   resetHint() { this.setHint(this.defaultHint); }
 
   // Transient error banner — shown when a play is blocked (can't afford, no
