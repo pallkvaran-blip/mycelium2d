@@ -609,6 +609,23 @@ console.log('# Nematodes: feed on every action AND on End Turn (wiring)');
   ok(net2.nodes.length < beforeTurn || s2.runOver, 'worms feed on a world tick too');
 }
 
+console.log('# Defeat: worms devouring the whole colony ends the run');
+{
+  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 909);
+  const sub = s.substrate;
+  for (const c of sub.cells) c.rock = false;   // clear LOS everywhere
+  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0; s.config.trichoderma.respawnChance = 0;
+  s.config.nematodes.respawnChance = 0; s.config.nematodes.breedChance = 0; s.config.nematodes.eatEveryTicks = 0;
+  const net = s.active;
+  net.energy = 9999;   // keep it well-fed so this tests the EATEN death, not a stall/starve
+  s.nematodes = [];
+  for (const nd of net.nodes.slice()) spawnNematodeAt(s, nd.x, nd.y);   // a worm on every strand
+  ok(net.nodes.length > 0 && !s.runOver, `colony alive with ${net.nodes.length} strands before the swarm feeds`);
+  for (let t = 0; t < 40 && !s.runOver; t++) tickWorld(s);
+  ok(s.runOver && s.runResult && s.runResult.died, 'eating the last strand ends the run in defeat');
+  ok(net.nodes.length === 0 || net.healthyCount() === 0, 'the colony is wiped out');
+}
+
 console.log('# Puzzle mode: builds a fixed level and is navigable to the chest');
 {
   const s = createPuzzleState(JSON.parse(JSON.stringify(CONFIG)));

@@ -387,6 +387,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Defeat now fires when the colony is EATEN (not just starved)** (branch same).
+  - Bug: the death check (`turn.js`, "colony consumed") lived inside `for (const net of
+    state.networks) { if (!net.alive) continue; ... }`. Worms (`stepNematodes`) and ants run
+    BEFORE that loop and `_removeNodes` flips `net.alive = false` the instant the last strand is
+    eaten — so the loop `continue`d past the death block and the run never ended (no "colony has
+    died" overlay). Starvation/infection deaths happen inside the loop, so those worked.
+  - Fix: a catch-all after the loop — if the ACTIVE colony is wiped (`nodes.length === 0 ||
+    healthyCount() === 0`) and `!runOver`, set `runOver` + `runResult.died` + log. `resolveCardOp`
+    already surfaces the death overlay on `runOver`. Also relevant now that worms eat every tick +
+    breed at 0.8. Smoke test: a worm on every strand → run ends in defeat, colony wiped.
+
+- **Nematodes more dangerous** (branch same): `eatEveryTicks` 2→0 (a feeding worm eats a strand
+  every tick), `breedChance` 0.35→0.8 (swarms explode). Exposed `eatEveryTicks` as a "Worm Eat
+  Cooldown" slider (0–5). (A tick = one world-advancing action; the game is turn-based.)
+
 - **Nematode swarms fan out instead of bunching** (branch same).
   - Cause: every worm's movement target was `nearestVisibleNode(..., null)` — the plain nearest
     strand — so the whole swarm converged on ONE node. Fix (`nematodes.js stepNematodes`): a per-tick
