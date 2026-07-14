@@ -551,6 +551,21 @@
     .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
     .offer.hidden { display: none; }
+    /* Minimized-draft chip: a small glowing 3-card fan parked above the carousel (left)
+       while the draft is set aside. White by default; RED for an engine (red-leaf) draft.
+       A gentle pulse marks the still-pending choice. Click to reopen the panel. */
+    .offermin { position: fixed; z-index: 46; width: 46px; height: 40px; cursor: pointer;
+      pointer-events: auto; animation: offerminPulse 1.7s ease-in-out infinite; }
+    .offermin.hidden { display: none; }
+    .offermin .omc { position: absolute; left: 50%; bottom: 3px; width: 16px; height: 22px;
+      margin-left: -8px; border-radius: 3px; box-sizing: border-box; transform-origin: 50% 100%;
+      background: rgba(9,15,12,0.92); border: 1.6px solid rgba(255,255,255,0.96);
+      box-shadow: 0 0 10px rgba(255,255,255,0.7); }
+    .offermin .omc:nth-child(1) { transform: rotate(-20deg); }
+    .offermin .omc:nth-child(3) { transform: rotate(20deg); }
+    .offermin.engine .omc { border-color: rgba(244,158,148,0.96); box-shadow: 0 0 10px rgba(226,118,108,0.8); }
+    @keyframes offerminPulse { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .offermin { animation: none; opacity: 0.92; } }
     /* Draft morph: glowing 3-card glyph flying up from the pile, each frame
        growing into a draft-card slot with its face revealing inside. */
     .draftmorph { position: fixed; z-index: 60; box-sizing: border-box; overflow: hidden;
@@ -563,8 +578,15 @@
     .draftmorph .dmclone { width: 100% !important; height: 100% !important; margin: 0 !important;
       border: none !important; box-shadow: none !important; background: transparent !important;
       opacity: 0; }   /* icon reads as a glowing outline until the face reveals (morph path animates this) */
-    .offerbox { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+    .offerbox { position: relative; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
       padding: 20px 22px; max-width: 720px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
+    /* Minimize (set-aside) button — top-left of the draft box. */
+    .offermin-btn { position: absolute; top: 10px; left: 10px; width: 26px; height: 26px; display: flex;
+      align-items: center; justify-content: center; padding: 0; font-size: 15px; line-height: 1;
+      border-radius: 8px; cursor: pointer; color: var(--accent); background: rgba(40,54,48,0.85);
+      border: 1px solid var(--panel-border); }
+    .offermin-btn:hover { background: rgba(56,74,66,0.95); border-color: rgba(130,230,166,0.6); }
+    .offerhelp { margin: 12px 0 0; }
     .offerbox h2 { font-size: 19px; margin: 0 0 6px; color: var(--accent); font-weight: 600; }
     .offerbox p { margin: 4px 0; color: var(--ink); font-size: 13px; }
     .offerbox p.dim { color: var(--ink-dim); }
@@ -694,8 +716,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "x1boz5";
-globalThis.__BUILD__ = "local 07-14 15:14";
+window.__ASSET_VER = "xcjeh";
+globalThis.__BUILD__ = "local 07-14 15:29";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7796,6 +7818,15 @@ class UI {
     if (cardsOn) {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
+      // Minimized-draft chip: a small glowing 3-card icon parked above the carousel
+      // (left) while the draft is set aside. Clicking it reopens the panel. The draft
+      // still LOCKS play until resolved (see main.js draftLocked).
+      this.el.offermin = div('offermin hidden');
+      this.el.offermin.innerHTML = '<span class="omc"></span><span class="omc"></span><span class="omc"></span>';
+      this.el.offermin.title = 'Finish your draft — click to choose a card';
+      this.el.offermin.onclick = () => this.restoreOffer();
+      root.appendChild(this.el.offermin);
+      window.addEventListener('resize', () => { if (this._offerMin) this._positionOfferMin(); });
       // Tempo-upgrade picker: "which installed ability should this speed up?"
       this.el.pick = div('offer pick hidden');
       root.appendChild(this.el.pick);
@@ -8259,8 +8290,10 @@ class UI {
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
-  // Selecting a card just HIGHLIGHTS it (and previews what a +5 draw-engine card
-  // shuffles in); the "Draft Card" button confirms the pick.
+  // DOUBLE-click a card to draft it (single click just previews). The ▾ button
+  // minimizes the panel to a small glowing chip above the carousel so the player
+  // can study their hand + the map — but the draft LOCKS play until they choose
+  // (see main.js draftLocked).
   _renderOffer() {
     const el = this.el.offer;
     if (!el) return;
@@ -8271,13 +8304,17 @@ class UI {
       this.armedOffer = null;
       this._offerHold = false; this._offerReleased = null; this._offerOrigin = null;
       this._offerBuiltFor = null;
+      this._offerMin = false;
+      this._updateOfferMin();    // hide the minimized chip
       this._clearDraftMorph();   // stop a mid-flight morph if the offer went away
       return;
     }
     // Draft-intro gate: while the glyph animation is playing (held, and not yet
     // released for THIS offer), keep the panel hidden — main.js releases it once
     // the glyph is in. With no intro running, _offerHold is false and it shows as before.
-    if (this._offerHold && this._offerReleased !== off) { el.classList.add('hidden'); return; }
+    if (this._offerHold && this._offerReleased !== off) { el.classList.add('hidden'); this._updateOfferMin(); return; }
+    // Minimized: hide the panel, show the little glowing chip above the carousel.
+    if (this._offerMin) { el.classList.add('hidden'); this._updateOfferMin(); return; }
     // Drop a stale selection if it isn't among the current choices.
     if (this.armedOffer && !off.choices.includes(this.armedOffer)) this.armedOffer = null;
     // Build the panel once per offer (choices are fixed; selection is repainted
@@ -8289,14 +8326,15 @@ class UI {
         return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
       }).join('');
       el.innerHTML = `<div class="offerbox">`
+        + `<button class="offermin-btn" id="offerminbtn" title="Set aside — look at your hand and the map">▾</button>`
         + `<h2>Choose one</h2>`
         + `<div class="offerrow">${cards}</div>`
         + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
-        + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
+        + `<p class="small dim offerhelp">Double-click a card to draft it.</p>`
         + `</div>`;
-      // Single click selects; a DOUBLE click drafts it straight to hand (mirrors the
-      // hand's double-tap-to-play). Detected off `click` so it behaves the same on
-      // mouse and touch.
+      // Single click selects/previews; a DOUBLE click drafts it straight to hand
+      // (mirrors the hand's double-tap-to-play). Detected off `click` so it behaves
+      // the same on mouse and touch.
       el.querySelectorAll('.offercard').forEach((btn) => {
         btn.onclick = () => {
           const name = btn.dataset.name;
@@ -8308,12 +8346,37 @@ class UI {
           else this.armOffer(name);
         };
       });
-      const confirm = el.querySelector('#offerconfirm');
-      if (confirm) confirm.onclick = () => this.confirmOffer();
+      const minBtn = el.querySelector('#offerminbtn');
+      if (minBtn) minBtn.onclick = () => this.minimizeOffer();
       this._offerBuiltFor = off;
     }
     el.classList.remove('hidden');
+    this._updateOfferMin();      // ensure the chip is hidden while the panel is open
     this._paintOffer();
+  }
+
+  // Set the draft aside (chip above the carousel) or bring it back.
+  minimizeOffer() { this._offerMin = true; this._renderOffer(); }
+  restoreOffer() { this._offerMin = false; this._renderOffer(); }
+
+  // Show/hide + position the minimized-draft chip. Colour matches the draft kind
+  // (engine caches read red, normal piles white) so it reads as the same reward.
+  _updateOfferMin() {
+    const el = this.el.offermin;
+    if (!el) return;
+    const s = this.state;
+    const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
+    if (!off || !this._offerMin) { el.classList.add('hidden'); return; }
+    el.classList.toggle('engine', off.kind === 'engine');
+    el.classList.remove('hidden');
+    this._positionOfferMin();
+  }
+  _positionOfferMin() {
+    const el = this.el.offermin, bar = this.el.handbar;
+    if (!el || !bar) return;
+    const r = bar.getBoundingClientRect();
+    el.style.left = Math.round(r.left + 8) + 'px';
+    el.style.bottom = Math.round(window.innerHeight - r.top + 10) + 'px';
   }
 
   // --- draft intro (main.js drives the timing) -----------------------------
@@ -8333,6 +8396,7 @@ class UI {
   releaseOffer(origin) {
     this._clearDraftMorph();
     this._offerHold = false;
+    this._offerMin = false;        // a fresh reveal always opens (e.g. the next queued offer)
     this._offerOrigin = origin || null;
     const s = this.state;
     const off = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
@@ -8531,8 +8595,6 @@ class UI {
     el.querySelectorAll('.offercard').forEach((btn) => {
       btn.classList.toggle('selected', btn.dataset.name === this.armedOffer);
     });
-    const confirm = el.querySelector('#offerconfirm');
-    if (confirm) confirm.disabled = !this.armedOffer;
     const prev = el.querySelector('#offerpreview');
     if (prev) {
       // Preview what a +5 draw-engine card grants: just the granted card's name +
@@ -8548,13 +8610,7 @@ class UI {
       }
     }
   }
-  confirmOffer() {
-    if (!this.armedOffer) return;
-    const name = this.armedOffer;
-    this.armedOffer = null;
-    this.handlers.onChooseCard(name);
-  }
-  // Draft a specific card straight to hand (double-click shortcut).
+  // Draft a specific card straight to hand (double-click).
   pickOffer(name) {
     const off = this.state.cards && this.state.cards.pendingOffers && this.state.cards.pendingOffers[0];
     if (!off || !off.choices.includes(name)) return;
@@ -9063,13 +9119,15 @@ const handlers = {
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
   onDraw() {
+    if (draftLocked()) return;
     cancelAiming();
     resolveCardOp(drawCard(state));
   },
-  onSkip() { cancelAiming(); resolveCardOp(skipRound(state)); },
+  onSkip() { if (draftLocked()) return; cancelAiming(); resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
   // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
+    if (draftLocked()) return false;
     const entry = state.cards && state.cards.hand[index];
     if (!entry) return false;
     // Can't afford / not allowed → surface why and drop the log down.
@@ -9134,6 +9192,7 @@ const handlers = {
     uiDirty = true;
   },
   onActivateAction(i) {
+    if (draftLocked()) return;
     // Using an installed action does NOT advance the world (it happens within the
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
@@ -9171,6 +9230,20 @@ const handlers = {
     if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
   },
 };
+
+// A pending card DRAFT locks the rest of the game: the player may pan, look at their
+// hand, and study the map (even with the panel minimized to its chip), but can't
+// play/draw/skip or use abilities until they choose. Returns true (and toasts why)
+// when locked, so callers bail. When the draft panel is open it's a full-screen modal
+// so these paths are unreachable anyway; this guard is what enforces it once minimized.
+function draftLocked() {
+  const c = state.cards;
+  if (c && c.pendingOffers && c.pendingOffers.length && !state.runOver) {
+    ui.toast('Finish your draft first — choose one of the cards.');
+    return true;
+  }
+  return false;
+}
 
 // Cancel any in-progress map aim (a targeted card OR a targeted installed action)
 // and restore the default hint. Called whenever a new op starts so a stale aim

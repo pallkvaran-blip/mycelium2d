@@ -219,13 +219,15 @@ const handlers = {
   onSliderChange() { uiDirty = true; },
   // --- card layer ---
   onDraw() {
+    if (draftLocked()) return;
     cancelAiming();
     resolveCardOp(drawCard(state));
   },
-  onSkip() { cancelAiming(); resolveCardOp(skipRound(state)); },
+  onSkip() { if (draftLocked()) return; cancelAiming(); resolveCardOp(skipRound(state)); },
   // Returns true if the card was played or entered aiming; false if blocked
   // (e.g. can't afford) — the caller uses this to decide whether to minimize.
   onPlayCard(index) {
+    if (draftLocked()) return false;
     const entry = state.cards && state.cards.hand[index];
     if (!entry) return false;
     // Can't afford / not allowed → surface why and drop the log down.
@@ -290,6 +292,7 @@ const handlers = {
     uiDirty = true;
   },
   onActivateAction(i) {
+    if (draftLocked()) return;
     // Using an installed action does NOT advance the world (it happens within the
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
@@ -327,6 +330,20 @@ const handlers = {
     if (on && !state.runOver) previewFruitPoints = state.active.computeFruitPoints(state.substrate);
   },
 };
+
+// A pending card DRAFT locks the rest of the game: the player may pan, look at their
+// hand, and study the map (even with the panel minimized to its chip), but can't
+// play/draw/skip or use abilities until they choose. Returns true (and toasts why)
+// when locked, so callers bail. When the draft panel is open it's a full-screen modal
+// so these paths are unreachable anyway; this guard is what enforces it once minimized.
+function draftLocked() {
+  const c = state.cards;
+  if (c && c.pendingOffers && c.pendingOffers.length && !state.runOver) {
+    ui.toast('Finish your draft first — choose one of the cards.');
+    return true;
+  }
+  return false;
+}
 
 // Cancel any in-progress map aim (a targeted card OR a targeted installed action)
 // and restore the default hint. Called whenever a new op starts so a stale aim

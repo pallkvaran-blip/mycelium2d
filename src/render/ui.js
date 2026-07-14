@@ -328,6 +328,15 @@ export class UI {
     if (cardsOn) {
       this.el.offer = div('offer hidden');
       root.appendChild(this.el.offer);
+      // Minimized-draft chip: a small glowing 3-card icon parked above the carousel
+      // (left) while the draft is set aside. Clicking it reopens the panel. The draft
+      // still LOCKS play until resolved (see main.js draftLocked).
+      this.el.offermin = div('offermin hidden');
+      this.el.offermin.innerHTML = '<span class="omc"></span><span class="omc"></span><span class="omc"></span>';
+      this.el.offermin.title = 'Finish your draft — click to choose a card';
+      this.el.offermin.onclick = () => this.restoreOffer();
+      root.appendChild(this.el.offermin);
+      window.addEventListener('resize', () => { if (this._offerMin) this._positionOfferMin(); });
       // Tempo-upgrade picker: "which installed ability should this speed up?"
       this.el.pick = div('offer pick hidden');
       root.appendChild(this.el.pick);
@@ -791,8 +800,10 @@ export class UI {
   }
 
   // Card-draft overlay: a finished map pile lets you pick 1 of 3 free cards.
-  // Selecting a card just HIGHLIGHTS it (and previews what a +5 draw-engine card
-  // shuffles in); the "Draft Card" button confirms the pick.
+  // DOUBLE-click a card to draft it (single click just previews). The ▾ button
+  // minimizes the panel to a small glowing chip above the carousel so the player
+  // can study their hand + the map — but the draft LOCKS play until they choose
+  // (see main.js draftLocked).
   _renderOffer() {
     const el = this.el.offer;
     if (!el) return;
@@ -803,13 +814,17 @@ export class UI {
       this.armedOffer = null;
       this._offerHold = false; this._offerReleased = null; this._offerOrigin = null;
       this._offerBuiltFor = null;
+      this._offerMin = false;
+      this._updateOfferMin();    // hide the minimized chip
       this._clearDraftMorph();   // stop a mid-flight morph if the offer went away
       return;
     }
     // Draft-intro gate: while the glyph animation is playing (held, and not yet
     // released for THIS offer), keep the panel hidden — main.js releases it once
     // the glyph is in. With no intro running, _offerHold is false and it shows as before.
-    if (this._offerHold && this._offerReleased !== off) { el.classList.add('hidden'); return; }
+    if (this._offerHold && this._offerReleased !== off) { el.classList.add('hidden'); this._updateOfferMin(); return; }
+    // Minimized: hide the panel, show the little glowing chip above the carousel.
+    if (this._offerMin) { el.classList.add('hidden'); this._updateOfferMin(); return; }
     // Drop a stale selection if it isn't among the current choices.
     if (this.armedOffer && !off.choices.includes(this.armedOffer)) this.armedOffer = null;
     // Build the panel once per offer (choices are fixed; selection is repainted
@@ -821,14 +836,15 @@ export class UI {
         return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
       }).join('');
       el.innerHTML = `<div class="offerbox">`
+        + `<button class="offermin-btn" id="offerminbtn" title="Set aside — look at your hand and the map">▾</button>`
         + `<h2>Choose one</h2>`
         + `<div class="offerrow">${cards}</div>`
         + `<div class="handpreview offerpreview hidden" id="offerpreview"></div>`
-        + `<div class="offerfooter"><button class="btn big" id="offerconfirm" disabled>Draft Card</button></div>`
+        + `<p class="small dim offerhelp">Double-click a card to draft it.</p>`
         + `</div>`;
-      // Single click selects; a DOUBLE click drafts it straight to hand (mirrors the
-      // hand's double-tap-to-play). Detected off `click` so it behaves the same on
-      // mouse and touch.
+      // Single click selects/previews; a DOUBLE click drafts it straight to hand
+      // (mirrors the hand's double-tap-to-play). Detected off `click` so it behaves
+      // the same on mouse and touch.
       el.querySelectorAll('.offercard').forEach((btn) => {
         btn.onclick = () => {
           const name = btn.dataset.name;
@@ -840,12 +856,37 @@ export class UI {
           else this.armOffer(name);
         };
       });
-      const confirm = el.querySelector('#offerconfirm');
-      if (confirm) confirm.onclick = () => this.confirmOffer();
+      const minBtn = el.querySelector('#offerminbtn');
+      if (minBtn) minBtn.onclick = () => this.minimizeOffer();
       this._offerBuiltFor = off;
     }
     el.classList.remove('hidden');
+    this._updateOfferMin();      // ensure the chip is hidden while the panel is open
     this._paintOffer();
+  }
+
+  // Set the draft aside (chip above the carousel) or bring it back.
+  minimizeOffer() { this._offerMin = true; this._renderOffer(); }
+  restoreOffer() { this._offerMin = false; this._renderOffer(); }
+
+  // Show/hide + position the minimized-draft chip. Colour matches the draft kind
+  // (engine caches read red, normal piles white) so it reads as the same reward.
+  _updateOfferMin() {
+    const el = this.el.offermin;
+    if (!el) return;
+    const s = this.state;
+    const off = !s.runOver && s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0];
+    if (!off || !this._offerMin) { el.classList.add('hidden'); return; }
+    el.classList.toggle('engine', off.kind === 'engine');
+    el.classList.remove('hidden');
+    this._positionOfferMin();
+  }
+  _positionOfferMin() {
+    const el = this.el.offermin, bar = this.el.handbar;
+    if (!el || !bar) return;
+    const r = bar.getBoundingClientRect();
+    el.style.left = Math.round(r.left + 8) + 'px';
+    el.style.bottom = Math.round(window.innerHeight - r.top + 10) + 'px';
   }
 
   // --- draft intro (main.js drives the timing) -----------------------------
@@ -865,6 +906,7 @@ export class UI {
   releaseOffer(origin) {
     this._clearDraftMorph();
     this._offerHold = false;
+    this._offerMin = false;        // a fresh reveal always opens (e.g. the next queued offer)
     this._offerOrigin = origin || null;
     const s = this.state;
     const off = (s.cards && s.cards.pendingOffers && s.cards.pendingOffers[0]) || null;
@@ -1063,8 +1105,6 @@ export class UI {
     el.querySelectorAll('.offercard').forEach((btn) => {
       btn.classList.toggle('selected', btn.dataset.name === this.armedOffer);
     });
-    const confirm = el.querySelector('#offerconfirm');
-    if (confirm) confirm.disabled = !this.armedOffer;
     const prev = el.querySelector('#offerpreview');
     if (prev) {
       // Preview what a +5 draw-engine card grants: just the granted card's name +
@@ -1080,13 +1120,7 @@ export class UI {
       }
     }
   }
-  confirmOffer() {
-    if (!this.armedOffer) return;
-    const name = this.armedOffer;
-    this.armedOffer = null;
-    this.handlers.onChooseCard(name);
-  }
-  // Draft a specific card straight to hand (double-click shortcut).
+  // Draft a specific card straight to hand (double-click).
   pickOffer(name) {
     const off = this.state.cards && this.state.cards.pendingOffers && this.state.cards.pendingOffers[0];
     if (!off || !off.choices.includes(name)) return;

@@ -387,6 +387,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Draft panel: minimize to a chip; no Draft button; locks play until chosen** (branch same).
+  - Removed the "Draft Card" button — **double-click** a card drafts it (single click previews).
+  - Added a **▾ minimize** button (top-left of `.offerbox`, `#offerminbtn`) that sets the draft aside:
+    the panel hides and a small **glowing 3-card chip** (`.offermin`, white / red for engine drafts)
+    parks at the **left, just above the carousel** so the player can study their hand + the map.
+    Clicking the chip reopens the panel. State: `ui._offerMin`; `minimizeOffer`/`restoreOffer`/
+    `_updateOfferMin`/`_positionOfferMin` (positioned off the handbar rect; repositions on resize;
+    reset on each fresh reveal in `releaseOffer`).
+  - **Lock:** while a draft is pending, `main.js draftLocked()` blocks `onPlayCard`/`onActivateAction`/
+    `onDraw`/`onSkip` and toasts "Finish your draft first…". When the panel is open it's a full-screen
+    modal so those paths are already unreachable; the guard enforces the lock once minimized. Map
+    taps only pan/inspect during a draft (no card/action can be armed to fire).
+  - Verified (Playwright): panel has minimize + no Draft button; minimize → chip above carousel-left;
+    a card-play attempt while locked is blocked + toasts; chip reopens; double-click drafts and clears
+    the lock. 95 smoke + 45 card green.
+
 - **Directional grows use a press-and-drag aim; press away from the colony to pan** (branch same).
   - The four directional grows (**Apical Drive, Rhizomorph Lance, Fruiting Vigil, Leading Cord**)
     used to guess their start from a single tap (nearest strand), so growth often erupted from the

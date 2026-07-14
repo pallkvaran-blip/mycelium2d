@@ -550,6 +550,21 @@
     .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
     .offer.hidden { display: none; }
+    /* Minimized-draft chip: a small glowing 3-card fan parked above the carousel (left)
+       while the draft is set aside. White by default; RED for an engine (red-leaf) draft.
+       A gentle pulse marks the still-pending choice. Click to reopen the panel. */
+    .offermin { position: fixed; z-index: 46; width: 46px; height: 40px; cursor: pointer;
+      pointer-events: auto; animation: offerminPulse 1.7s ease-in-out infinite; }
+    .offermin.hidden { display: none; }
+    .offermin .omc { position: absolute; left: 50%; bottom: 3px; width: 16px; height: 22px;
+      margin-left: -8px; border-radius: 3px; box-sizing: border-box; transform-origin: 50% 100%;
+      background: rgba(9,15,12,0.92); border: 1.6px solid rgba(255,255,255,0.96);
+      box-shadow: 0 0 10px rgba(255,255,255,0.7); }
+    .offermin .omc:nth-child(1) { transform: rotate(-20deg); }
+    .offermin .omc:nth-child(3) { transform: rotate(20deg); }
+    .offermin.engine .omc { border-color: rgba(244,158,148,0.96); box-shadow: 0 0 10px rgba(226,118,108,0.8); }
+    @keyframes offerminPulse { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .offermin { animation: none; opacity: 0.92; } }
     /* Draft morph: glowing 3-card glyph flying up from the pile, each frame
        growing into a draft-card slot with its face revealing inside. */
     .draftmorph { position: fixed; z-index: 60; box-sizing: border-box; overflow: hidden;
@@ -562,8 +577,15 @@
     .draftmorph .dmclone { width: 100% !important; height: 100% !important; margin: 0 !important;
       border: none !important; box-shadow: none !important; background: transparent !important;
       opacity: 0; }   /* icon reads as a glowing outline until the face reveals (morph path animates this) */
-    .offerbox { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+    .offerbox { position: relative; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
       padding: 20px 22px; max-width: 720px; text-align: center; box-shadow: 0 12px 48px rgba(0,0,0,0.5); }
+    /* Minimize (set-aside) button — top-left of the draft box. */
+    .offermin-btn { position: absolute; top: 10px; left: 10px; width: 26px; height: 26px; display: flex;
+      align-items: center; justify-content: center; padding: 0; font-size: 15px; line-height: 1;
+      border-radius: 8px; cursor: pointer; color: var(--accent); background: rgba(40,54,48,0.85);
+      border: 1px solid var(--panel-border); }
+    .offermin-btn:hover { background: rgba(56,74,66,0.95); border-color: rgba(130,230,166,0.6); }
+    .offerhelp { margin: 12px 0 0; }
     .offerbox h2 { font-size: 19px; margin: 0 0 6px; color: var(--accent); font-weight: 600; }
     .offerbox p { margin: 4px 0; color: var(--ink); font-size: 13px; }
     .offerbox p.dim { color: var(--ink-dim); }
