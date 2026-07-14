@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-12 (animated growth reveal · ALL rock types WYSIWYG solid · layered grow SFX + lazy background music + mute · dimmed sensing glow · multi-membership card filters · click-to-preview installed cards · always-on action lights + no-scroll dropdowns · **food-pile card-draft animation: glowing 3-card glyph rises at the pile, then each card morphs into its draft card (desktop) or the panel expands from the icon (phone portrait)**)._
+_Living status + knowledge doc. Last updated: 2026-07-14 (**engine-cache draft = a distinct RED-leaf litter pile** that drafts an Engine card on clearing — normal orange piles draft Basic/Event · 5 predation cards + art · Foraging Fan grows from ALL strands · bottom carousel control-row: minimize arrow + skip chip + edge-fade, unified gold energy icons · contextual hints float above the carousel & auto-dismiss · normal draft glyph white / engine glyph red)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -190,18 +190,34 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 
 ## 5. Substrate food types (visual + conceptual split)
 
-`substrate.js` cell flag **`foodKind`**: `'' | 'cache' | 'nut'`.
+`substrate.js` cell flag **`foodKind`**: `'' | 'cache' | 'cache-engine' | 'nut'`.
 
-- **`cache`** — map-placed food (leaf litter). Rendered as **oak/maple leaf**
-  sprites. Finishing a cache pile grants a **card draft**. Set in `drop()`.
+- **`cache`** — map-placed NORMAL food (leaf litter). Rendered as **orange oak/maple
+  leaf** sprites. Finishing a cache pile drafts a **Basic/Event** card. Set in
+  `drop()` with `kind='normal'` (its `foodPiles` entry has `kind:'normal'`).
+- **`cache-engine`** — map-placed ENGINE food, a rarer high-value pile. Rendered as
+  a mix of **6 RED/autumn leaf** sprites (`leafRed{Maple,Oak,Sweetgum,Japanese,
+  Dogwood,Beech}`, see `RED_LEAF_KEYS` in main.js) so it reads as a distinct, redder
+  litter. Finishing it drafts an **Engine** card. Placed mostly near the SURFACE
+  (config `substrate.engine{ClusterCount,ClusterRadius,SurfaceRows,DeepChance}`,
+  ~3–5/map) so the player must climb UP to reach these. Set in `drop()` with
+  `kind='engine'` (`foodPiles` entry `kind:'engine'`); the draft glyph reads RED
+  (offer `kind:'engine'`). Colonise + digest exactly like a normal pile — there is
+  no standing map icon (an earlier free-standing red 3-card marker was replaced by
+  this leaf pile as more natural/on-theme).
 - **`nut`** — player-placed food (Acorn Cache etc.). Rendered as **acorn / chestnut
   / pine-cone** sprites, denser + smaller than leaves. Gives **energy only, no
   card**. Set in `deposit()` (never downgrades an existing `cache`).
 
-Rendering lives in `main.js drawSubstrateLeaves`: `MAXP = isNut ? 8 : 11`,
-`base = cs * (isNut ? 0.26 : 0.64)`, sprite chosen by a stable hash so tiles are
-stable across frames; nut piles are muted via `ctx.filter`/`globalAlpha`.
-Leaf/humus cards are defined but **shelved** (kept out of the active decks).
+Rendering lives in `main.js drawSubstrateLeaves` → `_drawLeafHeap(sets, col, row,
+kind, alpha)` which picks the sprite set by `foodKind` (`_leafSets()` returns
+`{leaves, red, nuts}`): `count = isNut ? 8 : 11`, `base = cs * (isNut ? 0.26 :
+0.64)`, sprite chosen by a stable hash so tiles are stable across frames (the
+per-piece pick naturally makes each engine pile a varied mix of the 6 red leaves);
+nut piles are muted via `ctx.filter`/`globalAlpha`. Leaf/humus cards are defined
+but **shelved** (kept out of the active decks). The draft pools are split in
+`cards.js draftPool(engine)` by each card's `displayCategory` (basic/event vs
+engine); `offerPileReward` picks the pool from the pile's `kind`.
 
 ---
 
@@ -370,6 +386,63 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Engine-cache draft = a distinct RED-leaf litter pile** (branch `claude/mycelium-phase-1-build-urvq5e`).
+  - **Goal:** normal substrate piles draft only Basic/Event cards; a rarer, high-value pile drafts
+    **Engine** cards. Went through a few shapes before landing on the final one (below):
+    1. First cut: engine piles were food piles marked with a **standing red 3-card canvas icon**
+       (`drawEngineCacheMarkers`/`drawThreeCardIcon` in main.js) hovering over them.
+    2. Owner feedback → made them **free-standing** objects (`sub.engineCaches = [{x,y,r,rewarded}]`,
+       `cards.js checkEngineCaches`) triggered by growing a node within reach; static, below-surface;
+       marker handed off to the draft glyph on reveal (`offer.engineCache._drafted`).
+    3. **Final (current):** owner asked for a **red-leaf substrate** instead — so engine caches are
+       **real food piles again** (`kind:'engine'`, cells `foodKind:'cache-engine'`) that you colonise
+       and digest like any pile; clearing raises the **red** draft glyph → Engine draft. The
+       free-standing system + standing icon were **removed**. This is §5's current model — see there
+       for the data/render details.
+  - **Art:** 6 red/maple-red + autumn-brown leaf sprites generated via Replicate
+    (`scripts/gen_leaf_options.py`: flux-1.1-pro on white → BiRefNet matte → transparent PNG,
+    quantized to palette PNG), baked to `assets/leafRed{Maple,Oak,Sweetgum,Japanese,Dogwood,Beech}.png`
+    + manifest; options kept in `assets/leaf_options/`. Each engine pile mixes **all six** (the heap's
+    per-piece hash pick) so every pile looks like its own varied red litter. Distinct from the ORANGE
+    oak/maple of normal piles.
+  - **Draft pools** split in `cards.js draftPool(engine)` by `displayCategory` (basic/event vs engine);
+    `offerPileReward` picks the pool from `pile.kind`. Config: `substrate.engine{ClusterCount:4,
+    ClusterRadius:1,SurfaceRows:2,DeepChance:0.25}` → ~3–5 piles/map, ~83% near surface.
+  - Verified (Playwright): red pile renders distinct from orange; digesting it fires an engine-kind
+    draft of 3 red-bordered Engine cards; 3 engine + ~12 normal piles/map; no console errors.
+    Tests: 95 smoke + **45** cards green; the engine test asserts red-leaf food piles (foodKind
+    `cache-engine`, near surface) that draft Engine on digest, normal piles keep `cache`.
+
+- **Normal draft-reveal glyph recolored WHITE; engine glyph RED** (branch same).
+  - The rising 3-card draft glyph (`.draftmorph`) was mint green for all piles. Now the **normal**
+    (basic/event) glyph is **white** (`.draftmorph` base border/glow + the `G` colour object in
+    `ui.js _draftMorphToSlots`); the **engine** glyph stays **red** (`.draftmorph.engine`). Size
+    unchanged. Covers both the morph path and the phone-portrait icon-then-expand path (CSS-driven).
+
+- **5 predation cards + art** (branch same). New anti-pest cards grounded in real fungal biology
+  (see `scripts/gen_predation_options.py` prompts): **Constricting Snap** (event, digest nearest worm
+  +3 P), **Toxocyst Burst** (event, clear worms in radius, +1 P each), **Toxocyst Array** (engine,
+  standing worm-clear field), **Cordyceps Bloom** (event, destroy an ant nest in sensing range),
+  **Cordyceps Stroma** (engine, perennial nest-destroyer). New sim helpers in `cards.js`
+  (`killWormsInRadius`, `nestInSensingRange`, `eruptNearestNest`; `import { attackNest } from
+  './ants.js'`). Art baked to `assets/cards/`. **Bundler caveat (see §10):** the `attackNest` import's
+  trailing comment once broke `build.mjs`'s import-stripping — keep import lines comment-free.
+- **Foraging Fan grows from ALL strands** (branch same). `network.js growRadial` rewritten: was 8
+  fixed compass rays that crowd-locked so a big colony grew from only 1–2 tips; now **each original
+  tip fans OUTWARD** (direction = away from its parent, centroid fallback) as short bounded chains
+  along a fixed arc, relaxed spacing, straight-out-first with wider dodges if blocked. `_fanRing`
+  removed. Smoke test asserts growth from two separated strands.
+- **Carousel control-row + hints polish** (branch same).
+  - Removed the bottom **action menu** (Show/Hide/Skip/Play). Show/hide is now a small **▾/▴ arrow**
+    (`.handtoggle`), skip is a small round **"» N⚡" chip** (`.skipchip`) on the right of the filter
+    row; **double-click** plays a card (no Play button). The whole control row (minimize · filters ·
+    skip) sits at the **BOTTOM** of the carousel; soft **edge-fade** gradients mask the filter row and
+    the left/right nav overlays (no overlit corners).
+  - **All energy icons unified** to the gold pill version: `RES_ICON.energy` SVG now has a hardcoded
+    gold fill (used in the pill, card cost pips, and the skip chip).
+  - Blocking contextual **hints** moved to float **above** the carousel (positioned off the handbar's
+    rect) and **auto-dismiss** after ~4 s (`ui.js setHint`, `#ui > .hint { pointer-events:none }`).
 
 - **Fade-in polish + tempo (haste) upgrade cards** (branch `claude/mycelium-phase-1-build-urvq5e`).
   - **Fade-in**: `revealMap` duration 0.7s → **1.4s**, and the reveal now fires from the render
@@ -743,6 +816,26 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **Bundler strips imports by regex — keep `import` lines comment-free.** `build.mjs` inlines
+  `src/` into a non-module `<script>` in `dist/index.html` by stripping `import ...;` lines with a
+  regex anchored at `;\s*\n`. A **trailing comment** on an import line (e.g. `import { attackNest }
+  from './ants.js';  // ...`) defeats it → the raw `import` survives into the non-module bundle →
+  `"Cannot use import statement outside a module"` breaks the WHOLE game. Node tests pass regardless
+  (native ESM), so it slips through. **Always** verify `grep -cE '^\s*import[ {]' dist/index.html` == 0
+  after building. Put comments on their own line.
+- **Art generation (Replicate).** Token lives in `~/.claude/settings.json` `env.REPLICATE_API_TOKEN`
+  (OUTSIDE the repo, never committed — owner-authorized, low-value account). Two pipelines:
+  card art = `flux-1.1-pro` (jpg, warm/reliable, `scripts/gen_*options.py`); **transparent sprites**
+  (leaves, rocks, nuts) = `flux-1.1-pro`/`flux-schnell` on a **white** background → **BiRefNet**
+  matte (`men1scus/birefnet`) → PNG, with a local white-key fallback (`scripts/keywhite.py` /
+  `scripts/gensprite.sh`). Curl must be proxy-aware (`--cacert /root/.ccr/ca-bundle.crt`). Quantize
+  sprites to palette PNG (PIL `quantize(FASTOCTREE)` preserves alpha) to match existing small assets.
+  Option intermediates live in `assets/{card,leaf}_options/` (shipped to `dist/`, matching the
+  existing `card_options` precedent).
+- **Playwright verify quirks (this env):** `deviceScaleFactor:4` reliably TIMES OUT — use 2/3. A
+  background `http.server` must be spawned in the SAME node process as the run (a separately-launched
+  server dies when its launching Bash command ends). Avoid `pkill` (exit 144 aborts compound cmds).
+  Transient draft-glyph frames are best caught by polling for a live `.draftmorph` element.
 - **TEMP test scaffolding — REVERT before release.** For card testing the run boots with
   (1) `initCards(state, 'testall')` in `main.js` `begin()` — a hand of **5× of every
   non-archived card** — and (2) **300 of each resource** (Water/Energy/Phosphorus set in

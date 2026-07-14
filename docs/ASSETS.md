@@ -18,6 +18,9 @@ Status: 🟢 generated · ⚪ planned
 | `soil` | texture | — | ✖ | dropped (came out blobby; brown palette + substrate suffice) |
 | `antColonyA` | sprite | ~440 | 🟢 | colony cross-section variant A (galleries) — picked per nest by column |
 | `antColonyB` | sprite | ~440 | 🟢 | colony cross-section variant B (tunnels + chambers) — picked per nest by column |
+| `leafOak`, `leafMaple` | sprite | ~360 tall | 🟢 | ORANGE leaf litter — NORMAL food caches (`foodKind:'cache'`, drafts Basic/Event) |
+| `leafRed{Maple,Oak,Sweetgum,Japanese,Dogwood,Beech}` | sprite | ~360 tall | 🟢 | RED/autumn leaf litter — ENGINE caches (`foodKind:'cache-engine'`, drafts Engine); each pile mixes all six |
+| `acorn`, `chestnut`, `pinecone` | sprite | ~360 tall | 🟢 | nut scatter — PLAYER-placed food (`foodKind:'nut'`, energy only, no draft) |
 | `boulder` | sprite | 1024² | ⚪ | discrete rock props (deferred — for the map editor) |
 
 Each connected rock formation is assigned one of the three rock textures for
@@ -58,6 +61,18 @@ rim-light, a couple of tiny glowing spores, transparent background, no ground`
 **house** (sprite): `a small simple cottage as a dark night silhouette, deep
 twilight, one faint warm amber lit window, transparent background, no ground`
 
+**leafRed\*** (sprites): one dry autumn leaf each, RED-shifted (vs the orange
+oak/maple), flat top-down on a plain white background, painterly semi-realistic
+game asset, soft warm light, subtle veins — e.g. *scarlet sugar maple*, *burgundy
+red oak*, *crimson star-shaped sweetgum*, *blood-red Japanese maple*, *wine/maroon
+dogwood*, *coppery-red beech*. See `scripts/gen_leaf_options.py` for the exact
+prompts. Redder = the high-value ENGINE cache litter.
+
 ## Generation
-`scripts/genasset.mjs` calls Replicate (needs `REPLICATE_API_TOKEN`) and writes
-the PNG into `assets/`. After generating, add the entry to `assets/manifest.json`.
+`scripts/genasset.mjs` (single asset) or a batch script (e.g.
+`scripts/gen_leaf_options.py` for the red leaves) calls Replicate (token in
+`~/.claude/settings.json` `env.REPLICATE_API_TOKEN`, or `$REPLICATE_API_TOKEN`)
+and writes the PNG into `assets/`. Transparent sprites: render on white →
+**BiRefNet** matte (`men1scus/birefnet`) → quantize to palette PNG (PIL
+`quantize(FASTOCTREE)` keeps alpha, matching the small existing leaf files).
+After generating, add the entry to `assets/manifest.json`.
