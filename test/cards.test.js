@@ -242,11 +242,11 @@ console.log('# Engine caches are RED-leaf food piles that draft ENGINE cards on 
   ok(offer && offer.center, 'the offer is anchored at the pile for the fly-in animation');
 }
 
-// ===================== E3: draft rules (infinite basics vs unique) ==========
-console.log('# Drafting: basics are infinite (3 copies); event/engine are one-of-each');
+// ===================== E3: draft rules (infinite basics/events vs unique engines) =====
+console.log('# Drafting: basics infinite (3 copies), events infinite (1 copy), engines unique');
 {
   const dcat = (n) => { const c = CARD_BY_NAME[n]; return (c && (c.displayCategory || c.type)) || ''; };
-  // A BASIC draft grants 3 copies and never leaves the pool.
+  // A BASIC draft grants 3 copies; it is infinite (never in the unique pool).
   {
     const s = createState(clone(), 7001); isolate(s); initCards(s);
     const C = s.cards;
@@ -257,16 +257,32 @@ console.log('# Drafting: basics are infinite (3 copies); event/engine are one-of
     ok(r.ok && C.hand.length === h0 + 3 && C.hand.filter((h) => h.name === basic).length >= 3, `drafting a BASIC adds 3 copies (hand +${C.hand.length - h0})`);
     ok(C.draftable.length === poolLen && !C.draftable.includes(basic), 'a basic never enters/leaves the unique pool (infinite)');
   }
-  // An EVENT/ENGINE draft grants exactly 1 copy and is removed from the pool.
+  // An EVENT draft grants exactly 1 copy, is INFINITE (not consumed), and can be drafted again.
   {
     const s = createState(clone(), 7002); isolate(s); initCards(s);
+    const C = s.cards;
+    const ev = CARD_DATA.find((c) => (c.displayCategory || c.type) === 'event' && CARD_BY_NAME[c.name]).name;
+    const h0 = C.hand.length, poolLen = C.draftable.length;
+    ok(!C.draftable.includes(ev), 'events are NOT in the unique pool');
+    C.pendingOffers.push({ choices: [ev], kind: 'normal' });
+    const r1 = chooseOffer(s, ev);
+    ok(r1.ok && r1.copies === 1 && C.hand.length === h0 + 1, 'drafting an EVENT adds exactly 1 copy');
+    ok(C.draftable.length === poolLen, 'events never touch the unique pool (infinite)');
+    C.pendingOffers.push({ choices: [ev], kind: 'normal' });
+    chooseOffer(s, ev);
+    ok(C.hand.filter((h) => h.name === ev).length >= 2, 'the same event can be drafted again (not unique)');
+  }
+  // An ENGINE draft grants exactly 1 copy and is removed from the unique pool.
+  {
+    const s = createState(clone(), 7005); isolate(s); initCards(s);
     const C = s.cards;
     const uniq = C.draftable.find((n) => dcat(n) === 'engine');
     const h0 = C.hand.length, poolLen = C.draftable.length;
     C.pendingOffers.push({ choices: [uniq], kind: 'engine' });
     const r = chooseOffer(s, uniq);
     ok(r.ok && C.hand.length === h0 + 1 && C.hand.filter((h) => h.name === uniq).length === 1, 'drafting an ENGINE adds exactly 1 copy');
-    ok(!C.draftable.includes(uniq) && C.draftable.length === poolLen - 1, 'a drafted unique leaves the pool');
+    ok(!C.draftable.includes(uniq) && C.draftable.length === poolLen - 1, 'a drafted engine leaves the pool');
+    ok(C.draftable.every((n) => dcat(n) === 'engine'), 'the unique pool is engines only');
   }
   // Uniqueness across drafts via the real flow: a drafted engine never reappears, and the
   // two un-chosen engines from that offer stay draftable.

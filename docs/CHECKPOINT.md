@@ -217,12 +217,13 @@ per-piece pick naturally makes each engine pile a varied mix of the 6 red leaves
 nut piles are muted via `ctx.filter`/`globalAlpha`. Leaf/humus cards are defined
 but **shelved** (kept out of the active decks). Draft offers (`cards.js
 pushCardDraft`) are split by `displayCategory`: a NORMAL pile offers Basic/Event, an
-ENGINE pile offers Engine (`offerPileReward` picks by pile `kind`). **Basics are
-infinite** (always offerable; drafting one grants `cards.draftBasicCopies` = 3 copies);
-**events + engines are UNIQUE**, held in `state.cards.draftable` (one of each per run) —
-`chooseOffer` removes a chosen unique from that pool, while offered-but-unchosen ones
-stay and can reappear later. Simultaneous pending offers reserve each other's uniques so
-none is double-granted; if the engine pool runs dry an engine pile falls back to basics.
+ENGINE pile offers Engine (`offerPileReward` picks by pile `kind`). **Basics + Events are
+INFINITE** (always offerable, repeatable across drafts) — a basic grants
+`cards.draftBasicCopies` = 3 copies, an event grants 1. **Engines are UNIQUE**, held in
+`state.cards.draftable` (one of each per run) — `chooseOffer` removes a chosen engine from
+that pool (+1 copy), while offered-but-unchosen engines stay and can reappear later.
+Simultaneous pending offers reserve each other's engines so none is double-granted; if the
+engine pool runs dry an engine pile falls back to basics.
 
 ---
 
@@ -392,18 +393,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Draft economy: infinite basics (3 copies) vs unique event/engine cards** (branch same).
-  - Was: every draft re-sampled the full category pool, so uniques could be drafted repeatedly
-    and basics gave only 1 copy. Now: **basics are infinite** — always offerable, and drafting one
-    grants `cards.draftBasicCopies` (3) copies. **Events + engines are unique** — one of each per
-    run, held in `state.cards.draftable` (built in `initCards` from `uniqueDraftNames()`);
-    `chooseOffer` removes a chosen unique permanently (+1 copy), while offered-but-unchosen ones are
-    never removed so they can reappear in a later draft. `pushCardDraft` reserves uniques already in
-    other pending offers (no double-grant) and falls back to basics if the engine pool runs dry.
-    Replaced `draftPool()` with `basicDraftNames()` + `uniqueDraftNames()` + `draftCat()`.
-  - Tests: basic → 3 copies & stays infinite; engine/event → 1 copy & leaves the pool; un-chosen
-    stays; a drafted engine never reappears in a later engine draft (real flow). Verified in-browser
-    (double-click a basic → hand +3). 53 card + 100 smoke green.
+- **Draft economy: infinite basics (3 copies) + events (1 copy); unique engines** (branch same).
+  - Was: every draft re-sampled the full category pool, so cards could be drafted repeatedly and
+    basics gave only 1 copy. Now: **basics** are infinite → drafting one grants
+    `cards.draftBasicCopies` (3) copies. **Events** are infinite too (repeatable) but grant 1 copy.
+    **Engines** are UNIQUE — one of each per run, held in `state.cards.draftable` (built in
+    `initCards` from `uniqueDraftNames()`, engines only); `chooseOffer` removes a chosen engine
+    permanently (+1 copy), while offered-but-unchosen engines are never removed so they can reappear
+    in a later draft. `pushCardDraft` reserves engines already in other pending offers (no
+    double-grant) and falls back to basics if the engine pool runs dry. Helpers:
+    `basicDraftNames()` / `eventDraftNames()` / `uniqueDraftNames()` / `draftCat()` (replaced
+    `draftPool()`); `chooseOffer` returns `copies`.
+  - Tests: basic → 3 copies & infinite; event → 1 copy, infinite, re-draftable; engine → 1 copy &
+    leaves the pool; un-chosen engines stay; a drafted engine never reappears (real flow). Verified
+    in-browser (double-click a basic → hand +3). 58 card + 100 smoke green.
 
 - **Defeat now fires when the colony is EATEN (not just starved)** (branch same).
   - Bug: the death check (`turn.js`, "colony consumed") lived inside `for (const net of
