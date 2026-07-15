@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <style>
   /* =========================================================================
      Mycelium — Select your species
@@ -145,26 +146,23 @@
   .rowlabel .rule { flex: 1; height: 1px; background: rgba(120,160,140,0.14); align-self: center; }
   .rowlabel.locked .lock { color: var(--ink-faint); font-size: 12px; }
 
-  /* ===== AVAILABLE species cards (large landscape, white glow) ===== */
-  .avail-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
-  }
+  /* ===== AVAILABLE species cards (compact tiles — same footprint as the locked ?) ===== */
+  .avail-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
 
   .card {
     position: relative;
-    display: grid; grid-template-columns: 40% 1fr;
-    min-height: 208px;
+    aspect-ratio: 16 / 10;
     border-radius: var(--r-md);
     overflow: hidden;
     text-align: left;
-    color: inherit; font: inherit;
-    background: linear-gradient(155deg, rgba(20,28,26,0.72), rgba(8,13,12,0.9));
+    color: inherit; font: inherit; padding: 0;
+    background: #04060a;
     border: 1px solid var(--white-rim);
     box-shadow:
       0 0 0 1px rgba(255,255,255,0.05),
       0 0 16px -3px rgba(216,232,226,0.35),
       0 0 40px -12px rgba(200,255,240,0.28),
-      0 18px 40px -22px rgba(0,0,0,0.9);
+      0 14px 30px -20px rgba(0,0,0,0.9);
     cursor: pointer;
     transition: transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .22s, border-color .22s;
   }
@@ -175,41 +173,35 @@
       0 0 0 1px rgba(255,255,255,0.12),
       0 0 22px -2px rgba(230,244,238,0.55),
       0 0 60px -10px rgba(200,255,240,0.4),
-      0 24px 50px -24px rgba(0,0,0,0.95);
+      0 22px 44px -22px rgba(0,0,0,0.95);
     outline: none;
   }
   .card:focus-visible { border-color: var(--mint-hi); }
 
-  .card .art { position: relative; overflow: hidden; background: #04060a; }
+  .card .art { position: absolute; inset: 0; }
   .card .art img { width: 100%; height: 100%; object-fit: cover; display: block;
     filter: saturate(1.05) contrast(1.02); }
-  .card .art::after {   /* blend the portrait's right edge into the text panel */
+  .card .art::after {   /* bottom scrim so the name reads over the portrait */
     content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent 55%, rgba(8,13,12,0.92) 100%);
+    background: linear-gradient(180deg, transparent 38%, rgba(6,10,9,0.55) 66%, rgba(5,8,8,0.94) 100%);
   }
-  .card.warm .art::after { background: linear-gradient(90deg, transparent 55%, rgba(13,11,8,0.92) 100%); }
+  .card.warm .art::after { background: linear-gradient(180deg, transparent 38%, rgba(12,9,6,0.55) 66%, rgba(9,6,4,0.94) 100%); }
 
-  .card .info { padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 7px; }
-  .card .sp-name { font-family: var(--serif); font-size: 25px; font-weight: 600; line-height: 1.05;
-    color: #eef7f1; }
-  .card .sp-latin { font-family: var(--serif); font-style: italic; font-size: 13px;
-    color: var(--mint); opacity: 0.9; margin-top: -3px; letter-spacing: .01em; }
+  .card .info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+    padding: 9px 11px 10px; display: flex; flex-direction: column; gap: 1px; }
+  .card .sp-name { font-family: var(--serif); font-size: 15.5px; font-weight: 600; line-height: 1.06;
+    color: #eef7f1; text-shadow: 0 1px 6px rgba(0,0,0,0.75); }
+  .card .sp-latin { font-family: var(--serif); font-style: italic; font-size: 10.5px;
+    color: var(--mint); opacity: 0.92; letter-spacing: .01em; text-shadow: 0 1px 5px rgba(0,0,0,0.85); }
   .card.warm .sp-latin { color: var(--gold); }
-  .card .sp-desc { font-size: 13.5px; line-height: 1.5; color: var(--ink-dim); }
-  .card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 8px; }
-  .tag {
-    font-size: 10.5px; letter-spacing: 0.05em; color: var(--ink);
-    background: rgba(127,230,163,0.10); border: 1px solid rgba(127,230,163,0.28);
-    padding: 3px 9px; border-radius: 999px;
-  }
-  .card.warm .tag { background: rgba(224,162,74,0.10); border-color: rgba(224,162,74,0.3); }
   .card .choose {
-    position: absolute; right: 14px; bottom: 14px;
-    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--mint); display: inline-flex; align-items: center; gap: 6px;
-    opacity: 0; transform: translateX(-4px); transition: opacity .2s, transform .2s;
+    position: absolute; top: 8px; right: 9px; z-index: 3;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--mint); background: rgba(5,9,8,0.7); border: 1px solid rgba(127,230,163,0.4);
+    border-radius: 999px; padding: 3px 8px; backdrop-filter: blur(3px);
+    opacity: 0; transform: translateY(-3px); transition: opacity .2s, transform .2s;
   }
-  .card.warm .choose { color: var(--gold); }
+  .card.warm .choose { color: var(--gold); border-color: rgba(230,180,92,0.45); }
   .card:hover .choose, .card:focus-visible .choose { opacity: 1; transform: none; }
 
   /* ===== LOCKED cards (dark, glowing question mark) ===== */
@@ -281,7 +273,6 @@
   .detail .d-latin { font-family: var(--serif); font-style: italic; font-size: 13.5px; color: var(--mint);
     margin-top: 2px; }
   .detail.warm .d-latin { color: var(--gold); }
-  .detail .d-tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .detail .d-blurb { font-size: 14px; line-height: 1.62; color: var(--ink-dim); }
 
   .hand { border-top: 1px solid rgba(120,160,140,0.16); padding-top: 14px; }
@@ -301,19 +292,43 @@
   .res-pill.energy { border-color: rgba(230,180,92,0.45); } .res-pill.energy .rv { color: var(--gold); }
   .res-pill.water  { border-color: rgba(127,208,224,0.45); } .res-pill.water .rv { color: var(--water); }
 
-  /* starting-hand card list */
-  .hand-list { display: flex; flex-direction: column; gap: 8px; }
-  .hcard { display: flex; align-items: center; gap: 12px; padding: 7px; border-radius: var(--r-sm);
-    background: rgba(255,255,255,0.025); border: 1px solid rgba(120,160,140,0.12); }
-  .hcard .thumb { width: 46px; height: 46px; flex: 0 0 auto; border-radius: 7px; object-fit: cover;
-    border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 0 10px -3px rgba(127,230,163,0.4); }
-  .hcard .hmeta { min-width: 0; flex: 1; }
-  .hcard .hname { font-size: 13.5px; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 7px; }
-  .hcard .hname .ct { color: var(--mint); font-variant-numeric: tabular-nums; font-weight: 700; }
-  .detail.warm .hcard .hname .ct { color: var(--gold); }
-  .hcard .heff { font-size: 12px; color: var(--ink-dim); line-height: 1.35; margin-top: 1px; }
-  .hcard .htype { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint);
-    border: 1px solid rgba(120,160,140,0.2); border-radius: 5px; padding: 2px 6px; flex: 0 0 auto; align-self: center; }
+  /* starting-hand — actual card faces (one per unique card, ×count) */
+  .deckgrid { display: flex; flex-wrap: wrap; gap: 16px 22px; padding: 2px 8px 8px 0; }
+  .gamecard {
+    position: relative; width: 116px; aspect-ratio: 5 / 7; flex: 0 0 auto;
+    border-radius: 10px; overflow: hidden;
+    background: linear-gradient(162deg, rgba(20,28,26,0.92), rgba(8,13,12,0.97));
+    border: 1px solid rgba(150,180,165,0.32);
+    box-shadow: 0 0 12px -4px rgba(127,230,163,0.4), 0 10px 22px -14px rgba(0,0,0,0.9);
+    display: flex; flex-direction: column;
+  }
+  .detail.warm .gamecard { border-color: rgba(230,180,92,0.34);
+    box-shadow: 0 0 12px -4px rgba(230,180,92,0.4), 0 10px 22px -14px rgba(0,0,0,0.9); }
+  /* faux stack behind cards you hold more than one of */
+  .gamecard.multi { box-shadow:
+      3px 3px 0 -1px rgba(10,15,13,0.96), 3px 3px 0 0 rgba(150,180,165,0.22),
+      6px 6px 0 -1px rgba(8,12,11,0.96), 6px 6px 0 0 rgba(150,180,165,0.16),
+      0 10px 22px -14px rgba(0,0,0,0.9); }
+  .detail.warm .gamecard.multi { box-shadow:
+      3px 3px 0 -1px rgba(14,10,6,0.96), 3px 3px 0 0 rgba(230,180,92,0.22),
+      6px 6px 0 -1px rgba(11,8,5,0.96), 6px 6px 0 0 rgba(230,180,92,0.16),
+      0 10px 22px -14px rgba(0,0,0,0.9); }
+  .gamecard .g-art { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #04060a; flex: 0 0 auto; }
+  .gamecard .g-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gamecard .g-art::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 64%, rgba(8,13,12,0.92)); }
+  .gamecard .g-name { font-family: var(--serif); font-size: 11.5px; font-weight: 600; line-height: 1.12;
+    color: #eef7f1; padding: 6px 8px 3px; }
+  .gamecard .g-eff { font-size: 9px; line-height: 1.34; color: var(--ink-dim); padding: 0 8px 8px; flex: 1 1 auto; }
+  .gamecard .g-count { position: absolute; top: 6px; right: 6px; z-index: 3;
+    font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: var(--mint); background: rgba(5,9,8,0.82); border: 1px solid rgba(127,230,163,0.5);
+    border-radius: 999px; padding: 2px 7px; box-shadow: 0 0 10px -3px rgba(127,230,163,0.5); }
+  .detail.warm .gamecard .g-count { color: var(--gold); border-color: rgba(230,180,92,0.5);
+    box-shadow: 0 0 10px -3px rgba(230,180,92,0.5); }
+  .gamecard .g-type { position: absolute; top: 6px; left: 6px; z-index: 3;
+    font-size: 8px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink);
+    background: rgba(5,9,8,0.7); border: 1px solid rgba(120,160,140,0.3); border-radius: 5px; padding: 2px 5px; }
 
   /* action buttons */
   .actions { display: flex; gap: 10px; margin-top: 4px; padding-top: 14px;
@@ -363,17 +378,14 @@
 
   /* ---- responsive ---- */
   @media (max-width: 720px) {
-    .avail-grid { grid-template-columns: 1fr; }
-    .locked-grid, .communal .locked-grid { grid-template-columns: repeat(2, 1fr); }
-    .card { grid-template-columns: 38% 1fr; min-height: 168px; }
-    .card .sp-name { font-size: 21px; }
+    .avail-grid, .locked-grid, .communal .locked-grid { grid-template-columns: repeat(2, 1fr); }
     .detail { grid-template-columns: 1fr; }
     .detail .d-art { max-height: 34vh; }
   }
   @media (max-width: 420px) {
-    .card { grid-template-columns: 1fr; }
-    .card .art { height: 118px; }
-    .card .art::after { background: linear-gradient(180deg, transparent 55%, rgba(8,13,12,0.95)); }
+    .avail-grid, .locked-grid, .communal .locked-grid { grid-template-columns: repeat(2, 1fr); }
+    .card .sp-name { font-size: 14px; }
+    .card .sp-latin { font-size: 9.5px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -423,13 +435,12 @@
         <div class="d-name" id="d-name"></div>
         <div class="d-latin" id="dLatin"></div>
       </div>
-      <div class="d-tags" id="dTags"></div>
       <p class="d-blurb" id="dBlurb"></p>
       <div class="hand">
         <h3>Starting hand</h3>
-        <p class="sub">What this colony brings to the surface on turn one.</p>
+        <p class="sub">The actual cards this colony brings to the surface on turn one.</p>
         <div class="res-row" id="dRes"></div>
-        <div class="hand-list" id="dHand"></div>
+        <div class="deckgrid" id="dHand"></div>
       </div>
       <div class="actions">
         <button class="btn ghost" id="dCancel">Cancel</button>
@@ -500,13 +511,11 @@
     card.setAttribute('aria-label', 'Inspect ' + s.name);
     card.innerHTML =
       '<div class="art"><img src="' + (s.img||'') + '" alt="Portrait of ' + s.name + '"></div>' +
+      '<span class="choose">Inspect ▸</span>' +
       '<div class="info">' +
         '<div class="sp-name">' + s.name + '</div>' +
         '<div class="sp-latin">' + s.latin + '</div>' +
-        '<div class="sp-desc">' + s.short + '</div>' +
-        '<div class="tags">' + s.tags.map(t => '<span class="tag">' + t + '</span>').join('') + '</div>' +
-      '</div>' +
-      '<span class="choose">Inspect ▸</span>';
+      '</div>';
     card.addEventListener('click', () => openDetail(i));
     availGrid.appendChild(card);
   });
@@ -547,16 +556,16 @@
     document.getElementById('d-name').textContent = s.name;
     document.getElementById('dLatin').textContent = s.latin;
     document.getElementById('dBlurb').innerHTML = s.blurb;
-    document.getElementById('dTags').innerHTML = s.tags.map(t => '<span class="tag">' + t + '</span>').join('');
     document.getElementById('dRes').innerHTML = s.res.map(r =>
       '<span class="res-pill ' + r.k + '">' + RI[r.k] + '<span class="rv">' + r.v + '</span><span class="rk">' + r.label + '</span></span>'
     ).join('');
     document.getElementById('dHand').innerHTML = s.hand.map(h =>
-      '<div class="hcard">' +
-        '<img class="thumb" src="' + (IMG[h.thumb]||'') + '" alt="">' +
-        '<div class="hmeta"><div class="hname"><span class="ct">×' + h.count + '</span>' + h.name + '</div>' +
-        '<div class="heff">' + h.eff + '</div></div>' +
-        '<span class="htype">' + h.type + '</span>' +
+      '<div class="gamecard' + (h.count > 1 ? ' multi' : '') + '">' +
+        '<span class="g-type">' + h.type + '</span>' +
+        '<span class="g-count">×' + h.count + '</span>' +
+        '<div class="g-art"><img src="' + (IMG[h.thumb]||'') + '" alt=""></div>' +
+        '<div class="g-name">' + h.name + '</div>' +
+        '<div class="g-eff">' + h.eff + '</div>' +
       '</div>'
     ).join('');
     overlay.classList.add('open');
