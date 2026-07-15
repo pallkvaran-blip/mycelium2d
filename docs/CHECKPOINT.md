@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-15 (**start-of-run SPECIES PICKER now gates every sandbox run** — pick a real mushroom species and the run is seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+_Living status + knowledge doc. Last updated: 2026-07-15 (**CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -396,6 +396,32 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Campaign: level progression 1→11 + species unlocks** (`src/species.js`,
+  `src/render/species_select.js`, `src/main.js`, `src/render/ui.js`, `index.html`; commit `0989061`).
+  A run is now a ladder of **11 procedurally-generated levels**; maps stay procedural, only the
+  **threat counts scale per level** (owner table in `species.js LEVEL_THREATS`: e.g. L1 = 1 ant /
+  1 nematode / 1 mould … L11 = 6/6/6). `main.js configForLevel(level)` clones CONFIG and sets
+  `ants.nestCount` / `nematodes.initialCount` / `trichoderma.initialPatches`.
+  - **Carry between levels:** winning a level transplants the whole `state.cards` (hand/draw/discard/
+    engines/actions/draftable) + resource pools onto the next map (`snapshotCarry`/`applyCarry`;
+    `carryOver` beats `initCards` in `begin()`). Round + pendingOffers reset; engines are pure income
+    data (no map anchor) so they carry cleanly. Beat L11 → **game won** (`showGameWon`).
+  - **End-of-run routing:** all `state.runOver` sites funnel through `presentRunOver()` (guarded by
+    `_runOverPresented`). A **win** → `showLevelComplete({level,maxLevel,unlocked,onNext})` — a
+    congratulatory panel; if the cleared level unlocks species it shows "Congratulations! You unlocked
+    a new species — available on your next run" + the species as **inspectable cards**, then "Descend
+    to level N+1". A **death** → `ui.showOverlay` whose button now returns to the species picker
+    (`handlers.onBackToPicker` → `backToPicker()`).
+  - **Unlocks persist** in `localStorage` (`mycelium.progress.v1` = `{maxLevelCleared}`;
+    `loadProgress`/`recordLevelCleared`/`isUnlocked`). The picker treats a gated species as playable
+    once its tier level is cleared → it moves from its locked tier row up to "Available now" (the
+    freed tier slot falls back to a "?"). Currently only **Complete level 1** pins real species
+    (Earthball + Bleeding Tooth); other tiers are still "?".
+  - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode.
+  - **Debug hooks** on `window.__game`: `winLevel()` / `killColony()` (force the win/death paths).
+  - Verified end-to-end in the build: L1 threats 1/1/1 → carry 30E/30W + 20-card Fairy Ring hand to
+    L2 (1/2/2); L1 clear unlocks 2 species (persist across reload); death → picker; 0 errors; tests green.
 
 - **Start-of-run SPECIES PICKER + dev quick-start** (`src/species.js`, `src/render/species_select.js`,
   `src/main.js`, `src/engine/cards.js`, `index.html`, `build.mjs`; commit `ac4de85`).
@@ -1158,22 +1184,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
-- **Campaign / level progression + species unlocks (DESIGN AGREED, NOT BUILT).** The species
-  picker's "Complete level N" tiers imply a level ladder that **does not exist yet** — today a
-  win/loss just ends the single procedural run (`state.runOver`; overlay → `onRestart` = new
-  random map). Owner-agreed rules for when it's built:
-  - **Within a run (levels 1→11): CARRY deck + resources between levels** — a true engine-builder.
-    Winning a level should transplant the whole card state (`state.cards`: hand/draw/discard/
-    engines/actions) + resource pools onto the next map, not reset them.
-  - **On death: back to the SPECIES PICKER** (choose again from scratch), not retry-in-place.
-  - **Unlocks PERSIST across sessions** — save completed-level progress in `localStorage`;
-    `src/species.js` locked tiers (level 1/3/5/7/10) become playable once their level is cleared,
-    and the picker reads that on load.
-  - _Open design fork (not yet decided):_ what makes level N harder — map length / threat counts
-    scaled procedurally, or authored levels? (Recommend: procedural with a per-level difficulty
-    knob, matching the "difficulty emerges" philosophy in cards-design.md.) Needs a level counter
-    in state, a win→next-level flow in `main.js`/`ui.js` (overlay gains a "Next level" path), and
-    an unlock/localStorage layer wired into `species_select.js`.
+- **Campaign / level progression + species unlocks — BUILT** (see §9, commit `0989061`). 11
+  procedural levels, per-level threat-count scaling (`LEVEL_THREATS`), carry deck+resources
+  between levels, death → picker, localStorage unlock persistence. Follow-ups: only **Complete
+  level 1** currently pins real unlock species (Earthball + Bleeding Tooth) — the level 3/5/7/10
+  tiers still need species assigned; consider a difficulty/balance pass now that a full-deck carry
+  makes late levels easier; and a fully-cleared tier currently falls back to a "?" (cosmetic).
 
 **Agreed sequencing (planning note):** _polish what exists first_ — more **UI design + bug
 testing on the CURRENT content** (current cards, enemy/ant/mould behavior, the installed-

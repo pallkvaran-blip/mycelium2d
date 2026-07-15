@@ -54,6 +54,10 @@ node --test test/               # smoke + card tests
   **Dev quick-start** button (or `#dev`) runs the old `testall` scaffold (300 E/W/P + 5×
   every card). `docs/species-select.html` is a FROZEN standalone design mock (inlined
   data/images) — the in-game picker is the living version.
+- **Campaign (CHECKPOINT §9):** a run is 11 procedural levels; only threat counts scale per level
+  (`species.js LEVEL_THREATS`, applied by `main.js configForLevel`). Winning carries deck+resources
+  to the next level (`snapshotCarry`/`applyCarry`); death → picker; clearing a level unlocks species
+  (localStorage `mycelium.progress.v1`). `window.__game.winLevel()`/`killColony()` force the paths.
 
 ## Working agreement
 
