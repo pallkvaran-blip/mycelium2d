@@ -823,7 +823,7 @@
       padding:clamp(12px,3vw,36px); background:rgba(3,5,9,0.72); backdrop-filter:blur(7px);
       opacity:0; visibility:hidden; transition:opacity .28s, visibility .28s; }
     .ss-detailwrap.open { opacity:1; visibility:visible; }
-    .ss-detail { position:relative; width:min(880px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); display:grid; grid-template-columns:42% 1fr;
+    .ss-detail { position:relative; width:min(880px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); display:grid; grid-template-columns:42% 1fr; grid-template-rows:minmax(0,1fr);
       background:linear-gradient(160deg, rgba(15,22,20,0.96), rgba(7,11,10,0.98)); border:1.5px solid var(--ss-white-rim); border-radius:18px; overflow:hidden;
       box-shadow:0 0 26px -2px rgba(230,244,238,0.4), 0 0 80px -16px rgba(200,255,240,0.35), 0 40px 90px -30px rgba(0,0,0,0.95);
       transform:translateY(14px) scale(.97); opacity:0; transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s; }
@@ -835,7 +835,7 @@
     .ss-d-art { position:relative; background:#04060a; min-height:220px; }
     .ss-d-art img { width:100%; height:100%; object-fit:cover; display:block; }
     .ss-d-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(7,11,10,0.7)), linear-gradient(90deg, transparent 72%, rgba(7,11,10,0.9)); }
-    .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+    .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:14px; }
     .ss-d-name { font-family:var(--ss-serif); font-size:clamp(24px,3.4vw,32px); font-weight:600; line-height:1.04; color:#eef7f1; }
     .ss-d-latin { font-family:var(--ss-serif); font-style:italic; font-size:13.5px; color:var(--ss-mint); margin-top:2px; }
     .ss-detail.warm .ss-d-latin { color:var(--ss-gold); }
@@ -941,7 +941,7 @@
 
     @media (max-width:720px) {
       .ss-grid { grid-template-columns:repeat(2,1fr); }
-      .ss-detail { grid-template-columns:1fr; }
+      .ss-detail { grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); }
       .ss-d-art { max-height:34vh; }
     }
     @media (prefers-reduced-motion: reduce) {

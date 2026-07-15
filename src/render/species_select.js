@@ -125,7 +125,7 @@ function speciesCard(s, { locked, onClick }) {
   card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
   card.innerHTML =
     '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
-    (locked ? '<span class="ss-lockbadge">🔒 Locked</span>' : '') +
+    (locked ? '<span class="ss-lockbadge">Locked</span>' : '') +
     '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
     '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
   card.addEventListener('click', onClick);
@@ -140,13 +140,12 @@ export function showSpeciesSelect({ onPick, onDev }) {
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
-        '<div class="ss-eyebrow">Mycelium · New run</div>' +
+        '<div class="ss-eyebrow">Mycelium</div>' +
         '<h1>Select your species</h1>' +
-        '<p class="ss-lede">Every run begins as a single spore. Choose the colony you\'ll grow from the dark — its <b>temperament</b> and its <b>starting hand</b> are set here. Unlock more by clearing levels; they carry into future runs.</p>' +
       '</header>' +
       '<div class="ss-body">' +
         '<section class="ss-section">' +
-          '<div class="ss-rowlabel"><span class="ss-lk">Available now</span><span class="ss-badge">Choose one</span><span class="ss-rule"></span><span class="ss-hint">Tap a card to inspect</span></div>' +
+          '<div class="ss-rowlabel"><span class="ss-lk">Starter species</span><span class="ss-rule"></span></div>' +
           '<div class="ss-grid" id="ssAvail"></div>' +
         '</section>' +
         '<div id="ssLocked"></div>' +
@@ -167,9 +166,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
   for (const row of LOCKED_TIERS) {
     const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
     const label = el('div', 'ss-rowlabel ss-locked-label');
-    label.innerHTML = row.communal
-      ? '<span class="ss-lock">🔒</span><span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">Yet to be discovered</span>'
-      : '<span class="ss-lock">🔒</span><span class="ss-lk">Unlock · ' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">' + row.n + ' species</span>';
+    label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
     const grid = el('div', 'ss-grid');
     // Species pinned to this tier STAY in this row whether locked or unlocked — an
     // unlocked one becomes playable in place (never promoted to "Available now").

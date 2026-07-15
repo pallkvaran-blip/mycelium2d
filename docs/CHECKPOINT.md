@@ -432,6 +432,13 @@ Both menus are dark, on-theme, with glowing green borders.
     piled almost every enemy onto the one clear strip near the goal (measured 33/42 worms in the last
     20%). Falls back shallow→deep→anywhere so a band still gets a spawn. Verified ~243 spawns: 0 on
     rock, even x-spread (mean ~0.63).
+  - **Picker chrome** is intentionally minimal: header is just "MYCELIUM" + "Select your species"
+    (no eyebrow tag / lede paragraph); the first row is "STARTER SPECIES" (ungated only); gated tiers
+    are labelled just "COMPLETE LEVEL N" + a divider (no lock glyph, no "Unlock ·", no "N species"
+    hint); locked cards show a plain "Locked" chip (no 🔒). **Gotcha:** the species DETAIL overlay
+    (`.ss-detail`) is a fixed-max-height grid with `overflow:hidden`, so its scrolling body needs
+    `grid-template-rows:minmax(0,1fr)` + `.ss-d-body{min-height:0}` — without it, a species with >3
+    card types grew the row past the panel and clipped the Cancel/Start buttons out of reach.
   - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode. A temporary
     **"Dev: win level ▸"** button (top-right, amber dashed) instantly clears the level to test the flow.
   - **Debug hooks** on `window.__game`: `winLevel()` (= the dev button) / `killColony()`.
