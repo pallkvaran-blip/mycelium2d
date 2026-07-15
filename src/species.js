@@ -69,3 +69,66 @@ export const LOCKED_TIERS = [
   { label: 'Complete level 10', n: 1 },
   { label: '?', n: 8, communal: true },
 ];
+
+// =============================================================================
+// Campaign: a run is a ladder of levels 1..MAX_LEVEL. Maps stay procedural; the
+// only per-level scaling is the number of each threat present (owner-specified).
+// Beat MAX_LEVEL to win the game.
+// =============================================================================
+export const MAX_LEVEL = 11;
+
+// index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
+export const LEVEL_THREATS = [
+  null,
+  { ants: 1, nematodes: 1, trych: 1 },   // 1
+  { ants: 1, nematodes: 2, trych: 2 },   // 2
+  { ants: 2, nematodes: 3, trych: 2 },   // 3
+  { ants: 2, nematodes: 3, trych: 3 },   // 4
+  { ants: 2, nematodes: 4, trych: 3 },   // 5
+  { ants: 2, nematodes: 4, trych: 4 },   // 6
+  { ants: 3, nematodes: 4, trych: 4 },   // 7
+  { ants: 3, nematodes: 5, trych: 4 },   // 8
+  { ants: 3, nematodes: 5, trych: 5 },   // 9
+  { ants: 4, nematodes: 5, trych: 5 },   // 10
+  { ants: 6, nematodes: 6, trych: 6 },   // 11
+];
+
+export function threatsForLevel(level) {
+  return LEVEL_THREATS[level] || LEVEL_THREATS[LEVEL_THREATS.length - 1];
+}
+
+// The level a species unlocks at, parsed from its `unlock` label ("Complete level N").
+export function levelFromUnlock(label) {
+  const m = /(\d+)/.exec(label || '');
+  return m ? +m[1] : null;
+}
+
+// Species whose unlock tier is exactly this level (i.e. granted by clearing it).
+export function speciesUnlockedByClearing(level) {
+  return SPECIES.filter((s) => s.unlock && levelFromUnlock(s.unlock) === level);
+}
+
+// --- unlock progress (persisted in localStorage) ---------------------------
+const PROGRESS_KEY = 'mycelium.progress.v1';
+
+export function loadProgress() {
+  try { return Object.assign({ maxLevelCleared: 0 }, JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}); }
+  catch (_) { return { maxLevelCleared: 0 }; }
+}
+export function saveProgress(p) {
+  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+// Record a cleared level; returns the updated progress.
+export function recordLevelCleared(level) {
+  const p = loadProgress();
+  p.maxLevelCleared = Math.max(p.maxLevelCleared || 0, level);
+  saveProgress(p);
+  return p;
+}
+// A species is available in the picker if it has no unlock gate, or its gate level
+// has been cleared.
+export function isUnlocked(sp, progress) {
+  if (!sp.unlock) return true;
+  const lvl = levelFromUnlock(sp.unlock);
+  return lvl != null && (progress.maxLevelCleared || 0) >= lvl;
+}

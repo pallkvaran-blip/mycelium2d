@@ -905,6 +905,34 @@
       display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .ss-close:hover { background:rgba(20,28,26,0.9); border-color:var(--ss-mint); color:var(--ss-mint-hi); }
 
+    /* between-level: level-complete / game-won panel (reuses the .ss-detailwrap backdrop) */
+    .ss-lc { position:relative; width:min(560px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); overflow-y:auto;
+      background:linear-gradient(160deg, rgba(15,22,20,0.97), rgba(7,11,10,0.99)); border:1.5px solid rgba(127,230,163,0.55);
+      border-radius:18px; padding:clamp(22px,3.5vw,34px); text-align:center;
+      box-shadow:0 0 26px -2px rgba(127,230,163,0.45), 0 0 80px -16px rgba(127,230,163,0.3), 0 40px 90px -30px rgba(0,0,0,0.95);
+      transform:translateY(14px) scale(.97); opacity:0; animation:ssLcIn .34s cubic-bezier(.2,.8,.2,1) forwards; }
+    @keyframes ssLcIn { to { transform:none; opacity:1; } }
+    .ss-lc-badge { display:inline-block; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; font-weight:700;
+      color:var(--ss-mint); border:1px solid rgba(127,230,163,0.4); background:rgba(127,230,163,0.08);
+      border-radius:999px; padding:4px 12px; margin-bottom:14px; }
+    .ss-lc-title { font-family:var(--ss-serif); font-size:clamp(22px,3.4vw,30px); font-weight:600; line-height:1.1;
+      color:#eef7f1; margin:0 0 10px; text-wrap:balance; }
+    .ss-lc-sub { font-size:14px; line-height:1.55; color:var(--ss-ink-dim); margin:0 auto; max-width:46ch; }
+    .ss-lc-unlock { margin:20px auto 8px; font-size:13.5px; line-height:1.5; color:#eaf6ee; max-width:48ch;
+      background:rgba(127,230,163,0.10); border:1px solid rgba(127,230,163,0.32); border-radius:12px; padding:11px 14px; }
+    .ss-lc-star { color:var(--ss-mint); font-weight:700; margin-right:4px; }
+    .ss-lc-tap { color:var(--ss-ink-dim); }
+    .ss-lc-cards { grid-template-columns:repeat(2,1fr) !important; gap:14px; margin:14px auto 4px; max-width:420px; }
+    .ss-lc-actions { margin-top:22px; display:flex; justify-content:center; }
+    .ss-lc-actions .ss-btn { flex:0 0 auto; min-width:240px; }
+
+    /* HUD campaign level chip (top-centre, non-interactive) */
+    #levelChip { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;
+      font-family:"Segoe UI", system-ui, sans-serif; font-size:12px; font-weight:700; letter-spacing:0.12em;
+      text-transform:uppercase; color:#bfeecb; background:linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border:1.5px solid rgba(130,230,166,0.5); border-radius:999px; padding:6px 14px;
+      box-shadow:0 0 14px -3px rgba(127,230,163,0.5), 0 6px 20px -8px rgba(0,0,0,0.7); backdrop-filter:blur(6px); }
+
     @media (max-width:720px) {
       .ss-grid { grid-template-columns:repeat(2,1fr); }
       .ss-detail { grid-template-columns:1fr; }
@@ -918,8 +946,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "zphxmj";
-globalThis.__BUILD__ = "local 07-15 14:53";
+window.__ASSET_VER = "17rh86s";
+globalThis.__BUILD__ = "local 07-15 15:29";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2448,7 +2476,70 @@ const LOCKED_TIERS = [
   { label: '?', n: 8, communal: true },
 ];
 
-  return { SPECIES, LOCKED_TIERS };
+// =============================================================================
+// Campaign: a run is a ladder of levels 1..MAX_LEVEL. Maps stay procedural; the
+// only per-level scaling is the number of each threat present (owner-specified).
+// Beat MAX_LEVEL to win the game.
+// =============================================================================
+const MAX_LEVEL = 11;
+
+// index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
+const LEVEL_THREATS = [
+  null,
+  { ants: 1, nematodes: 1, trych: 1 },   // 1
+  { ants: 1, nematodes: 2, trych: 2 },   // 2
+  { ants: 2, nematodes: 3, trych: 2 },   // 3
+  { ants: 2, nematodes: 3, trych: 3 },   // 4
+  { ants: 2, nematodes: 4, trych: 3 },   // 5
+  { ants: 2, nematodes: 4, trych: 4 },   // 6
+  { ants: 3, nematodes: 4, trych: 4 },   // 7
+  { ants: 3, nematodes: 5, trych: 4 },   // 8
+  { ants: 3, nematodes: 5, trych: 5 },   // 9
+  { ants: 4, nematodes: 5, trych: 5 },   // 10
+  { ants: 6, nematodes: 6, trych: 6 },   // 11
+];
+
+function threatsForLevel(level) {
+  return LEVEL_THREATS[level] || LEVEL_THREATS[LEVEL_THREATS.length - 1];
+}
+
+// The level a species unlocks at, parsed from its `unlock` label ("Complete level N").
+function levelFromUnlock(label) {
+  const m = /(\d+)/.exec(label || '');
+  return m ? +m[1] : null;
+}
+
+// Species whose unlock tier is exactly this level (i.e. granted by clearing it).
+function speciesUnlockedByClearing(level) {
+  return SPECIES.filter((s) => s.unlock && levelFromUnlock(s.unlock) === level);
+}
+
+// --- unlock progress (persisted in localStorage) ---------------------------
+const PROGRESS_KEY = 'mycelium.progress.v1';
+
+function loadProgress() {
+  try { return Object.assign({ maxLevelCleared: 0 }, JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}); }
+  catch (_) { return { maxLevelCleared: 0 }; }
+}
+function saveProgress(p) {
+  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+// Record a cleared level; returns the updated progress.
+function recordLevelCleared(level) {
+  const p = loadProgress();
+  p.maxLevelCleared = Math.max(p.maxLevelCleared || 0, level);
+  saveProgress(p);
+  return p;
+}
+// A species is available in the picker if it has no unlock gate, or its gate level
+// has been cleared.
+function isUnlocked(sp, progress) {
+  if (!sp.unlock) return true;
+  const lvl = levelFromUnlock(sp.unlock);
+  return lvl != null && (progress.maxLevelCleared || 0) >= lvl;
+}
+
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, speciesUnlockedByClearing, loadProgress, saveProgress, recordLevelCleared, isUnlocked };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -8692,17 +8783,23 @@ class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
+    const pickerBtn = `<button class="btn big" id="overlay-picker">Back to species picker ↻</button>`;
+    // A campaign death returns to the species picker (choose again from scratch).
+    const campaignDeath = this.cardsOn && !puzzle && died;
     o.innerHTML = `
       <div class="card">
         <h1>${title}</h1>
         <p>${body}</p>
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
+          : campaignDeath ? pickerBtn
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
     const rb = o.querySelector('#overlay-restart');
     if (rb) rb.onclick = () => this.handlers.onRestart();
     const pb = o.querySelector('#overlay-puzzle');
     if (pb) pb.onclick = () => this.handlers.onPuzzle();
+    const pk = o.querySelector('#overlay-picker');
+    if (pk) pk.onclick = () => this.handlers.onBackToPicker();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 
@@ -9483,19 +9580,22 @@ function vitalityColor(v) {
 
 // ===================== src/render/species_select.js =====================
 const __m_render_species_select = (function () {
-  const { SPECIES, LOCKED_TIERS } = __m_species;
+  const { SPECIES, LOCKED_TIERS, isUnlocked, loadProgress } = __m_species;
   const { CARD_DATA } = __m_cards_data;
   const { cardSlug } = __m_render_ui;
 // =============================================================================
-// Start-of-run species picker (in-game overlay).
+// Start-of-run species picker + between-level campaign overlays (in-game).
 //
-// Shown once at boot before the sandbox starts. Renders the roster from
-// species.js, derives each hand card's face (art / effect / type / play cost)
-// from CARD_DATA, and calls back:
-//   onPick(species) — a playable species chosen → start a run seeded with it
-//   onDev()         — the temporary dev button → start the current default run
-// Namespaced under #speciesSelect (ss-* classes) so it can't collide with the
-// game's own .card/.overlay UI.
+//   showSpeciesSelect({onPick,onDev}) — boot picker. Unlocked species (per saved
+//     progress) appear as playable; gated ones show as locked previews.
+//   showLevelComplete({level,maxLevel,unlocked,onNext}) — congrats after a level;
+//     any newly-unlocked species are shown and inspectable before continuing.
+//   showGameWon({onNewRun}) — cleared the final level.
+//
+// Card faces (effect/type/cost/art) are derived LIVE from CARD_DATA + the deck's
+// assets/cards art, so card-data/art changes flow through automatically.
+// Everything is namespaced (#speciesSelect / .ss-*) to avoid colliding with the
+// in-game .card/.overlay UI.
 // =============================================================================
 
 
@@ -9515,7 +9615,6 @@ const RI = {
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// Play-cost pips for a card face (water / phosphorus; energy play-cost is always 0).
 function costPips(c) {
   let out = '';
   if (c && c.costW) out += '<span class="ss-cpip">' + RI.water + c.costW + '</span>';
@@ -9523,7 +9622,6 @@ function costPips(c) {
   return out ? '<span class="ss-cost">' + out + '</span>' : '';
 }
 
-// One "actual card" face for the starting hand.
 function cardFace(entry) {
   const c = CARD_BY_NAME[entry.name] || { name: entry.name, type: '', effect: '' };
   const multi = entry.count > 1 ? ' ss-multi' : '';
@@ -9542,15 +9640,83 @@ function resPills(res) {
   const order = [['energy', 'energy'], ['water', 'water'], ['phosphorus', 'phos']];
   let out = '';
   for (const [key, icon] of order) {
-    const v = res && res[key];
-    if (!v) continue;
+    const v = res && res[key]; if (!v) continue;
     out += '<span class="ss-respill ' + icon + '">' + RI[icon] + '<span class="ss-rv">' + v + '</span>' +
       '<span class="ss-rk">' + key + '</span></span>';
   }
   return out;
 }
 
+// --- shared species detail (inspector) — a single body-level overlay ----------
+let _insp = null;
+function inspector() {
+  if (_insp) return _insp;
+  const wrap = el('div', 'ss-detailwrap'); wrap.id = 'ssInspector'; wrap.style.zIndex = '1006';
+  wrap.innerHTML =
+    '<div class="ss-detail" id="ssIDetail">' +
+      '<button class="ss-close" id="ssIClose" aria-label="Close">✕</button>' +
+      '<div class="ss-d-art"><img id="ssIArt" alt=""></div>' +
+      '<div class="ss-d-body">' +
+        '<div><div class="ss-d-name" id="ssIName"></div><div class="ss-d-latin" id="ssILatin"></div></div>' +
+        '<p class="ss-d-blurb" id="ssIBlurb"></p>' +
+        '<div class="ss-hand"><h3>Starting hand</h3><p class="ss-sub">The actual cards this colony brings to the surface on turn one.</p>' +
+          '<div class="ss-resprow" id="ssIRes"></div><div class="ss-deck" id="ssIHand"></div></div>' +
+        '<div class="ss-actions" id="ssIActions"></div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(wrap);
+  const detail = wrap.querySelector('#ssIDetail');
+  const close = () => wrap.classList.remove('open');
+  wrap.querySelector('#ssIClose').addEventListener('click', close);
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && wrap.classList.contains('open')) close(); });
+  _insp = { wrap, detail, close };
+  return _insp;
+}
+
+// opts.mode: 'start' (Cancel + Start→onStart) · 'locked' (Close + disabled Locked pill) · 'inspect' (Close)
+function openSpeciesDetail(species, opts = {}) {
+  const ins = inspector();
+  ins.detail.className = 'ss-detail ' + species.vibe;
+  ins.wrap.querySelector('#ssIArt').src = speciesImg(species.img);
+  ins.wrap.querySelector('#ssIArt').alt = 'Portrait of ' + species.name;
+  ins.wrap.querySelector('#ssIName').textContent = species.name;
+  ins.wrap.querySelector('#ssILatin').textContent = species.latin;
+  ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
+  ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
+  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('');
+  const actions = ins.wrap.querySelector('#ssIActions');
+  if (opts.mode === 'start') {
+    actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';
+    actions.querySelector('#ssICancel').onclick = ins.close;
+    actions.querySelector('#ssIStart').onclick = () => { ins.close(); opts.onStart && opts.onStart(); };
+  } else if (opts.mode === 'locked') {
+    actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Close</button><button class="ss-btn primary is-locked" disabled>Locked · ' + esc(species.unlock) + '</button>';
+    actions.querySelector('#ssICancel').onclick = ins.close;
+  } else {
+    actions.innerHTML = '<button class="ss-btn primary" id="ssIOk">Continue</button>';
+    actions.querySelector('#ssIOk').onclick = ins.close;
+  }
+  ins.wrap.classList.add('open');
+}
+
+// --- a species card tile (available / locked preview) -------------------------
+function speciesCard(s, { locked, onClick }) {
+  const card = el('button', 'ss-card ' + s.vibe + (locked ? ' ss-locked' : ''));
+  card.type = 'button';
+  card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
+  card.innerHTML =
+    '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
+    (locked ? '<span class="ss-lockbadge">🔒 Locked</span>' : '') +
+    '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
+    '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
+  card.addEventListener('click', onClick);
+  return card;
+}
+
+// ============================ boot picker ====================================
 function showSpeciesSelect({ onPick, onDev }) {
+  const progress = loadProgress();
   const root = el('div'); root.id = 'speciesSelect';
   root.innerHTML =
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
@@ -9558,7 +9724,7 @@ function showSpeciesSelect({ onPick, onDev }) {
       '<header class="ss-head">' +
         '<div class="ss-eyebrow">Mycelium · New run</div>' +
         '<h1>Select your species</h1>' +
-        '<p class="ss-lede">Every run begins as a single spore. Choose the colony you\'ll grow from the dark — its <b>temperament</b> and its <b>starting hand</b> are set here. Two strains are yours from the start; the rest are earned in the deep.</p>' +
+        '<p class="ss-lede">Every run begins as a single spore. Choose the colony you\'ll grow from the dark — its <b>temperament</b> and its <b>starting hand</b> are set here. Unlock more by clearing levels; they carry into future runs.</p>' +
       '</header>' +
       '<div class="ss-body">' +
         '<section class="ss-section">' +
@@ -9567,41 +9733,17 @@ function showSpeciesSelect({ onPick, onDev }) {
         '</section>' +
         '<div id="ssLocked"></div>' +
       '</div>' +
-    '</div>' +
-    '<div class="ss-detailwrap" id="ssDetailWrap" role="dialog" aria-modal="true">' +
-      '<div class="ss-detail" id="ssDetail">' +
-        '<button class="ss-close" id="ssClose" aria-label="Close">✕</button>' +
-        '<div class="ss-d-art"><img id="ssDArt" alt=""></div>' +
-        '<div class="ss-d-body">' +
-          '<div><div class="ss-d-name" id="ssDName"></div><div class="ss-d-latin" id="ssDLatin"></div></div>' +
-          '<p class="ss-d-blurb" id="ssDBlurb"></p>' +
-          '<div class="ss-hand"><h3>Starting hand</h3><p class="ss-sub">The actual cards this colony brings to the surface on turn one.</p>' +
-            '<div class="ss-resprow" id="ssDRes"></div><div class="ss-deck" id="ssDHand"></div></div>' +
-          '<div class="ss-actions"><button class="ss-btn ghost" id="ssCancel">Cancel</button><button class="ss-btn primary" id="ssStart">Start game</button></div>' +
-        '</div>' +
-      '</div>' +
     '</div>';
   document.body.appendChild(root);
 
-  const wrap = root.querySelector('#ssDetailWrap');
-  const detail = root.querySelector('#ssDetail');
-  let currentSpecies = null;
-
-  function makeCard(s, locked) {
-    const card = el('button', 'ss-card ' + s.vibe + (locked ? ' ss-locked' : ''));
-    card.type = 'button';
-    card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
-    card.innerHTML =
-      '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
-      (locked ? '<span class="ss-lockbadge">🔒 Locked</span>' : '') +
-      '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
-      '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
-    card.addEventListener('click', () => openDetail(s));
-    return card;
-  }
+  function hide() { root.remove(); }
 
   const availGrid = root.querySelector('#ssAvail');
-  for (const s of SPECIES) if (!s.unlock) availGrid.appendChild(makeCard(s, false));
+  for (const s of SPECIES) {
+    if (!isUnlocked(s, progress)) continue;
+    availGrid.appendChild(speciesCard(s, { locked: false, onClick: () =>
+      openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
+  }
 
   const lockedRows = root.querySelector('#ssLocked');
   for (const row of LOCKED_TIERS) {
@@ -9611,8 +9753,9 @@ function showSpeciesSelect({ onPick, onDev }) {
       ? '<span class="ss-lock">🔒</span><span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">Yet to be discovered</span>'
       : '<span class="ss-lock">🔒</span><span class="ss-lk">Unlock · ' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">' + row.n + ' species</span>';
     const grid = el('div', 'ss-grid');
-    const tier = SPECIES.filter((s) => s.unlock === row.label);
-    for (const s of tier) grid.appendChild(makeCard(s, true));
+    // real species pinned to this tier that are STILL locked (unlocked ones moved to "Available now")
+    const tier = SPECIES.filter((s) => s.unlock === row.label && !isUnlocked(s, progress));
+    for (const s of tier) grid.appendChild(speciesCard(s, { locked: true, onClick: () => openSpeciesDetail(s, { mode: 'locked' }) }));
     for (let k = tier.length; k < row.n; k++) {
       const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
       lc.innerHTML = '<span class="ss-q">?</span>';
@@ -9622,48 +9765,51 @@ function showSpeciesSelect({ onPick, onDev }) {
     lockedRows.appendChild(sec);
   }
 
-  function openDetail(s) {
-    currentSpecies = s;
-    detail.className = 'ss-detail ' + s.vibe;
-    const art = root.querySelector('#ssDArt');
-    art.src = speciesImg(s.img); art.alt = 'Portrait of ' + s.name;
-    root.querySelector('#ssDName').textContent = s.name;
-    root.querySelector('#ssDLatin').textContent = s.latin;
-    root.querySelector('#ssDBlurb').innerHTML = s.blurb;
-    root.querySelector('#ssDRes').innerHTML = resPills(s.res);
-    root.querySelector('#ssDHand').innerHTML = s.hand.map(cardFace).join('');
-    const start = root.querySelector('#ssStart');
-    const cancel = root.querySelector('#ssCancel');
-    if (s.unlock) {
-      start.disabled = true; start.classList.add('is-locked');
-      start.textContent = 'Locked · ' + s.unlock;
-      cancel.textContent = 'Close';
-    } else {
-      start.disabled = false; start.classList.remove('is-locked');
-      start.textContent = 'Start game';
-      cancel.textContent = 'Cancel';
-    }
-    wrap.classList.add('open');
-  }
-  function closeDetail() { wrap.classList.remove('open'); }
-
-  root.querySelector('#ssClose').addEventListener('click', closeDetail);
-  root.querySelector('#ssCancel').addEventListener('click', closeDetail);
-  wrap.addEventListener('click', (e) => { if (e.target === wrap) closeDetail(); });
-  root.querySelector('#ssStart').addEventListener('click', () => {
-    if (!currentSpecies || currentSpecies.unlock) return;
-    hide(); onPick && onPick(currentSpecies);
-  });
   root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
-
-  function onKey(e) { if (e.key === 'Escape') { if (wrap.classList.contains('open')) closeDetail(); } }
-  document.addEventListener('keydown', onKey);
-
-  function hide() { document.removeEventListener('keydown', onKey); root.remove(); }
   return { hide, root };
 }
 
-  return { showSpeciesSelect };
+// ===================== between-level: level complete =========================
+function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
+  const root = el('div', 'ss-detailwrap open'); root.id = 'ssLevelComplete';
+  const hasUnlock = unlocked && unlocked.length;
+  root.innerHTML =
+    '<div class="ss-lc">' +
+      '<div class="ss-lc-badge">Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
+      '<h2 class="ss-lc-title">The colony fruits at the surface! 🍄</h2>' +
+      '<p class="ss-lc-sub">You crossed level ' + level + ' — your deck, engines and reserves carry forward. Level ' + (level + 1) + ' brings more of the dark to contend with.</p>' +
+      (hasUnlock
+        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-grid ss-lc-cards" id="ssLcCards"></div>'
+        : '') +
+      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Descend to level ' + (level + 1) + ' →</button></div>' +
+    '</div>';
+  document.body.appendChild(root);
+  function hide() { root.remove(); }
+  if (hasUnlock) {
+    const cards = root.querySelector('#ssLcCards');
+    for (const s of unlocked) cards.appendChild(speciesCard(s, { locked: false, onClick: () => openSpeciesDetail(s, { mode: 'inspect' }) }));
+  }
+  root.querySelector('#ssLcNext').addEventListener('click', () => { hide(); onNext && onNext(); });
+  return { hide, root };
+}
+
+// =========================== game won (final) ================================
+function showGameWon({ onNewRun }) {
+  const root = el('div', 'ss-detailwrap open'); root.id = 'ssGameWon';
+  root.innerHTML =
+    '<div class="ss-lc">' +
+      '<div class="ss-lc-badge">Run complete</div>' +
+      '<h2 class="ss-lc-title">You carried the colony to the surface — all the way. 🍄✦</h2>' +
+      '<p class="ss-lc-sub">Every level cleared. The mycelium has conquered the deep. Start a fresh run with any species you\'ve unlocked.</p>' +
+      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssGwNew">Begin a new run ↻</button></div>' +
+    '</div>';
+  document.body.appendChild(root);
+  function hide() { root.remove(); }
+  root.querySelector('#ssGwNew').addEventListener('click', () => { hide(); onNewRun && onNewRun(); });
+  return { hide, root };
+}
+
+  return { showSpeciesSelect, showLevelComplete, showGameWon };
 })();
 
 // ===================== src/main.js =====================
@@ -9679,7 +9825,8 @@ const __m_main = (function () {
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug } = __m_render_ui;
-  const { showSpeciesSelect } = __m_render_species_select;
+  const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
+  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, speciesUnlockedByClearing, loadProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -9702,6 +9849,9 @@ const lighting = new Lighting(CONFIG);
 let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
+let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
+let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
+let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
 
 let uiDirty = true;
@@ -9749,26 +9899,104 @@ const AIM_NEAR_PX = 90;
 const aimCancelPx = () => Math.max(220, Math.min(window.innerWidth, window.innerHeight) * 0.55);
 
 // --- setup / restart --------------------------------------------------------
-function start(seed) {
-  let cfg = CONFIG;
-  if (noTrich) {
-    // A trich-free sandbox (testing aid): clone CONFIG so the global stays
-    // intact, and disable both the initial clouds and respawns.
-    cfg = JSON.parse(JSON.stringify(CONFIG));
+// Per-level config: procedural map as always, but the number of each threat is
+// set by the campaign table (species.js). Clones CONFIG so the global stays intact.
+function configForLevel(level) {
+  const t = threatsForLevel(level);
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  cfg.ants.nestCount = t.ants;
+  cfg.nematodes.initialCount = t.nematodes;
+  cfg.trichoderma.initialPatches = t.trych;
+  if (noTrich) {   // testing aid: a trich-free sandbox
     cfg.trichoderma.initialPatches = 0;
     cfg.trichoderma.respawnChance = 0;
   }
-  begin(createState(cfg, seed));
+  return cfg;
+}
+function start(seed) {
+  begin(createState(configForLevel(currentLevel), seed));
+}
+function startRun() { start((Date.now() & 0x7fffffff) || 1); }
+
+// Show the start-of-run picker (also used on death → back to picker).
+function showPicker() {
+  showSpeciesSelect({
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; startRun(); },
+    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; startRun(); },
+  });
+}
+
+function cardsCampaign() {
+  return state && state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle';
+}
+
+// Snapshot the current deck + reserves to carry onto the next level.
+function snapshotCarry() {
+  const net = state.active;
+  return { cards: state.cards, energy: net.energy, water: net.water, phosphorus: net.phosphorus };
+}
+function applyCarry(st, carry) {
+  st.cards = carry.cards;
+  st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
+  st.cards.round = 1;
+  const net = st.active;
+  net.energy = carry.energy; net.water = carry.water; net.phosphorus = carry.phosphorus;
+  st.log('Your colony carries its deck, engines and reserves down to the next level.', 'good');
+}
+
+// Route a finished run: a level win advances the campaign; puzzle wins / deaths
+// fall through to the generic overlay (death's button goes back to the picker).
+function presentRunOver() {
+  if (!state.runOver || _runOverPresented) return;
+  _runOverPresented = true;
+  if (state.won && cardsCampaign()) { onLevelWon(); return; }
+  const r = state.runResult; ui.showOverlay(r);
+}
+
+function onLevelWon() {
+  const cleared = currentLevel;
+  const prev = loadProgress();
+  const newlyUnlocked = (cleared > (prev.maxLevelCleared || 0)) ? speciesUnlockedByClearing(cleared) : [];
+  recordLevelCleared(cleared);
+  ui.hideOverlay();
+  if (cleared >= MAX_LEVEL) {
+    showGameWon({ onNewRun: backToPicker });
+  } else {
+    const snap = snapshotCarry();
+    showLevelComplete({
+      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyUnlocked,
+      onNext: () => { currentLevel = cleared + 1; carryOver = snap; startRun(); },
+    });
+  }
+}
+
+function backToPicker() {
+  ui.hideOverlay();
+  currentLevel = 1; carryOver = null; chosenSpecies = null;
+  showPicker();
+}
+
+// Small "Level N / 11" chip in the HUD (hidden in puzzle mode).
+function updateLevelChip() {
+  let chip = document.getElementById('levelChip');
+  const ui0 = document.getElementById('ui');
+  if (!cardsCampaign()) { if (chip) chip.style.display = 'none'; return; }
+  if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
+  if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
 }
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
-  // Card layer online for procedural (non-puzzle) runs. If the player picked a
-  // species at the start-of-run screen, seed that species' exact hand + resources;
-  // otherwise fall back to the dev scaffold (5× of every card + 300 of each resource).
+  if (state.mode !== 'puzzle') state.level = currentLevel;
+  _runOverPresented = false;
+  // Card layer online for procedural (non-puzzle) runs. Priority:
+  //   carryOver  → transplant the deck+reserves from the previous level (campaign)
+  //   chosenSpecies → that species' exact starting hand + resources
+  //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
-    if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
+    else if (chosenSpecies) initCards(state, 'species', chosenSpecies);
     else initCards(state, 'testall');
   }
   buildRenderers();
@@ -9781,6 +10009,9 @@ function begin(newState) {
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
     chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
+    // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
+    winLevel: () => { state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn }; presentRunOver(); },
+    killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
@@ -9813,6 +10044,7 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
+  updateLevelChip();
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.
@@ -9858,6 +10090,9 @@ const handlers = {
   onRestart() {
     noTrich = false;                  // "New Map" returns to a normal (mould) map
     start((Date.now() & 0x7fffffff) || 1);
+  },
+  onBackToPicker() {                  // death (campaign) → choose a species again from scratch
+    backToPicker();
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
@@ -10015,7 +10250,7 @@ const handlers = {
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult);
+      if (state.runOver) presentRunOver();
     } else if (res && res.message) {
       ui.toast(res.message);
     }
@@ -10068,7 +10303,7 @@ function afterAction(name, res) {
   rendererFor(state.active).markStructureDirty();
   if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
-  if (state.runOver) ui.showOverlay(state.runResult);
+  if (state.runOver) presentRunOver();
   uiDirty = true;
 }
 
@@ -10078,7 +10313,7 @@ function resolveCardOp(res) {
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
-    if (state.runOver) ui.showOverlay(state.runResult);
+    if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
   }
@@ -10109,7 +10344,7 @@ function botToGoal(budget = 900) {
       const dx = Math.sign(target.x - fp.x) || 1;
       net.digThrough(sub, fp.x + dx * sub.cellSize, (fp.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
       tickWorld(state); substrateRenderer.markDirty(); rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult); uiDirty = true;
+      if (state.runOver) presentRunOver(); uiDirty = true;
     }
   }
   return { won: state.won, steps: guard, reachCol: Math.max(...net.nodes.map((n) => sub.colAtX(n.x))), goalStart };
@@ -10215,7 +10450,7 @@ function fireAim(a) {
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult);
+      if (state.runOver) presentRunOver();
     } else if (res && res.message) {
       ui.toast(res.message);
     }
@@ -10311,7 +10546,7 @@ function setupInput() {
       if (res && res.ok) {
         substrateRenderer.markDirty();
         rendererFor(state.active).markStructureDirty();
-        if (state.runOver) ui.showOverlay(state.runResult);
+        if (state.runOver) presentRunOver();
       } else if (res && res.message) {
         ui.toast(res.message);
       }
@@ -12192,18 +12427,10 @@ loadAssets().then(() => {
 setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
-function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; startRun(); }
-else if (location.hash === '#dev') { chosenSpecies = null; startRun(); }   // skip the picker
-else {
-  // Prompt the species picker first; a pick seeds that species, the dev button
-  // starts the current default run. Restarts (New Map) reuse the last choice.
-  showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; startRun(); },
-    onDev: () => { chosenSpecies = null; startRun(); },
-  });
-}
+else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
+else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+else showPicker();   // prompt the species picker first (a pick seeds a level-1 run; Dev button = default run)
 requestAnimationFrame(frame);
 
   return {  };

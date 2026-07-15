@@ -657,17 +657,23 @@ export class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
+    const pickerBtn = `<button class="btn big" id="overlay-picker">Back to species picker ↻</button>`;
+    // A campaign death returns to the species picker (choose again from scratch).
+    const campaignDeath = this.cardsOn && !puzzle && died;
     o.innerHTML = `
       <div class="card">
         <h1>${title}</h1>
         <p>${body}</p>
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
+          : campaignDeath ? pickerBtn
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
     const rb = o.querySelector('#overlay-restart');
     if (rb) rb.onclick = () => this.handlers.onRestart();
     const pb = o.querySelector('#overlay-puzzle');
     if (pb) pb.onclick = () => this.handlers.onPuzzle();
+    const pk = o.querySelector('#overlay-picker');
+    if (pk) pk.onclick = () => this.handlers.onBackToPicker();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 

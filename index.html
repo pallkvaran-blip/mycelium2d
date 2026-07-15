@@ -904,6 +904,34 @@
       display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .ss-close:hover { background:rgba(20,28,26,0.9); border-color:var(--ss-mint); color:var(--ss-mint-hi); }
 
+    /* between-level: level-complete / game-won panel (reuses the .ss-detailwrap backdrop) */
+    .ss-lc { position:relative; width:min(560px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); overflow-y:auto;
+      background:linear-gradient(160deg, rgba(15,22,20,0.97), rgba(7,11,10,0.99)); border:1.5px solid rgba(127,230,163,0.55);
+      border-radius:18px; padding:clamp(22px,3.5vw,34px); text-align:center;
+      box-shadow:0 0 26px -2px rgba(127,230,163,0.45), 0 0 80px -16px rgba(127,230,163,0.3), 0 40px 90px -30px rgba(0,0,0,0.95);
+      transform:translateY(14px) scale(.97); opacity:0; animation:ssLcIn .34s cubic-bezier(.2,.8,.2,1) forwards; }
+    @keyframes ssLcIn { to { transform:none; opacity:1; } }
+    .ss-lc-badge { display:inline-block; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; font-weight:700;
+      color:var(--ss-mint); border:1px solid rgba(127,230,163,0.4); background:rgba(127,230,163,0.08);
+      border-radius:999px; padding:4px 12px; margin-bottom:14px; }
+    .ss-lc-title { font-family:var(--ss-serif); font-size:clamp(22px,3.4vw,30px); font-weight:600; line-height:1.1;
+      color:#eef7f1; margin:0 0 10px; text-wrap:balance; }
+    .ss-lc-sub { font-size:14px; line-height:1.55; color:var(--ss-ink-dim); margin:0 auto; max-width:46ch; }
+    .ss-lc-unlock { margin:20px auto 8px; font-size:13.5px; line-height:1.5; color:#eaf6ee; max-width:48ch;
+      background:rgba(127,230,163,0.10); border:1px solid rgba(127,230,163,0.32); border-radius:12px; padding:11px 14px; }
+    .ss-lc-star { color:var(--ss-mint); font-weight:700; margin-right:4px; }
+    .ss-lc-tap { color:var(--ss-ink-dim); }
+    .ss-lc-cards { grid-template-columns:repeat(2,1fr) !important; gap:14px; margin:14px auto 4px; max-width:420px; }
+    .ss-lc-actions { margin-top:22px; display:flex; justify-content:center; }
+    .ss-lc-actions .ss-btn { flex:0 0 auto; min-width:240px; }
+
+    /* HUD campaign level chip (top-centre, non-interactive) */
+    #levelChip { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;
+      font-family:"Segoe UI", system-ui, sans-serif; font-size:12px; font-weight:700; letter-spacing:0.12em;
+      text-transform:uppercase; color:#bfeecb; background:linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
+      border:1.5px solid rgba(130,230,166,0.5); border-radius:999px; padding:6px 14px;
+      box-shadow:0 0 14px -3px rgba(127,230,163,0.5), 0 6px 20px -8px rgba(0,0,0,0.7); backdrop-filter:blur(6px); }
+
     @media (max-width:720px) {
       .ss-grid { grid-template-columns:repeat(2,1fr); }
       .ss-detail { grid-template-columns:1fr; }

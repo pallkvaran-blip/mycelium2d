@@ -18,7 +18,8 @@ import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
-import { showSpeciesSelect } from './render/species_select.js';
+import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
+import { MAX_LEVEL, threatsForLevel, recordLevelCleared, speciesUnlockedByClearing, loadProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -32,6 +33,9 @@ const lighting = new Lighting(CONFIG);
 let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
+let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
+let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
+let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
 
 let uiDirty = true;
@@ -79,26 +83,104 @@ const AIM_NEAR_PX = 90;
 const aimCancelPx = () => Math.max(220, Math.min(window.innerWidth, window.innerHeight) * 0.55);
 
 // --- setup / restart --------------------------------------------------------
-function start(seed) {
-  let cfg = CONFIG;
-  if (noTrich) {
-    // A trich-free sandbox (testing aid): clone CONFIG so the global stays
-    // intact, and disable both the initial clouds and respawns.
-    cfg = JSON.parse(JSON.stringify(CONFIG));
+// Per-level config: procedural map as always, but the number of each threat is
+// set by the campaign table (species.js). Clones CONFIG so the global stays intact.
+function configForLevel(level) {
+  const t = threatsForLevel(level);
+  const cfg = JSON.parse(JSON.stringify(CONFIG));
+  cfg.ants.nestCount = t.ants;
+  cfg.nematodes.initialCount = t.nematodes;
+  cfg.trichoderma.initialPatches = t.trych;
+  if (noTrich) {   // testing aid: a trich-free sandbox
     cfg.trichoderma.initialPatches = 0;
     cfg.trichoderma.respawnChance = 0;
   }
-  begin(createState(cfg, seed));
+  return cfg;
+}
+function start(seed) {
+  begin(createState(configForLevel(currentLevel), seed));
+}
+function startRun() { start((Date.now() & 0x7fffffff) || 1); }
+
+// Show the start-of-run picker (also used on death → back to picker).
+function showPicker() {
+  showSpeciesSelect({
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; startRun(); },
+    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; startRun(); },
+  });
+}
+
+function cardsCampaign() {
+  return state && state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle';
+}
+
+// Snapshot the current deck + reserves to carry onto the next level.
+function snapshotCarry() {
+  const net = state.active;
+  return { cards: state.cards, energy: net.energy, water: net.water, phosphorus: net.phosphorus };
+}
+function applyCarry(st, carry) {
+  st.cards = carry.cards;
+  st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
+  st.cards.round = 1;
+  const net = st.active;
+  net.energy = carry.energy; net.water = carry.water; net.phosphorus = carry.phosphorus;
+  st.log('Your colony carries its deck, engines and reserves down to the next level.', 'good');
+}
+
+// Route a finished run: a level win advances the campaign; puzzle wins / deaths
+// fall through to the generic overlay (death's button goes back to the picker).
+function presentRunOver() {
+  if (!state.runOver || _runOverPresented) return;
+  _runOverPresented = true;
+  if (state.won && cardsCampaign()) { onLevelWon(); return; }
+  const r = state.runResult; ui.showOverlay(r);
+}
+
+function onLevelWon() {
+  const cleared = currentLevel;
+  const prev = loadProgress();
+  const newlyUnlocked = (cleared > (prev.maxLevelCleared || 0)) ? speciesUnlockedByClearing(cleared) : [];
+  recordLevelCleared(cleared);
+  ui.hideOverlay();
+  if (cleared >= MAX_LEVEL) {
+    showGameWon({ onNewRun: backToPicker });
+  } else {
+    const snap = snapshotCarry();
+    showLevelComplete({
+      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyUnlocked,
+      onNext: () => { currentLevel = cleared + 1; carryOver = snap; startRun(); },
+    });
+  }
+}
+
+function backToPicker() {
+  ui.hideOverlay();
+  currentLevel = 1; carryOver = null; chosenSpecies = null;
+  showPicker();
+}
+
+// Small "Level N / 11" chip in the HUD (hidden in puzzle mode).
+function updateLevelChip() {
+  let chip = document.getElementById('levelChip');
+  const ui0 = document.getElementById('ui');
+  if (!cardsCampaign()) { if (chip) chip.style.display = 'none'; return; }
+  if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
+  if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
 }
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
-  // Card layer online for procedural (non-puzzle) runs. If the player picked a
-  // species at the start-of-run screen, seed that species' exact hand + resources;
-  // otherwise fall back to the dev scaffold (5× of every card + 300 of each resource).
+  if (state.mode !== 'puzzle') state.level = currentLevel;
+  _runOverPresented = false;
+  // Card layer online for procedural (non-puzzle) runs. Priority:
+  //   carryOver  → transplant the deck+reserves from the previous level (campaign)
+  //   chosenSpecies → that species' exact starting hand + resources
+  //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
-    if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
+    else if (chosenSpecies) initCards(state, 'species', chosenSpecies);
     else initCards(state, 'testall');
   }
   buildRenderers();
@@ -111,6 +193,9 @@ function begin(newState) {
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
     chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
+    // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
+    winLevel: () => { state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn }; presentRunOver(); },
+    killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
@@ -143,6 +228,7 @@ function begin(newState) {
     camera.clamp();
   }
   uiDirty = true;
+  updateLevelChip();
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.
@@ -188,6 +274,9 @@ const handlers = {
   onRestart() {
     noTrich = false;                  // "New Map" returns to a normal (mould) map
     start((Date.now() & 0x7fffffff) || 1);
+  },
+  onBackToPicker() {                  // death (campaign) → choose a species again from scratch
+    backToPicker();
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
@@ -345,7 +434,7 @@ const handlers = {
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult);
+      if (state.runOver) presentRunOver();
     } else if (res && res.message) {
       ui.toast(res.message);
     }
@@ -398,7 +487,7 @@ function afterAction(name, res) {
   rendererFor(state.active).markStructureDirty();
   if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
-  if (state.runOver) ui.showOverlay(state.runResult);
+  if (state.runOver) presentRunOver();
   uiDirty = true;
 }
 
@@ -408,7 +497,7 @@ function resolveCardOp(res) {
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
-    if (state.runOver) ui.showOverlay(state.runResult);
+    if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
   }
@@ -439,7 +528,7 @@ function botToGoal(budget = 900) {
       const dx = Math.sign(target.x - fp.x) || 1;
       net.digThrough(sub, fp.x + dx * sub.cellSize, (fp.y + target.y) / 2, ['boulder', 'formation', 'column', 'lakeBasin']);
       tickWorld(state); substrateRenderer.markDirty(); rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult); uiDirty = true;
+      if (state.runOver) presentRunOver(); uiDirty = true;
     }
   }
   return { won: state.won, steps: guard, reachCol: Math.max(...net.nodes.map((n) => sub.colAtX(n.x))), goalStart };
@@ -545,7 +634,7 @@ function fireAim(a) {
     if (res && res.ok) {
       substrateRenderer.markDirty();
       rendererFor(state.active).markStructureDirty();
-      if (state.runOver) ui.showOverlay(state.runResult);
+      if (state.runOver) presentRunOver();
     } else if (res && res.message) {
       ui.toast(res.message);
     }
@@ -641,7 +730,7 @@ function setupInput() {
       if (res && res.ok) {
         substrateRenderer.markDirty();
         rendererFor(state.active).markStructureDirty();
-        if (state.runOver) ui.showOverlay(state.runResult);
+        if (state.runOver) presentRunOver();
       } else if (res && res.message) {
         ui.toast(res.message);
       }
@@ -2522,16 +2611,8 @@ loadAssets().then(() => {
 setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
-function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; startRun(); }
-else if (location.hash === '#dev') { chosenSpecies = null; startRun(); }   // skip the picker
-else {
-  // Prompt the species picker first; a pick seeds that species, the dev button
-  // starts the current default run. Restarts (New Map) reuse the last choice.
-  showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; startRun(); },
-    onDev: () => { chosenSpecies = null; startRun(); },
-  });
-}
+else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
+else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+else showPicker();   // prompt the species picker first (a pick seeds a level-1 run; Dev button = default run)
 requestAnimationFrame(frame);
