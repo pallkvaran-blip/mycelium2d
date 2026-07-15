@@ -53,7 +53,9 @@ function pickOpenSpot(substrate, rng, root, t) {
   let fallback = null;
   for (let tries = 0; tries < 40; tries++) {
     const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize);
+    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
+    // mould nearer the surface so the deep rows stay clearer.
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize * 0.6);
     const cell = substrate.cellAtWorld(x, y);
     if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
     fallback = { x, y };

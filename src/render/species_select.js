@@ -158,7 +158,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
 
   const availGrid = root.querySelector('#ssAvail');
   for (const s of SPECIES) {
-    if (!isUnlocked(s, progress)) continue;
+    if (s.unlock) continue;   // gated species stay in their tier row below, even once unlocked
     availGrid.appendChild(speciesCard(s, { locked: false, onClick: () =>
       openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
   }
@@ -171,9 +171,18 @@ export function showSpeciesSelect({ onPick, onDev }) {
       ? '<span class="ss-lock">🔒</span><span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">Yet to be discovered</span>'
       : '<span class="ss-lock">🔒</span><span class="ss-lk">Unlock · ' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">' + row.n + ' species</span>';
     const grid = el('div', 'ss-grid');
-    // real species pinned to this tier that are STILL locked (unlocked ones moved to "Available now")
-    const tier = SPECIES.filter((s) => s.unlock === row.label && !isUnlocked(s, progress));
-    for (const s of tier) grid.appendChild(speciesCard(s, { locked: true, onClick: () => openSpeciesDetail(s, { mode: 'locked' }) }));
+    // Species pinned to this tier STAY in this row whether locked or unlocked — an
+    // unlocked one becomes playable in place (never promoted to "Available now").
+    const tier = SPECIES.filter((s) => s.unlock === row.label);
+    for (const s of tier) {
+      const unlocked = isUnlocked(s, progress);
+      grid.appendChild(speciesCard(s, {
+        locked: !unlocked,
+        onClick: unlocked
+          ? () => openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } })
+          : () => openSpeciesDetail(s, { mode: 'locked' }),
+      }));
+    }
     for (let k = tier.length; k < row.n; k++) {
       const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
       lc.innerHTML = '<span class="ss-q">?</span>';
@@ -192,14 +201,14 @@ export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
   const root = el('div', 'ss-detailwrap open'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
   root.innerHTML =
-    '<div class="ss-lc">' +
-      '<div class="ss-lc-badge">Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
-      '<h2 class="ss-lc-title">The colony fruits at the surface! 🍄</h2>' +
-      '<p class="ss-lc-sub">You crossed level ' + level + ' — your deck, engines and reserves carry forward. Level ' + (level + 1) + ' brings more of the dark to contend with.</p>' +
+    '<div class="ss-lc' + (hasUnlock ? ' has-unlock' : '') + '">' +
+      '<div class="ss-lc-badge">🍄 Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
       (hasUnlock
-        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-lc-cards" id="ssLcCards"></div>'
+        ? '<div class="ss-lc-unlock-head"><span class="ss-lc-star">✦</span>New species unlocked</div>' +
+          '<p class="ss-lc-unlock-sub">Congratulations! It\'s yours to play on your next run — tap to inspect it.</p>' +
+          '<div class="ss-lc-cards" id="ssLcCards"></div>'
         : '') +
-      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Descend to level ' + (level + 1) + ' →</button></div>' +
+      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Next level →</button></div>' +
     '</div>';
   document.body.appendChild(root);
   function hide() { root.remove(); }

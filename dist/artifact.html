@@ -912,10 +912,10 @@
     .ss-lc-title { font-family:var(--ss-serif); font-size:clamp(22px,3.4vw,30px); font-weight:600; line-height:1.1;
       color:#eef7f1; margin:0 0 10px; text-wrap:balance; }
     .ss-lc-sub { font-size:14px; line-height:1.55; color:var(--ss-ink-dim); margin:0 auto; max-width:46ch; }
-    .ss-lc-unlock { margin:20px auto 8px; font-size:13.5px; line-height:1.5; color:#eaf6ee; max-width:48ch;
-      background:rgba(127,230,163,0.10); border:1px solid rgba(127,230,163,0.32); border-radius:12px; padding:11px 14px; }
-    .ss-lc-star { color:var(--ss-mint); font-weight:700; margin-right:4px; }
-    .ss-lc-tap { color:var(--ss-ink-dim); }
+    .ss-lc-unlock-head { margin:18px 0 5px; font-family:var(--ss-serif); font-size:clamp(20px,2.7vw,25px);
+      font-weight:600; color:#eef7f1; letter-spacing:.01em; display:flex; align-items:center; justify-content:center; gap:9px; }
+    .ss-lc-star { color:var(--ss-mint); font-size:0.9em; text-shadow:0 0 14px rgba(127,230,163,0.85); }
+    .ss-lc-unlock-sub { margin:0 auto; font-size:13.5px; line-height:1.5; color:var(--ss-ink-dim); max-width:46ch; }
     .ss-lc-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 188px)); justify-content:center; gap:14px; margin:14px auto 4px; max-width:420px; }
     .ss-lc-actions { margin-top:22px; display:flex; justify-content:center; }
     .ss-lc-actions .ss-btn { flex:0 0 auto; min-width:240px; }
@@ -947,8 +947,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1gt8w9n";
-globalThis.__BUILD__ = "local 07-15 15:43";
+window.__ASSET_VER = "89jb47";
+globalThis.__BUILD__ = "local 07-15 16:33";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4236,7 +4236,8 @@ function openSpot(sub, rng, root, minFrac) {
   let fallback = null;
   for (let t = 0; t < 40; t++) {
     const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize);
+    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%).
+    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize * 0.6);
     const cell = sub.cellAtWorld(x, y);
     if (!cell || cell.rock) continue;
     fallback = { x, y };
@@ -4309,7 +4310,9 @@ function pickOpenSpot(substrate, rng, root, t) {
   let fallback = null;
   for (let tries = 0; tries < 40; tries++) {
     const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize);
+    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
+    // mould nearer the surface so the deep rows stay clearer.
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize * 0.6);
     const cell = substrate.cellAtWorld(x, y);
     if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
     fallback = { x, y };
@@ -9758,7 +9761,7 @@ function showSpeciesSelect({ onPick, onDev }) {
 
   const availGrid = root.querySelector('#ssAvail');
   for (const s of SPECIES) {
-    if (!isUnlocked(s, progress)) continue;
+    if (s.unlock) continue;   // gated species stay in their tier row below, even once unlocked
     availGrid.appendChild(speciesCard(s, { locked: false, onClick: () =>
       openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
   }
@@ -9771,9 +9774,18 @@ function showSpeciesSelect({ onPick, onDev }) {
       ? '<span class="ss-lock">🔒</span><span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">Yet to be discovered</span>'
       : '<span class="ss-lock">🔒</span><span class="ss-lk">Unlock · ' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">' + row.n + ' species</span>';
     const grid = el('div', 'ss-grid');
-    // real species pinned to this tier that are STILL locked (unlocked ones moved to "Available now")
-    const tier = SPECIES.filter((s) => s.unlock === row.label && !isUnlocked(s, progress));
-    for (const s of tier) grid.appendChild(speciesCard(s, { locked: true, onClick: () => openSpeciesDetail(s, { mode: 'locked' }) }));
+    // Species pinned to this tier STAY in this row whether locked or unlocked — an
+    // unlocked one becomes playable in place (never promoted to "Available now").
+    const tier = SPECIES.filter((s) => s.unlock === row.label);
+    for (const s of tier) {
+      const unlocked = isUnlocked(s, progress);
+      grid.appendChild(speciesCard(s, {
+        locked: !unlocked,
+        onClick: unlocked
+          ? () => openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } })
+          : () => openSpeciesDetail(s, { mode: 'locked' }),
+      }));
+    }
     for (let k = tier.length; k < row.n; k++) {
       const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
       lc.innerHTML = '<span class="ss-q">?</span>';
@@ -9792,14 +9804,14 @@ function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
   const root = el('div', 'ss-detailwrap open'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
   root.innerHTML =
-    '<div class="ss-lc">' +
-      '<div class="ss-lc-badge">Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
-      '<h2 class="ss-lc-title">The colony fruits at the surface! 🍄</h2>' +
-      '<p class="ss-lc-sub">You crossed level ' + level + ' — your deck, engines and reserves carry forward. Level ' + (level + 1) + ' brings more of the dark to contend with.</p>' +
+    '<div class="ss-lc' + (hasUnlock ? ' has-unlock' : '') + '">' +
+      '<div class="ss-lc-badge">🍄 Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
       (hasUnlock
-        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-lc-cards" id="ssLcCards"></div>'
+        ? '<div class="ss-lc-unlock-head"><span class="ss-lc-star">✦</span>New species unlocked</div>' +
+          '<p class="ss-lc-unlock-sub">Congratulations! It\'s yours to play on your next run — tap to inspect it.</p>' +
+          '<div class="ss-lc-cards" id="ssLcCards"></div>'
         : '') +
-      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Descend to level ' + (level + 1) + ' →</button></div>' +
+      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Next level →</button></div>' +
     '</div>';
   document.body.appendChild(root);
   function hide() { root.remove(); }

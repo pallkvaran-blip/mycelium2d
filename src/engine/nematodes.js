@@ -212,7 +212,8 @@ function openSpot(sub, rng, root, minFrac) {
   let fallback = null;
   for (let t = 0; t < 40; t++) {
     const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize);
+    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%).
+    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize * 0.6);
     const cell = sub.cellAtWorld(x, y);
     if (!cell || cell.rock) continue;
     fallback = { x, y };
