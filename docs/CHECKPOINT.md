@@ -395,6 +395,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Follow-up polish: tinier start, unified resource icons** (branch same).
+  - `growth.startDepth` 58→**20** — an even smaller opening sprout (~3 nodes).
+  - The left income ledger and the Nutrient Transmutation picker now use the SAME
+    resource marks as the top pill (the `RES_ICON` SVGs — gold bolt / blue drop /
+    purple spark) instead of mismatched emoji, at a uniform, slightly-smaller size,
+    vertically centred so the icons line up. `.erow .eval.lead` is now an
+    `inline-flex` (number + icon share one baseline); the picker tints each mark to
+    its pill colour.
+
 - **Card + HUD fixes: transmute choice, ledger layout/size, warded blue, smaller start, seal text** (branch same).
   - **Warded strands now a DEEP BLUE** (`config.js` `render.warded` `#5cd9e6`→`#2f5fe6`) — the cyan read too
     close to the mint colony; deep blue separates cleanly.

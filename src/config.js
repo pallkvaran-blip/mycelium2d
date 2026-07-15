@@ -162,7 +162,7 @@ export const CONFIG = {
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
-    startDepth: 58,              // initial seed depth below the surface line (small starting sprout)
+    startDepth: 20,              // initial seed depth below the surface line (tiny starting sprout)
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
   },
 

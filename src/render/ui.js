@@ -497,7 +497,9 @@ export class UI {
         + `<span class="enm">${r.name}</span>`
         + cadenceLightsHTML(r.cad, r.left, CK[key]) + `</div>`).join('');
     };
-    let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
+    // Use the SAME resource marks as the top pill (RES_ICON SVGs) rather than emoji,
+    // so all three are the same size, aligned, and match the HUD (just smaller).
+    let h = block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
@@ -1167,15 +1169,19 @@ export class UI {
     const el = this.el.pick;
     if (!el) return;
     const net = this.state.active;
+    // Same resource marks as the top pill (RES_ICON), tinted to match, same size.
+    const RES_COL = { water: '#7fd0e0', phosphorus: '#c79be6' };
+    const RES_SVG = { water: RES_ICON.water, phosphorus: RES_ICON.phos };
+    const icon = (res) => `<span class="ricon" style="color:${RES_COL[res]}">${RES_SVG[res]}</span>`;
     const opts = [
-      { res: 'water', label: 'Water', glyph: '💧', from: 'phosphorus', fromLabel: 'Phosphorus' },
-      { res: 'phosphorus', label: 'Phosphorus', glyph: '✦', from: 'water', fromLabel: 'Water' },
+      { res: 'water', label: 'Water', from: 'phosphorus', fromLabel: 'Phosphorus' },
+      { res: 'phosphorus', label: 'Phosphorus', from: 'water', fromLabel: 'Water' },
     ];
     const rows = opts.map((o) => {
       const enough = (net[o.from] || 0) >= 2;
       return `<button class="pickrow${enough ? '' : ' off'}" data-res="${o.res}"${enough ? '' : ' disabled'}>`
-        + `<span class="picknm">Gain 1 ${o.label} ${o.glyph}</span>`
-        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel}</span></span>`
+        + `<span class="picknm">Gain 1 ${o.label} ${icon(o.res)}</span>`
+        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel} ${icon(o.from)}</span></span>`
         + `</button>`;
     }).join('');
     el.innerHTML = `<div class="offerbox pickbox">`

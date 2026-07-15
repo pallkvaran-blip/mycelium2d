@@ -238,8 +238,12 @@
     .erow .exn { color: var(--ink); font-weight: 700; font-size: 10px; opacity: 0.8; flex: 0 0 auto; }
     .erow .eval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700;
       white-space: nowrap; flex: 0 0 auto; }
-    /* income LEADS the row (replaces the old dot); fixed min-width lines the names up */
-    .erow .eval.lead { margin-left: 0; margin-right: 3px; min-width: 32px; text-align: left; }
+    /* income LEADS the row (replaces the old dot); fixed min-width lines the names up.
+       inline-flex + centered so the +N and its resource icon share one baseline and
+       the icons line up across rows. */
+    .erow .eval.lead { margin-left: 0; margin-right: 5px; min-width: 34px; display: inline-flex;
+      align-items: center; gap: 2px; }
+    .erow .eval.lead .ri { width: 13px; height: 13px; }   /* same mark as the pill, a touch smaller */
     .erow.energy .eval { color: var(--accent); }
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
@@ -715,8 +719,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "i935yj";
-globalThis.__BUILD__ = "local 07-15 09:25";
+window.__ASSET_VER = "11tqq4n";
+globalThis.__BUILD__ = "local 07-15 09:38";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -884,7 +888,7 @@ const CONFIG = {
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
-    startDepth: 58,              // initial seed depth below the surface line (small starting sprout)
+    startDepth: 20,              // initial seed depth below the surface line (tiny starting sprout)
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
   },
 
@@ -8190,7 +8194,9 @@ class UI {
         + `<span class="enm">${r.name}</span>`
         + cadenceLightsHTML(r.cad, r.left, CK[key]) + `</div>`).join('');
     };
-    let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
+    // Use the SAME resource marks as the top pill (RES_ICON SVGs) rather than emoji,
+    // so all three are the same size, aligned, and match the HUD (just smaller).
+    let h = block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
@@ -8860,15 +8866,19 @@ class UI {
     const el = this.el.pick;
     if (!el) return;
     const net = this.state.active;
+    // Same resource marks as the top pill (RES_ICON), tinted to match, same size.
+    const RES_COL = { water: '#7fd0e0', phosphorus: '#c79be6' };
+    const RES_SVG = { water: RES_ICON.water, phosphorus: RES_ICON.phos };
+    const icon = (res) => `<span class="ricon" style="color:${RES_COL[res]}">${RES_SVG[res]}</span>`;
     const opts = [
-      { res: 'water', label: 'Water', glyph: '💧', from: 'phosphorus', fromLabel: 'Phosphorus' },
-      { res: 'phosphorus', label: 'Phosphorus', glyph: '✦', from: 'water', fromLabel: 'Water' },
+      { res: 'water', label: 'Water', from: 'phosphorus', fromLabel: 'Phosphorus' },
+      { res: 'phosphorus', label: 'Phosphorus', from: 'water', fromLabel: 'Water' },
     ];
     const rows = opts.map((o) => {
       const enough = (net[o.from] || 0) >= 2;
       return `<button class="pickrow${enough ? '' : ' off'}" data-res="${o.res}"${enough ? '' : ' disabled'}>`
-        + `<span class="picknm">Gain 1 ${o.label} ${o.glyph}</span>`
-        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel}</span></span>`
+        + `<span class="picknm">Gain 1 ${o.label} ${icon(o.res)}</span>`
+        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel} ${icon(o.from)}</span></span>`
         + `</button>`;
     }).join('');
     el.innerHTML = `<div class="offerbox pickbox">`
