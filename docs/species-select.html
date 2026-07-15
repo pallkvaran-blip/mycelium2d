@@ -221,13 +221,16 @@
   /* ===== LOCKED cards (dark, glowing question mark) ===== */
   .locked-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
 
+  /* NOTE: no `display:flex` here — a flex child's min-height can override
+     `aspect-ratio` on Safari, making these render TALLER than the (non-flex)
+     available cards. Keep the same box model as .card (aspect-ratio only, an
+     absolutely-centred `?`) so all cards are pixel-identical on every browser. */
   .lockcard {
     position: relative; aspect-ratio: 16 / 10;
     border-radius: var(--r-md);
     background:
       radial-gradient(90% 120% at 50% 40%, rgba(24,34,30,0.5), rgba(6,9,14,0.85));
     border: 1px solid rgba(120,160,140,0.16);
-    display: flex; align-items: center; justify-content: center;
     overflow: hidden;
   }
   .lockcard::before {   /* faint scanline / soil texture cue */
@@ -235,6 +238,7 @@
     background: repeating-linear-gradient(115deg, transparent 0 9px, rgba(255,255,255,0.012) 9px 10px);
   }
   .lockcard .q {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-family: var(--serif); font-size: clamp(30px, 6vw, 46px); font-weight: 700;
     color: rgba(127,230,163,0.55);
     text-shadow: 0 0 14px rgba(127,230,163,0.45), 0 0 30px rgba(127,230,163,0.25);
