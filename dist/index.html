@@ -725,8 +725,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "8h4k4e";
-globalThis.__BUILD__ = "local 07-15 10:13";
+window.__ASSET_VER = "koca6p";
+globalThis.__BUILD__ = "local 07-15 11:00";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4802,6 +4802,15 @@ function offerPileReward(state, pile) {
       sx += c.x; sy += c.y; n++;
     }
     if (n) center = { x: sx / n, y: sy / n };
+  }
+  // Stash the pile's world centre + the ENERGY it yielded the colony (its surviving
+  // cells' full value; mould-eaten cells have maxNutrient 0 so they don't count) so the
+  // render layer can float a "+N⚡" where the pile was when it finishes.
+  if (pile) {
+    let e = 0;
+    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient; }
+    pile.finishEnergy = Math.round(e * (state.config.energy.incomeEfficiency || 0));
+    pile.center = center;
   }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
   // Link the pile to its offer so the render layer can HOLD the pile's leaves on the
@@ -9247,6 +9256,12 @@ function revealMap() {
 
 let previewFruit = false;
 let previewFruitPoints = [];
+// Floating "+N⚡" energy labels over the map: spawned when you TAP a food pile (its
+// current value) or when a pile FINISHES digesting (the energy it gave). Each rises a
+// little and fades. World-anchored so they track the camera.
+const floaters = [];
+const ENERGY_BOLT = (typeof Path2D !== 'undefined') ? new Path2D('M13.5 2 4 13.5h6L9 22l9.5-11.5h-6L13.5 2Z') : null;   // matches the HUD RES_ICON bolt (24×24)
+const FLOAT_FONT = '"Inter", system-ui, "Segoe UI", sans-serif';
 let lastTime = 0;                     // most recent frame timestamp (for action-driven effects)
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 let showNematodeVision = false;       // dev overlay: nematode sight range + line of sight (off by default — the rings cluttered the map)
@@ -9832,8 +9847,10 @@ function setupInput() {
       return;
     }
     if (!ui.selectedAction) {
-      // Tap a worm / mould cloud to toggle its sight ring; tap empty map to hide all.
+      // Tap a worm / mould cloud to toggle its sight ring; a food pile to float its
+      // current energy value; tap empty map to hide all sight rings.
       if (inspectVisionAt(e.clientX - rect.left, e.clientY - rect.top)) return;
+      if (showPileEnergyAt(e.clientX - rect.left, e.clientY - rect.top)) return;
       clearSightRings();
       // In navigation mode a double-tap reframes the network (mobile 'F').
       const now = Date.now();
@@ -9897,6 +9914,7 @@ function frame(time) {
 function renderFrame(time) {
   lastTime = time;
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
+  spawnFinishFloaters();        // pop a "+N⚡" the instant a pile finishes digesting
   // background (outside the world bounds)
   ctx.fillStyle = '#05070d';
   ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -9938,6 +9956,7 @@ function renderFrame(time) {
   drawNematodes(time);
   drawTraps(time);
   drawTargetingCursor(time);
+  drawFloaters(time);           // floating "+N⚡" energy labels over piles (on top of the map)
 
   if (uiDirty) { ui.update(); uiDirty = false; }
 
@@ -10417,6 +10436,124 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }
+}
+
+// =============================================================================
+// FLOATING ENERGY LABELS ("+43⚡") — over food piles
+// =============================================================================
+// Queue a floating energy label at a world point. `sign` ('' or '+') and `dur`/`rise`
+// tune the look; it rises `rise` px over its life and fades out.
+function addEnergyFloater(wx, wy, amount, opts = {}) {
+  const amt = Math.max(0, Math.round(amount || 0));
+  if (amt <= 0) return;
+  // `age` counts UP each frame (frame-based, not wall-clock) so an erratic rAF
+  // timestamp can never skip or freeze the animation; it fades over `life` frames.
+  floaters.push({ x: wx, y: wy, amount: amt, sign: opts.sign || '', age: 0, life: opts.life || 80, rise: opts.rise != null ? opts.rise : 30, size: opts.size || 19 });
+}
+
+// A pile "+N⚡" pops the instant it finishes digesting (checkPileRewards stamped
+// pile.finishEnergy + pile.center), slightly ABOVE the pile so it clears the rising
+// draft glyph. `pile._floated` guards against re-spawning it every frame.
+function spawnFinishFloaters() {
+  const sub = state.substrate; if (!sub || !sub.foodPiles) return;
+  for (const p of sub.foodPiles) {
+    if (p._floated || p.finishEnergy == null || !p.center) continue;
+    p._floated = true;
+    if (p.finishEnergy > 0) addEnergyFloater(p.center.x, p.center.y - sub.cellSize * 1.4, p.finishEnergy, { sign: '+', dur: 1200, rise: 34, size: 21 });
+  }
+}
+
+// Tap → the CURRENT energy value of the food pile under the tap (remaining nutrient ×
+// income efficiency), floated over the pile. Returns true if a pile was hit.
+function showPileEnergyAt(sx, sy) {
+  const sub = state.substrate;
+  const w = camera.screenToWorld(sx, sy);
+  const eff = state.config.energy.incomeEfficiency || 0;
+  const tol = sub.cellSize * 1.3;
+  // nearest food cell within a forgiving tap tolerance
+  let best = null, bestD = tol * tol;
+  sub.cellsInRadius(w.x, w.y, tol, (cell, col, row, ctr) => {
+    if (cell.rock || cell.maxNutrient <= 0) return;
+    const d = (ctr.x - w.x) ** 2 + (ctr.y - w.y) ** 2;
+    if (d < bestD) { bestD = d; best = { col, row }; }
+  });
+  if (!best) return false;
+  const idx = sub.index(best.col, best.row);
+  const pile = (sub.foodPiles || []).find((p) => p.cells.includes(idx));
+  const cellIdxs = pile ? pile.cells : floodFoodCells(sub, best.col, best.row);
+  let nut = 0, cx = 0, cy = 0, n = 0;
+  for (const ci of cellIdxs) {
+    const c = sub.cells[ci]; if (!c || c.nutrient <= 0) continue;
+    nut += c.nutrient;
+    const cc = sub.cellCenter(ci % sub.cols, Math.floor(ci / sub.cols));
+    cx += cc.x; cy += cc.y; n++;
+  }
+  if (nut <= 0) return false;
+  addEnergyFloater(n ? cx / n : w.x, (n ? cy / n : w.y) - sub.cellSize * 0.6, nut * eff, { dur: 1500, rise: 28, size: 20 });
+  return true;
+}
+
+// BFS the connected blob of food cells (maxNutrient > 0) around a cell — for loose
+// player-placed caches that aren't a registered foodPile.
+function floodFoodCells(sub, col0, row0) {
+  const start = sub.index(col0, row0);
+  const seen = new Set([start]); const out = [start]; const q = [[col0, row0]];
+  while (q.length) {
+    const [c, r] = q.shift();
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nc = c + dc, nr = r + dr; const cell = sub.cellAt(nc, nr);
+      if (!cell || cell.maxNutrient <= 0) continue;
+      const i = sub.index(nc, nr);
+      if (seen.has(i)) continue;
+      seen.add(i); out.push(i); q.push([nc, nr]);
+    }
+  }
+  return out;
+}
+
+// Draw + age the floating energy labels (screen space, on top of the map). Pins the
+// base device-pixel transform + source-over compositing so a prior world-space /
+// 'lighter' pass can't fling the text off-screen or composite it away.
+function drawFloaters(time) {
+  if (!floaters.length) return;
+  ctx.save();
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    f.age += 1;                                   // frame-based aging (immune to rAF timestamp jumps)
+    const p = f.age / f.life;
+    if (p >= 1) { floaters.splice(i, 1); continue; }
+    const alpha = p < 0.08 ? p / 0.08 : 1 - (p - 0.08) / 0.92;   // near-instant fade-in, gentle ease-out
+    const s = camera.worldToScreen(f.x, f.y);
+    const y = s.y - 6 - f.rise * p;               // drift up as it fades
+    const txt = `${f.sign}${f.amount}`;
+    ctx.font = `700 ${f.size}px ${FLOAT_FONT}`;
+    const tw = ctx.measureText(txt).width;
+    const bolt = f.size * 1.02, boltW = bolt * 0.56, gap = f.size * 0.14;
+    const startX = s.x - (tw + gap + boltW) / 2;
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2.5, f.size * 0.18);
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';           // dark outline so it reads over any terrain
+    ctx.fillStyle = '#f6c832';
+    ctx.strokeText(txt, startX, y);
+    ctx.fillText(txt, startX, y);
+    if (ENERGY_BOLT) {
+      ctx.save();
+      ctx.translate(startX + tw + gap, y - bolt / 2);
+      ctx.scale(bolt / 24, bolt / 24);
+      ctx.lineWidth = 24 * 0.14;
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.stroke(ENERGY_BOLT);
+      ctx.fillStyle = '#f6c832'; ctx.fill(ENERGY_BOLT);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 // A food pile keeps its full, fixed heap while ANY nutrient remains, then simply

@@ -195,6 +195,15 @@ function offerPileReward(state, pile) {
     }
     if (n) center = { x: sx / n, y: sy / n };
   }
+  // Stash the pile's world centre + the ENERGY it yielded the colony (its surviving
+  // cells' full value; mould-eaten cells have maxNutrient 0 so they don't count) so the
+  // render layer can float a "+N⚡" where the pile was when it finishes.
+  if (pile) {
+    let e = 0;
+    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient; }
+    pile.finishEnergy = Math.round(e * (state.config.energy.incomeEfficiency || 0));
+    pile.center = center;
+  }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
   // Link the pile to its offer so the render layer can HOLD the pile's leaves on the
   // map (draftHeld) until THIS pile's draft actually starts, then fade them as part

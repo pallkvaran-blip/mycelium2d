@@ -395,6 +395,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Floating "+N⚡" energy labels over food piles** (`main.js`, `engine/cards.js`).
+  - **Tap a food pile** → its CURRENT energy value floats up over it (remaining nutrient ×
+    `incomeEfficiency`, gold number + a bolt icon), then fades. Wired into the tap handler
+    (`showPileEnergyAt`, after the worm/mould inspect) — finds the nearest food cell within a
+    forgiving tolerance, sums its registered pile (or a flood-fill of a loose cache).
+  - **Finish a pile** → a "+N⚡" pops slightly ABOVE where it was (so it clears the rising draft
+    glyph) then fades quickly. `offerPileReward` stamps `pile.finishEnergy` (surviving cells ×
+    efficiency) + `pile.center`; `spawnFinishFloaters` (per frame) pops it once (`pile._floated`).
+  - Render: `drawFloaters` draws a gold number + the HUD's `RES_ICON` bolt (as a `Path2D`).
+    Two gotchas found + fixed: (1) it must **pin the base DPR transform + `source-over`** — a
+    prior world-space/`'lighter'` pass otherwise flung the text off-screen / composited it away;
+    (2) aging is **frame-based** (`age`/`life`), not wall-clock, so erratic rAF timestamps can't
+    skip or freeze it, and the fade-in is near-instant so it's never a full frame at alpha 0.
+  - Verified: build clean (0 import leaks), 101 smoke + 60 card green, a 4-check engine harness
+    (finishEnergy = cells × 50 × 0.6; mould-eaten pile = 0), and browser screenshots ("270⚡" on
+    a tapped 9-cell pile; "+43⚡" on finish) with 0 console errors.
+
 - **Mould eating slowed another 3×** (`config.js`): `trichoderma.leavesPerRound` 0.67 → **0.22**
   (~2/9 cells/round, ≈1 leaf every ~4–5 rounds). A ~29-leaf pile now clears in ~132 rounds
   (was ~44). One config knob; smoke test still green (clear + size-scaling).
