@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-15 (**draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · **nematodes fan out (distinct targets), eat every tick, breed 0.8 — and wiping the colony now ends the run with a defeat overlay** · start economy 50E/10W/0P (dev `testall` scaffold still ON, overrides it) · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+_Living status + knowledge doc. Last updated: 2026-07-15 (**start-of-run SPECIES PICKER now gates every sandbox run** — pick a real mushroom species and the run is seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -79,6 +79,7 @@ build.mjs                   # mechanical bundler: strips import/export, wraps in
 src/main.js                 # wiring: input -> handlers -> engine -> renderers; window.__game debug hook
 src/config.js               # CONFIG: every gameplay number incl. the `cards:` block
 src/cards-data.js           # GENERATED from docs/cards.json (CARD_DATA, CARD_BY_NAME) — do not hand-edit
+src/species.js              # starter-species roster: id/name/latin/vibe/blurb/portrait + starting hand ({name,count}) + resources; shared by the picker AND run seeding
 
 src/engine/                 # pure simulation (no DOM)
   rng.js                    # seedable PRNG (deterministic sim)
@@ -98,6 +99,7 @@ src/render/                 # rendering (canvas), driven from state
   substrate.js              # cross-section terrain (baked)
   network.js                # per-network renderer (baked + animated)
   ui.js                     # HUD, action bar, hand carousel, log dropdown, offers, dev panel
+  species_select.js         # start-of-run species picker overlay (#speciesSelect / .ss-* — namespaced; card faces derived from CARD_DATA)
   assets.js                 # sprite loading via assets/manifest.json
   lighting.js, noise.js     # visual helpers
 
@@ -395,6 +397,48 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Start-of-run SPECIES PICKER + dev quick-start** (`src/species.js`, `src/render/species_select.js`,
+  `src/main.js`, `src/engine/cards.js`, `index.html`, `build.mjs`; commit `ac4de85`).
+  - **Boot flow:** a normal sandbox boot now shows the species-selection screen FIRST (main.js boot
+    block) instead of calling `start()` immediately. `showSpeciesSelect({onPick,onDev})` renders the
+    overlay; `onPick(sp)` sets module var `chosenSpecies` and starts the run, `onDev()` clears it and
+    starts the default run. `begin()` then does `chosenSpecies ? initCards(state,'species',chosenSpecies)
+    : initCards(state,'testall')`. **Restarts (New Map) reuse the last pick.** Hash bypasses:
+    `#dev` skips the picker (default run); `#puzzle` / `#notrich` / `#ants` unchanged.
+  - **`initCards(state, mode, species)`** gained a `'species'` mode (`engine/cards.js`): deals the
+    species' exact hand (`for {name,count}` → push copies, guarded by `CARD_BY_NAME` + `isArchived`)
+    and sets `net.energy/water/phosphorus` from `species.res`. The normal `startCopies` **draw deck is
+    kept** so Draw + the depletion clock still work — the species defines the opening HAND, not the deck.
+  - **Roster (`src/species.js`)** — single source of truth for BOTH the picker and run seeding:
+    - Playable now: **Fairy Ring Champignon** *(Marasmius oreades)* — Foraging Fan ×8, Hyphal Extension ×6,
+      Acorn Cache ×6 · 30E/30W. **Honey Fungus** *(Armillaria ostoyae)* — Apical Drive ×10, Rhizomorph
+      Lance ×5 · 100E/25W.
+    - Locked (unlock `'Complete level 1'`, shown as dimmed lock-badged previews — inspectable, Start
+      disabled): **Common Earthball** *(Scleroderma citrinum, spore vibe)* — Sclerotial Crust ×2,
+      Amputate ×2 (both P-gated), Apical Drive ×5, Hyphal Extension ×3, Acorn Cache ×3 · 50E/30W/5P.
+      **Bleeding Tooth Fungus** *(Hydnellum peckii, aqua vibe)* — Aquaporin Channels ×1 (free engine),
+      Hyphal Extension ×5, Apical Drive ×5, Foraging Fan ×5, Acorn Cache ×3 · 50E/20W.
+    - `LOCKED_TIERS`: level 1/3/5/7 = 2 each, level 10 = 1, then a communal "?" row of 8.
+  - **Auto-consistency with the game:** the picker's card faces (effect, type, play-cost W/P pips, art)
+    are looked up LIVE from `CARD_DATA` + `assets/cards/<cardSlug>.jpg` — the same data/art the in-game
+    hand uses — so changing a card's cost/description/art (via `cards.json` → `gen-carddata.mjs` → rebuild,
+    or swapping the jpg) updates the picker automatically. Only card **names** are referenced from
+    `species.js` by hand, so a rename/removal needs a `species.js` touch (guarded: unknown names drop).
+  - **Portraits** (realistic, FLUX-dev): `assets/species/{marasmius-oreades,armillaria-ostoyae,
+    scleroderma-citrinum,hydnellum-peckii}.jpg` (gen scripts `scripts/gen_species_real*.py`,
+    `gen_earthball_redo.py`). Copied to `dist/assets/` by the build like all art.
+  - **CSS** lives in `index.html` `<style>` (build's CSS source of truth), **fully namespaced under
+    `#speciesSelect` / `.ss-*`** so it can't collide with the game's own `.card` / `.overlay`.
+  - **Render-loop guard:** `frame()` early-returns (keeps requesting frames) while `state` is null, so
+    the loop doesn't throw before the first run is created (the picker sits over the un-revealed canvas).
+  - There is ALSO a standalone design mock at `docs/species-select.html` (published as an Artifact,
+    data + images INLINED) — a frozen snapshot; it does NOT track card/data changes. The in-game picker
+    is the living version.
+  - Verified in the built `dist/`: picker shows 2 available + 2 locked-level-1 + `?` tiers; Fairy Ring →
+    30E/30W/0P + {Foraging Fan 8, Hyphal Extension 6, Acorn Cache 6}; Honey Fungus → 100E/25W + {Apical
+    Drive 10, Rhizomorph Lance 5}; Dev button → 300E/W/P + 5× every card (260-card hand); game reveals &
+    plays; 0 console/page errors; build clean.
+
 - **Floating "+N⚡" energy labels over food piles** (`main.js`, `engine/cards.js`).
   - **Tap a food pile** → its CURRENT energy value floats up over it (remaining nutrient ×
     `incomeEfficiency`, green number + a bolt icon), then fades. Wired into the tap handler
@@ -544,6 +588,8 @@ Both menus are dark, on-theme, with glowing green borders.
     P-gated cards wait for Phosphate Tap, ~3 draws / 4 skips before you must feed). NOTE: the
     `'testall'` dev scaffold is **still ON** (owner is re-testing every card), which overrides these
     with 300/300/300 — flip `main.js` to `initCards(state)` to see the real opening.
+    _(Superseded: `testall` is now behind the species picker's **Dev quick-start** button; a species pick
+    seeds that species' own hand/resources instead. See the picker entry at the top of §9.)_
   - Normal (basic/event) drafts now **weight ~60/40 toward basics** (`cards.draftBasicWeight` 0.6)
     via `weightedNormalChoices()` — was uniform over the 6 basics + 16 events (~27% basic), so basics
     were too rare. Verified: ~60% basic across a large sample; test asserts the band.
@@ -1075,12 +1121,16 @@ Both menus are dark, on-theme, with glowing green borders.
   background `http.server` must be spawned in the SAME node process as the run (a separately-launched
   server dies when its launching Bash command ends). Avoid `pkill` (exit 144 aborts compound cmds).
   Transient draft-glyph frames are best caught by polling for a live `.draftmorph` element.
-- **Dev card-testing scaffold (currently ON).** `main.js begin()` calls `initCards(state, 'testall')`
-  — **5× of every card + 300 of each resource** — so every card can be exercised. This OVERRIDES the
-  real start economy (`energy.start` 50, `cards.startWater` 10, `cards.startPhosphorus` 0), so those
-  values aren't visible while the scaffold is on. **Revert to `initCards(state)` before balancing the
-  run / releasing.** (The old `seedDemoActions` demo-abilities scaffold was removed — the Actions menu
-  is populated by playing real `action`-type cards.)
+- **Dev card-testing scaffold (now behind the picker's "Dev quick-start" button).** The `'testall'`
+  scaffold — **5× of every card + 300 of each resource** — is no longer the default: the start-of-run
+  **species picker** gates every sandbox run (see §9). Picking a species runs `initCards(state,'species',sp)`
+  (that species' real hand + resources); the **Dev quick-start button** (or `#dev`) runs the old
+  `initCards(state,'testall')` scaffold. Neither path uses the "real" tutorial opening
+  (`initCards(state)` — free 3-card draw off the `startCopies` deck) or the config start economy
+  (`energy.start` 50, `cards.startWater` 10, `cards.startPhosphorus` 0), so those values still aren't
+  what you see in a species/dev run. **For real balancing, seed via a species (or wire the picker's
+  Start to a proper opening).** (The old `seedDemoActions` demo-abilities scaffold was removed — the
+  Actions menu is populated by playing real `action`-type cards.)
 - **Suberin Wall's "block reinfection for 2 rounds"** is now implemented via `cell.mouldProof`
   (set in radius 80, decremented each tick; `threats.js cellProofed` skips warded nodes in both
   the contact and the along-filament spread vectors). Note it wards the AREA's nodes against
