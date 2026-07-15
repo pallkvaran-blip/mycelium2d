@@ -719,8 +719,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "11tqq4n";
-globalThis.__BUILD__ = "local 07-15 09:38";
+window.__ASSET_VER = "1q65rsd";
+globalThis.__BUILD__ = "local 07-15 09:58";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -913,7 +913,9 @@ const CONFIG = {
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
     sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
-    consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
+    consumeReachMult: 2.2,       // cells within (cloud radius × this) are eligible to be eaten each action
+    leavesPerRound: 2,           // …but a cloud only clears this many food cells ("leaves") PER ROUND — so
+                                 //   finishing a pile is slow and scales with the pile's size (nearest cells first)
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
@@ -3677,9 +3679,11 @@ function spawnNematodeAt(state, x, y) {
 }
 
 // --- Per-tick step (per action AND end-turn) --------------------------------
-// Each worm: if stuck, sit out the tick. Otherwise acquire the nearest strand
-// in sight with clear LOS; crawl to it; on contact feed (eat a strand whole on a
-// cooldown) and multiply. Eaten strands are removed in one batch at the end.
+// Each worm's priority: (1) if a colony strand is in sight (clear LOS) crawl to it
+// and feed/breed — you're tastier than ants; (2) else if an ANT TRAIL is within
+// sensory range, drift toward the nearest trail cell (worms shadow the ants'
+// foraging lines but never touch the ants); (3) else HOLD position — they don't
+// wander aimlessly. Eaten strands are removed in one batch at the end.
 function stepNematodes(state) {
   const { config, substrate: sub, rng } = state;
   const n = config.nematodes;
@@ -3690,6 +3694,10 @@ function stepNematodes(state) {
   const claimed = new Set();    // node ids eaten this tick (one worm per strand)
   const targeted = new Set();   // node ids a worm is already HEADING for this tick (fan-out)
   const newborns = [];
+  // Ant-trail cell centres — the worms' secondary attractor. Set by stepAnts
+  // earlier this tick; gathered once (the trail is short, so this stays cheap).
+  const trailPts = [];
+  sub.forEachCell((cell, col, row) => { if (cell.antTrail) trailPts.push(sub.cellCenter(col, row)); });
 
   for (const w of state.nematodes) {
     // Stuck by a fresh excretion — no move / feed / breed this tick.
@@ -3732,10 +3740,15 @@ function stepNematodes(state) {
         moveWorm(w, dx / dist, dy / dist, Math.min(dist, n.crawlSpeed * cs), sub);
       }
     } else {
-      // Nothing seen — wander; turn away when rock / the edge blocks it.
-      w.heading += rng.range(-0.5, 0.5);
-      const moved = moveWorm(w, Math.cos(w.heading), Math.sin(w.heading), n.wanderSpeed * cs, sub);
-      if (!moved) w.heading += rng.range(2, 4);
+      // No colony in reach: drift toward the nearest ANT TRAIL within sensory range.
+      // If none is in range, HOLD position — worms no longer wander aimlessly.
+      const t = nearestPointInRange(trailPts, w.x, w.y, n.sightRadius, sub);
+      w.trailing = !!t;
+      if (t) {
+        const dx = t.x - w.x, dy = t.y - w.y, d = Math.hypot(dx, dy) || 1;
+        w.heading = Math.atan2(dy, dx);
+        moveWorm(w, dx / d, dy / d, Math.min(d, n.crawlSpeed * cs), sub);
+      }
     }
   }
 
@@ -3794,6 +3807,17 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
   return best;
 }
 
+// Nearest of `pts` (world coords) within `range` of (x,y) that has a clear line of
+// sight (rock blocks it); null if none. Used for the ant-trail attraction.
+function nearestPointInRange(pts, x, y, range, sub) {
+  let best = null, bestD = range * range;
+  for (const p of pts) {
+    const dx = p.x - x, dy = p.y - y, d = dx * dx + dy * dy;
+    if (d < bestD && sub.segmentClear(x, y, p.x, p.y)) { bestD = d; best = p; }
+  }
+  return best;
+}
+
 // Move a worm by (ux,uy)*s, never THROUGH rock or out of bounds; the whole path
 // is checked, and a blocked straight move slides along x then y (rounds rock).
 function moveWorm(w, ux, uy, s, sub) {
@@ -3848,11 +3872,12 @@ const __m_engine_threats = (function () {
 //
 // Trichoderma is modelled as a small number of discrete, roughly fixed-size
 // CLOUDS that roam the cross-section:
-//   - Each cloud creeps toward the nearest food source it can SEE (rock blocks
-//     a cloud's line of sight, so food behind a boulder stays hidden).
-//   - It devours any substrate it passes over (a pile it sits on is gone in
-//     ~2 turns) but eating barely grows it — a small cloud that eats a giant
-//     pile stays small.
+//   - Each cloud PREFERS your mycelium: if a strand is in sight it heads there;
+//     otherwise it creeps toward the nearest food source it can SEE (rock blocks
+//     a cloud's line of sight, so food/strands behind a boulder stay hidden).
+//   - It devours the substrate it passes over a couple of cells ("leaves") per
+//     round (config leavesPerRound), so a pile takes several rounds to finish —
+//     the more leaves in the pile, the longer. Eating barely grows the cloud.
 //   - The moment a cloud's outer edge touches your network it infects you
 //     (turning a chunk of strands green/dead), then spends itself: it keeps
 //     drifting toward food while fading away completely over ~2 turns. So each
@@ -3960,20 +3985,23 @@ function spreadTrichoderma(state) {
       if (cloud.strength <= 0.01) continue;
     }
 
-    // Head for the nearest food/strand WITHIN sight AND with a CLEAR LINE OF
-    // SIGHT — rock blocks a cloud's senses, so it can't home in on food hidden
-    // behind a boulder. If nothing is visible, wander until something is sensed.
-    // (sightRadius is shown on screen; LOS is only tested on a distance
-    // improvement, to keep the cost down.)
+    // Target priority, both WITHIN sight and with a CLEAR LINE OF SIGHT (rock blocks
+    // a cloud's senses): PREFER mycelium — if any colony strand is visible, head for
+    // the nearest one even when a food pile is closer (you're tastier). Only when no
+    // strand is in range does it home in on the nearest visible FOOD pile. Nothing
+    // visible → roam. (sightRadius is shown on screen; LOS tested on improvement.)
     const step = t.moveSpeed * cs;
     let tx = null, ty = null, best = t.sightRadius * t.sightRadius;
-    for (const f of food) {
-      const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
-      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, f.x, f.y)) { best = d; tx = f.x; ty = f.y; }
+    for (const nd of nodes) {   // (1) mycelium preference
+      const d = (nd.x - cloud.cx) ** 2 + (nd.y - cloud.cy) ** 2;
+      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, nd.x, nd.y)) { best = d; tx = nd.x; ty = nd.y; }
     }
-    for (const n of nodes) {
-      const d = (n.x - cloud.cx) ** 2 + (n.y - cloud.cy) ** 2;
-      if (d < best && sub.segmentClear(cloud.cx, cloud.cy, n.x, n.y)) { best = d; tx = n.x; ty = n.y; }
+    if (tx == null) {           // (2) else nearest visible food
+      best = t.sightRadius * t.sightRadius;
+      for (const f of food) {
+        const d = (f.x - cloud.cx) ** 2 + (f.y - cloud.cy) ** 2;
+        if (d < best && sub.segmentClear(cloud.cx, cloud.cy, f.x, f.y)) { best = d; tx = f.x; ty = f.y; }
+      }
     }
     if (tx != null) {
       // Creep toward the target, sliding ALONG rock faces (clouds can't travel
@@ -3993,7 +4021,7 @@ function spreadTrichoderma(state) {
     // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
     // pile visibly shrinks cell-by-cell as the cloud crawls across it. Eating
     // barely grows the cloud, hard-capped so it never gets giant.
-    const ate = eatUnder(sub, cloud, t.consumeReachMult);
+    const ate = eatUnder(sub, cloud, t.consumeReachMult, t.leavesPerRound);
     if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
 
     survivors.push(cloud);
@@ -4036,27 +4064,34 @@ function moveCloud(cloud, ux, uy, s, sub) {
   return false;                                                              // fully blocked
 }
 
-// Eat the substrate the cloud covers WHOLE: every food cell within reach is
-// fully consumed (removed from the pile) this action — so the pile visibly
-// shrinks cell-by-cell as the cloud crawls across it, rather than dimming
-// uniformly. Returns total nutrient eaten.
-function eatUnder(sub, cloud, reachMult) {
+// Eat the substrate the cloud covers, but only `maxCells` food cells ("leaves")
+// per round — the CLOSEST covered cells first. Each eaten cell is removed WHOLE, so
+// the pile visibly shrinks cell-by-cell; capping the count per round means finishing
+// a pile is slow and scales with its size. Returns total nutrient eaten.
+function eatUnder(sub, cloud, reachMult, maxCells) {
   const cs = sub.cellSize;
   const reach = cloud.r * cs * reachMult;
   const c0 = sub.colAtX(cloud.cx), r0 = sub.rowAtY(cloud.cy);
   const radCells = Math.ceil(reach / cs) + 1;
-  let ate = 0;
+  const covered = [];
   for (let row = r0 - radCells; row <= r0 + radCells; row++) {
     for (let col = c0 - radCells; col <= c0 + radCells; col++) {
       if (!sub.inBounds(col, row)) continue;
       const cell = sub.cells[sub.index(col, row)];
       if (cell.nutrient <= 0) continue;
       const ctr = sub.cellCenter(col, row);
-      if (Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy) > reach) continue;
-      ate += cell.nutrient;
-      cell.nutrient = 0;
-      cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
+      const d = Math.hypot(ctr.x - cloud.cx, ctr.y - cloud.cy);
+      if (d > reach) continue;
+      covered.push({ cell, d });
     }
+  }
+  covered.sort((a, b) => a.d - b.d);   // nearest first
+  const lim = maxCells > 0 ? Math.min(maxCells, covered.length) : covered.length;
+  let ate = 0;
+  for (let i = 0; i < lim; i++) {
+    ate += covered[i].cell.nutrient;
+    covered[i].cell.nutrient = 0;
+    covered[i].cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
   }
   return ate;
 }

@@ -395,6 +395,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Threat behaviour: worms shadow ant trails; mould prefers you + eats slowly** (branch same).
+  - **Nematodes** (`engine/nematodes.js`) — new movement priority: (1) a colony strand in
+    sight (clear LOS) → crawl to it and feed/breed as before; (2) else the nearest **ant TRAIL**
+    cell within `sightRadius` (clear LOS) → drift toward it (they shadow the ants' foraging
+    lines but never touch the ants); (3) else **hold position** — they no longer wander
+    aimlessly. Trail cells are gathered once per tick (set by `stepAnts` earlier in `tickWorld`).
+    New `nearestPointInRange()` helper; `w.trailing` flag. `wanderSpeed` is now unused.
+  - **Trichoderma** (`engine/threats.js`, `config.js`): (a) movement now **prefers mycelium** —
+    if any strand is in sight it heads there even when a food pile is closer; only with no strand
+    in range does it target the nearest visible food. (b) food-eating is **rate-limited**:
+    `eatUnder` clears only `trichoderma.leavesPerRound` (2) food cells ("leaves") per round,
+    nearest-first, so finishing a pile scales with its size instead of vanishing in one gulp.
+  - Test updated: the old "whole pile gone in ≤9 actions" case now asserts the new rate
+    (exactly `leavesPerRound` cleared in round 1; pile fully cleared but in ≥ start/leavesPerRound
+    rounds) with the colony disabled so it doesn't lure the mould off the pile.
+  - Verified: build clean (0 import leaks), **101** smoke + 60 card green, and an 8-check headless
+    harness (worm holds / trails / colony-trumps-trail; mould picks the colony over closer food).
+
 - **Follow-up polish: tinier start, unified resource icons** (branch same).
   - `growth.startDepth` 58→**20** — an even smaller opening sprout (~3 nodes).
   - The left income ledger and the Nutrient Transmutation picker now use the SAME

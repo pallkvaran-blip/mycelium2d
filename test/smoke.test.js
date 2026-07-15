@@ -155,12 +155,13 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
     `cloud stays small after eating a giant pile (r ${r0.toFixed(2)} -> ${cloud.r.toFixed(2)}, cap ${s.config.trichoderma.cloudRadiusMax})`);
 }
 
-// Consumption: a cloud eats a pile cell-by-cell, so the pile visibly SHRINKS in
-// size every action, and the whole thing is gone within ~2 turns (~6 actions).
+// Consumption: a cloud clears only leavesPerRound cells ("leaves") per round, so a
+// pile shrinks slowly and finishing SCALES with its size (not gone in one gulp).
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 654);
   const sub = s.substrate;
   const N = s.config.substrate.foodCellNutrient;
+  const per = s.config.trichoderma.leavesPerRound;
   for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; }
   // A pile much bigger than one small cloud (radius ~3 cells).
   const c0 = 14, r0 = 8;
@@ -170,15 +171,16 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   }
   s.clouds = [];
   s.config.trichoderma.initialPatches = 0;   // no respawn noise during the test
+  s.active.alive = false;   // isolate food-eating: no colony to lure the mould off the pile (it now PREFERS mycelium)
   const foodCells = () => sub.cells.filter((c) => c.maxNutrient > 0).length;
   const start = foodCells();
   spawnTrichodermaAt(s, sub.cellCenter(c0, r0).x, sub.cellCenter(c0, r0).y);
   spreadTrichoderma(s);
-  ok(foodCells() < start, `pile shrinks in size as it's eaten (${start} -> ${foodCells()} cells after 1 action)`);
+  ok(start - foodCells() === per, `clears exactly ${per} leaves in round 1 (${start} -> ${foodCells()} cells)`);
   let actions = 1;
-  while (sub.totalNutrient() > 0 && actions < 15) { spreadTrichoderma(s); actions++; }
-  ok(sub.totalNutrient() === 0 && actions <= 9,
-    `whole pile eaten cell-by-cell in ${actions} actions (~${(actions / 3).toFixed(1)} turns)`);
+  while (sub.totalNutrient() > 0 && actions < 300) { spreadTrichoderma(s); actions++; }
+  ok(sub.totalNutrient() === 0, `pile is eventually fully cleared (in ${actions} rounds)`);
+  ok(actions >= Math.floor(start / per), `finishing scales with size: ${actions} rounds for ${start} leaves (>= ${Math.floor(start / per)})`);
 }
 
 // Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.

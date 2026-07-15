@@ -187,7 +187,9 @@ export const CONFIG = {
     growthPerEat: 0.02,          // radius gained per action it's eating (tiny — stays ~the same size)
     sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
-    consumeReachMult: 2.2,       // cells within (cloud radius × this) are eaten WHOLE each action, so the pile shrinks cell-by-cell and fast
+    consumeReachMult: 2.2,       // cells within (cloud radius × this) are eligible to be eaten each action
+    leavesPerRound: 2,           // …but a cloud only clears this many food cells ("leaves") PER ROUND — so
+                                 //   finishing a pile is slow and scales with the pile's size (nearest cells first)
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)

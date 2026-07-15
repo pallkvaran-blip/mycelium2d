@@ -42,9 +42,11 @@ export function spawnNematodeAt(state, x, y) {
 }
 
 // --- Per-tick step (per action AND end-turn) --------------------------------
-// Each worm: if stuck, sit out the tick. Otherwise acquire the nearest strand
-// in sight with clear LOS; crawl to it; on contact feed (eat a strand whole on a
-// cooldown) and multiply. Eaten strands are removed in one batch at the end.
+// Each worm's priority: (1) if a colony strand is in sight (clear LOS) crawl to it
+// and feed/breed — you're tastier than ants; (2) else if an ANT TRAIL is within
+// sensory range, drift toward the nearest trail cell (worms shadow the ants'
+// foraging lines but never touch the ants); (3) else HOLD position — they don't
+// wander aimlessly. Eaten strands are removed in one batch at the end.
 export function stepNematodes(state) {
   const { config, substrate: sub, rng } = state;
   const n = config.nematodes;
@@ -55,6 +57,10 @@ export function stepNematodes(state) {
   const claimed = new Set();    // node ids eaten this tick (one worm per strand)
   const targeted = new Set();   // node ids a worm is already HEADING for this tick (fan-out)
   const newborns = [];
+  // Ant-trail cell centres — the worms' secondary attractor. Set by stepAnts
+  // earlier this tick; gathered once (the trail is short, so this stays cheap).
+  const trailPts = [];
+  sub.forEachCell((cell, col, row) => { if (cell.antTrail) trailPts.push(sub.cellCenter(col, row)); });
 
   for (const w of state.nematodes) {
     // Stuck by a fresh excretion — no move / feed / breed this tick.
@@ -97,10 +103,15 @@ export function stepNematodes(state) {
         moveWorm(w, dx / dist, dy / dist, Math.min(dist, n.crawlSpeed * cs), sub);
       }
     } else {
-      // Nothing seen — wander; turn away when rock / the edge blocks it.
-      w.heading += rng.range(-0.5, 0.5);
-      const moved = moveWorm(w, Math.cos(w.heading), Math.sin(w.heading), n.wanderSpeed * cs, sub);
-      if (!moved) w.heading += rng.range(2, 4);
+      // No colony in reach: drift toward the nearest ANT TRAIL within sensory range.
+      // If none is in range, HOLD position — worms no longer wander aimlessly.
+      const t = nearestPointInRange(trailPts, w.x, w.y, n.sightRadius, sub);
+      w.trailing = !!t;
+      if (t) {
+        const dx = t.x - w.x, dy = t.y - w.y, d = Math.hypot(dx, dy) || 1;
+        w.heading = Math.atan2(dy, dx);
+        moveWorm(w, dx / d, dy / d, Math.min(d, n.crawlSpeed * cs), sub);
+      }
     }
   }
 
@@ -155,6 +166,17 @@ function nearestVisibleNode(sub, nodes, w, sight, claimed) {
     if (claimed && claimed.has(node.id)) continue;
     const dx = node.x - w.x, dy = node.y - w.y, d = dx * dx + dy * dy;
     if (d < bestD && sub.segmentClear(w.x, w.y, node.x, node.y)) { bestD = d; best = node; }
+  }
+  return best;
+}
+
+// Nearest of `pts` (world coords) within `range` of (x,y) that has a clear line of
+// sight (rock blocks it); null if none. Used for the ant-trail attraction.
+function nearestPointInRange(pts, x, y, range, sub) {
+  let best = null, bestD = range * range;
+  for (const p of pts) {
+    const dx = p.x - x, dy = p.y - y, d = dx * dx + dy * dy;
+    if (d < bestD && sub.segmentClear(x, y, p.x, p.y)) { bestD = d; best = p; }
   }
   return best;
 }
