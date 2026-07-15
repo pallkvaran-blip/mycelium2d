@@ -176,11 +176,11 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   const start = foodCells();
   spawnTrichodermaAt(s, sub.cellCenter(c0, r0).x, sub.cellCenter(c0, r0).y);
   spreadTrichoderma(s);
-  ok(start - foodCells() === per, `clears exactly ${per} leaves in round 1 (${start} -> ${foodCells()} cells)`);
+  ok(start - foodCells() <= 1, `at most 1 leaf gone after round 1 (slow, fractional rate): ${start} -> ${foodCells()} cells`);
   let actions = 1;
-  while (sub.totalNutrient() > 0 && actions < 300) { spreadTrichoderma(s); actions++; }
+  while (sub.totalNutrient() > 0 && actions < 500) { spreadTrichoderma(s); actions++; }
   ok(sub.totalNutrient() === 0, `pile is eventually fully cleared (in ${actions} rounds)`);
-  ok(actions >= Math.floor(start / per), `finishing scales with size: ${actions} rounds for ${start} leaves (>= ${Math.floor(start / per)})`);
+  ok(actions >= Math.floor(start / per), `finishing is slow + scales with size: ${actions} rounds for ${start} leaves (>= ${Math.floor(start / per)})`);
 }
 
 // Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.

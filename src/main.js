@@ -1133,13 +1133,7 @@ function drawAnts(time) {
     ctx.fillStyle = `rgba(${(14 * dim) | 0},${(8 * dim) | 0},${(4 * dim) | 0},0.92)`;
     ctx.beginPath(); ctx.ellipse(ent.x, ent.y, Math.max(4, 6 * z), Math.max(2, 3.2 * z), 0, 0, Math.PI * 2); ctx.fill();
 
-    // 5) HP bar above the entrance
-    const bw = Math.max(26, 34 * z), bh = Math.max(3, 4 * z), by = ent.y - Math.max(12, 16 * z);
-    const hpFrac = Math.max(0, nest.hp / nest.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(ent.x - bw / 2, by, bw, bh);
-    ctx.fillStyle = hpFrac > 0.5 ? '#5fbf52' : hpFrac > 0.25 ? '#d8b13a' : '#d85a3a';
-    ctx.fillRect(ent.x - bw / 2, by, bw * hpFrac, bh);
+    // (No HP bar — nest health is intentionally not surfaced.)
   }
   ctx.restore();
 }
@@ -2185,7 +2179,7 @@ function drawNematodes(time) {
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
       const along = (f - 0.5) * len;
-      const off = Math.sin(time * 0.007 + (w.phase || 0) + f * 6) * wig;   // gentle wriggle (slower = less frantic)
+      const off = Math.sin(time * 0.0035 + (w.phase || 0) + f * 6) * wig;   // gentle wriggle (~50% slower = less frantic)
       const x = sp.x + dx * along + px * off, y = sp.y + dy * along + py * off;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }

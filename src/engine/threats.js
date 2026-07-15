@@ -152,8 +152,16 @@ export function spreadTrichoderma(state) {
     // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
     // pile visibly shrinks cell-by-cell as the cloud crawls across it. Eating
     // barely grows the cloud, hard-capped so it never gets giant.
-    const ate = eatUnder(sub, cloud, t.consumeReachMult, t.leavesPerRound);
-    if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
+    // Rate-limited eating: accumulate a per-cloud "bite budget" (leavesPerRound cells
+    // per round, may be fractional) and eat only WHOLE cells, nearest-first. The budget
+    // is capped so a roaming (foodless) cloud can't hoard bites and then gulp a pile.
+    cloud._budget = Math.min((cloud._budget || 0) + t.leavesPerRound, 2);
+    let ateCells = 0;
+    if (cloud._budget >= 1) {
+      ateCells = eatUnder(sub, cloud, t.consumeReachMult, Math.floor(cloud._budget));
+      cloud._budget -= ateCells;   // only spend budget for cells actually eaten
+    }
+    if (ateCells > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
 
     survivors.push(cloud);
   }
@@ -195,10 +203,10 @@ function moveCloud(cloud, ux, uy, s, sub) {
   return false;                                                              // fully blocked
 }
 
-// Eat the substrate the cloud covers, but only `maxCells` food cells ("leaves")
-// per round — the CLOSEST covered cells first. Each eaten cell is removed WHOLE, so
-// the pile visibly shrinks cell-by-cell; capping the count per round means finishing
-// a pile is slow and scales with its size. Returns total nutrient eaten.
+// Eat up to `maxCells` of the food cells ("leaves") the cloud covers — the CLOSEST
+// covered cells first. Each eaten cell is removed WHOLE, so the pile visibly shrinks
+// cell-by-cell. Returns the NUMBER OF CELLS eaten (the caller spends its bite budget
+// by that count).
 function eatUnder(sub, cloud, reachMult, maxCells) {
   const cs = sub.cellSize;
   const reach = cloud.r * cs * reachMult;
@@ -218,13 +226,11 @@ function eatUnder(sub, cloud, reachMult, maxCells) {
   }
   covered.sort((a, b) => a.d - b.d);   // nearest first
   const lim = maxCells > 0 ? Math.min(maxCells, covered.length) : covered.length;
-  let ate = 0;
   for (let i = 0; i < lim; i++) {
-    ate += covered[i].cell.nutrient;
     covered[i].cell.nutrient = 0;
     covered[i].cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
   }
-  return ate;
+  return lim;   // number of cells eaten
 }
 
 // Project the discrete clouds into the per-cell intensity field (render + the

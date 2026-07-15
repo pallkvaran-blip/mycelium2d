@@ -395,6 +395,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Threat tuning: hide ant HP bars, calmer worms, wider worm sight, slower mould eating** (branch same).
+  - **Ant nest HP bars removed** (`main.js` `drawAnts`) — nest health is no longer surfaced.
+  - **Nematode wriggle ~50% slower** (`main.js` `drawNematodes`): the writhe frequency `time*0.007`
+    → `time*0.0035` (render-only; less frantic).
+  - **Nematode sight range 360 → 500** (`config.js`) to match the mould's `sightRadius`.
+  - **Mould eats food ~3× slower** (`config.js`, `engine/threats.js`): `trichoderma.leavesPerRound`
+    2 → **0.67** (avg cells/round). Eating is now a fractional per-cloud "bite budget"
+    (accumulate `leavesPerRound`/round, capped at 2 so a roaming cloud can't hoard, spend only the
+    whole cells actually eaten); `eatUnder` returns the CELL COUNT. A ~29-leaf pile now clears in
+    ~44 rounds (was ~15). Smoke test updated to the fractional rate (≤1 leaf in round 1; fully
+    cleared but in ≥ start/leavesPerRound rounds).
+
 - **Threat behaviour: worms shadow ant trails; mould prefers you + eats slowly** (branch same).
   - **Nematodes** (`engine/nematodes.js`) — new movement priority: (1) a colony strand in
     sight (clear LOS) → crawl to it and feed/breed as before; (2) else the nearest **ant TRAIL**

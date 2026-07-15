@@ -188,8 +188,9 @@ export const CONFIG = {
     sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eligible to be eaten each action
-    leavesPerRound: 2,           // …but a cloud only clears this many food cells ("leaves") PER ROUND — so
-                                 //   finishing a pile is slow and scales with the pile's size (nearest cells first)
+    leavesPerRound: 0.67,        // AVERAGE food cells ("leaves") a cloud clears per round (may be fractional —
+                                 //   accumulated in a per-cloud budget, nearest cells first). ~2/3 ≈ 3× slower
+                                 //   than the earlier 2/round, so finishing a pile is slow and scales with its size.
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
@@ -265,7 +266,7 @@ export const CONFIG = {
   nematodes: {
     initialCount: 3,             // wandering worms seeded per sandbox map
     seedMinColonyDistFrac: 0.25, // seed at least this fraction of the map from the colony
-    sightRadius: 360,            // detection range; rock blocks line of sight (SLIDER)
+    sightRadius: 500,            // detection range (matches the mould's); rock blocks line of sight (SLIDER)
     crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
     wanderSpeed: 1.0,            // cells/tick while searching
     reach: 0.7,                  // cells: how close to a strand before it feeds

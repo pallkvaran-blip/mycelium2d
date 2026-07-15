@@ -719,8 +719,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1q65rsd";
-globalThis.__BUILD__ = "local 07-15 09:58";
+window.__ASSET_VER = "i2cyqi";
+globalThis.__BUILD__ = "local 07-15 10:09";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -914,8 +914,9 @@ const CONFIG = {
     sightRadius: 500,            // how far (world units) a cloud senses food/you and heads for it; rock blocks line of sight (SLIDER); shown on screen as a soft ring
     moveSpeed: 1.5,              // cells per ACTION a cloud creeps toward its nearest target (SLIDER)
     consumeReachMult: 2.2,       // cells within (cloud radius × this) are eligible to be eaten each action
-    leavesPerRound: 2,           // …but a cloud only clears this many food cells ("leaves") PER ROUND — so
-                                 //   finishing a pile is slow and scales with the pile's size (nearest cells first)
+    leavesPerRound: 0.67,        // AVERAGE food cells ("leaves") a cloud clears per round (may be fractional —
+                                 //   accumulated in a per-cloud budget, nearest cells first). ~2/3 ≈ 3× slower
+                                 //   than the earlier 2/round, so finishing a pile is slow and scales with its size.
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
@@ -991,7 +992,7 @@ const CONFIG = {
   nematodes: {
     initialCount: 3,             // wandering worms seeded per sandbox map
     seedMinColonyDistFrac: 0.25, // seed at least this fraction of the map from the colony
-    sightRadius: 360,            // detection range; rock blocks line of sight (SLIDER)
+    sightRadius: 500,            // detection range (matches the mould's); rock blocks line of sight (SLIDER)
     crawlSpeed: 3.0,             // cells/tick toward a sensed strand — fast (SLIDER)
     wanderSpeed: 1.0,            // cells/tick while searching
     reach: 0.7,                  // cells: how close to a strand before it feeds
@@ -4021,8 +4022,16 @@ function spreadTrichoderma(state) {
     // Devour the substrate it covers: cells within reach are eaten WHOLE, so the
     // pile visibly shrinks cell-by-cell as the cloud crawls across it. Eating
     // barely grows the cloud, hard-capped so it never gets giant.
-    const ate = eatUnder(sub, cloud, t.consumeReachMult, t.leavesPerRound);
-    if (ate > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
+    // Rate-limited eating: accumulate a per-cloud "bite budget" (leavesPerRound cells
+    // per round, may be fractional) and eat only WHOLE cells, nearest-first. The budget
+    // is capped so a roaming (foodless) cloud can't hoard bites and then gulp a pile.
+    cloud._budget = Math.min((cloud._budget || 0) + t.leavesPerRound, 2);
+    let ateCells = 0;
+    if (cloud._budget >= 1) {
+      ateCells = eatUnder(sub, cloud, t.consumeReachMult, Math.floor(cloud._budget));
+      cloud._budget -= ateCells;   // only spend budget for cells actually eaten
+    }
+    if (ateCells > 0 && !cloud.dying) cloud.r = Math.min(t.cloudRadiusMax, cloud.r + t.growthPerEat);
 
     survivors.push(cloud);
   }
@@ -4064,10 +4073,10 @@ function moveCloud(cloud, ux, uy, s, sub) {
   return false;                                                              // fully blocked
 }
 
-// Eat the substrate the cloud covers, but only `maxCells` food cells ("leaves")
-// per round — the CLOSEST covered cells first. Each eaten cell is removed WHOLE, so
-// the pile visibly shrinks cell-by-cell; capping the count per round means finishing
-// a pile is slow and scales with its size. Returns total nutrient eaten.
+// Eat up to `maxCells` of the food cells ("leaves") the cloud covers — the CLOSEST
+// covered cells first. Each eaten cell is removed WHOLE, so the pile visibly shrinks
+// cell-by-cell. Returns the NUMBER OF CELLS eaten (the caller spends its bite budget
+// by that count).
 function eatUnder(sub, cloud, reachMult, maxCells) {
   const cs = sub.cellSize;
   const reach = cloud.r * cs * reachMult;
@@ -4087,13 +4096,11 @@ function eatUnder(sub, cloud, reachMult, maxCells) {
   }
   covered.sort((a, b) => a.d - b.d);   // nearest first
   const lim = maxCells > 0 ? Math.min(maxCells, covered.length) : covered.length;
-  let ate = 0;
   for (let i = 0; i < lim; i++) {
-    ate += covered[i].cell.nutrient;
     covered[i].cell.nutrient = 0;
     covered[i].cell.maxNutrient = 0;   // the cell is gone — the pile gets smaller
   }
-  return ate;
+  return lim;   // number of cells eaten
 }
 
 // Project the discrete clouds into the per-cell intensity field (render + the
@@ -10315,13 +10322,7 @@ function drawAnts(time) {
     ctx.fillStyle = `rgba(${(14 * dim) | 0},${(8 * dim) | 0},${(4 * dim) | 0},0.92)`;
     ctx.beginPath(); ctx.ellipse(ent.x, ent.y, Math.max(4, 6 * z), Math.max(2, 3.2 * z), 0, 0, Math.PI * 2); ctx.fill();
 
-    // 5) HP bar above the entrance
-    const bw = Math.max(26, 34 * z), bh = Math.max(3, 4 * z), by = ent.y - Math.max(12, 16 * z);
-    const hpFrac = Math.max(0, nest.hp / nest.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(ent.x - bw / 2, by, bw, bh);
-    ctx.fillStyle = hpFrac > 0.5 ? '#5fbf52' : hpFrac > 0.25 ? '#d8b13a' : '#d85a3a';
-    ctx.fillRect(ent.x - bw / 2, by, bw * hpFrac, bh);
+    // (No HP bar — nest health is intentionally not surfaced.)
   }
   ctx.restore();
 }
@@ -11367,7 +11368,7 @@ function drawNematodes(time) {
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
       const along = (f - 0.5) * len;
-      const off = Math.sin(time * 0.007 + (w.phase || 0) + f * 6) * wig;   // gentle wriggle (slower = less frantic)
+      const off = Math.sin(time * 0.0035 + (w.phase || 0) + f * 6) * wig;   // gentle wriggle (~50% slower = less frantic)
       const x = sp.x + dx * along + px * off, y = sp.y + dy * along + py * off;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
