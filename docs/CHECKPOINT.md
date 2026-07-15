@@ -395,6 +395,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Grow SFX trails less after growth stops** (`render/sfx.js`, branch same).
+  - Symptom: the grow sound kept ringing well after strands stopped appearing. Two causes:
+    (1) `assets/sfx/grow.wav` is a **long, sustained** swell (~2.4 s, loud most of the way — not a
+    decaying tail), so even one hit rang ~2.4 s; (2) `playGrowBurst` staggered its layers across the
+    whole reveal `spread` (up to 2.4 s), so the LAST hit started ~2.4 s in and *then* rang on.
+  - Fix, both without cutting a sound mid-body:
+    - **Front-load the stagger**: `const stagger = Math.min(spread * 0.45, 0.7)` (was the full
+      `spread`) used in the jitter + `when` calc, so even a big fan fires all its hits within ~0.7 s
+      near the start — the latest growths' sound now leads the reveal's tail instead of chasing it.
+    - **Release each hit**: new `HOLD_S` (1.3 s full-gain body) + `RELEASE_S` (0.4 s) gain envelope in
+      `hit()` — hold, then `linearRampToValueAtTime(0.0001)` and `src.stop` — so a single hit rings
+      ~1.7 s (was ~2.4 s) and settles with a gentle ramp, never an abrupt mid-sample cut.
+  - Verified: build clean (0 import leaks), 100 smoke + 60 card green, headless boot 0 console errors
+    (audio *feel* to be confirmed in-app by owner — headless can't judge timing by ear).
+
 - **Start economy tuned + normal drafts weighted toward basics** (branch same).
   - Real start economy set to `energy.start` 120→**50**, `cards.startWater` 7→**10**,
     `cards.startPhosphorus` 3→**0** (turn-1 verified viable: playable grows in the opening hand,
