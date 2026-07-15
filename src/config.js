@@ -142,6 +142,14 @@ export const CONFIG = {
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
+    // defense durations / radii
+    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall)
+                                 //   grant infection/eating immunity for this many rounds (was permanent)
+    crustRadius: 60,             // Sclerotial Crust / Rind: harden radius
+    reserveRadius: 40,           // Crust Reserve: harden radius
+    suberinRadius: 80,           // Suberin Wall: clear + ward radius
+    rehydrateRadius: 90,         // Rehydration Pulse: heal radius (was 60 → +50%)
+    sealReach: 8,                // Sclerotial Seal: seal the whole nearest food pile within this many cells (forgiving)
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -330,6 +338,8 @@ export const CONFIG = {
     trich: '#8aa23e',
     trichSpore: '#d2e074',
     infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
+    warded: '#5cd9e6',           // a strand hardened/warded by a defense card — a cool cyan "crust"
+                                 //   sheen, distinct from the pale-mint colony and yellow-green mould
     // the living network (luminous accent — the brightest thing on screen)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',

@@ -139,12 +139,12 @@ function begin(newState) {
 function buildRenderers() {
   substrateRenderer = new SubstrateRenderer(state.substrate, state.config, state.seed);
   networkRenderers.clear();
-  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config));
+  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config, state.substrate));
 }
 
 function rendererFor(net) {
   let r = networkRenderers.get(net.id);
-  if (!r) { r = new NetworkRenderer(net, state.config); networkRenderers.set(net.id, r); }
+  if (!r) { r = new NetworkRenderer(net, state.config, state.substrate); networkRenderers.set(net.id, r); }
   return r;
 }
 
@@ -1216,17 +1216,37 @@ function drawSubstrateLeaves() {
   const sets = _leafSets();
   if (!sets.leaves && !sets.nuts && !sets.red) return;
   const sub = state.substrate;
+  // A digested MAP pile keeps its full heap until ITS OWN draft starts, so several
+  // piles finished in the same round vanish one-by-one as each is drafted — not all
+  // at once. `pile.draftHeld` (set when the pile's offer is queued) holds the heap
+  // full; `pile._fadeAt` (set when that draft's glyph rises) starts the fade. Nut
+  // piles / ant-eaten piles (no draft) fall back to fading from when the cell emptied.
+  const heldCells = new Set();
+  const fadeAtCell = new Map();
+  for (const p of (sub.foodPiles || [])) {
+    if (p.draftHeld) { for (const idx of p.cells) heldCells.add(idx); }
+    else if (p._fadeAt) { for (const idx of p.cells) fadeAtCell.set(idx, p._fadeAt); }
+  }
   sub.forEachCell((cell, col, row) => {
     if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
     const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'nut'
     if (cell.nutrient > 0) {
       cell._leafGone = 0;                                 // still has food → full heap, no fade
       _drawLeafHeap(sets, col, row, kind, 1);
-    } else if (cell.maxNutrient > 0) {                    // just emptied → fade the same heap out, then stop
-      if (!cell._leafGone) cell._leafGone = lastTime;
-      const a = 1 - (lastTime - cell._leafGone) / LEAF_FADE_MS;
-      if (a > 0) _drawLeafHeap(sets, col, row, kind, a);
+      return;
     }
+    if (cell.maxNutrient <= 0) return;                    // never had food
+    const idx = sub.index(col, row);
+    if (heldCells.has(idx)) {                             // digested but awaiting its draft → stay full
+      cell._leafGone = 0;
+      _drawLeafHeap(sets, col, row, kind, 1);
+      return;
+    }
+    // Fading: from this pile's draft-release moment if it has one, else from when
+    // the cell first emptied (nut caches, ant-eaten piles that grant no draft).
+    const start = fadeAtCell.get(idx) || cell._leafGone || (cell._leafGone = lastTime);
+    const a = 1 - (lastTime - start) / LEAF_FADE_MS;
+    if (a > 0) _drawLeafHeap(sets, col, row, kind, a);
   });
 }
 
@@ -1291,6 +1311,10 @@ function updateDraftIntro(time) {
       if (!di.released) {
         const scr = camera.worldToScreen(offer.center.x, offer.center.y);
         if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
+        // THIS pile's draft is starting — release its held leaves so they fade now,
+        // as part of the glyph rising (see drawSubstrateLeaves). Other finished piles
+        // stay full on the map until their own draft's turn.
+        if (offer.pile) { offer.pile.draftHeld = false; offer.pile._fadeAt = time; }
         di.released = true;
       }
     }

@@ -90,7 +90,7 @@ export function stepNematodes(state) {
           const bite = claimed.has(seen.id) ? nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed) : seen;
           if (bite && Math.hypot(bite.x - w.x, bite.y - w.y) <= n.reach * cs) {
             const bcell = sub.cellAtWorld(bite.x, bite.y);
-            if (!(bcell && bcell.hardened)) { claimed.add(bite.id); w.feedCd = n.eatEveryTicks; }   // Sclerotial Crust: hardened strands can't be eaten
+            if (!(bcell && bcell.hardened > 0)) { claimed.add(bite.id); w.feedCd = n.eatEveryTicks; }   // Sclerotial Crust: hardened strands can't be eaten (timed)
           }
         } else w.feedCd -= 1;
       } else {

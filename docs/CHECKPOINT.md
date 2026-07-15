@@ -395,6 +395,41 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Defense-card pass: seal fix, timed immunity, warded colour, pill lights, staggered pile fade** (branch same).
+  - **Sclerotial Seal now works + is forgiving + reroutes ants** (`engine/cards.js`, `engine/ants.js`).
+    Was: tap had to land exactly on a nutrient cell (`cellAtWorld(...).nutrient>0`) or nothing happened,
+    and a sealed pile just made the nest idle in place. Now: seals the WHOLE nearest food pile within a
+    generous reach (`cards.sealReach` 8 cells ≈ 288 px) plus loose food in a 3-cell radius, then calls the
+    new exported `recalibrateAnts(state)` — `buildTrail` skips `antProof` food and `stepAnts` retargets a
+    nest whose target is sealed, so the column reroutes to other food immediately. Seal stays permanent
+    (`antProof = 9999`); the pile is consumed anyway.
+  - **Harden/immune are now TIMED (10 rounds), not permanent** (`cards.js`, `config.js`, `turn.js`,
+    `substrate.js`). New `cell.hardened` (eating immunity) is a round COUNTER like `mouldProof` (both aged
+    in `turn.js` after threats act, check-then-age); worm/ant eat checks read `hardened > 0`. New shared
+    `hardenPatch(state, ctx, r, rounds, eat)` sets `mouldProof` (+ `hardened` when `eat`) to
+    `cards.immuneRounds` (10). Applies to Sclerotial Crust, Sclerotial Rind, Crust Reserve (infection
+    only), Suberin Wall (infection only). Card `effect` text updated in `cards-data.js` **and**
+    `docs/cards.json` (e.g. Crust Reserve → "…immune to infection for 10 rounds").
+  - **Protected part of the colony is recoloured** (`render/network.js`, `config.js`, `main.js`). Renderer
+    now takes the substrate; on each structure rebuild (fires after every play/tick) it tags nodes on a
+    hardened/immune cell (`hardened>0 || mouldProof>0`, NOT Rehydration's hidden grace) `n._protected` and
+    strokes them in a new cool-cyan `render.warded` (`#5cd9e6`) — a "crust" sheen distinct from the pale
+    colony and yellow-green mould, in both the batched-LOD and detail paths.
+  - **Rehydration Pulse: +50% radius + hidden anti-reinfection grace** (`cards.js`, `threats.js`,
+    `substrate.js`). Radius 60→90 (`cards.rehydrateRadius`); cured cells get `cell.reinfectGrace = 1`
+    (new field, aged in `turn.js`) so the mould can't re-take the patch on the very next tick.
+    `cellProofed` checks `mouldProof>0 || reinfectGrace>0`. Grace is NOT tinted (kept invisible per the ask).
+  - **Top-left ledger + right actions pill: steady rows show an always-on light, not "/rd"**
+    (`render/ui.js`). `cadenceLightsHTML` renders one lit `.clight.on` (resource-tinted) for `cad<=1`.
+  - **Food piles fade one-by-one with their own draft** (`main.js`, `cards.js`). `offerPileReward` links
+    `offer.pile` and sets `pile.draftHeld`; `drawSubstrateLeaves` keeps a held pile's heap FULL until its
+    draft's glyph rises (`updateDraftIntro` clears `draftHeld` + stamps `pile._fadeAt`), then fades from
+    that moment. So several piles finished in one round vanish as each is drafted, not all at once.
+  - Verified: build clean (0 import leaks), 100 smoke + 60 card green, a 19-check headless engine harness
+    (10-round decay to 0, timed eat immunity, seal whole-pile + ant reroute, grace lapse, draftHeld link),
+    and a browser check (0 console errors; ledger renders the light + no "/rd"; Sclerotial Crust warded
+    7/9 nodes cyan) + a zoomed screenshot confirming the colour reads.
+
 - **Grow SFX trails less after growth stops** (`render/sfx.js`, branch same).
   - Symptom: the grow sound kept ringing well after strands stopped appearing. Two causes:
     (1) `assets/sfx/grow.wav` is a **long, sustained** swell (~2.4 s, loud most of the way — not a

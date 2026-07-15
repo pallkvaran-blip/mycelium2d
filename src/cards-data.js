@@ -186,7 +186,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Tap a point: strands within radius 60 harden — permanently immune to infection and eating.",
+  "effect": "Tap a point: strands nearby harden — immune to infection and eating for 10 rounds.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -373,7 +373,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Pay 3 Water: tap a point; heal all mold damage within radius 60.",
+  "effect": "Pay 3 Water: tap a point; heal all mold damage in a wide area.",
   "family": "water",
   "tutorial": false,
   "startCopies": 0
@@ -543,7 +543,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 2 P to harden a patch, clearing mold and making it immune to future infection.",
+  "effect": "Once per 6 rounds: pay 2 P to harden a patch, clearing mold and making it immune to infection for 10 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -662,7 +662,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 10 rounds: Pay 1 P to permanently seal any food pile from ant access.",
+  "effect": "Once per 10 rounds: Pay 1 P to seal the nearest food pile from ants; they reroute to other food.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -679,7 +679,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and permanently protect from reinfection.",
+  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and protect from reinfection for 10 rounds.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -934,7 +934,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: Pay 1 P to harden strands in a radius — permanently immune to infection and eating.",
+  "effect": "Once per 6 rounds: Pay 1 P to harden strands in a radius — immune to infection and eating for 10 rounds.",
   "family": "defense",
   "tutorial": true,
   "startCopies": 0

@@ -713,8 +713,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "crkv2e";
-globalThis.__BUILD__ = "local 07-15 07:28";
+window.__ASSET_VER = "1j0cqcq";
+globalThis.__BUILD__ = "local 07-15 08:19";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -862,6 +862,14 @@ const CONFIG = {
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
+    // defense durations / radii
+    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall)
+                                 //   grant infection/eating immunity for this many rounds (was permanent)
+    crustRadius: 60,             // Sclerotial Crust / Rind: harden radius
+    reserveRadius: 40,           // Crust Reserve: harden radius
+    suberinRadius: 80,           // Suberin Wall: clear + ward radius
+    rehydrateRadius: 90,         // Rehydration Pulse: heal radius (was 60 → +50%)
+    sealReach: 8,                // Sclerotial Seal: seal the whole nearest food pile within this many cells (forgiving)
   },
 
   // ---- Growth: 2D space-colonization (A8, B2) ----------------------------
@@ -1050,6 +1058,8 @@ const CONFIG = {
     trich: '#8aa23e',
     trichSpore: '#d2e074',
     infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
+    warded: '#5cd9e6',           // a strand hardened/warded by a defense card — a cool cyan "crust"
+                                 //   sheen, distinct from the pale-mint colony and yellow-green mould
     // the living network (luminous accent — the brightest thing on screen)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
@@ -1310,7 +1320,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Tap a point: strands within radius 60 harden — permanently immune to infection and eating.",
+  "effect": "Tap a point: strands nearby harden — immune to infection and eating for 10 rounds.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -1497,7 +1507,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Pay 3 Water: tap a point; heal all mold damage within radius 60.",
+  "effect": "Pay 3 Water: tap a point; heal all mold damage in a wide area.",
   "family": "water",
   "tutorial": false,
   "startCopies": 0
@@ -1667,7 +1677,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 2 P to harden a patch, clearing mold and making it immune to future infection.",
+  "effect": "Once per 6 rounds: pay 2 P to harden a patch, clearing mold and making it immune to infection for 10 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -1786,7 +1796,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 10 rounds: Pay 1 P to permanently seal any food pile from ant access.",
+  "effect": "Once per 10 rounds: Pay 1 P to seal the nearest food pile from ants; they reroute to other food.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -1803,7 +1813,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "mould",
   "produces": "",
-  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and permanently protect from reinfection.",
+  "effect": "Once per 8 rounds: Pay 3 P to tap a point to clear all infection and protect from reinfection for 10 rounds.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -2058,7 +2068,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: Pay 1 P to harden strands in a radius — permanently immune to infection and eating.",
+  "effect": "Once per 6 rounds: Pay 1 P to harden strands in a radius — immune to infection and eating for 10 rounds.",
   "family": "defense",
   "tutorial": true,
   "startCopies": 0
@@ -2211,7 +2221,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, bored: false, pathClear: false, rockFill: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '' };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -3709,7 +3719,7 @@ function stepNematodes(state) {
           const bite = claimed.has(seen.id) ? nearestVisibleNode(sub, nodes, w, n.sightRadius, claimed) : seen;
           if (bite && Math.hypot(bite.x - w.x, bite.y - w.y) <= n.reach * cs) {
             const bcell = sub.cellAtWorld(bite.x, bite.y);
-            if (!(bcell && bcell.hardened)) { claimed.add(bite.id); w.feedCd = n.eatEveryTicks; }   // Sclerotial Crust: hardened strands can't be eaten
+            if (!(bcell && bcell.hardened > 0)) { claimed.add(bite.id); w.feedCd = n.eatEveryTicks; }   // Sclerotial Crust: hardened strands can't be eaten (timed)
           }
         } else w.feedCd -= 1;
       } else {
@@ -4106,12 +4116,14 @@ function infectNetwork(net, state) {
   for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
 }
 
-// A node sitting on a cell warded by Suberin Wall (cell.mouldProof > 0) is immune
-// to fresh infection for the duration of the ward.
+// A node sitting on a warded cell is immune to fresh infection for the ward's
+// duration. `mouldProof` is the visible harden/immune ward (Suberin Wall, Crust
+// Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden
+// one-round grace so a heal isn't re-taken by the mould on the very next tick.
 function cellProofed(sub, n) {
   if (!sub) return false;
   const c = sub.cellAtWorld(n.x, n.y);
-  return !!(c && c.mouldProof > 0);
+  return !!(c && (c.mouldProof > 0 || c.reinfectGrace > 0));
 }
 
 // Flood infection outward from `seed` up to `depth` rings along the graph
@@ -4212,19 +4224,17 @@ function stepAnts(state) {
   if (!nests || !nests.length) return;
   for (const nest of nests) {
     let cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
-    if (!cell || cell.nutrient <= 0) {
+    // Retarget when the target is empty OR has been SEALED against ants (Sclerotial
+    // Seal): buildTrail skips sealed food, so the nest reroutes to the next pile.
+    if (!cell || cell.nutrient <= 0 || cell.antProof > 0) {
       retarget(sub, nest);
       cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
     }
-    if (cell && cell.antProof > 0) {
-      // Card effect (Sclerotial Seal): this pile is sealed against ant theft.
-      cell.antProof -= 1;
-      nest.dormant = false;
-    } else if (cell && cell.nutrient > 0) {
+    if (cell && cell.nutrient > 0 && !(cell.antProof > 0)) {
       cell.nutrient = Math.max(0, cell.nutrient - state.config.ants.harvestRate);
       nest.dormant = false;
     } else {
-      nest.dormant = true;   // no reachable food left
+      nest.dormant = true;   // no reachable UNSEALED food left
     }
     nest.phase = (nest.phase || 0) + 1;
   }
@@ -4252,6 +4262,16 @@ function attackNest(state, x, y, radius, frac) {
   return { hp: best.hp, maxHp: best.maxHp, dead: false };
 }
 
+// Re-plan every nest's trail immediately (Sclerotial Seal): buildTrail skips
+// sealed (antProof) food, so a nest bound for a pile the player just sealed
+// reroutes to the next reachable food, and the trail barrier is re-stamped now.
+function recalibrateAnts(state) {
+  const sub = state.substrate, nests = state.ants || [];
+  if (!sub || !nests.length) return;
+  for (const nest of nests) retarget(sub, nest);
+  setTrailFields(sub, nests);
+}
+
 // --- internals --------------------------------------------------------------
 
 // Point a nest at the nearest reachable food and lay its trail there.
@@ -4274,7 +4294,7 @@ function buildTrail(sub, nestCol, nestRow) {
   while (head < q.length) {
     const cur = q[head++];
     const cell = sub.cells[cur];
-    if (cell.nutrient > 0 && cur !== start) { foodIdx = cur; break; }  // nearest food (BFS order)
+    if (cell.nutrient > 0 && cur !== start && !(cell.antProof > 0)) { foodIdx = cur; break; }  // nearest UNSEALED food (BFS order)
     const c = cur % W, r = (cur / W) | 0;
     for (const [dc, dr] of nbrs) {
       const nc = c + dc, nr = r + dr;
@@ -4314,13 +4334,13 @@ function eatStrandsOnTrail(state) {
     const remove = new Set();
     for (const n of net.nodes) {
       const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail && !cell.hardened) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof
+      if (cell && cell.antTrail && !(cell.hardened > 0)) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof (timed)
     }
     if (remove.size) net._removeNodes(remove);
   }
 }
 
-  return { seedAnts, stepAnts, attackNest };
+  return { seedAnts, stepAnts, attackNest, recalibrateAnts };
 })();
 
 // ===================== src/engine/puzzle.js =====================
@@ -4532,7 +4552,7 @@ function newRun(config, seed) {
 // ===================== src/engine/cards.js =====================
 const __m_engine_cards = (function () {
   const { CARD_DATA, CARD_BY_NAME } = __m_cards_data;
-  const { attackNest } = __m_engine_ants;
+  const { attackNest, recalibrateAnts } = __m_engine_ants;
 // =============================================================================
 // Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
 //
@@ -4552,7 +4572,8 @@ const __m_engine_cards = (function () {
 // (main.js handler / test), exactly like performAction/afterAction.
 // =============================================================================
 
-// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill).
+// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill);
+// Sclerotial Seal reroutes ants off a sealed pile (recalibrateAnts).
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over
@@ -4728,6 +4749,12 @@ function offerPileReward(state, pile) {
     if (n) center = { x: sx / n, y: sy / n };
   }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
+  // Link the pile to its offer so the render layer can HOLD the pile's leaves on the
+  // map (draftHeld) until THIS pile's draft actually starts, then fade them as part
+  // of that draft — instead of every finished pile vanishing at once (see main.js
+  // drawSubstrateLeaves / updateDraftIntro).
+  const offer = state.cards.pendingOffers[state.cards.pendingOffers.length - 1];
+  if (offer) { offer.pile = pile; if (pile) pile.draftHeld = true; }
 }
 
 function checkPileRewards(state) {
@@ -5090,6 +5117,39 @@ function cureRadius(state, ctx, r) {
   state.active.recomputeVitality();
   return healed;
 }
+// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall): clear
+// mould in radius `r`, then grant TIMED immunity for `rounds` rounds — infection
+// (cell.mouldProof, checked in threats.js) always, plus eating (cell.hardened,
+// checked in nematodes.js/ants.js) when `eat`. Aged down each round in turn.js, so
+// the protection now LAPSES rather than lasting the whole run. Wards a hair wider
+// than the cure (cure tests node position, the ward tests cell centre) so every
+// cured node's cell is covered — no cured-but-unwarded rim. Returns strands healed.
+function hardenPatch(state, ctx, r, rounds, eat) {
+  const h = cureRadius(state, ctx, r);
+  state.substrate.cellsInRadius(ctx.x, ctx.y, r + state.substrate.cellSize, (cl) => {
+    cl.mouldProof = Math.max(cl.mouldProof, rounds);   // never shorten an existing ward
+    if (eat) cl.hardened = Math.max(cl.hardened, rounds);
+  });
+  return h;
+}
+// The MAP food pile nearest a world point, considering only piles that still hold
+// food and lie within `maxDist` (px) of the point — so Sclerotial Seal can seal the
+// whole pile you aimed at even from a sloppy tap near its edge. null if none close.
+function nearestFoodPile(sub, x, y, maxDist) {
+  const piles = sub.foodPiles || [];
+  let best = null, bestD = maxDist != null ? maxDist * maxDist : Infinity;
+  for (const p of piles) {
+    for (const idx of p.cells) {
+      const cl = sub.cells[idx];
+      if (!cl || cl.maxNutrient <= 0) continue;
+      const col = idx % sub.cols, row = Math.floor(idx / sub.cols);
+      const c = sub.cellCenter(col, row);
+      const d = (c.x - x) ** 2 + (c.y - y) ** 2;
+      if (d < bestD) { bestD = d; best = p; }
+    }
+  }
+  return best;
+}
 
 // --- the effect registry (all 40 cards) -------------------------------------
 const grow = (fn) => ({ apply: fn });
@@ -5266,22 +5326,27 @@ const EFFECTS = {
   // --- defense (best-effort v1) ---
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
   'Sclerotial Crust': targeted((s, c, ctx) => {
-    const h = cureRadius(s, ctx, 60);
-    // Permanent immunity to BOTH infection (mouldProof) and eating (hardened →
-    // worms/ants skip these cells in nematodes.js / ants.js).
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
-    return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+    // Timed immunity to BOTH infection (mouldProof) and eating (hardened → worms/
+    // ants skip these cells) for immuneRounds rounds — no longer permanent.
+    const R = s.config.cards;
+    const h = hardenPatch(s, ctx, R.crustRadius, R.immuneRounds, true);
+    return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune for ${R.immuneRounds} rounds.` : `Hardened the patch — immune for ${R.immuneRounds} rounds.` };
   }),
-  'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
+  'Rehydration Pulse': targeted((s, c, ctx) => {
+    const R = s.config.cards;
+    const h = cureRadius(s, ctx, R.rehydrateRadius);
+    // Hidden 1-round grace: the healed cells resist reinfection for the round that
+    // follows, so the mould can't immediately re-take the patch. Not shown on the card.
+    s.substrate.cellsInRadius(ctx.x, ctx.y, R.rehydrateRadius + s.substrate.cellSize, (cl) => { cl.reinfectGrace = Math.max(cl.reinfectGrace, 1); });
+    return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' };
+  }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
-  // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + permanent ward', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
-    const h = cureRadius(s, ctx, 80);
-    // Ward a hair wider than the cure (cure tests node position, the ward tests cell
-    // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent reinfection ward
-    return { ok: true, message: h ? `Cured ${h} strands; permanently warded.` : 'Permanently warded the area against mould.' };
+  // Suberin Wall: every 8 rounds, tap a point → cure all infection in radius AND
+  // ward the cells there against reinfection for immuneRounds rounds (cell.mouldProof).
+  'Suberin Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+    const R = s.config.cards;
+    const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
+    return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
@@ -5296,12 +5361,21 @@ const EFFECTS = {
     (s.traps || (s.traps = [])).push({ x: ctx.x, y: ctx.y, r, reward: 2 });
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
-  // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
-    const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
-    if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
-    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
-    return { ok: true, message: 'Sealed the pile — permanently ant-proof.' };
+  // Sclerotial Seal: once per 10 rounds, pay 1 P, tap near a food pile → seal the
+  // WHOLE pile against ants. FORGIVING — it seals the nearest pile within a generous
+  // reach (not just the cell under the tap), then RECALIBRATES the ants so any nest
+  // bound for it reroutes to other food (buildTrail now skips sealed piles).
+  'Sclerotial Seal': action({ effect: 'seal a nearby food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+    const sub = s.substrate;
+    let sealed = 0;
+    // Seal the whole nearest MAP pile within a generous reach…
+    const pile = nearestFoodPile(sub, ctx.x, ctx.y, sub.cellSize * s.config.cards.sealReach);
+    if (pile) for (const idx of pile.cells) { const cl = sub.cells[idx]; if (cl && cl.maxNutrient > 0 && cl.antProof <= 0) { cl.antProof = 9999; sealed++; } }
+    // …plus any loose food cells (e.g. buried nut caches) right around the tap.
+    sub.cellsInRadius(ctx.x, ctx.y, sub.cellSize * 3, (cl) => { if (cl.maxNutrient > 0 && cl.antProof <= 0) { cl.antProof = 9999; sealed++; } });
+    if (!sealed) return { ok: false, message: 'No food pile near there to seal — aim at a leaf pile.' };
+    recalibrateAnts(s);   // ants heading for the sealed pile reroute to other food NOW
+    return { ok: true, message: `Sealed the food pile from ants (${sealed} cells) — the ants reroute.` };
   }),
 };
 
@@ -5351,10 +5425,10 @@ EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cos
   depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
   return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };
 });
-EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune after)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-  const h = cureRadius(s, ctx, 40);
-  s.substrate.cellsInRadius(ctx.x, ctx.y, 40 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // immune to future infection
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to future infection.` : 'Hardened the patch — immune to future infection.' };
+EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+  const R = s.config.cards;
+  const h = hardenPatch(s, ctx, R.reserveRadius, R.immuneRounds, false);   // infection immunity only, for immuneRounds rounds
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to infection for ${R.immuneRounds} rounds.` : `Hardened the patch — immune to infection for ${R.immuneRounds} rounds.` };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
@@ -5391,12 +5465,13 @@ EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', ev
   (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
 
 // --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
-// Every 6 rounds, pay 1 P to harden strands in a radius — permanent immunity to
-// BOTH infection (mouldProof) and eating (hardened), same as the one-shot Crust.
+// Every 6 rounds, pay 1 P to harden strands in a radius — TIMED immunity to BOTH
+// infection (mouldProof) and eating (hardened) for immuneRounds rounds, same as
+// the one-shot Crust.
 EFFECTS['Sclerotial Rind'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
-  const h = cureRadius(s, ctx, 60);
-  s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+  const R = s.config.cards;
+  const h = hardenPatch(s, ctx, R.crustRadius, R.immuneRounds, true);
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune for ${R.immuneRounds} rounds.` : `Hardened the patch — immune for ${R.immuneRounds} rounds.` };
 });
 
 // --- anti-nematode & anti-ant predation (real fungal biology) ----------------
@@ -5558,9 +5633,16 @@ function tickWorld(state) {
     state.log('The colony has been devoured — every strand is gone. Run over.', 'warn');
   }
 
-  // Age reinfection wards (Suberin Wall) AFTER infection resolves this tick, so a
-  // ward set to N protects for N full rounds (check-then-age, like antProof).
-  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+  // Age the timed defense wards AFTER the threats have acted this tick, so a ward
+  // set to N protects for N full rounds (check-then-age):
+  //   • mouldProof   — infection immunity (Suberin Wall, Crust Reserve, Sclerotial Crust/Rind)
+  //   • hardened     — eating immunity vs worms/ants (Sclerotial Crust/Rind)
+  //   • reinfectGrace — Rehydration Pulse's hidden 1-round anti-reinfection window
+  for (const cell of substrate.cells) {
+    if (cell.mouldProof > 0) cell.mouldProof -= 1;
+    if (cell.hardened > 0) cell.hardened -= 1;
+    if (cell.reinfectGrace > 0) cell.reinfectGrace -= 1;
+  }
 
   // Card layer (only when active): installed engines produce, then the goal /
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.
@@ -6886,9 +6968,13 @@ const __m_render_network = (function () {
 
 
 class NetworkRenderer {
-  constructor(network, config) {
+  constructor(network, config, substrate = null) {
     this.network = network;
     this.config = config;
+    // The substrate lets structure rebuilds tag each node as "warded" (sitting on a
+    // cell hardened/immune by a defense card) so those strands stroke in a distinct
+    // colour. Optional so headless/test callers can omit it (then nothing is warded).
+    this.substrate = substrate;
     this.structureDirty = true;
     // The structure is drawn per-frame as VECTORS under a world→screen transform
     // (below), so the fine hyphae stay crisp at any zoom / device-pixel-ratio.
@@ -6932,9 +7018,22 @@ class NetworkRenderer {
     const NB = BW.length;
     const creamPaths = BW.map(() => new Path2D());
     const infectedPath = new Path2D();
+    const protectedPath = new Path2D();
+    // A node is "warded" when it sits on a cell hardened/immune by a defense card
+    // (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall). Recomputed here on every
+    // structure rebuild — which is triggered after each card play / world tick — so
+    // the colour follows the ward as it's applied and as it lapses. Rehydration's
+    // hidden reinfectGrace is deliberately NOT counted, so its heal shows no tint.
+    const sub = this.substrate;
+    const isWarded = (node) => {
+      if (!sub) return false;
+      const c = sub.cellAtWorld(node.x, node.y);
+      return !!(c && (c.hardened > 0 || c.mouldProof > 0));
+    };
 
     for (const n of net.nodes) {
       if (n.children.length === 0) this.tips.push(n);
+      n._protected = isWarded(n);
       if (n.parentId != null) {
         const p = net.byId.get(n.parentId);
         if (p) {
@@ -6952,7 +7051,7 @@ class NetworkRenderer {
           const perpx = -dy / len, perpy = dx / len;
           const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
           const mx = (p.x + n.x) / 2 + perpx * meander, my = (p.y + n.y) / 2 + perpy * meander;
-          const path = n.infected ? infectedPath : creamPaths[bi];
+          const path = n._protected ? protectedPath : (n.infected ? infectedPath : creamPaths[bi]);
           path.moveTo(p.x, p.y);
           path.quadraticCurveTo(mx, my, n.x, n.y);
         }
@@ -6961,6 +7060,7 @@ class NetworkRenderer {
     this.batches = {
       cream: creamPaths.map((path, i) => ({ w: BW[i], path })),
       infected: { w: 1.2, path: infectedPath },
+      protected: { w: 1.4, path: protectedPath },   // warded strands — a touch heavier so the crust reads
     };
     this._builtNodeCount = net.nodes.length;
 
@@ -6997,6 +7097,8 @@ class NetworkRenderer {
     for (const b of this.batches.cream) { ctx.lineWidth = b.w; ctx.stroke(b.path); }
     const inf = this.batches.infected;
     ctx.strokeStyle = r.infected; ctx.lineWidth = inf.w; ctx.stroke(inf.path);
+    const prot = this.batches.protected;
+    if (prot) { ctx.strokeStyle = r.warded; ctx.lineWidth = prot.w; ctx.stroke(prot.path); }
     ctx.globalAlpha = 1;
   }
 
@@ -7011,6 +7113,8 @@ class NetworkRenderer {
     const r = this.config.render;
     const fil = hexToRgb(r.filament);
     const cream = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+    const warded = r.warded;   // strands hardened/immune by a defense card (cool cyan crust)
+    const strandColor = (n) => (n._protected ? warded : (n.infected ? r.infected : cream));
     const AGE_FULL = 7;
     const { minX, maxX, minY, maxY } = cull;
 
@@ -7035,7 +7139,7 @@ class NetworkRenderer {
         if (rev <= 0) continue;                       // not grown here yet — skip strand + decoration
         if (rev < 1) {
           const ex = p.x + (n.x - p.x) * rev, ey = p.y + (n.y - p.y) * rev;
-          ctx.strokeStyle = n.infected ? r.infected : cream;
+          ctx.strokeStyle = strandColor(n);
           ctx.lineWidth = 1.0 + Math.min(0.55, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.13);
           ctx.globalAlpha = 0.95 * brightness * rev;
           ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
@@ -7050,9 +7154,9 @@ class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      // Infected strands render green (overrun by mould); otherwise constant
-      // cream (look is independent of vitality/health).
-      ctx.strokeStyle = n.infected ? r.infected : cream;
+      // Warded strands (defense-card immunity) render cyan; infected ones green
+      // (overrun by mould); otherwise constant cream (independent of vitality).
+      ctx.strokeStyle = strandColor(n);
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere.
       // Narrower spread between trunk and fine strands: thinner main cords, a
@@ -8062,9 +8166,9 @@ class UI {
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
-    // Cadence indicator (shared with the Actions menu): a steady producer shows
-    // "/rd"; one that fires every N rounds shows N lights counting DOWN to the
-    // payout — all lit when freshly charged, one lit when it fires next round.
+    // Cadence indicator (shared with the Actions menu): a steady producer shows a
+    // single always-on light; one that fires every N rounds shows N lights counting
+    // DOWN to the payout — all lit when freshly charged, one lit when it fires next round.
     const CK = { energy: 'e', water: 'w', phosphorus: 'p' };
     const block = (key, glyph) => {
       const g = sum[key]; if (!g.rows.size) return '';
@@ -8872,14 +8976,17 @@ function summarizeEngines(engines) {
 }
 
 // Cadence display shared by the LEFT ledger and the RIGHT actions menu, so round
-// times read identically on both corners: a steady per-round item shows "/rd"; a
-// cadenced one shows `cad` dots with `lit` of them on. For a producer/auto, `lit`
+// times read identically on both corners: a steady per-round item shows a single
+// always-on light; a cadenced one shows `cad` dots with `lit` of them on. For a producer/auto, `lit`
 // = rounds remaining until its next payout/fire. For a player action it's a CHARGE
 // meter — full = ready to use (so a freshly-installed, usable action shows all dots
 // lit), draining to empty right after a use and refilling as the cooldown ticks.
 // `ck` tints the lit dots: 'e'/'w'/'p' by resource, 't' for a timed ability.
 function cadenceLightsHTML(cad, lit, ck = 't', title) {
-  if (!cad || cad <= 1) return `<span class="ecad">/rd</span>`;
+  // A steady, every-round item shows a single ALWAYS-ON light (the same glowing dot
+  // as the cadenced meter, resource-tinted) instead of a "/rd" tag — so every row on
+  // both pills reads with a light.
+  if (!cad || cad <= 1) return `<span class="ecad cad ck-${ck}" title="${title != null ? title : 'every round'}"><i class="clight on"></i></span>`;
   let dots = '';
   for (let i = 0; i < cad; i++) dots += `<i class="clight${i < lit ? ' on' : ''}"></i>`;
   const t = title != null ? title : `every ${cad} rounds · ${lit} left`;
@@ -9131,12 +9238,12 @@ function begin(newState) {
 function buildRenderers() {
   substrateRenderer = new SubstrateRenderer(state.substrate, state.config, state.seed);
   networkRenderers.clear();
-  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config));
+  for (const net of state.networks) networkRenderers.set(net.id, new NetworkRenderer(net, state.config, state.substrate));
 }
 
 function rendererFor(net) {
   let r = networkRenderers.get(net.id);
-  if (!r) { r = new NetworkRenderer(net, state.config); networkRenderers.set(net.id, r); }
+  if (!r) { r = new NetworkRenderer(net, state.config, state.substrate); networkRenderers.set(net.id, r); }
   return r;
 }
 
@@ -10208,17 +10315,37 @@ function drawSubstrateLeaves() {
   const sets = _leafSets();
   if (!sets.leaves && !sets.nuts && !sets.red) return;
   const sub = state.substrate;
+  // A digested MAP pile keeps its full heap until ITS OWN draft starts, so several
+  // piles finished in the same round vanish one-by-one as each is drafted — not all
+  // at once. `pile.draftHeld` (set when the pile's offer is queued) holds the heap
+  // full; `pile._fadeAt` (set when that draft's glyph rises) starts the fade. Nut
+  // piles / ant-eaten piles (no draft) fall back to fading from when the cell emptied.
+  const heldCells = new Set();
+  const fadeAtCell = new Map();
+  for (const p of (sub.foodPiles || [])) {
+    if (p.draftHeld) { for (const idx of p.cells) heldCells.add(idx); }
+    else if (p._fadeAt) { for (const idx of p.cells) fadeAtCell.set(idx, p._fadeAt); }
+  }
   sub.forEachCell((cell, col, row) => {
     if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
     const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'nut'
     if (cell.nutrient > 0) {
       cell._leafGone = 0;                                 // still has food → full heap, no fade
       _drawLeafHeap(sets, col, row, kind, 1);
-    } else if (cell.maxNutrient > 0) {                    // just emptied → fade the same heap out, then stop
-      if (!cell._leafGone) cell._leafGone = lastTime;
-      const a = 1 - (lastTime - cell._leafGone) / LEAF_FADE_MS;
-      if (a > 0) _drawLeafHeap(sets, col, row, kind, a);
+      return;
     }
+    if (cell.maxNutrient <= 0) return;                    // never had food
+    const idx = sub.index(col, row);
+    if (heldCells.has(idx)) {                             // digested but awaiting its draft → stay full
+      cell._leafGone = 0;
+      _drawLeafHeap(sets, col, row, kind, 1);
+      return;
+    }
+    // Fading: from this pile's draft-release moment if it has one, else from when
+    // the cell first emptied (nut caches, ant-eaten piles that grant no draft).
+    const start = fadeAtCell.get(idx) || cell._leafGone || (cell._leafGone = lastTime);
+    const a = 1 - (lastTime - start) / LEAF_FADE_MS;
+    if (a > 0) _drawLeafHeap(sets, col, row, kind, a);
   });
 }
 
@@ -10283,6 +10410,10 @@ function updateDraftIntro(time) {
       if (!di.released) {
         const scr = camera.worldToScreen(offer.center.x, offer.center.y);
         if (ui && ui.releaseOffer) ui.releaseOffer(scr);   // glyph rises here, then morphs into the panel
+        // THIS pile's draft is starting — release its held leaves so they fade now,
+        // as part of the glyph rising (see drawSubstrateLeaves). Other finished piles
+        // stay full on the map until their own draft's turn.
+        if (offer.pile) { offer.pile.draftHeld = false; offer.pile._fadeAt = time; }
         di.released = true;
       }
     }

@@ -76,9 +76,16 @@ export function tickWorld(state) {
     state.log('The colony has been devoured — every strand is gone. Run over.', 'warn');
   }
 
-  // Age reinfection wards (Suberin Wall) AFTER infection resolves this tick, so a
-  // ward set to N protects for N full rounds (check-then-age, like antProof).
-  for (const cell of substrate.cells) if (cell.mouldProof > 0) cell.mouldProof -= 1;
+  // Age the timed defense wards AFTER the threats have acted this tick, so a ward
+  // set to N protects for N full rounds (check-then-age):
+  //   • mouldProof   — infection immunity (Suberin Wall, Crust Reserve, Sclerotial Crust/Rind)
+  //   • hardened     — eating immunity vs worms/ants (Sclerotial Crust/Rind)
+  //   • reinfectGrace — Rehydration Pulse's hidden 1-round anti-reinfection window
+  for (const cell of substrate.cells) {
+    if (cell.mouldProof > 0) cell.mouldProof -= 1;
+    if (cell.hardened > 0) cell.hardened -= 1;
+    if (cell.reinfectGrace > 0) cell.reinfectGrace -= 1;
+  }
 
   // Card layer (only when active): installed engines produce, then the goal /
   // card-dry checks run. Guarded on state.cards so the plain sim is untouched.

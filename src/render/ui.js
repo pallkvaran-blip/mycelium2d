@@ -480,9 +480,9 @@ export class UI {
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
-    // Cadence indicator (shared with the Actions menu): a steady producer shows
-    // "/rd"; one that fires every N rounds shows N lights counting DOWN to the
-    // payout — all lit when freshly charged, one lit when it fires next round.
+    // Cadence indicator (shared with the Actions menu): a steady producer shows a
+    // single always-on light; one that fires every N rounds shows N lights counting
+    // DOWN to the payout — all lit when freshly charged, one lit when it fires next round.
     const CK = { energy: 'e', water: 'w', phosphorus: 'p' };
     const block = (key, glyph) => {
       const g = sum[key]; if (!g.rows.size) return '';
@@ -1290,14 +1290,17 @@ function summarizeEngines(engines) {
 }
 
 // Cadence display shared by the LEFT ledger and the RIGHT actions menu, so round
-// times read identically on both corners: a steady per-round item shows "/rd"; a
-// cadenced one shows `cad` dots with `lit` of them on. For a producer/auto, `lit`
+// times read identically on both corners: a steady per-round item shows a single
+// always-on light; a cadenced one shows `cad` dots with `lit` of them on. For a producer/auto, `lit`
 // = rounds remaining until its next payout/fire. For a player action it's a CHARGE
 // meter — full = ready to use (so a freshly-installed, usable action shows all dots
 // lit), draining to empty right after a use and refilling as the cooldown ticks.
 // `ck` tints the lit dots: 'e'/'w'/'p' by resource, 't' for a timed ability.
 function cadenceLightsHTML(cad, lit, ck = 't', title) {
-  if (!cad || cad <= 1) return `<span class="ecad">/rd</span>`;
+  // A steady, every-round item shows a single ALWAYS-ON light (the same glowing dot
+  // as the cadenced meter, resource-tinted) instead of a "/rd" tag — so every row on
+  // both pills reads with a light.
+  if (!cad || cad <= 1) return `<span class="ecad cad ck-${ck}" title="${title != null ? title : 'every round'}"><i class="clight on"></i></span>`;
   let dots = '';
   for (let i = 0; i < cad; i++) dots += `<i class="clight${i < lit ? ' on' : ''}"></i>`;
   const t = title != null ? title : `every ${cad} rounds · ${lit} left`;

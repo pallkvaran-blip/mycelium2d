@@ -14,9 +14,13 @@
 import { playGrowBurst } from './sfx.js';
 
 export class NetworkRenderer {
-  constructor(network, config) {
+  constructor(network, config, substrate = null) {
     this.network = network;
     this.config = config;
+    // The substrate lets structure rebuilds tag each node as "warded" (sitting on a
+    // cell hardened/immune by a defense card) so those strands stroke in a distinct
+    // colour. Optional so headless/test callers can omit it (then nothing is warded).
+    this.substrate = substrate;
     this.structureDirty = true;
     // The structure is drawn per-frame as VECTORS under a world→screen transform
     // (below), so the fine hyphae stay crisp at any zoom / device-pixel-ratio.
@@ -60,9 +64,22 @@ export class NetworkRenderer {
     const NB = BW.length;
     const creamPaths = BW.map(() => new Path2D());
     const infectedPath = new Path2D();
+    const protectedPath = new Path2D();
+    // A node is "warded" when it sits on a cell hardened/immune by a defense card
+    // (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall). Recomputed here on every
+    // structure rebuild — which is triggered after each card play / world tick — so
+    // the colour follows the ward as it's applied and as it lapses. Rehydration's
+    // hidden reinfectGrace is deliberately NOT counted, so its heal shows no tint.
+    const sub = this.substrate;
+    const isWarded = (node) => {
+      if (!sub) return false;
+      const c = sub.cellAtWorld(node.x, node.y);
+      return !!(c && (c.hardened > 0 || c.mouldProof > 0));
+    };
 
     for (const n of net.nodes) {
       if (n.children.length === 0) this.tips.push(n);
+      n._protected = isWarded(n);
       if (n.parentId != null) {
         const p = net.byId.get(n.parentId);
         if (p) {
@@ -80,7 +97,7 @@ export class NetworkRenderer {
           const perpx = -dy / len, perpy = dx / len;
           const meander = Math.min(len * 0.22, 4.5) * (nh(n.id, 1) * 2 - 1);
           const mx = (p.x + n.x) / 2 + perpx * meander, my = (p.y + n.y) / 2 + perpy * meander;
-          const path = n.infected ? infectedPath : creamPaths[bi];
+          const path = n._protected ? protectedPath : (n.infected ? infectedPath : creamPaths[bi]);
           path.moveTo(p.x, p.y);
           path.quadraticCurveTo(mx, my, n.x, n.y);
         }
@@ -89,6 +106,7 @@ export class NetworkRenderer {
     this.batches = {
       cream: creamPaths.map((path, i) => ({ w: BW[i], path })),
       infected: { w: 1.2, path: infectedPath },
+      protected: { w: 1.4, path: protectedPath },   // warded strands — a touch heavier so the crust reads
     };
     this._builtNodeCount = net.nodes.length;
 
@@ -125,6 +143,8 @@ export class NetworkRenderer {
     for (const b of this.batches.cream) { ctx.lineWidth = b.w; ctx.stroke(b.path); }
     const inf = this.batches.infected;
     ctx.strokeStyle = r.infected; ctx.lineWidth = inf.w; ctx.stroke(inf.path);
+    const prot = this.batches.protected;
+    if (prot) { ctx.strokeStyle = r.warded; ctx.lineWidth = prot.w; ctx.stroke(prot.path); }
     ctx.globalAlpha = 1;
   }
 
@@ -139,6 +159,8 @@ export class NetworkRenderer {
     const r = this.config.render;
     const fil = hexToRgb(r.filament);
     const cream = `rgb(${fil[0]},${fil[1]},${fil[2]})`;
+    const warded = r.warded;   // strands hardened/immune by a defense card (cool cyan crust)
+    const strandColor = (n) => (n._protected ? warded : (n.infected ? r.infected : cream));
     const AGE_FULL = 7;
     const { minX, maxX, minY, maxY } = cull;
 
@@ -163,7 +185,7 @@ export class NetworkRenderer {
         if (rev <= 0) continue;                       // not grown here yet — skip strand + decoration
         if (rev < 1) {
           const ex = p.x + (n.x - p.x) * rev, ey = p.y + (n.y - p.y) * rev;
-          ctx.strokeStyle = n.infected ? r.infected : cream;
+          ctx.strokeStyle = strandColor(n);
           ctx.lineWidth = 1.0 + Math.min(0.55, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.13);
           ctx.globalAlpha = 0.95 * brightness * rev;
           ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
@@ -178,9 +200,9 @@ export class NetworkRenderer {
       const baseAng = Math.atan2(uy, ux);
       const isTip = n.children.length === 0;
       const ageF = Math.min(1, n.age / AGE_FULL);
-      // Infected strands render green (overrun by mould); otherwise constant
-      // cream (look is independent of vitality/health).
-      ctx.strokeStyle = n.infected ? r.infected : cream;
+      // Warded strands (defense-card immunity) render cyan; infected ones green
+      // (overrun by mould); otherwise constant cream (independent of vitality).
+      ctx.strokeStyle = strandColor(n);
 
       // main hypha — at most a slim 2-strand cord near the trunk; fine elsewhere.
       // Narrower spread between trunk and fine strands: thinner main cords, a

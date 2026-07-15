@@ -18,8 +18,9 @@
 // =============================================================================
 
 import { CARD_DATA, CARD_BY_NAME } from '../cards-data.js';
-// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill).
-import { attackNest } from './ants.js';
+// Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill);
+// Sclerotial Seal reroutes ants off a sealed pile (recalibrateAnts).
+import { attackNest, recalibrateAnts } from './ants.js';
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over
@@ -195,6 +196,12 @@ function offerPileReward(state, pile) {
     if (n) center = { x: sx / n, y: sy / n };
   }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
+  // Link the pile to its offer so the render layer can HOLD the pile's leaves on the
+  // map (draftHeld) until THIS pile's draft actually starts, then fade them as part
+  // of that draft — instead of every finished pile vanishing at once (see main.js
+  // drawSubstrateLeaves / updateDraftIntro).
+  const offer = state.cards.pendingOffers[state.cards.pendingOffers.length - 1];
+  if (offer) { offer.pile = pile; if (pile) pile.draftHeld = true; }
 }
 
 export function checkPileRewards(state) {
@@ -557,6 +564,39 @@ function cureRadius(state, ctx, r) {
   state.active.recomputeVitality();
   return healed;
 }
+// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall): clear
+// mould in radius `r`, then grant TIMED immunity for `rounds` rounds — infection
+// (cell.mouldProof, checked in threats.js) always, plus eating (cell.hardened,
+// checked in nematodes.js/ants.js) when `eat`. Aged down each round in turn.js, so
+// the protection now LAPSES rather than lasting the whole run. Wards a hair wider
+// than the cure (cure tests node position, the ward tests cell centre) so every
+// cured node's cell is covered — no cured-but-unwarded rim. Returns strands healed.
+function hardenPatch(state, ctx, r, rounds, eat) {
+  const h = cureRadius(state, ctx, r);
+  state.substrate.cellsInRadius(ctx.x, ctx.y, r + state.substrate.cellSize, (cl) => {
+    cl.mouldProof = Math.max(cl.mouldProof, rounds);   // never shorten an existing ward
+    if (eat) cl.hardened = Math.max(cl.hardened, rounds);
+  });
+  return h;
+}
+// The MAP food pile nearest a world point, considering only piles that still hold
+// food and lie within `maxDist` (px) of the point — so Sclerotial Seal can seal the
+// whole pile you aimed at even from a sloppy tap near its edge. null if none close.
+function nearestFoodPile(sub, x, y, maxDist) {
+  const piles = sub.foodPiles || [];
+  let best = null, bestD = maxDist != null ? maxDist * maxDist : Infinity;
+  for (const p of piles) {
+    for (const idx of p.cells) {
+      const cl = sub.cells[idx];
+      if (!cl || cl.maxNutrient <= 0) continue;
+      const col = idx % sub.cols, row = Math.floor(idx / sub.cols);
+      const c = sub.cellCenter(col, row);
+      const d = (c.x - x) ** 2 + (c.y - y) ** 2;
+      if (d < bestD) { bestD = d; best = p; }
+    }
+  }
+  return best;
+}
 
 // --- the effect registry (all 40 cards) -------------------------------------
 const grow = (fn) => ({ apply: fn });
@@ -733,22 +773,27 @@ export const EFFECTS = {
   // --- defense (best-effort v1) ---
   // Sclerotial Crust (basic) + Rehydration Pulse (event) stay one-shot plays.
   'Sclerotial Crust': targeted((s, c, ctx) => {
-    const h = cureRadius(s, ctx, 60);
-    // Permanent immunity to BOTH infection (mouldProof) and eating (hardened →
-    // worms/ants skip these cells in nematodes.js / ants.js).
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
-    return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+    // Timed immunity to BOTH infection (mouldProof) and eating (hardened → worms/
+    // ants skip these cells) for immuneRounds rounds — no longer permanent.
+    const R = s.config.cards;
+    const h = hardenPatch(s, ctx, R.crustRadius, R.immuneRounds, true);
+    return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune for ${R.immuneRounds} rounds.` : `Hardened the patch — immune for ${R.immuneRounds} rounds.` };
   }),
-  'Rehydration Pulse': targeted((s, c, ctx) => { const h = cureRadius(s, ctx, 60); return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' }; }),
+  'Rehydration Pulse': targeted((s, c, ctx) => {
+    const R = s.config.cards;
+    const h = cureRadius(s, ctx, R.rehydrateRadius);
+    // Hidden 1-round grace: the healed cells resist reinfection for the round that
+    // follows, so the mould can't immediately re-take the patch. Not shown on the card.
+    s.substrate.cellsInRadius(ctx.x, ctx.y, R.rehydrateRadius + s.substrate.cellSize, (cl) => { cl.reinfectGrace = Math.max(cl.reinfectGrace, 1); });
+    return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' };
+  }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 3 rounds, tap a point → cure all infection in radius 80 AND
-  // ward the cells there against reinfection for 2 rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + permanent ward', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
-    const h = cureRadius(s, ctx, 80);
-    // Ward a hair wider than the cure (cure tests node position, the ward tests cell
-    // centre) so every cured node's cell is warded — no cured-but-unwarded rim.
-    s.substrate.cellsInRadius(ctx.x, ctx.y, 80 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // permanent reinfection ward
-    return { ok: true, message: h ? `Cured ${h} strands; permanently warded.` : 'Permanently warded the area against mould.' };
+  // Suberin Wall: every 8 rounds, tap a point → cure all infection in radius AND
+  // ward the cells there against reinfection for immuneRounds rounds (cell.mouldProof).
+  'Suberin Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+    const R = s.config.cards;
+    const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
+    return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };
   }),
   // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
@@ -763,12 +808,21 @@ export const EFFECTS = {
     (s.traps || (s.traps = [])).push({ x: ctx.x, y: ctx.y, r, reward: 2 });
     return { ok: true, message: 'Set a constricting trap — the next worm to enter is digested.' };
   }),
-  // Sclerotial Seal: spend 1 Phosphorus, once per 4 rounds, tap a food pile → ant-proof it for 3 rounds.
-  'Sclerotial Seal': action({ effect: 'permanently seal a food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
-    const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
-    if (!cell || cell.nutrient <= 0) return { ok: false, message: 'Tap a food pile to seal it.' };
-    s.substrate.cellsInRadius(ctx.x, ctx.y, s.substrate.cellSize * 2, (cl) => { if (cl.nutrient > 0) cl.antProof = 9999; });
-    return { ok: true, message: 'Sealed the pile — permanently ant-proof.' };
+  // Sclerotial Seal: once per 10 rounds, pay 1 P, tap near a food pile → seal the
+  // WHOLE pile against ants. FORGIVING — it seals the nearest pile within a generous
+  // reach (not just the cell under the tap), then RECALIBRATES the ants so any nest
+  // bound for it reroutes to other food (buildTrail now skips sealed piles).
+  'Sclerotial Seal': action({ effect: 'seal a nearby food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+    const sub = s.substrate;
+    let sealed = 0;
+    // Seal the whole nearest MAP pile within a generous reach…
+    const pile = nearestFoodPile(sub, ctx.x, ctx.y, sub.cellSize * s.config.cards.sealReach);
+    if (pile) for (const idx of pile.cells) { const cl = sub.cells[idx]; if (cl && cl.maxNutrient > 0 && cl.antProof <= 0) { cl.antProof = 9999; sealed++; } }
+    // …plus any loose food cells (e.g. buried nut caches) right around the tap.
+    sub.cellsInRadius(ctx.x, ctx.y, sub.cellSize * 3, (cl) => { if (cl.maxNutrient > 0 && cl.antProof <= 0) { cl.antProof = 9999; sealed++; } });
+    if (!sealed) return { ok: false, message: 'No food pile near there to seal — aim at a leaf pile.' };
+    recalibrateAnts(s);   // ants heading for the sealed pile reroute to other food NOW
+    return { ok: true, message: `Sealed the food pile from ants (${sealed} cells) — the ants reroute.` };
   }),
 };
 
@@ -818,10 +872,10 @@ EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cos
   depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
   return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };
 });
-EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune after)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-  const h = cureRadius(s, ctx, 40);
-  s.substrate.cellsInRadius(ctx.x, ctx.y, 40 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; });   // immune to future infection
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to future infection.` : 'Hardened the patch — immune to future infection.' };
+EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
+  const R = s.config.cards;
+  const h = hardenPatch(s, ctx, R.reserveRadius, R.immuneRounds, false);   // infection immunity only, for immuneRounds rounds
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to infection for ${R.immuneRounds} rounds.` : `Hardened the patch — immune to infection for ${R.immuneRounds} rounds.` };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
 EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
@@ -858,12 +912,13 @@ EFFECTS['Severing Cords'] = action({ effect: 'amputate mycelium in a radius', ev
   (s, ctx) => amputateAt(s, ctx, s.config.cards.amputateRadius));
 
 // --- Sclerotial Rind: the installed-ACTION version of Sclerotial Crust --------
-// Every 6 rounds, pay 1 P to harden strands in a radius — permanent immunity to
-// BOTH infection (mouldProof) and eating (hardened), same as the one-shot Crust.
+// Every 6 rounds, pay 1 P to harden strands in a radius — TIMED immunity to BOTH
+// infection (mouldProof) and eating (hardened) for immuneRounds rounds, same as
+// the one-shot Crust.
 EFFECTS['Sclerotial Rind'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
-  const h = cureRadius(s, ctx, 60);
-  s.substrate.cellsInRadius(ctx.x, ctx.y, 60 + s.substrate.cellSize, (cl) => { cl.mouldProof = 9999; cl.hardened = true; });
-  return { ok: true, message: h ? `Hardened & cleared ${h} strands — permanently immune.` : 'Hardened the patch — permanently immune.' };
+  const R = s.config.cards;
+  const h = hardenPatch(s, ctx, R.crustRadius, R.immuneRounds, true);
+  return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune for ${R.immuneRounds} rounds.` : `Hardened the patch — immune for ${R.immuneRounds} rounds.` };
 });
 
 // --- anti-nematode & anti-ant predation (real fungal biology) ----------------

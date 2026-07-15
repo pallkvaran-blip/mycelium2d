@@ -45,19 +45,17 @@ export function stepAnts(state) {
   if (!nests || !nests.length) return;
   for (const nest of nests) {
     let cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
-    if (!cell || cell.nutrient <= 0) {
+    // Retarget when the target is empty OR has been SEALED against ants (Sclerotial
+    // Seal): buildTrail skips sealed food, so the nest reroutes to the next pile.
+    if (!cell || cell.nutrient <= 0 || cell.antProof > 0) {
       retarget(sub, nest);
       cell = nest.target ? sub.cellAt(nest.target.col, nest.target.row) : null;
     }
-    if (cell && cell.antProof > 0) {
-      // Card effect (Sclerotial Seal): this pile is sealed against ant theft.
-      cell.antProof -= 1;
-      nest.dormant = false;
-    } else if (cell && cell.nutrient > 0) {
+    if (cell && cell.nutrient > 0 && !(cell.antProof > 0)) {
       cell.nutrient = Math.max(0, cell.nutrient - state.config.ants.harvestRate);
       nest.dormant = false;
     } else {
-      nest.dormant = true;   // no reachable food left
+      nest.dormant = true;   // no reachable UNSEALED food left
     }
     nest.phase = (nest.phase || 0) + 1;
   }
@@ -85,6 +83,16 @@ export function attackNest(state, x, y, radius, frac) {
   return { hp: best.hp, maxHp: best.maxHp, dead: false };
 }
 
+// Re-plan every nest's trail immediately (Sclerotial Seal): buildTrail skips
+// sealed (antProof) food, so a nest bound for a pile the player just sealed
+// reroutes to the next reachable food, and the trail barrier is re-stamped now.
+export function recalibrateAnts(state) {
+  const sub = state.substrate, nests = state.ants || [];
+  if (!sub || !nests.length) return;
+  for (const nest of nests) retarget(sub, nest);
+  setTrailFields(sub, nests);
+}
+
 // --- internals --------------------------------------------------------------
 
 // Point a nest at the nearest reachable food and lay its trail there.
@@ -107,7 +115,7 @@ function buildTrail(sub, nestCol, nestRow) {
   while (head < q.length) {
     const cur = q[head++];
     const cell = sub.cells[cur];
-    if (cell.nutrient > 0 && cur !== start) { foodIdx = cur; break; }  // nearest food (BFS order)
+    if (cell.nutrient > 0 && cur !== start && !(cell.antProof > 0)) { foodIdx = cur; break; }  // nearest UNSEALED food (BFS order)
     const c = cur % W, r = (cur / W) | 0;
     for (const [dc, dr] of nbrs) {
       const nc = c + dc, nr = r + dr;
@@ -147,7 +155,7 @@ function eatStrandsOnTrail(state) {
     const remove = new Set();
     for (const n of net.nodes) {
       const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail && !cell.hardened) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof
+      if (cell && cell.antTrail && !(cell.hardened > 0)) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof (timed)
     }
     if (remove.size) net._removeNodes(remove);
   }

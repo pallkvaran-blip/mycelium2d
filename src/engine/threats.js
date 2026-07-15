@@ -277,12 +277,14 @@ export function infectNetwork(net, state) {
   for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
 }
 
-// A node sitting on a cell warded by Suberin Wall (cell.mouldProof > 0) is immune
-// to fresh infection for the duration of the ward.
+// A node sitting on a warded cell is immune to fresh infection for the ward's
+// duration. `mouldProof` is the visible harden/immune ward (Suberin Wall, Crust
+// Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden
+// one-round grace so a heal isn't re-taken by the mould on the very next tick.
 function cellProofed(sub, n) {
   if (!sub) return false;
   const c = sub.cellAtWorld(n.x, n.y);
-  return !!(c && c.mouldProof > 0);
+  return !!(c && (c.mouldProof > 0 || c.reinfectGrace > 0));
 }
 
 // Flood infection outward from `seed` up to `depth` rings along the graph
