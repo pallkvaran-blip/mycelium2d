@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-14 (**directional grows use a press-and-drag aim — press away from the colony to pan** · **engine-cache draft = a distinct RED-leaf litter pile** that drafts an Engine card on clearing, normal orange piles draft Basic/Event · 5 predation cards + art · Foraging Fan grows from ALL strands · bottom carousel control-row: minimize arrow + skip chip + edge-fade, unified gold energy icons · contextual hints float above the carousel & auto-dismiss · normal draft glyph white / engine glyph red)._
+_Living status + knowledge doc. Last updated: 2026-07-15 (**draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · **nematodes fan out (distinct targets), eat every tick, breed 0.8 — and wiping the colony now ends the run with a defeat overlay** · start economy 50E/10W/0P (dev `testall` scaffold still ON, overrides it) · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
