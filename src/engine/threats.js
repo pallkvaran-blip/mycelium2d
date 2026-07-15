@@ -26,10 +26,6 @@
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
-// Min clearance (cells) a spawn keeps from any rock cell — rock sprites draw
-// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
-const SPAWN_ROCK_CLEARANCE = 3;
-
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -42,8 +38,9 @@ export function seedTrichoderma(substrate, config, rng, network) {
   const t = config.trichoderma;
   const root = network && network.root ? network.root : null;
   const clouds = [];
-  for (let i = 0; i < t.initialPatches; i++) {
-    const spot = pickOpenSpot(substrate, rng, root, t);
+  const count = t.initialPatches;
+  for (let i = 0; i < count; i++) {
+    const spot = pickOpenSpot(substrate, rng, root, t, i, count);   // banded → even spread
     clouds.push(makeCloud(spot.x, spot.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
   stampCloudField(substrate, clouds);
@@ -52,24 +49,11 @@ export function seedTrichoderma(substrate, config, rng, network) {
 
 // Pick an open underground spot — NOT on food/rock and (ideally) a good way from
 // the colony — so a cloud has a clear journey ahead of it.
-function pickOpenSpot(substrate, rng, root, t) {
-  const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
-  // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
-  // mould nearer the surface so the deep rows stay clearer.
-  const maxY = (substrate.rows - 1) * substrate.cellSize * 0.6;
-  let clearAny = null, onGround = null;
-  for (let tries = 0; tries < 80; tries++) {
-    const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, maxY);
-    const cell = substrate.cellAtWorld(x, y);
-    if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
-    onGround = { x, y };
-    // Rock sprites draw several cells past their flagged cells, so keep clear of them.
-    if (substrate.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;
-    clearAny = { x, y };
-    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
-  }
-  return clearAny || onGround || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+function pickOpenSpot(substrate, rng, root, t, i, count) {
+  return substrate.findSpawnSpot(rng, {
+    root, minDist: substrate.worldWidth * (t.seedMinColonyDistFrac || 0),
+    avoidFood: true, i, count,   // avoidFood: open ground only; banded → even spread
+  });
 }
 
 // Spawn a fresh roaming cloud in open ground far from the colony.

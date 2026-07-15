@@ -75,6 +75,53 @@ export class Substrate {
   }
   rockNearWorld(x, y, r) { return this.rockNear(this.colAtX(x), this.rowAtY(y), r); }
 
+  // Pick an open spawn spot (clear of the oversized rock sprites, preferring the
+  // shallow 60% band) SPREAD evenly across the width. Because rock is dense in the
+  // middle of the shallow band, a plain random-x-with-reject loop piles spawns onto
+  // the one clear strip near the goal — so each spawn targets its own horizontal
+  // BAND (via opts.i / opts.count) and is allowed to go deeper inside that band if
+  // its shallow rows are all rock. opts: { root, minDist, avoidFood, i, count }.
+  findSpawnSpot(rng, opts = {}) {
+    const W = this.worldWidth, cs = this.cellSize;
+    const root = opts.root, minDist = opts.minDist || 0, avoidFood = !!opts.avoidFood;
+    const loX = Math.max(cs, root ? root.x + minDist : cs);   // keep a gap right of the colony
+    const hiX = W - cs;
+    const span = Math.max(cs, hiX - loX);
+    let bLo = loX, bHi = hiX;
+    if (opts.count && opts.count > 1) {                        // this spawn's own band
+      const bw = span / opts.count;
+      bLo = loX + opts.i * bw; bHi = loX + (opts.i + 1) * bw;
+    }
+    const shallow = (this.rows - 1) * cs * 0.6, deep = (this.rows - 1) * cs;
+    const clear = (x, y) => {
+      const c = this.cellAtWorld(x, y);
+      if (!c || c.rock || (avoidFood && c.maxNutrient > 0)) return null;
+      // 4-cell gap: the widest boulder sprites reach ~3.3–3.7 cells past their seed
+      // cell, and solidifyRock() flags that whole footprint — 3 was marginal.
+      if (this.rockNear(this.colAtX(x), this.rowAtY(y), 4)) return null;
+      return { x, y };
+    };
+    let ground = null, soft = null;   // fallbacks: raw open ground / open ground with a small (1.6-cell) rock gap
+    const scan = (x0, x1, yMax, tries) => {
+      for (let t = 0; t < tries; t++) {
+        const x = rng.range(x0, x1), y = this.surfaceY + rng.range(cs, yMax);
+        const s = clear(x, y);
+        if (s) return s;
+        const c = this.cellAtWorld(x, y);
+        if (c && !c.rock && !(avoidFood && c.maxNutrient > 0)) {
+          ground = { x, y };
+          if (!this.rockNear(this.colAtX(x), this.rowAtY(y), 1.6)) soft = { x, y };
+        }
+      }
+      return null;
+    };
+    return scan(bLo, bHi, shallow, 40)     // in-band, shallow
+        || scan(bLo, bHi, deep, 40)        // in-band, any depth (rocky shallow rows)
+        || scan(loX, hiX, deep, 200)       // anywhere ahead of the colony (many tries → reliably off-rock)
+        || soft || ground
+        || { x: (bLo + bHi) / 2, y: this.surfaceY + cs * 3 };
+  }
+
   surfaceColumnAtX(x) {
     const c = this.colAtX(x);
     return c >= 0 && c < this.cols ? this.surface[c] : null;

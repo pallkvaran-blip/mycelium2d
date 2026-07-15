@@ -947,8 +947,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1wqpl2z";
-globalThis.__BUILD__ = "local 07-15 16:44";
+window.__ASSET_VER = "sjgvwz";
+globalThis.__BUILD__ = "local 07-15 17:14";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2663,6 +2663,53 @@ class Substrate {
   }
   rockNearWorld(x, y, r) { return this.rockNear(this.colAtX(x), this.rowAtY(y), r); }
 
+  // Pick an open spawn spot (clear of the oversized rock sprites, preferring the
+  // shallow 60% band) SPREAD evenly across the width. Because rock is dense in the
+  // middle of the shallow band, a plain random-x-with-reject loop piles spawns onto
+  // the one clear strip near the goal — so each spawn targets its own horizontal
+  // BAND (via opts.i / opts.count) and is allowed to go deeper inside that band if
+  // its shallow rows are all rock. opts: { root, minDist, avoidFood, i, count }.
+  findSpawnSpot(rng, opts = {}) {
+    const W = this.worldWidth, cs = this.cellSize;
+    const root = opts.root, minDist = opts.minDist || 0, avoidFood = !!opts.avoidFood;
+    const loX = Math.max(cs, root ? root.x + minDist : cs);   // keep a gap right of the colony
+    const hiX = W - cs;
+    const span = Math.max(cs, hiX - loX);
+    let bLo = loX, bHi = hiX;
+    if (opts.count && opts.count > 1) {                        // this spawn's own band
+      const bw = span / opts.count;
+      bLo = loX + opts.i * bw; bHi = loX + (opts.i + 1) * bw;
+    }
+    const shallow = (this.rows - 1) * cs * 0.6, deep = (this.rows - 1) * cs;
+    const clear = (x, y) => {
+      const c = this.cellAtWorld(x, y);
+      if (!c || c.rock || (avoidFood && c.maxNutrient > 0)) return null;
+      // 4-cell gap: the widest boulder sprites reach ~3.3–3.7 cells past their seed
+      // cell, and solidifyRock() flags that whole footprint — 3 was marginal.
+      if (this.rockNear(this.colAtX(x), this.rowAtY(y), 4)) return null;
+      return { x, y };
+    };
+    let ground = null, soft = null;   // fallbacks: raw open ground / open ground with a small (1.6-cell) rock gap
+    const scan = (x0, x1, yMax, tries) => {
+      for (let t = 0; t < tries; t++) {
+        const x = rng.range(x0, x1), y = this.surfaceY + rng.range(cs, yMax);
+        const s = clear(x, y);
+        if (s) return s;
+        const c = this.cellAtWorld(x, y);
+        if (c && !c.rock && !(avoidFood && c.maxNutrient > 0)) {
+          ground = { x, y };
+          if (!this.rockNear(this.colAtX(x), this.rowAtY(y), 1.6)) soft = { x, y };
+        }
+      }
+      return null;
+    };
+    return scan(bLo, bHi, shallow, 40)     // in-band, shallow
+        || scan(bLo, bHi, deep, 40)        // in-band, any depth (rocky shallow rows)
+        || scan(loX, hiX, deep, 200)       // anywhere ahead of the colony (many tries → reliably off-rock)
+        || soft || ground
+        || { x: (bLo + bHi) / 2, y: this.surfaceY + cs * 3 };
+  }
+
   surfaceColumnAtX(x) {
     const c = this.colAtX(x);
     return c >= 0 && c < this.cols ? this.surface[c] : null;
@@ -4054,10 +4101,6 @@ const __m_engine_nematodes = (function () {
 // state objects) so there's no circular-import risk in the bundle.
 // =============================================================================
 
-// Min clearance (cells) a spawn must keep from any rock cell — rock sprites draw
-// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
-const SPAWN_ROCK_CLEARANCE = 3;
-
 function makeWorm(x, y, heading, phase) {
   return { x, y, heading, phase, hits: 0, stuck: 0, feeding: false, feedCd: 0 };
 }
@@ -4068,8 +4111,9 @@ function seedNematodes(substrate, config, rng, network) {
   const n = config.nematodes;
   const root = network && network.root ? network.root : null;
   const worms = [];
-  for (let i = 0; i < (n.initialCount || 0); i++) {
-    const spot = openSpot(substrate, rng, root, n.seedMinColonyDistFrac);
+  const count = n.initialCount || 0;
+  for (let i = 0; i < count; i++) {
+    const spot = openSpot(substrate, rng, root, n.seedMinColonyDistFrac, i, count);   // banded → even spread
     worms.push(makeWorm(spot.x, spot.y, rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
   }
   return worms;
@@ -4250,21 +4294,8 @@ function moveWorm(w, ux, uy, s, sub) {
 
 // Pick an open underground spot — not in rock and (ideally) a good way from the
 // colony — so a worm has a clear journey in.
-function openSpot(sub, rng, root, minFrac) {
-  const minDist = sub.worldWidth * (minFrac || 0);
-  const maxY = (sub.rows - 1) * sub.cellSize * 0.6;   // no deeper than 60% of map depth
-  let clearAny = null, onGround = null;
-  for (let t = 0; t < 80; t++) {
-    const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    const y = sub.surfaceY + rng.range(sub.cellSize, maxY);
-    const cell = sub.cellAtWorld(x, y);
-    if (!cell || cell.rock) continue;
-    onGround = { x, y };
-    if (sub.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;   // clear of oversized rock sprites
-    clearAny = { x, y };
-    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
-  }
-  return clearAny || onGround || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
+function openSpot(sub, rng, root, minFrac, i, count) {
+  return sub.findSpawnSpot(rng, { root, minDist: sub.worldWidth * (minFrac || 0), i, count });
 }
 
 function totalNematodes(state) {
@@ -4304,10 +4335,6 @@ const __m_engine_threats = (function () {
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
-// Min clearance (cells) a spawn keeps from any rock cell — rock sprites draw
-// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
-const SPAWN_ROCK_CLEARANCE = 3;
-
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -4320,8 +4347,9 @@ function seedTrichoderma(substrate, config, rng, network) {
   const t = config.trichoderma;
   const root = network && network.root ? network.root : null;
   const clouds = [];
-  for (let i = 0; i < t.initialPatches; i++) {
-    const spot = pickOpenSpot(substrate, rng, root, t);
+  const count = t.initialPatches;
+  for (let i = 0; i < count; i++) {
+    const spot = pickOpenSpot(substrate, rng, root, t, i, count);   // banded → even spread
     clouds.push(makeCloud(spot.x, spot.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
   stampCloudField(substrate, clouds);
@@ -4330,24 +4358,11 @@ function seedTrichoderma(substrate, config, rng, network) {
 
 // Pick an open underground spot — NOT on food/rock and (ideally) a good way from
 // the colony — so a cloud has a clear journey ahead of it.
-function pickOpenSpot(substrate, rng, root, t) {
-  const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
-  // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
-  // mould nearer the surface so the deep rows stay clearer.
-  const maxY = (substrate.rows - 1) * substrate.cellSize * 0.6;
-  let clearAny = null, onGround = null;
-  for (let tries = 0; tries < 80; tries++) {
-    const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, maxY);
-    const cell = substrate.cellAtWorld(x, y);
-    if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
-    onGround = { x, y };
-    // Rock sprites draw several cells past their flagged cells, so keep clear of them.
-    if (substrate.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;
-    clearAny = { x, y };
-    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
-  }
-  return clearAny || onGround || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+function pickOpenSpot(substrate, rng, root, t, i, count) {
+  return substrate.findSpawnSpot(rng, {
+    root, minDist: substrate.worldWidth * (t.seedMinColonyDistFrac || 0),
+    avoidFood: true, i, count,   // avoidFood: open ground only; banded → even spread
+  });
 }
 
 // Spawn a fresh roaming cloud in open ground far from the colony.

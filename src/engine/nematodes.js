@@ -15,10 +15,6 @@
 // state objects) so there's no circular-import risk in the bundle.
 // =============================================================================
 
-// Min clearance (cells) a spawn must keep from any rock cell — rock sprites draw
-// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
-const SPAWN_ROCK_CLEARANCE = 3;
-
 function makeWorm(x, y, heading, phase) {
   return { x, y, heading, phase, hits: 0, stuck: 0, feeding: false, feedCd: 0 };
 }
@@ -29,8 +25,9 @@ export function seedNematodes(substrate, config, rng, network) {
   const n = config.nematodes;
   const root = network && network.root ? network.root : null;
   const worms = [];
-  for (let i = 0; i < (n.initialCount || 0); i++) {
-    const spot = openSpot(substrate, rng, root, n.seedMinColonyDistFrac);
+  const count = n.initialCount || 0;
+  for (let i = 0; i < count; i++) {
+    const spot = openSpot(substrate, rng, root, n.seedMinColonyDistFrac, i, count);   // banded → even spread
     worms.push(makeWorm(spot.x, spot.y, rng.range(0, Math.PI * 2), rng.range(0, Math.PI * 2)));
   }
   return worms;
@@ -211,21 +208,8 @@ function moveWorm(w, ux, uy, s, sub) {
 
 // Pick an open underground spot — not in rock and (ideally) a good way from the
 // colony — so a worm has a clear journey in.
-function openSpot(sub, rng, root, minFrac) {
-  const minDist = sub.worldWidth * (minFrac || 0);
-  const maxY = (sub.rows - 1) * sub.cellSize * 0.6;   // no deeper than 60% of map depth
-  let clearAny = null, onGround = null;
-  for (let t = 0; t < 80; t++) {
-    const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    const y = sub.surfaceY + rng.range(sub.cellSize, maxY);
-    const cell = sub.cellAtWorld(x, y);
-    if (!cell || cell.rock) continue;
-    onGround = { x, y };
-    if (sub.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;   // clear of oversized rock sprites
-    clearAny = { x, y };
-    if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
-  }
-  return clearAny || onGround || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
+function openSpot(sub, rng, root, minFrac, i, count) {
+  return sub.findSpawnSpot(rng, { root, minDist: sub.worldWidth * (minFrac || 0), i, count });
 }
 
 export function totalNematodes(state) {
