@@ -395,6 +395,36 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Card + HUD fixes: transmute choice, ledger layout/size, warded blue, smaller start, seal text** (branch same).
+  - **Warded strands now a DEEP BLUE** (`config.js` `render.warded` `#5cd9e6`→`#2f5fe6`) — the cyan read too
+    close to the mint colony; deep blue separates cleanly.
+  - **Nutrient Transmutation now lets you CHOOSE the resource to gain** (`cards.js`, `render/ui.js`,
+    `main.js`). Was auto (bigger pool → smaller). Now `resourcePick:true` on the action → `activateAction`
+    returns `needResourcePick` (like `needTarget`) → `ui.showResourcePicker(i)` (reuses the ability-picker
+    overlay: "Gain 1 Water −2 Phosphorus" / "Gain 1 Phosphorus −2 Water", disabled when the source pool < 2)
+    → `onPickResource` re-activates with `ctx.res`. The per-round use isn't spent on the ask.
+  - **Left income ledger row re-laid-out** (`render/ui.js` `_renderEngines`, `index.html`). The income
+    (`+2⚡` etc., resource-tinted) now LEADS the row — it replaces both the old glowing dot AND the old
+    right-aligned value; the name follows, cadence lights stay right. New `.erow .eval.lead` CSS.
+  - **Left ledger no longer balloons** (`render/ui.js` `_syncPanelHeights`). It used to force the income
+    pill to the height of the (tall) Actions menu, so installing engines/actions grew a big empty box.
+    Now each corner panel sizes to its own content (CSS `max-height` still caps + scrolls).
+  - **Smaller starting colony** (`config.js` `growth.startDepth` 130→58) — a short sprout (~4 nodes) instead
+    of a long filament, matching the requested opening look.
+  - **Fruiting Vigil is now a BASIC card** (`cards-data.js` + `docs/cards.json`: type/displayCategory
+    event→basic) — drafts from the basic pool (infinite, 3 copies).
+  - **Sclerotial Seal card text** → "seal any food pile" (was "the nearest food pile"); in-code action label
+    matches. (Functionally it already seals whichever pile you aim at, within a generous reach.)
+  - **Forager Bloom investigated — NO code bug**: a 6-seed headless diff proved its grow output is
+    byte-identical to Foraging Fan (both call `growRadial`), and the action path refreshes the renderer the
+    same way. The only real differences are the intended action semantics: a `every:6` cooldown and that
+    using an action doesn't advance the world (a card play does). A pending DRAFT also blocks action use
+    (the draft-lock), which can read as "nothing happened".
+  - Verified: build clean (0 import leaks), 100 smoke + 60 card green, a 10-check headless harness
+    (transmute both directions + insufficient-source + no-spend-on-ask, Fruiting Vigil basic, seal text,
+    warded colour, start depth), and a browser pass (0 console errors; ledger 92px not ballooned, income
+    leads each row, no "/rd"; transmute picker shows; start colony = 4 nodes) + screenshots.
+
 - **Defense-card pass: seal fix, timed immunity, warded colour, pill lights, staggered pile fade** (branch same).
   - **Sclerotial Seal now works + is forgiving + reroutes ants** (`engine/cards.js`, `engine/ants.js`).
     Was: tap had to land exactly on a nutrient cell (`cellAtWorld(...).nutrient>0`) or nothing happened,

@@ -390,7 +390,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per round: spend 2 of one resource (W/P) to gain 1 of the other.",
+  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of it.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -414,9 +414,9 @@ export const CARD_DATA = [
  },
  {
   "name": "Fruiting Vigil",
-  "type": "event",
+  "type": "basic",
   "category": "finisher",
-  "displayCategory": "event",
+  "displayCategory": "basic",
   "buyCostEnergy": 2,
   "costW": 1,
   "costP": 2,
@@ -662,7 +662,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 10 rounds: Pay 1 P to seal the nearest food pile from ants; they reroute to other food.",
+  "effect": "Once per 10 rounds: Pay 1 P to seal any food pile from ants; they reroute to other food.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0

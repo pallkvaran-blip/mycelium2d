@@ -279,6 +279,21 @@ const handlers = {
     ui.hideAbilityPicker();
     uiDirty = true;
   },
+  // The player picked which resource Nutrient Transmutation should GAIN. Re-run the
+  // action with ctx.res so it spends 2 of the other → 1 of this one.
+  onPickResource(index, resName) {
+    ui.hideResourcePicker();
+    const res = activateAction(state, index, { res: resName });
+    if (res && res.ok) {
+      substrateRenderer.markDirty();
+      rendererFor(state.active).markStructureDirty();
+    } else if (res && res.message) { ui.toast(res.message); }
+    uiDirty = true;
+  },
+  onCancelResourcePick() {
+    ui.hideResourcePicker();
+    uiDirty = true;
+  },
   onCancelCard() {
     aim = null;
     ui.clearPendingCard();
@@ -305,6 +320,12 @@ const handlers = {
       ui.setHint(act && act.aim === 'drag'
         ? `Press on your colony and drag to aim ${act.name} — release to grow. Press away from it to pan.`
         : res.message);
+      uiDirty = true;
+      return;
+    }
+    if (res && res.needResourcePick) {
+      // Nutrient Transmutation — pick which resource to gain, then re-activate.
+      ui.showResourcePicker(i);
       uiDirty = true;
       return;
     }

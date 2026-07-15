@@ -244,6 +244,8 @@
     .erow .exn { color: var(--ink); font-weight: 700; font-size: 10px; opacity: 0.8; flex: 0 0 auto; }
     .erow .eval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700;
       white-space: nowrap; flex: 0 0 auto; }
+    /* income LEADS the row (replaces the old dot); fixed min-width lines the names up */
+    .erow .eval.lead { margin-left: 0; margin-right: 3px; min-width: 32px; text-align: left; }
     .erow.energy .eval { color: var(--accent); }
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
@@ -719,8 +721,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1j0cqcq";
-globalThis.__BUILD__ = "local 07-15 08:19";
+window.__ASSET_VER = "i935yj";
+globalThis.__BUILD__ = "local 07-15 09:25";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -888,7 +890,7 @@ const CONFIG = {
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
-    startDepth: 130,             // initial seed depth below the surface line
+    startDepth: 58,              // initial seed depth below the surface line (small starting sprout)
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
   },
 
@@ -1064,8 +1066,8 @@ const CONFIG = {
     trich: '#8aa23e',
     trichSpore: '#d2e074',
     infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
-    warded: '#5cd9e6',           // a strand hardened/warded by a defense card — a cool cyan "crust"
-                                 //   sheen, distinct from the pale-mint colony and yellow-green mould
+    warded: '#2f5fe6',           // a strand hardened/warded by a defense card — a deep blue "crust",
+                                 //   distinct from the pale-mint colony and yellow-green mould
     // the living network (luminous accent — the brightest thing on screen)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
@@ -1530,7 +1532,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per round: spend 2 of one resource (W/P) to gain 1 of the other.",
+  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of it.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -1554,9 +1556,9 @@ const CARD_DATA = [
  },
  {
   "name": "Fruiting Vigil",
-  "type": "event",
+  "type": "basic",
   "category": "finisher",
-  "displayCategory": "event",
+  "displayCategory": "basic",
   "buyCostEnergy": 2,
   "costW": 1,
   "costP": 2,
@@ -1802,7 +1804,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "ant",
   "produces": "",
-  "effect": "Once per 10 rounds: Pay 1 P to seal the nearest food pile from ants; they reroute to other food.",
+  "effect": "Once per 10 rounds: Pay 1 P to seal any food pile from ants; they reroute to other food.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -4980,6 +4982,9 @@ function activateAction(state, i, ctx) {
   // no ctx → ask the caller to aim; the second call (map tap) carries {x,y}. Cost
   // and cooldown are only spent once the effect actually resolves, below.
   if (a.target && (!ctx || ctx.x == null)) return { ok: false, needTarget: true, index: i, message: `Tap a target for ${a.name}.` };
+  // Resource-pick abilities (Nutrient Transmutation) ask WHICH resource to gain
+  // before resolving — like a target, the choice arrives on the second call (ctx.res).
+  if (a.resourcePick && (!ctx || !ctx.res)) return { ok: false, needResourcePick: true, index: i, message: `Choose which resource to gain from ${a.name}.` };
   const res = a.apply ? a.apply(state, ctx) : { ok: true, message: `${a.name}.` };
   if (!res || !res.ok) return { ok: false, message: (res && res.message) || 'Nothing happened.' };
   if (a.cost) net[a.res] -= a.cost;      // pay the price
@@ -5319,14 +5324,16 @@ const EFFECTS = {
 
   // --- utility (installed ACTION → Actions menu, right) ---
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
-  'Nutrient Transmutation': action({ effect: 'convert 2 of one resource → 1 of the other', per: 1 }, (s) => {
+  // The PLAYER chooses which resource to GAIN (ctx.res); we spend 2 of the other.
+  // `resourcePick` makes activateAction ask for the choice first (like `target`).
+  'Nutrient Transmutation': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
     const net = s.active;
-    const pools = [['water', net.water], ['phosphorus', net.phosphorus]];
-    pools.sort((a, b) => b[1] - a[1]);
-    const from = pools[0], to = pools[1];
-    if (from[1] < 2) return { ok: false, message: 'Need 2 of a resource to convert.' };
-    net[from[0]] -= 2; net[to[0]] += 1;
-    return { ok: true, message: `Converted 2 ${from[0]} → 1 ${to[0]}.` };
+    const want = (ctx && ctx.res) || 'water';           // resource to gain
+    const from = want === 'water' ? 'phosphorus' : 'water';
+    const L = { water: 'Water', phosphorus: 'Phosphorus' };
+    if ((net[from] || 0) < 2) return { ok: false, message: `Need 2 ${L[from]} to make 1 ${L[want]}.` };
+    net[from] -= 2; net[want] += 1;
+    return { ok: true, message: `Converted 2 ${L[from]} → 1 ${L[want]}.` };
   }),
 
   // --- defense (best-effort v1) ---
@@ -5371,7 +5378,7 @@ const EFFECTS = {
   // WHOLE pile against ants. FORGIVING — it seals the nearest pile within a generous
   // reach (not just the cell under the tap), then RECALIBRATES the ants so any nest
   // bound for it reroutes to other food (buildTrail now skips sealed piles).
-  'Sclerotial Seal': action({ effect: 'seal a nearby food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'seal any food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const sub = s.substrate;
     let sealed = 0;
     // Seal the whole nearest MAP pile within a generous reach…
@@ -8180,11 +8187,13 @@ class UI {
       const g = sum[key]; if (!g.rows.size) return '';
       // No resource header — each row carries its own colour dot + glyph, so the
       // effects read as one flat list (grouped by resource via order & colour).
+      // The income (+amt + resource icon) LEADS the row, in the resource's colour —
+      // it replaces the old glowing dot AND the old right-aligned value.
       return [...g.rows.values()].map((r) =>
-        `<div class="erow ${key}" data-card="${escapeHtml(r.raw)}"><span class="edot ${key}"></span>`
+        `<div class="erow ${key}" data-card="${escapeHtml(r.raw)}">`
+        + `<span class="eval lead">+${r.amt}${glyph}</span>`
         + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
         + `<span class="enm">${r.name}</span>`
-        + `<span class="eval">+${r.amt}${glyph}</span>`
         + cadenceLightsHTML(r.cad, r.left, CK[key]) + `</div>`).join('');
     };
     let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
@@ -8244,22 +8253,15 @@ class UI {
   }
   _hideCardPopup() { if (this._cardPop) this._cardPop.classList.remove('show'); }
 
-  // Match the two panels' heights so the corners read as a balanced pair. Uses
-  // `min-height` (not `height`) so a panel always GROWS to fit its content and
-  // never clips — with `box-sizing: border-box`, an exact `height = scrollHeight`
-  // would fall short by the border and force a stray scrollbar. Each panel ends up
-  // at least as tall as the taller one's content, so neither ever scrolls.
+  // Each corner panel sizes to its OWN content (capped by CSS max-height, then it
+  // scrolls). We deliberately DON'T match their heights any more: forcing the short
+  // income ledger to the height of a tall Actions menu ballooned it into a big empty
+  // box that grew with every engine/action installed. Just clear any stale sizing.
   _syncPanelHeights() {
     const led = this.el.engledger, menu = this.el.actmenu;
     if (!led || !menu) return;
     led.style.height = ''; menu.style.height = '';
     led.style.minHeight = ''; menu.style.minHeight = '';
-    const ledVis = !led.classList.contains('hidden');
-    const menuVis = menu && this.el.actdock && !this.el.actdock.classList.contains('hidden') && !menu.classList.contains('hidden');
-    if (ledVis && menuVis) {
-      const hh = Math.max(led.scrollHeight, menu.scrollHeight);
-      led.style.minHeight = hh + 'px'; menu.style.minHeight = hh + 'px';
-    }
   }
 
   // The "selected card" chip in the hand header — makes it clear which card is
@@ -8857,6 +8859,42 @@ class UI {
     const el = this.el.pick;
     if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
   }
+  // Nutrient Transmutation: let the player pick WHICH resource to gain (spend 2 of
+  // the other for 1). Reuses the ability-picker overlay; disables a choice when the
+  // source pool is under 2.
+  showResourcePicker(index) {
+    const el = this.el.pick;
+    if (!el) return;
+    const net = this.state.active;
+    const opts = [
+      { res: 'water', label: 'Water', glyph: '💧', from: 'phosphorus', fromLabel: 'Phosphorus' },
+      { res: 'phosphorus', label: 'Phosphorus', glyph: '✦', from: 'water', fromLabel: 'Water' },
+    ];
+    const rows = opts.map((o) => {
+      const enough = (net[o.from] || 0) >= 2;
+      return `<button class="pickrow${enough ? '' : ' off'}" data-res="${o.res}"${enough ? '' : ' disabled'}>`
+        + `<span class="picknm">Gain 1 ${o.label} ${o.glyph}</span>`
+        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel}</span></span>`
+        + `</button>`;
+    }).join('');
+    el.innerHTML = `<div class="offerbox pickbox">`
+      + `<h2>Transmute into which resource?</h2>`
+      + `<div class="picksub">Spend 2 of the other to gain 1</div>`
+      + `<div class="pickrows">${rows}</div>`
+      + `<div class="offerfooter"><button class="btn" id="pickcancel">Cancel</button></div>`
+      + `</div>`;
+    el.querySelectorAll('.pickrow:not(.off)').forEach((btn) => {
+      btn.onclick = () => this.handlers.onPickResource(index, btn.dataset.res);
+    });
+    const cancel = el.querySelector('#pickcancel');
+    if (cancel) cancel.onclick = () => this.handlers.onCancelResourcePick();
+    el.onclick = (e) => { if (e.target === el) this.handlers.onCancelResourcePick(); };
+    el.classList.remove('hidden');
+  }
+  hideResourcePicker() {
+    const el = this.el.pick;
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
+  }
 
   // --- select / play flow --------------------------------------------------
   // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
@@ -9384,6 +9422,21 @@ const handlers = {
     ui.hideAbilityPicker();
     uiDirty = true;
   },
+  // The player picked which resource Nutrient Transmutation should GAIN. Re-run the
+  // action with ctx.res so it spends 2 of the other → 1 of this one.
+  onPickResource(index, resName) {
+    ui.hideResourcePicker();
+    const res = activateAction(state, index, { res: resName });
+    if (res && res.ok) {
+      substrateRenderer.markDirty();
+      rendererFor(state.active).markStructureDirty();
+    } else if (res && res.message) { ui.toast(res.message); }
+    uiDirty = true;
+  },
+  onCancelResourcePick() {
+    ui.hideResourcePicker();
+    uiDirty = true;
+  },
   onCancelCard() {
     aim = null;
     ui.clearPendingCard();
@@ -9410,6 +9463,12 @@ const handlers = {
       ui.setHint(act && act.aim === 'drag'
         ? `Press on your colony and drag to aim ${act.name} — release to grow. Press away from it to pan.`
         : res.message);
+      uiDirty = true;
+      return;
+    }
+    if (res && res.needResourcePick) {
+      // Nutrient Transmutation — pick which resource to gain, then re-activate.
+      ui.showResourcePicker(i);
       uiDirty = true;
       return;
     }

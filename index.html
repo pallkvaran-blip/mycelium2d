@@ -243,6 +243,8 @@
     .erow .exn { color: var(--ink); font-weight: 700; font-size: 10px; opacity: 0.8; flex: 0 0 auto; }
     .erow .eval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700;
       white-space: nowrap; flex: 0 0 auto; }
+    /* income LEADS the row (replaces the old dot); fixed min-width lines the names up */
+    .erow .eval.lead { margin-left: 0; margin-right: 3px; min-width: 32px; text-align: left; }
     .erow.energy .eval { color: var(--accent); }
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }

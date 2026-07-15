@@ -421,6 +421,9 @@ export function activateAction(state, i, ctx) {
   // no ctx → ask the caller to aim; the second call (map tap) carries {x,y}. Cost
   // and cooldown are only spent once the effect actually resolves, below.
   if (a.target && (!ctx || ctx.x == null)) return { ok: false, needTarget: true, index: i, message: `Tap a target for ${a.name}.` };
+  // Resource-pick abilities (Nutrient Transmutation) ask WHICH resource to gain
+  // before resolving — like a target, the choice arrives on the second call (ctx.res).
+  if (a.resourcePick && (!ctx || !ctx.res)) return { ok: false, needResourcePick: true, index: i, message: `Choose which resource to gain from ${a.name}.` };
   const res = a.apply ? a.apply(state, ctx) : { ok: true, message: `${a.name}.` };
   if (!res || !res.ok) return { ok: false, message: (res && res.message) || 'Nothing happened.' };
   if (a.cost) net[a.res] -= a.cost;      // pay the price
@@ -760,14 +763,16 @@ export const EFFECTS = {
 
   // --- utility (installed ACTION → Actions menu, right) ---
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
-  'Nutrient Transmutation': action({ effect: 'convert 2 of one resource → 1 of the other', per: 1 }, (s) => {
+  // The PLAYER chooses which resource to GAIN (ctx.res); we spend 2 of the other.
+  // `resourcePick` makes activateAction ask for the choice first (like `target`).
+  'Nutrient Transmutation': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
     const net = s.active;
-    const pools = [['water', net.water], ['phosphorus', net.phosphorus]];
-    pools.sort((a, b) => b[1] - a[1]);
-    const from = pools[0], to = pools[1];
-    if (from[1] < 2) return { ok: false, message: 'Need 2 of a resource to convert.' };
-    net[from[0]] -= 2; net[to[0]] += 1;
-    return { ok: true, message: `Converted 2 ${from[0]} → 1 ${to[0]}.` };
+    const want = (ctx && ctx.res) || 'water';           // resource to gain
+    const from = want === 'water' ? 'phosphorus' : 'water';
+    const L = { water: 'Water', phosphorus: 'Phosphorus' };
+    if ((net[from] || 0) < 2) return { ok: false, message: `Need 2 ${L[from]} to make 1 ${L[want]}.` };
+    net[from] -= 2; net[want] += 1;
+    return { ok: true, message: `Converted 2 ${L[from]} → 1 ${L[want]}.` };
   }),
 
   // --- defense (best-effort v1) ---
@@ -812,7 +817,7 @@ export const EFFECTS = {
   // WHOLE pile against ants. FORGIVING — it seals the nearest pile within a generous
   // reach (not just the cell under the tap), then RECALIBRATES the ants so any nest
   // bound for it reroutes to other food (buildTrail now skips sealed piles).
-  'Sclerotial Seal': action({ effect: 'seal a nearby food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Sclerotial Seal': action({ effect: 'seal any food pile from ants', every: 10, cost: 1, res: 'phosphorus', target: true }, (s, ctx) => {
     const sub = s.substrate;
     let sealed = 0;
     // Seal the whole nearest MAP pile within a generous reach…

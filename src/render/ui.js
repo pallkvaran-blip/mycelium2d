@@ -488,11 +488,13 @@ export class UI {
       const g = sum[key]; if (!g.rows.size) return '';
       // No resource header — each row carries its own colour dot + glyph, so the
       // effects read as one flat list (grouped by resource via order & colour).
+      // The income (+amt + resource icon) LEADS the row, in the resource's colour —
+      // it replaces the old glowing dot AND the old right-aligned value.
       return [...g.rows.values()].map((r) =>
-        `<div class="erow ${key}" data-card="${escapeHtml(r.raw)}"><span class="edot ${key}"></span>`
+        `<div class="erow ${key}" data-card="${escapeHtml(r.raw)}">`
+        + `<span class="eval lead">+${r.amt}${glyph}</span>`
         + `${r.n > 1 ? `<span class="exn">×${r.n}</span>` : ''}`
         + `<span class="enm">${r.name}</span>`
-        + `<span class="eval">+${r.amt}${glyph}</span>`
         + cadenceLightsHTML(r.cad, r.left, CK[key]) + `</div>`).join('');
     };
     let h = block('energy', '⚡') + block('phosphorus', '✦') + block('water', '💧');
@@ -552,22 +554,15 @@ export class UI {
   }
   _hideCardPopup() { if (this._cardPop) this._cardPop.classList.remove('show'); }
 
-  // Match the two panels' heights so the corners read as a balanced pair. Uses
-  // `min-height` (not `height`) so a panel always GROWS to fit its content and
-  // never clips — with `box-sizing: border-box`, an exact `height = scrollHeight`
-  // would fall short by the border and force a stray scrollbar. Each panel ends up
-  // at least as tall as the taller one's content, so neither ever scrolls.
+  // Each corner panel sizes to its OWN content (capped by CSS max-height, then it
+  // scrolls). We deliberately DON'T match their heights any more: forcing the short
+  // income ledger to the height of a tall Actions menu ballooned it into a big empty
+  // box that grew with every engine/action installed. Just clear any stale sizing.
   _syncPanelHeights() {
     const led = this.el.engledger, menu = this.el.actmenu;
     if (!led || !menu) return;
     led.style.height = ''; menu.style.height = '';
     led.style.minHeight = ''; menu.style.minHeight = '';
-    const ledVis = !led.classList.contains('hidden');
-    const menuVis = menu && this.el.actdock && !this.el.actdock.classList.contains('hidden') && !menu.classList.contains('hidden');
-    if (ledVis && menuVis) {
-      const hh = Math.max(led.scrollHeight, menu.scrollHeight);
-      led.style.minHeight = hh + 'px'; menu.style.minHeight = hh + 'px';
-    }
   }
 
   // The "selected card" chip in the hand header — makes it clear which card is
@@ -1162,6 +1157,42 @@ export class UI {
     el.classList.remove('hidden');
   }
   hideAbilityPicker() {
+    const el = this.el.pick;
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
+  }
+  // Nutrient Transmutation: let the player pick WHICH resource to gain (spend 2 of
+  // the other for 1). Reuses the ability-picker overlay; disables a choice when the
+  // source pool is under 2.
+  showResourcePicker(index) {
+    const el = this.el.pick;
+    if (!el) return;
+    const net = this.state.active;
+    const opts = [
+      { res: 'water', label: 'Water', glyph: '💧', from: 'phosphorus', fromLabel: 'Phosphorus' },
+      { res: 'phosphorus', label: 'Phosphorus', glyph: '✦', from: 'water', fromLabel: 'Water' },
+    ];
+    const rows = opts.map((o) => {
+      const enough = (net[o.from] || 0) >= 2;
+      return `<button class="pickrow${enough ? '' : ' off'}" data-res="${o.res}"${enough ? '' : ' disabled'}>`
+        + `<span class="picknm">Gain 1 ${o.label} ${o.glyph}</span>`
+        + `<span class="pickwait"><span class="pw-old">−2 ${o.fromLabel}</span></span>`
+        + `</button>`;
+    }).join('');
+    el.innerHTML = `<div class="offerbox pickbox">`
+      + `<h2>Transmute into which resource?</h2>`
+      + `<div class="picksub">Spend 2 of the other to gain 1</div>`
+      + `<div class="pickrows">${rows}</div>`
+      + `<div class="offerfooter"><button class="btn" id="pickcancel">Cancel</button></div>`
+      + `</div>`;
+    el.querySelectorAll('.pickrow:not(.off)').forEach((btn) => {
+      btn.onclick = () => this.handlers.onPickResource(index, btn.dataset.res);
+    });
+    const cancel = el.querySelector('#pickcancel');
+    if (cancel) cancel.onclick = () => this.handlers.onCancelResourcePick();
+    el.onclick = (e) => { if (e.target === el) this.handlers.onCancelResourcePick(); };
+    el.classList.remove('hidden');
+  }
+  hideResourcePicker() {
     const el = this.el.pick;
     if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
   }

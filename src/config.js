@@ -162,7 +162,7 @@ export const CONFIG = {
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
     branchJitter: 0.22,          // random angular wobble for organic look (radians)
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
-    startDepth: 130,             // initial seed depth below the surface line
+    startDepth: 58,              // initial seed depth below the surface line (small starting sprout)
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
   },
 
@@ -338,8 +338,8 @@ export const CONFIG = {
     trich: '#8aa23e',
     trichSpore: '#d2e074',
     infected: '#a6c63a',         // a strand the mould has overrun (green/dead)
-    warded: '#5cd9e6',           // a strand hardened/warded by a defense card — a cool cyan "crust"
-                                 //   sheen, distinct from the pale-mint colony and yellow-green mould
+    warded: '#2f5fe6',           // a strand hardened/warded by a defense card — a deep blue "crust",
+                                 //   distinct from the pale-mint colony and yellow-green mould
     // the living network (luminous accent — the brightest thing on screen)
     filament: '#cfe8d6',
     tipGlow: '#bfffd0',
