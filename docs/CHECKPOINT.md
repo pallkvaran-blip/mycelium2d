@@ -1158,6 +1158,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
+- **Campaign / level progression + species unlocks (DESIGN AGREED, NOT BUILT).** The species
+  picker's "Complete level N" tiers imply a level ladder that **does not exist yet** — today a
+  win/loss just ends the single procedural run (`state.runOver`; overlay → `onRestart` = new
+  random map). Owner-agreed rules for when it's built:
+  - **Within a run (levels 1→11): CARRY deck + resources between levels** — a true engine-builder.
+    Winning a level should transplant the whole card state (`state.cards`: hand/draw/discard/
+    engines/actions) + resource pools onto the next map, not reset them.
+  - **On death: back to the SPECIES PICKER** (choose again from scratch), not retry-in-place.
+  - **Unlocks PERSIST across sessions** — save completed-level progress in `localStorage`;
+    `src/species.js` locked tiers (level 1/3/5/7/10) become playable once their level is cleared,
+    and the picker reads that on load.
+  - _Open design fork (not yet decided):_ what makes level N harder — map length / threat counts
+    scaled procedurally, or authored levels? (Recommend: procedural with a per-level difficulty
+    knob, matching the "difficulty emerges" philosophy in cards-design.md.) Needs a level counter
+    in state, a win→next-level flow in `main.js`/`ui.js` (overlay gains a "Next level" path), and
+    an unlock/localStorage layer wired into `species_select.js`.
+
 **Agreed sequencing (planning note):** _polish what exists first_ — more **UI design + bug
 testing on the CURRENT content** (current cards, enemy/ant/mould behavior, the installed-
 engines HUD once built) — **then** build out more cards toward the game vision in
