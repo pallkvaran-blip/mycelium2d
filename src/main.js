@@ -19,7 +19,7 @@ import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
-import { MAX_LEVEL, threatsForLevel, recordLevelCleared, speciesUnlockedByClearing, loadProgress } from './species.js';
+import { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -140,7 +140,7 @@ function presentRunOver() {
 function onLevelWon() {
   const cleared = currentLevel;
   const prev = loadProgress();
-  const newlyUnlocked = (cleared > (prev.maxLevelCleared || 0)) ? speciesUnlockedByClearing(cleared) : [];
+  const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
   recordLevelCleared(cleared);
   ui.hideOverlay();
   if (cleared >= MAX_LEVEL) {
@@ -168,6 +168,25 @@ function updateLevelChip() {
   if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
   if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
 }
+
+// TEMP dev button: instantly clear the current level (to test the campaign flow).
+function devWinLevel() {
+  if (!state || state.runOver || !cardsCampaign()) return;
+  state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn };
+  presentRunOver();
+}
+function updateDevWinBtn() {
+  let btn = document.getElementById('devWin');
+  const ui0 = document.getElementById('ui');
+  if (!cardsCampaign()) { if (btn) btn.style.display = 'none'; return; }
+  if (!btn && ui0) {
+    btn = document.createElement('button'); btn.id = 'devWin'; btn.type = 'button';
+    btn.textContent = 'Dev: win level ▸';
+    btn.onclick = devWinLevel;
+    ui0.appendChild(btn);
+  }
+  if (btn) btn.style.display = '';
+}
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
@@ -194,7 +213,7 @@ function begin(newState) {
     chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
-    winLevel: () => { state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn }; presentRunOver(); },
+    winLevel: () => devWinLevel(),
     killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -229,6 +248,7 @@ function begin(newState) {
   }
   uiDirty = true;
   updateLevelChip();
+  updateDevWinBtn();
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.

@@ -197,7 +197,7 @@ export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
       '<h2 class="ss-lc-title">The colony fruits at the surface! 🍄</h2>' +
       '<p class="ss-lc-sub">You crossed level ' + level + ' — your deck, engines and reserves carry forward. Level ' + (level + 1) + ' brings more of the dark to contend with.</p>' +
       (hasUnlock
-        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-grid ss-lc-cards" id="ssLcCards"></div>'
+        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-lc-cards" id="ssLcCards"></div>'
         : '') +
       '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Descend to level ' + (level + 1) + ' →</button></div>' +
     '</div>';

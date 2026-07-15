@@ -916,9 +916,16 @@
       background:rgba(127,230,163,0.10); border:1px solid rgba(127,230,163,0.32); border-radius:12px; padding:11px 14px; }
     .ss-lc-star { color:var(--ss-mint); font-weight:700; margin-right:4px; }
     .ss-lc-tap { color:var(--ss-ink-dim); }
-    .ss-lc-cards { grid-template-columns:repeat(2,1fr) !important; gap:14px; margin:14px auto 4px; max-width:420px; }
+    .ss-lc-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 188px)); justify-content:center; gap:14px; margin:14px auto 4px; max-width:420px; }
     .ss-lc-actions { margin-top:22px; display:flex; justify-content:center; }
     .ss-lc-actions .ss-btn { flex:0 0 auto; min-width:240px; }
+
+    /* TEMP dev button: instantly clear the current level (amber dashed = dev affordance) */
+    #devWin { position:fixed; top:14px; right:14px; z-index:31; cursor:pointer;
+      font:600 11.5px "Segoe UI", system-ui, sans-serif; letter-spacing:.03em; color:#e6cf9a;
+      background:rgba(14,18,12,0.82); border:1px dashed rgba(230,180,92,0.6); border-radius:999px;
+      padding:6px 12px; backdrop-filter:blur(4px); }
+    #devWin:hover { color:#fff; border-color:#e6b45c; background:rgba(24,26,18,0.92); }
 
     /* HUD campaign level chip (top-centre, non-interactive) */
     #levelChip { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;
@@ -940,8 +947,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "17rh86s";
-globalThis.__BUILD__ = "local 07-15 15:29";
+window.__ASSET_VER = "1gt8w9n";
+globalThis.__BUILD__ = "local 07-15 15:43";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2503,37 +2510,54 @@ function levelFromUnlock(label) {
   return m ? +m[1] : null;
 }
 
-// Species whose unlock tier is exactly this level (i.e. granted by clearing it).
-function speciesUnlockedByClearing(level) {
+// Species pinned to a tier level, in roster (unlock) order. Order matters: the
+// k-th species in a tier unlocks on the (k+1)-th time that level is cleared.
+function tierSpecies(level) {
   return SPECIES.filter((s) => s.unlock && levelFromUnlock(s.unlock) === level);
+}
+function tierIndexOf(sp) {
+  const lvl = levelFromUnlock(sp.unlock);
+  return tierSpecies(lvl).indexOf(sp);
 }
 
 // --- unlock progress (persisted in localStorage) ---------------------------
-const PROGRESS_KEY = 'mycelium.progress.v1';
+// Tracks how many times each level has been cleared: { clears: { "1": 2, ... } }.
+// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.)
+const PROGRESS_KEY = 'mycelium.progress.v2';
 
 function loadProgress() {
-  try { return Object.assign({ maxLevelCleared: 0 }, JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}); }
-  catch (_) { return { maxLevelCleared: 0 }; }
+  try { const p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; if (!p.clears) p.clears = {}; return p; }
+  catch (_) { return { clears: {} }; }
 }
 function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
 }
-// Record a cleared level; returns the updated progress.
+function clearsFor(progress, level) {
+  return (progress && progress.clears && progress.clears[level]) || 0;
+}
+// Record one more clear of a level; returns the updated progress.
 function recordLevelCleared(level) {
   const p = loadProgress();
-  p.maxLevelCleared = Math.max(p.maxLevelCleared || 0, level);
+  p.clears[level] = clearsFor(p, level) + 1;
   saveProgress(p);
   return p;
 }
-// A species is available in the picker if it has no unlock gate, or its gate level
-// has been cleared.
+// A species is available if it has no unlock gate, or its tier has been cleared
+// enough times to reach its slot (k-th species needs k+1 clears of that level).
 function isUnlocked(sp, progress) {
   if (!sp.unlock) return true;
   const lvl = levelFromUnlock(sp.unlock);
-  return lvl != null && (progress.maxLevelCleared || 0) >= lvl;
+  return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
+}
+// The species newly unlocked by clearing `level`, given progress BEFORE this clear.
+// One per clear, in tier order; [] once the tier is exhausted.
+function newlyUnlockedByClear(level, progressBefore) {
+  const tier = tierSpecies(level);
+  const prior = clearsFor(progressBefore, level);
+  return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, speciesUnlockedByClearing, loadProgress, saveProgress, recordLevelCleared, isUnlocked };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, tierSpecies, loadProgress, saveProgress, clearsFor, recordLevelCleared, isUnlocked, newlyUnlockedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -9773,7 +9797,7 @@ function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
       '<h2 class="ss-lc-title">The colony fruits at the surface! 🍄</h2>' +
       '<p class="ss-lc-sub">You crossed level ' + level + ' — your deck, engines and reserves carry forward. Level ' + (level + 1) + ' brings more of the dark to contend with.</p>' +
       (hasUnlock
-        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-grid ss-lc-cards" id="ssLcCards"></div>'
+        ? '<div class="ss-lc-unlock"><span class="ss-lc-star">✦</span> Congratulations! You unlocked a new species — available on your next run.<span class="ss-lc-tap"> Tap to inspect it.</span></div><div class="ss-lc-cards" id="ssLcCards"></div>'
         : '') +
       '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Descend to level ' + (level + 1) + ' →</button></div>' +
     '</div>';
@@ -9820,7 +9844,7 @@ const __m_main = (function () {
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug } = __m_render_ui;
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
-  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, speciesUnlockedByClearing, loadProgress } = __m_species;
+  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -9950,7 +9974,7 @@ function presentRunOver() {
 function onLevelWon() {
   const cleared = currentLevel;
   const prev = loadProgress();
-  const newlyUnlocked = (cleared > (prev.maxLevelCleared || 0)) ? speciesUnlockedByClearing(cleared) : [];
+  const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
   recordLevelCleared(cleared);
   ui.hideOverlay();
   if (cleared >= MAX_LEVEL) {
@@ -9978,6 +10002,25 @@ function updateLevelChip() {
   if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
   if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
 }
+
+// TEMP dev button: instantly clear the current level (to test the campaign flow).
+function devWinLevel() {
+  if (!state || state.runOver || !cardsCampaign()) return;
+  state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn };
+  presentRunOver();
+}
+function updateDevWinBtn() {
+  let btn = document.getElementById('devWin');
+  const ui0 = document.getElementById('ui');
+  if (!cardsCampaign()) { if (btn) btn.style.display = 'none'; return; }
+  if (!btn && ui0) {
+    btn = document.createElement('button'); btn.id = 'devWin'; btn.type = 'button';
+    btn.textContent = 'Dev: win level ▸';
+    btn.onclick = devWinLevel;
+    ui0.appendChild(btn);
+  }
+  if (btn) btn.style.display = '';
+}
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
@@ -10004,7 +10047,7 @@ function begin(newState) {
     chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
-    winLevel: () => { state.won = true; state.runOver = true; state.runResult = { won: true, turns: state.turn }; presentRunOver(); },
+    winLevel: () => devWinLevel(),
     killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
@@ -10039,6 +10082,7 @@ function begin(newState) {
   }
   uiDirty = true;
   updateLevelChip();
+  updateDevWinBtn();
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.

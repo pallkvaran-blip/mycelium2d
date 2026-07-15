@@ -921,9 +921,16 @@
       background:rgba(127,230,163,0.10); border:1px solid rgba(127,230,163,0.32); border-radius:12px; padding:11px 14px; }
     .ss-lc-star { color:var(--ss-mint); font-weight:700; margin-right:4px; }
     .ss-lc-tap { color:var(--ss-ink-dim); }
-    .ss-lc-cards { grid-template-columns:repeat(2,1fr) !important; gap:14px; margin:14px auto 4px; max-width:420px; }
+    .ss-lc-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 188px)); justify-content:center; gap:14px; margin:14px auto 4px; max-width:420px; }
     .ss-lc-actions { margin-top:22px; display:flex; justify-content:center; }
     .ss-lc-actions .ss-btn { flex:0 0 auto; min-width:240px; }
+
+    /* TEMP dev button: instantly clear the current level (amber dashed = dev affordance) */
+    #devWin { position:fixed; top:14px; right:14px; z-index:31; cursor:pointer;
+      font:600 11.5px "Segoe UI", system-ui, sans-serif; letter-spacing:.03em; color:#e6cf9a;
+      background:rgba(14,18,12,0.82); border:1px dashed rgba(230,180,92,0.6); border-radius:999px;
+      padding:6px 12px; backdrop-filter:blur(4px); }
+    #devWin:hover { color:#fff; border-color:#e6b45c; background:rgba(24,26,18,0.92); }
 
     /* HUD campaign level chip (top-centre, non-interactive) */
     #levelChip { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;

@@ -103,32 +103,49 @@ export function levelFromUnlock(label) {
   return m ? +m[1] : null;
 }
 
-// Species whose unlock tier is exactly this level (i.e. granted by clearing it).
-export function speciesUnlockedByClearing(level) {
+// Species pinned to a tier level, in roster (unlock) order. Order matters: the
+// k-th species in a tier unlocks on the (k+1)-th time that level is cleared.
+export function tierSpecies(level) {
   return SPECIES.filter((s) => s.unlock && levelFromUnlock(s.unlock) === level);
+}
+function tierIndexOf(sp) {
+  const lvl = levelFromUnlock(sp.unlock);
+  return tierSpecies(lvl).indexOf(sp);
 }
 
 // --- unlock progress (persisted in localStorage) ---------------------------
-const PROGRESS_KEY = 'mycelium.progress.v1';
+// Tracks how many times each level has been cleared: { clears: { "1": 2, ... } }.
+// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.)
+const PROGRESS_KEY = 'mycelium.progress.v2';
 
 export function loadProgress() {
-  try { return Object.assign({ maxLevelCleared: 0 }, JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}); }
-  catch (_) { return { maxLevelCleared: 0 }; }
+  try { const p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; if (!p.clears) p.clears = {}; return p; }
+  catch (_) { return { clears: {} }; }
 }
 export function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
 }
-// Record a cleared level; returns the updated progress.
+export function clearsFor(progress, level) {
+  return (progress && progress.clears && progress.clears[level]) || 0;
+}
+// Record one more clear of a level; returns the updated progress.
 export function recordLevelCleared(level) {
   const p = loadProgress();
-  p.maxLevelCleared = Math.max(p.maxLevelCleared || 0, level);
+  p.clears[level] = clearsFor(p, level) + 1;
   saveProgress(p);
   return p;
 }
-// A species is available in the picker if it has no unlock gate, or its gate level
-// has been cleared.
+// A species is available if it has no unlock gate, or its tier has been cleared
+// enough times to reach its slot (k-th species needs k+1 clears of that level).
 export function isUnlocked(sp, progress) {
   if (!sp.unlock) return true;
   const lvl = levelFromUnlock(sp.unlock);
-  return lvl != null && (progress.maxLevelCleared || 0) >= lvl;
+  return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
+}
+// The species newly unlocked by clearing `level`, given progress BEFORE this clear.
+// One per clear, in tier order; [] once the tier is exhausted.
+export function newlyUnlockedByClear(level, progressBefore) {
+  const tier = tierSpecies(level);
+  const prior = clearsFor(progressBefore, level);
+  return prior < tier.length ? [tier[prior]] : [];
 }
