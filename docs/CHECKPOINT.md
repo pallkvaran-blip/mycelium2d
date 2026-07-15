@@ -413,13 +413,16 @@ Both menus are dark, on-theme, with glowing green borders.
     a new species — available on your next run" + the species as **inspectable cards**, then "Descend
     to level N+1". A **death** → `ui.showOverlay` whose button now returns to the species picker
     (`handlers.onBackToPicker` → `backToPicker()`).
-  - **Unlocks persist** in `localStorage` (`mycelium.progress.v1` = `{maxLevelCleared}`;
-    `loadProgress`/`recordLevelCleared`/`isUnlocked`). The picker treats a gated species as playable
-    once its tier level is cleared → it moves from its locked tier row up to "Available now" (the
-    freed tier slot falls back to a "?"). Currently only **Complete level 1** pins real species
-    (Earthball + Bleeding Tooth); other tiers are still "?".
-  - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode.
-  - **Debug hooks** on `window.__game`: `winLevel()` / `killColony()` (force the win/death paths).
+  - **Unlocks persist + STAGGER per clear-count** in `localStorage` (`mycelium.progress.v2` =
+    `{clears: {level: count}}`; `loadProgress`/`recordLevelCleared`/`clearsFor`/`isUnlocked`/
+    `newlyUnlockedByClear`). The **k-th species** pinned to a tier unlocks on the **(k+1)-th clear**
+    of that level — so clearing level 1 the first time grants Common Earthball, a second clear
+    (another run) grants Bleeding Tooth, a third grants nothing. An unlocked species moves from its
+    locked tier row up to "Available now" (the freed slot falls back to "?"). Only **Complete level 1**
+    pins real species today; other tiers are still "?".
+  - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode. A temporary
+    **"Dev: win level ▸"** button (top-right, amber dashed) instantly clears the level to test the flow.
+  - **Debug hooks** on `window.__game`: `winLevel()` (= the dev button) / `killColony()`.
   - Verified end-to-end in the build: L1 threats 1/1/1 → carry 30E/30W + 20-card Fairy Ring hand to
     L2 (1/2/2); L1 clear unlocks 2 species (persist across reload); death → picker; 0 errors; tests green.
 

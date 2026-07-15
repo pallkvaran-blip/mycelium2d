@@ -56,8 +56,10 @@ node --test test/               # smoke + card tests
   data/images) — the in-game picker is the living version.
 - **Campaign (CHECKPOINT §9):** a run is 11 procedural levels; only threat counts scale per level
   (`species.js LEVEL_THREATS`, applied by `main.js configForLevel`). Winning carries deck+resources
-  to the next level (`snapshotCarry`/`applyCarry`); death → picker; clearing a level unlocks species
-  (localStorage `mycelium.progress.v1`). `window.__game.winLevel()`/`killColony()` force the paths.
+  to the next level (`snapshotCarry`/`applyCarry`); death → picker. Unlocks STAGGER per clear-count
+  (localStorage `mycelium.progress.v2` = `{clears:{level:n}}`): the k-th species in a tier unlocks on
+  the (k+1)-th clear of that level. Test with the top-right **"Dev: win level"** button (=
+  `window.__game.winLevel()`); `killColony()` forces death.
 
 ## Working agreement
 
