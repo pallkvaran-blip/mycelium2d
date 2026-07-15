@@ -417,9 +417,13 @@ Both menus are dark, on-theme, with glowing green borders.
     `{clears: {level: count}}`; `loadProgress`/`recordLevelCleared`/`clearsFor`/`isUnlocked`/
     `newlyUnlockedByClear`). The **k-th species** pinned to a tier unlocks on the **(k+1)-th clear**
     of that level — so clearing level 1 the first time grants Common Earthball, a second clear
-    (another run) grants Bleeding Tooth, a third grants nothing. An unlocked species moves from its
-    locked tier row up to "Available now" (the freed slot falls back to "?"). Only **Complete level 1**
-    pins real species today; other tiers are still "?".
+    (another run) grants Bleeding Tooth, a third grants nothing. An unlocked species **stays in its
+    tier row** (playable in place, no LOCKED badge) — it is NOT promoted to "Available now", which
+    holds only ungated species. Only **Complete level 1** pins real species today; other tiers are "?".
+  - **Level-complete overlay** (`showLevelComplete`): a "🍄 Level N of 11 cleared" badge, then (if a
+    species unlocked) an elevated "✦ New species unlocked" headline + subline + the inspectable card,
+    then a **"Next level →"** button. No verbose title/paragraph. Threat spawn depth (trichoderma +
+    nematodes) is capped at 60% of map depth (40% shallower) in `threats.js`/`nematodes.js`.
   - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode. A temporary
     **"Dev: win level ▸"** button (top-right, amber dashed) instantly clears the level to test the flow.
   - **Debug hooks** on `window.__game`: `winLevel()` (= the dev button) / `killColony()`.
