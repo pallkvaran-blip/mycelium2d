@@ -18,6 +18,7 @@ import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
+import { showSpeciesSelect } from './render/species_select.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -30,6 +31,7 @@ const lighting = new Lighting(CONFIG);
 
 let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
+let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
 const networkRenderers = new Map();
 
 let uiDirty = true;
@@ -92,8 +94,13 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
-  // Card layer online for procedural (non-puzzle) runs.
-  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state, 'testall');   // TEMP dev scaffold: 5× of every card + 300 of each resource (revert to initCards(state) for the real opening)
+  // Card layer online for procedural (non-puzzle) runs. If the player picked a
+  // species at the start-of-run screen, seed that species' exact hand + resources;
+  // otherwise fall back to the dev scaffold (5× of every card + 300 of each resource).
+  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
+    if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    else initCards(state, 'testall');
+  }
   buildRenderers();
   // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing
   // even with the dev-tools panel off; remove for a public release.
@@ -693,6 +700,9 @@ function resize() {
 // (console + in-game Log) and the loop keeps animating.
 let _lastFrameErr = null;
 function frame(time) {
+  // The species picker runs before the first run is created; there's nothing to
+  // render until then, so idle the loop (keeps requesting frames) while state is null.
+  if (!state) { requestAnimationFrame(frame); return; }
   try {
     renderFrame(time);
   } catch (e) {
@@ -2512,7 +2522,16 @@ loadAssets().then(() => {
 setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
+function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
-else start((Date.now() & 0x7fffffff) || 1);
+else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; startRun(); }
+else if (location.hash === '#dev') { chosenSpecies = null; startRun(); }   // skip the picker
+else {
+  // Prompt the species picker first; a pick seeds that species, the dev button
+  // starts the current default run. Restarts (New Map) reuse the last choice.
+  showSpeciesSelect({
+    onPick: (sp) => { chosenSpecies = sp; startRun(); },
+    onDev: () => { chosenSpecies = null; startRun(); },
+  });
+}
 requestAnimationFrame(frame);

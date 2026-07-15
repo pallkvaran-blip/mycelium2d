@@ -23,6 +23,7 @@ const R = (p) => join(root, p);
 const MODULES = [
   'src/config.js',
   'src/cards-data.js',
+  'src/species.js',
   'src/engine/rng.js',
   'src/engine/substrate.js',
   'src/engine/network.js',
@@ -43,6 +44,7 @@ const MODULES = [
   'src/render/lighting.js',
   'src/render/music.js',
   'src/render/ui.js',
+  'src/render/species_select.js',
   'src/main.js',
 ];
 

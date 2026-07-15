@@ -714,13 +714,202 @@
       .handpreview { padding: 5px 9px; }
       .handpreview .hplabel, .handpreview .hpdesc { font-size: 10px; }
     }
+
+    /* ============================================================
+       Start-of-run species picker — overlay shown before a run.
+       Everything is namespaced (#speciesSelect / .ss-*) so it never
+       collides with the in-game .card / .overlay UI above.
+       ============================================================ */
+    #speciesSelect {
+      --ss-mint:#7fe6a3; --ss-mint-hi:#c8fff0; --ss-ink:#d7e6dc; --ss-ink-dim:#8aa193; --ss-ink-faint:#57685f;
+      --ss-gold:#e6b45c; --ss-water:#7fd0e0; --ss-white-rim:rgba(226,238,232,0.9);
+      --ss-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+      --ss-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+      position:fixed; inset:0; z-index:1000; overflow-y:auto; overscroll-behavior:contain;
+      display:flex; justify-content:center; align-items:flex-start; padding:clamp(14px,3vw,40px);
+      background:radial-gradient(120% 80% at 50% 118%, rgba(127,230,163,0.12), transparent 60%),
+                 radial-gradient(90% 70% at 50% -20%, rgba(60,111,80,0.10), transparent 55%), #05070d;
+      color:var(--ss-ink); font-family:var(--ss-sans); -webkit-font-smoothing:antialiased;
+      animation:ssIn .5s ease both;
+    }
+    @keyframes ssIn { from { opacity:0; } to { opacity:1; } }
+    #speciesSelect *, #speciesSelect *::before, #speciesSelect *::after { box-sizing:border-box; }
+
+    .ss-dev { position:fixed; top:14px; right:16px; z-index:1003; cursor:pointer; font-family:var(--ss-sans);
+      font-size:11.5px; font-weight:600; letter-spacing:.03em; color:var(--ss-ink-dim);
+      background:rgba(12,18,15,0.8); border:1px dashed rgba(130,230,166,0.4); border-radius:999px;
+      padding:6px 13px; backdrop-filter:blur(4px); }
+    .ss-dev:hover { color:var(--ss-mint-hi); border-color:var(--ss-mint); background:rgba(18,28,22,0.9); }
+
+    .ss-console { position:relative; width:min(1060px,100%);
+      background:radial-gradient(140% 60% at 50% 0%, rgba(127,230,163,0.05), transparent 60%), #05070d;
+      border:1.5px solid rgba(127,230,163,0.55); border-radius:18px;
+      box-shadow:0 0 22px -2px rgba(127,230,163,0.45), 0 0 60px -10px rgba(127,230,163,0.35),
+        inset 0 0 40px -14px rgba(127,230,163,0.18), 0 30px 80px -30px rgba(0,0,0,0.9); overflow:hidden; }
+
+    .ss-head { padding:clamp(18px,3vw,30px) clamp(20px,4vw,44px) 18px; }
+    .ss-eyebrow { font-size:11px; letter-spacing:0.34em; text-transform:uppercase; color:var(--ss-mint); font-weight:600;
+      opacity:0.85; display:flex; align-items:center; gap:10px; }
+    .ss-eyebrow::after { content:""; flex:1; height:1px; background:linear-gradient(90deg, rgba(127,230,163,0.4), transparent); }
+    .ss-head h1 { font-family:var(--ss-serif); font-weight:600; font-size:clamp(28px,5vw,44px); line-height:1.02;
+      margin:12px 0 6px; color:#eaf6ee; text-wrap:balance; text-shadow:0 0 26px rgba(127,230,163,0.28); }
+    .ss-lede { font-size:14px; color:var(--ss-ink-dim); max-width:62ch; line-height:1.5; margin:0; }
+    .ss-lede b { color:var(--ss-ink); font-weight:600; }
+
+    .ss-body { padding:6px clamp(20px,4vw,44px) clamp(28px,4vw,44px); }
+    .ss-section { margin-top:clamp(22px,3vw,34px); }
+    .ss-section:first-child { margin-top:8px; }
+    .ss-rowlabel { display:flex; align-items:baseline; gap:12px; margin-bottom:14px; }
+    .ss-lk { font-size:12px; letter-spacing:0.2em; text-transform:uppercase; font-weight:700; color:var(--ss-ink); }
+    .ss-locked-label .ss-lk { color:var(--ss-ink-dim); font-weight:600; }
+    .ss-badge { font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ss-mint); font-weight:700;
+      padding:3px 9px; border-radius:999px; border:1px solid rgba(127,230,163,0.35); background:rgba(127,230,163,0.08); }
+    .ss-hint { font-size:12px; color:var(--ss-ink-faint); margin-left:auto; letter-spacing:.02em; }
+    .ss-rule { flex:1; height:1px; background:rgba(120,160,140,0.14); align-self:center; }
+    .ss-lock { color:var(--ss-ink-faint); font-size:12px; }
+
+    .ss-grid { display:grid; gap:14px; grid-template-columns:repeat(4,1fr); }
+
+    .ss-card { position:relative; aspect-ratio:16/10; border-radius:13px; overflow:hidden; text-align:left; padding:0;
+      color:inherit; font:inherit; background:#04060a; border:1px solid var(--ss-white-rim); cursor:pointer;
+      box-shadow:0 0 16px -3px rgba(216,232,226,0.35), 0 0 40px -12px rgba(200,255,240,0.28), 0 14px 30px -20px rgba(0,0,0,0.9);
+      transition:transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .22s, border-color .22s; }
+    .ss-card:hover, .ss-card:focus-visible { transform:translateY(-4px); border-color:#fff; outline:none;
+      box-shadow:0 0 22px -2px rgba(230,244,238,0.55), 0 0 60px -10px rgba(200,255,240,0.4), 0 22px 44px -22px rgba(0,0,0,0.95); }
+    .ss-card-art { position:absolute; inset:0; }
+    .ss-card-art img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.05) contrast(1.02); }
+    .ss-card-art::after { content:""; position:absolute; inset:0;
+      background:linear-gradient(180deg, transparent 38%, rgba(6,10,9,0.55) 66%, rgba(5,8,8,0.94) 100%); }
+    .ss-card.warm .ss-card-art::after { background:linear-gradient(180deg, transparent 38%, rgba(12,9,6,0.55) 66%, rgba(9,6,4,0.94) 100%); }
+    .ss-card-info { position:absolute; left:0; right:0; bottom:0; z-index:2; padding:9px 11px 10px; display:flex; flex-direction:column; gap:1px; }
+    .ss-sp-name { font-family:var(--ss-serif); font-size:15.5px; font-weight:600; line-height:1.06; color:#eef7f1; text-shadow:0 1px 6px rgba(0,0,0,0.75); }
+    .ss-sp-latin { font-family:var(--ss-serif); font-style:italic; font-size:10.5px; color:var(--ss-mint); opacity:0.92; text-shadow:0 1px 5px rgba(0,0,0,0.85); }
+    .ss-card.warm .ss-sp-latin { color:var(--ss-gold); }
+    .ss-choose { position:absolute; top:8px; right:9px; z-index:3; font-size:9.5px; font-weight:700; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--ss-mint); background:rgba(5,9,8,0.7); border:1px solid rgba(127,230,163,0.4);
+      border-radius:999px; padding:3px 8px; backdrop-filter:blur(3px); opacity:0; transform:translateY(-3px); transition:opacity .2s, transform .2s; }
+    .ss-card.warm .ss-choose { color:var(--ss-gold); border-color:rgba(230,180,92,0.45); }
+    .ss-card:hover .ss-choose, .ss-card:focus-visible .ss-choose { opacity:1; transform:none; }
+
+    .ss-card.ss-locked { border-color:rgba(120,160,140,0.22);
+      box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 12px 26px -18px rgba(0,0,0,0.9); }
+    .ss-card.ss-locked .ss-card-art img { filter:grayscale(0.45) brightness(0.52) saturate(0.75); }
+    .ss-card.ss-locked .ss-card-art::after { background:linear-gradient(180deg, rgba(6,10,9,0.35) 20%, rgba(5,8,8,0.92) 100%); }
+    .ss-card.ss-locked .ss-sp-name { color:#cbdbd1; }
+    .ss-card.ss-locked .ss-sp-latin { color:var(--ss-ink-dim); }
+    .ss-card.ss-locked:hover, .ss-card.ss-locked:focus-visible { transform:translateY(-3px); border-color:rgba(127,230,163,0.5);
+      box-shadow:0 0 16px -6px rgba(127,230,163,0.4), 0 18px 32px -20px rgba(0,0,0,0.95); }
+    .ss-lockbadge { position:absolute; top:8px; left:8px; z-index:3; display:inline-flex; align-items:center; gap:5px;
+      font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ss-mint);
+      background:rgba(5,9,8,0.72); border:1px solid rgba(127,230,163,0.4); border-radius:999px; padding:3px 9px 3px 8px; backdrop-filter:blur(3px); }
+
+    .ss-lock-card { position:relative; aspect-ratio:16/10; border-radius:13px; display:flex; align-items:center; justify-content:center; overflow:hidden;
+      background:radial-gradient(90% 120% at 50% 40%, rgba(24,34,30,0.5), rgba(6,9,14,0.85)); border:1px solid rgba(120,160,140,0.16); }
+    .ss-q { font-family:var(--ss-serif); font-size:clamp(30px,6vw,44px); font-weight:700; color:rgba(127,230,163,0.55);
+      text-shadow:0 0 14px rgba(127,230,163,0.45), 0 0 30px rgba(127,230,163,0.25); animation:ssQ 4.2s ease-in-out infinite; }
+    .ss-lock-card:nth-child(3n) .ss-q { animation-delay:-1.4s; } .ss-lock-card:nth-child(3n+1) .ss-q { animation-delay:-2.6s; }
+    @keyframes ssQ { 0%,100% { opacity:0.5; } 50% { opacity:0.95; } }
+
+    .ss-detailwrap { position:fixed; inset:0; z-index:1002; display:flex; align-items:center; justify-content:center;
+      padding:clamp(12px,3vw,36px); background:rgba(3,5,9,0.72); backdrop-filter:blur(7px);
+      opacity:0; visibility:hidden; transition:opacity .28s, visibility .28s; }
+    .ss-detailwrap.open { opacity:1; visibility:visible; }
+    .ss-detail { position:relative; width:min(880px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); display:grid; grid-template-columns:42% 1fr;
+      background:linear-gradient(160deg, rgba(15,22,20,0.96), rgba(7,11,10,0.98)); border:1.5px solid var(--ss-white-rim); border-radius:18px; overflow:hidden;
+      box-shadow:0 0 26px -2px rgba(230,244,238,0.4), 0 0 80px -16px rgba(200,255,240,0.35), 0 40px 90px -30px rgba(0,0,0,0.95);
+      transform:translateY(14px) scale(.97); opacity:0; transition:transform .3s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+    .ss-detailwrap.open .ss-detail { transform:none; opacity:1; }
+    .ss-detail.warm { border-color:rgba(240,210,150,0.75); box-shadow:0 0 26px -2px rgba(240,200,130,0.4), 0 0 80px -16px rgba(224,162,74,0.3), 0 40px 90px -30px rgba(0,0,0,0.95); }
+    .ss-detail.aqua { border-color:rgba(150,215,230,0.7); box-shadow:0 0 26px -2px rgba(150,215,230,0.4), 0 0 80px -16px rgba(127,208,224,0.3), 0 40px 90px -30px rgba(0,0,0,0.95); }
+    .ss-detail.spore { border-color:rgba(205,175,235,0.7); box-shadow:0 0 26px -2px rgba(205,175,235,0.4), 0 0 80px -16px rgba(199,155,230,0.3), 0 40px 90px -30px rgba(0,0,0,0.95); }
+
+    .ss-d-art { position:relative; background:#04060a; min-height:220px; }
+    .ss-d-art img { width:100%; height:100%; object-fit:cover; display:block; }
+    .ss-d-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(7,11,10,0.7)), linear-gradient(90deg, transparent 72%, rgba(7,11,10,0.9)); }
+    .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+    .ss-d-name { font-family:var(--ss-serif); font-size:clamp(24px,3.4vw,32px); font-weight:600; line-height:1.04; color:#eef7f1; }
+    .ss-d-latin { font-family:var(--ss-serif); font-style:italic; font-size:13.5px; color:var(--ss-mint); margin-top:2px; }
+    .ss-detail.warm .ss-d-latin { color:var(--ss-gold); }
+    .ss-detail.aqua .ss-d-latin { color:#9fdcea; }
+    .ss-detail.spore .ss-d-latin { color:#d6bff0; }
+    .ss-d-blurb { font-size:14px; line-height:1.62; color:var(--ss-ink-dim); margin:0; }
+    .ss-d-blurb b { color:var(--ss-ink); font-weight:600; }
+
+    .ss-hand { border-top:1px solid rgba(120,160,140,0.16); padding-top:14px; }
+    .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 4px; font-weight:700; }
+    .ss-sub { font-size:12px; color:var(--ss-ink-faint); margin:0 0 12px; }
+    .ss-resprow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+    .ss-respill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px 5px 9px; border-radius:999px;
+      background:linear-gradient(150deg, rgba(18,28,22,0.9), rgba(8,14,11,0.9)); border:1.5px solid rgba(130,230,166,0.4); font-variant-numeric:tabular-nums; }
+    .ss-respill .ss-ri { width:16px; height:16px; flex:0 0 auto; }
+    .ss-rv { font-weight:700; font-size:15px; }
+    .ss-rk { font-size:11px; color:var(--ss-ink-dim); letter-spacing:.02em; }
+    .ss-respill.energy { border-color:rgba(230,180,92,0.45); } .ss-respill.energy .ss-rv { color:var(--ss-gold); }
+    .ss-respill.water { border-color:rgba(127,208,224,0.45); } .ss-respill.water .ss-rv { color:var(--ss-water); }
+    .ss-respill.phos { border-color:rgba(199,155,230,0.45); } .ss-respill.phos .ss-rv { color:#c79be6; }
+
+    .ss-deck { display:flex; flex-wrap:wrap; gap:16px 22px; padding:2px 8px 8px 0; }
+    .ss-gc { position:relative; width:116px; aspect-ratio:5/7; flex:0 0 auto; border-radius:10px; overflow:hidden; display:flex; flex-direction:column;
+      background:linear-gradient(162deg, rgba(20,28,26,0.92), rgba(8,13,12,0.97)); border:1px solid rgba(150,180,165,0.32);
+      box-shadow:0 0 12px -4px rgba(127,230,163,0.4), 0 10px 22px -14px rgba(0,0,0,0.9); }
+    .ss-detail.warm .ss-gc { border-color:rgba(230,180,92,0.34); box-shadow:0 0 12px -4px rgba(230,180,92,0.4), 0 10px 22px -14px rgba(0,0,0,0.9); }
+    .ss-detail.aqua .ss-gc { border-color:rgba(127,208,224,0.32); box-shadow:0 0 12px -4px rgba(127,208,224,0.4), 0 10px 22px -14px rgba(0,0,0,0.9); }
+    .ss-detail.spore .ss-gc { border-color:rgba(199,155,230,0.32); box-shadow:0 0 12px -4px rgba(199,155,230,0.4), 0 10px 22px -14px rgba(0,0,0,0.9); }
+    .ss-gc.ss-multi { box-shadow:3px 3px 0 -1px rgba(10,15,13,0.96), 3px 3px 0 0 rgba(150,180,165,0.22),
+      6px 6px 0 -1px rgba(8,12,11,0.96), 6px 6px 0 0 rgba(150,180,165,0.16), 0 10px 22px -14px rgba(0,0,0,0.9); }
+    .ss-gc-art { position:relative; aspect-ratio:3/2; overflow:hidden; background:#04060a; flex:0 0 auto; }
+    .ss-gc-art img { width:100%; height:100%; object-fit:cover; display:block; }
+    .ss-gc-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 64%, rgba(8,13,12,0.92)); }
+    .ss-gc-name { font-family:var(--ss-serif); font-size:11.5px; font-weight:600; line-height:1.12; color:#eef7f1; padding:6px 8px 3px; }
+    .ss-gc-eff { font-size:9px; line-height:1.34; color:var(--ss-ink-dim); padding:0 8px 8px; flex:1 1 auto; overflow:hidden;
+      display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; }
+    .ss-gc-count { position:absolute; top:6px; right:6px; z-index:3; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums;
+      color:var(--ss-mint); background:rgba(5,9,8,0.82); border:1px solid rgba(127,230,163,0.5); border-radius:999px; padding:2px 7px; box-shadow:0 0 10px -3px rgba(127,230,163,0.5); }
+    .ss-detail.warm .ss-gc-count { color:var(--ss-gold); border-color:rgba(230,180,92,0.5); box-shadow:0 0 10px -3px rgba(230,180,92,0.5); }
+    .ss-detail.aqua .ss-gc-count { color:#9fdcea; border-color:rgba(127,208,224,0.5); box-shadow:0 0 10px -3px rgba(127,208,224,0.5); }
+    .ss-detail.spore .ss-gc-count { color:#d6bff0; border-color:rgba(199,155,230,0.5); box-shadow:0 0 10px -3px rgba(199,155,230,0.5); }
+    .ss-gc-type { position:absolute; bottom:6px; left:6px; z-index:3; font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--ss-ink);
+      background:rgba(5,9,8,0.7); border:1px solid rgba(120,160,140,0.3); border-radius:5px; padding:2px 5px; }
+    .ss-cost { position:absolute; top:6px; left:6px; z-index:3; display:inline-flex; gap:4px; }
+    .ss-cpip { display:inline-flex; align-items:center; gap:2px; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; color:#bfeaf2;
+      background:rgba(5,9,8,0.82); border:1px solid rgba(127,208,224,0.5); border-radius:999px; padding:2px 6px 2px 5px; box-shadow:0 0 8px -3px rgba(127,208,224,0.45); }
+    .ss-cpip.p { color:#dcc4f2; border-color:rgba(199,155,230,0.5); box-shadow:0 0 8px -3px rgba(199,155,230,0.45); }
+    .ss-cost .ss-ri { width:12px; height:12px; }
+
+    .ss-actions { display:flex; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
+    .ss-btn { flex:1; font:inherit; cursor:pointer; border-radius:13px; padding:13px 16px; font-size:14px; font-weight:600; letter-spacing:.01em;
+      transition:background .16s, border-color .16s, box-shadow .16s, transform .06s; }
+    .ss-btn:active { transform:translateY(1px); }
+    .ss-btn.ghost { background:rgba(255,255,255,0.03); border:1px solid rgba(120,160,140,0.3); color:var(--ss-ink); }
+    .ss-btn.ghost:hover { background:rgba(255,255,255,0.07); border-color:rgba(160,190,175,0.5); }
+    .ss-btn.primary { flex:1.6; color:#06120b; border:1px solid rgba(127,230,163,0.5);
+      background:linear-gradient(180deg, #a9f2c4, #6fdc9a); box-shadow:0 0 18px -3px rgba(127,230,163,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
+    .ss-btn.primary:hover { background:linear-gradient(180deg, #bdf7d3, #7fe6a3); box-shadow:0 0 26px -2px rgba(127,230,163,0.8), inset 0 1px 0 rgba(255,255,255,0.5); }
+    .ss-detail.warm .ss-btn.primary { color:#1c1204; border-color:rgba(230,180,92,0.55); background:linear-gradient(180deg, #f4d79a, #e6b45c); box-shadow:0 0 18px -3px rgba(230,180,92,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
+    .ss-detail.aqua .ss-btn.primary { color:#06181c; border-color:rgba(127,208,224,0.55); background:linear-gradient(180deg, #bfeaf2, #7fd0e0); box-shadow:0 0 18px -3px rgba(127,208,224,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
+    .ss-detail.spore .ss-btn.primary { color:#150c1c; border-color:rgba(199,155,230,0.55); background:linear-gradient(180deg, #e6d4f5, #c79be6); box-shadow:0 0 18px -3px rgba(199,155,230,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
+    .ss-detail .ss-btn.primary.is-locked { background:rgba(30,40,36,0.7); color:var(--ss-ink-dim); border-color:rgba(120,160,140,0.28); box-shadow:none; cursor:not-allowed; }
+
+    .ss-close { position:absolute; top:12px; right:12px; z-index:3; width:34px; height:34px; border-radius:999px; cursor:pointer;
+      background:rgba(6,10,14,0.7); border:1px solid rgba(160,190,175,0.35); color:var(--ss-ink); font-size:18px; line-height:1;
+      display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+    .ss-close:hover { background:rgba(20,28,26,0.9); border-color:var(--ss-mint); color:var(--ss-mint-hi); }
+
+    @media (max-width:720px) {
+      .ss-grid { grid-template-columns:repeat(2,1fr); }
+      .ss-detail { grid-template-columns:1fr; }
+      .ss-d-art { max-height:34vh; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #speciesSelect, #speciesSelect * { animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+    }
 </style>
 <canvas id="game"></canvas>
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1s3i57w";
-globalThis.__BUILD__ = "local 07-15 11:04";
+window.__ASSET_VER = "ffg6og";
+globalThis.__BUILD__ = "local 07-15 14:23";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2173,6 +2362,83 @@ const CARD_DATA = [
 const CARD_BY_NAME = Object.fromEntries(CARD_DATA.map((c) => [c.name, c]));
 
   return { CARD_DATA, CARD_BY_NAME };
+})();
+
+// ===================== src/species.js =====================
+const __m_species = (function () {
+// =============================================================================
+// Starter-species roster for the start-of-run picker.
+//
+// Single source of truth for BOTH the selection screen (render/species_select.js)
+// and how a run is seeded (engine/cards.js initCards, mode 'species'). Card faces,
+// effects and play-costs are looked up from CARD_DATA by name — here we only list
+// each species' identity, its starting resources, and its starting hand as
+// {name, count}. `unlock: null` = playable from the start; a tier label = shown as
+// a locked preview under that unlock row.
+// =============================================================================
+
+const SPECIES = [
+  {
+    id: 'marasmius', vibe: 'cool', unlock: null,
+    name: 'Fairy Ring Champignon', latin: 'Marasmius oreades', img: 'marasmius-oreades',
+    blurb: 'A grassland saprotroph that grows outward in an ever-widening <b>fairy ring</b> pattern — the colony pushes evenly in every direction from its heart, decomposing the turf as it goes. It is marcescent: it shrivels in a drought and springs back to life once the rain returns, so it banks water and simply waits the dry spells out. Slow, broad and hard to kill — a forgiving way to learn the colony.',
+    res: { energy: 30, water: 30, phosphorus: 0 },
+    hand: [
+      { name: 'Foraging Fan', count: 8 },
+      { name: 'Hyphal Extension', count: 6 },
+      { name: 'Acorn Cache', count: 6 },
+    ],
+  },
+  {
+    id: 'armillaria', vibe: 'warm', unlock: null,
+    name: 'Honey Fungus', latin: 'Armillaria ostoyae', img: 'armillaria-ostoyae',
+    blurb: 'The <b>largest living organism on Earth</b> — a single Armillaria in Oregon sprawls across nearly ten square kilometres of forest. It travels on <b>rhizomorphs</b>: bootlace-like cords that shoot far ahead through the soil to strike distant roots. A committed long-range predator, not a gentle forager — it banks energy, drives its cords along a chosen line, and lances across open ground toward the goal.',
+    res: { energy: 100, water: 25, phosphorus: 0 },
+    hand: [
+      { name: 'Apical Drive', count: 10 },
+      { name: 'Rhizomorph Lance', count: 5 },
+    ],
+  },
+  {
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
+    name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
+    blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
+    res: { energy: 50, water: 30, phosphorus: 5 },
+    hand: [
+      { name: 'Sclerotial Crust', count: 2 },
+      { name: 'Amputate', count: 2 },
+      { name: 'Apical Drive', count: 5 },
+      { name: 'Hyphal Extension', count: 3 },
+      { name: 'Acorn Cache', count: 3 },
+    ],
+  },
+  {
+    id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
+    name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
+    blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
+    res: { energy: 50, water: 20, phosphorus: 0 },
+    hand: [
+      { name: 'Aquaporin Channels', count: 1 },
+      { name: 'Hyphal Extension', count: 5 },
+      { name: 'Apical Drive', count: 5 },
+      { name: 'Foraging Fan', count: 5 },
+      { name: 'Acorn Cache', count: 3 },
+    ],
+  },
+];
+
+// Locked unlock tiers shown under the two available species (mystery "?" cards,
+// except where a real species above is pinned to a tier via `unlock`).
+const LOCKED_TIERS = [
+  { label: 'Complete level 1', n: 2 },
+  { label: 'Complete level 3', n: 2 },
+  { label: 'Complete level 5', n: 2 },
+  { label: 'Complete level 7', n: 2 },
+  { label: 'Complete level 10', n: 1 },
+  { label: '?', n: 8, communal: true },
+];
+
+  return { SPECIES, LOCKED_TIERS };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -4715,7 +4981,7 @@ function cardDeckAdditions(name) {
 // cards to consider); you then draw more from the deck and DRAFT premium cards by
 // finishing (fully digesting) the food piles the map placed. 'all' deals every
 // premium card to hand up-front (dev / free explore).
-function initCards(state, mode = 'tutorial') {
+function initCards(state, mode = 'tutorial', species = null) {
   const cc = state.config.cards;
   const net = state.active;
   net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
@@ -4738,6 +5004,16 @@ function initCards(state, mode = 'tutorial') {
     // === END TEMP =============================================================
   } else if (mode === 'all') {
     for (const c of CARD_DATA) { if (c.type === 'basic' || isArchived(c.name)) continue; hand.push({ id: seq++, name: c.name }); }
+  } else if (mode === 'species' && species) {
+    // Start-of-run species pick: deal its exact starting hand + set its resources.
+    for (const h of (species.hand || [])) {
+      if (!CARD_BY_NAME[h.name] || isArchived(h.name)) continue;
+      for (let i = 0; i < (h.count || 0); i++) hand.push({ id: seq++, name: h.name });
+    }
+    const r = species.res || {};
+    if (r.energy != null) net.energy = r.energy;
+    if (r.water != null) net.water = r.water;
+    net.phosphorus = (r.phosphorus != null) ? r.phosphorus : 0;
   } else {
     // Free opening draw so the hand isn't empty at game start (no Energy charged).
     const opening = Math.min(cc.drawCount || 3, drawDeck.length);
@@ -9195,6 +9471,191 @@ function vitalityColor(v) {
   return { UI, cardSlug };
 })();
 
+// ===================== src/render/species_select.js =====================
+const __m_render_species_select = (function () {
+  const { SPECIES, LOCKED_TIERS } = __m_species;
+  const { CARD_DATA } = __m_cards_data;
+  const { cardSlug } = __m_render_ui;
+// =============================================================================
+// Start-of-run species picker (in-game overlay).
+//
+// Shown once at boot before the sandbox starts. Renders the roster from
+// species.js, derives each hand card's face (art / effect / type / play cost)
+// from CARD_DATA, and calls back:
+//   onPick(species) — a playable species chosen → start a run seeded with it
+//   onDev()         — the temporary dev button → start the current default run
+// Namespaced under #speciesSelect (ss-* classes) so it can't collide with the
+// game's own .card/.overlay UI.
+// =============================================================================
+
+
+const CARD_BY_NAME = {};
+for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
+
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+const speciesImg = (id) => `assets/species/${id}.jpg${VER}`;
+const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
+
+const RI = {
+  energy: '<svg class="ss-ri" viewBox="0 0 24 24" fill="#e6b45c" aria-hidden="true"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>',
+  water: '<svg class="ss-ri" viewBox="0 0 24 24" fill="#7fd0e0" aria-hidden="true"><path d="M12 2s7 7.6 7 12a7 7 0 1 1-14 0c0-4.4 7-12 7-12z"/></svg>',
+  phos: '<svg class="ss-ri" viewBox="0 0 24 24" fill="#c79be6" aria-hidden="true"><path d="M12 2 L14 10 L22 12 L14 14 L12 22 L10 14 L2 12 L10 10 Z"/></svg>',
+};
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Play-cost pips for a card face (water / phosphorus; energy play-cost is always 0).
+function costPips(c) {
+  let out = '';
+  if (c && c.costW) out += '<span class="ss-cpip">' + RI.water + c.costW + '</span>';
+  if (c && c.costP) out += '<span class="ss-cpip p">' + RI.phos + c.costP + '</span>';
+  return out ? '<span class="ss-cost">' + out + '</span>' : '';
+}
+
+// One "actual card" face for the starting hand.
+function cardFace(entry) {
+  const c = CARD_BY_NAME[entry.name] || { name: entry.name, type: '', effect: '' };
+  const multi = entry.count > 1 ? ' ss-multi' : '';
+  return '<div class="ss-gc' + multi + '">' +
+    '<div class="ss-gc-art"><img src="' + cardImg(entry.name) + '" alt="" onerror="this.style.display=\'none\'">' +
+      costPips(c) +
+      '<span class="ss-gc-count">×' + entry.count + '</span>' +
+      (c.type ? '<span class="ss-gc-type">' + esc(c.type) + '</span>' : '') +
+    '</div>' +
+    '<div class="ss-gc-name">' + esc(c.name) + '</div>' +
+    '<div class="ss-gc-eff">' + esc(c.effect || '') + '</div>' +
+  '</div>';
+}
+
+function resPills(res) {
+  const order = [['energy', 'energy'], ['water', 'water'], ['phosphorus', 'phos']];
+  let out = '';
+  for (const [key, icon] of order) {
+    const v = res && res[key];
+    if (!v) continue;
+    out += '<span class="ss-respill ' + icon + '">' + RI[icon] + '<span class="ss-rv">' + v + '</span>' +
+      '<span class="ss-rk">' + key + '</span></span>';
+  }
+  return out;
+}
+
+function showSpeciesSelect({ onPick, onDev }) {
+  const root = el('div'); root.id = 'speciesSelect';
+  root.innerHTML =
+    '<div class="ss-console" role="dialog" aria-label="Select your species">' +
+      '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
+      '<header class="ss-head">' +
+        '<div class="ss-eyebrow">Mycelium · New run</div>' +
+        '<h1>Select your species</h1>' +
+        '<p class="ss-lede">Every run begins as a single spore. Choose the colony you\'ll grow from the dark — its <b>temperament</b> and its <b>starting hand</b> are set here. Two strains are yours from the start; the rest are earned in the deep.</p>' +
+      '</header>' +
+      '<div class="ss-body">' +
+        '<section class="ss-section">' +
+          '<div class="ss-rowlabel"><span class="ss-lk">Available now</span><span class="ss-badge">Choose one</span><span class="ss-rule"></span><span class="ss-hint">Tap a card to inspect</span></div>' +
+          '<div class="ss-grid" id="ssAvail"></div>' +
+        '</section>' +
+        '<div id="ssLocked"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="ss-detailwrap" id="ssDetailWrap" role="dialog" aria-modal="true">' +
+      '<div class="ss-detail" id="ssDetail">' +
+        '<button class="ss-close" id="ssClose" aria-label="Close">✕</button>' +
+        '<div class="ss-d-art"><img id="ssDArt" alt=""></div>' +
+        '<div class="ss-d-body">' +
+          '<div><div class="ss-d-name" id="ssDName"></div><div class="ss-d-latin" id="ssDLatin"></div></div>' +
+          '<p class="ss-d-blurb" id="ssDBlurb"></p>' +
+          '<div class="ss-hand"><h3>Starting hand</h3><p class="ss-sub">The actual cards this colony brings to the surface on turn one.</p>' +
+            '<div class="ss-resprow" id="ssDRes"></div><div class="ss-deck" id="ssDHand"></div></div>' +
+          '<div class="ss-actions"><button class="ss-btn ghost" id="ssCancel">Cancel</button><button class="ss-btn primary" id="ssStart">Start game</button></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(root);
+
+  const wrap = root.querySelector('#ssDetailWrap');
+  const detail = root.querySelector('#ssDetail');
+  let currentSpecies = null;
+
+  function makeCard(s, locked) {
+    const card = el('button', 'ss-card ' + s.vibe + (locked ? ' ss-locked' : ''));
+    card.type = 'button';
+    card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
+    card.innerHTML =
+      '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
+      (locked ? '<span class="ss-lockbadge">🔒 Locked</span>' : '') +
+      '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
+      '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
+    card.addEventListener('click', () => openDetail(s));
+    return card;
+  }
+
+  const availGrid = root.querySelector('#ssAvail');
+  for (const s of SPECIES) if (!s.unlock) availGrid.appendChild(makeCard(s, false));
+
+  const lockedRows = root.querySelector('#ssLocked');
+  for (const row of LOCKED_TIERS) {
+    const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
+    const label = el('div', 'ss-rowlabel ss-locked-label');
+    label.innerHTML = row.communal
+      ? '<span class="ss-lock">🔒</span><span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">Yet to be discovered</span>'
+      : '<span class="ss-lock">🔒</span><span class="ss-lk">Unlock · ' + esc(row.label) + '</span><span class="ss-rule"></span><span class="ss-hint">' + row.n + ' species</span>';
+    const grid = el('div', 'ss-grid');
+    const tier = SPECIES.filter((s) => s.unlock === row.label);
+    for (const s of tier) grid.appendChild(makeCard(s, true));
+    for (let k = tier.length; k < row.n; k++) {
+      const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
+      lc.innerHTML = '<span class="ss-q">?</span>';
+      grid.appendChild(lc);
+    }
+    sec.appendChild(label); sec.appendChild(grid);
+    lockedRows.appendChild(sec);
+  }
+
+  function openDetail(s) {
+    currentSpecies = s;
+    detail.className = 'ss-detail ' + s.vibe;
+    const art = root.querySelector('#ssDArt');
+    art.src = speciesImg(s.img); art.alt = 'Portrait of ' + s.name;
+    root.querySelector('#ssDName').textContent = s.name;
+    root.querySelector('#ssDLatin').textContent = s.latin;
+    root.querySelector('#ssDBlurb').innerHTML = s.blurb;
+    root.querySelector('#ssDRes').innerHTML = resPills(s.res);
+    root.querySelector('#ssDHand').innerHTML = s.hand.map(cardFace).join('');
+    const start = root.querySelector('#ssStart');
+    const cancel = root.querySelector('#ssCancel');
+    if (s.unlock) {
+      start.disabled = true; start.classList.add('is-locked');
+      start.textContent = 'Locked · ' + s.unlock;
+      cancel.textContent = 'Close';
+    } else {
+      start.disabled = false; start.classList.remove('is-locked');
+      start.textContent = 'Start game';
+      cancel.textContent = 'Cancel';
+    }
+    wrap.classList.add('open');
+  }
+  function closeDetail() { wrap.classList.remove('open'); }
+
+  root.querySelector('#ssClose').addEventListener('click', closeDetail);
+  root.querySelector('#ssCancel').addEventListener('click', closeDetail);
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) closeDetail(); });
+  root.querySelector('#ssStart').addEventListener('click', () => {
+    if (!currentSpecies || currentSpecies.unlock) return;
+    hide(); onPick && onPick(currentSpecies);
+  });
+  root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
+
+  function onKey(e) { if (e.key === 'Escape') { if (wrap.classList.contains('open')) closeDetail(); } }
+  document.addEventListener('keydown', onKey);
+
+  function hide() { document.removeEventListener('keydown', onKey); root.remove(); }
+  return { hide, root };
+}
+
+  return { showSpeciesSelect };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -9208,6 +9669,7 @@ const __m_main = (function () {
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug } = __m_render_ui;
+  const { showSpeciesSelect } = __m_render_species_select;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -9229,6 +9691,7 @@ const lighting = new Lighting(CONFIG);
 
 let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
+let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
 const networkRenderers = new Map();
 
 let uiDirty = true;
@@ -9291,8 +9754,13 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
 function begin(newState) {
   state = newState;
-  // Card layer online for procedural (non-puzzle) runs.
-  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') initCards(state, 'testall');   // TEMP dev scaffold: 5× of every card + 300 of each resource (revert to initCards(state) for the real opening)
+  // Card layer online for procedural (non-puzzle) runs. If the player picked a
+  // species at the start-of-run screen, seed that species' exact hand + resources;
+  // otherwise fall back to the dev scaffold (5× of every card + 300 of each resource).
+  if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
+    if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    else initCards(state, 'testall');
+  }
   buildRenderers();
   // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing
   // even with the dev-tools panel off; remove for a public release.
@@ -9892,6 +10360,9 @@ function resize() {
 // (console + in-game Log) and the loop keeps animating.
 let _lastFrameErr = null;
 function frame(time) {
+  // The species picker runs before the first run is created; there's nothing to
+  // render until then, so idle the loop (keeps requesting frames) while state is null.
+  if (!state) { requestAnimationFrame(frame); return; }
   try {
     renderFrame(time);
   } catch (e) {
@@ -11711,9 +12182,18 @@ loadAssets().then(() => {
 setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
 // Warm the card-face image cache so drafts / the hand don't pop in one by one.
 preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
+function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; start((Date.now() & 0x7fffffff) || 1); }
-else start((Date.now() & 0x7fffffff) || 1);
+else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; startRun(); }
+else if (location.hash === '#dev') { chosenSpecies = null; startRun(); }   // skip the picker
+else {
+  // Prompt the species picker first; a pick seeds that species, the dev button
+  // starts the current default run. Restarts (New Map) reuse the last choice.
+  showSpeciesSelect({
+    onPick: (sp) => { chosenSpecies = sp; startRun(); },
+    onDev: () => { chosenSpecies = null; startRun(); },
+  });
+}
 requestAnimationFrame(frame);
 
   return {  };

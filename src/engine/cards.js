@@ -113,7 +113,7 @@ export function cardDeckAdditions(name) {
 // cards to consider); you then draw more from the deck and DRAFT premium cards by
 // finishing (fully digesting) the food piles the map placed. 'all' deals every
 // premium card to hand up-front (dev / free explore).
-export function initCards(state, mode = 'tutorial') {
+export function initCards(state, mode = 'tutorial', species = null) {
   const cc = state.config.cards;
   const net = state.active;
   net.water = cc.startWater; net.phosphorus = cc.startPhosphorus;
@@ -136,6 +136,16 @@ export function initCards(state, mode = 'tutorial') {
     // === END TEMP =============================================================
   } else if (mode === 'all') {
     for (const c of CARD_DATA) { if (c.type === 'basic' || isArchived(c.name)) continue; hand.push({ id: seq++, name: c.name }); }
+  } else if (mode === 'species' && species) {
+    // Start-of-run species pick: deal its exact starting hand + set its resources.
+    for (const h of (species.hand || [])) {
+      if (!CARD_BY_NAME[h.name] || isArchived(h.name)) continue;
+      for (let i = 0; i < (h.count || 0); i++) hand.push({ id: seq++, name: h.name });
+    }
+    const r = species.res || {};
+    if (r.energy != null) net.energy = r.energy;
+    if (r.water != null) net.water = r.water;
+    net.phosphorus = (r.phosphorus != null) ? r.phosphorus : 0;
   } else {
     // Free opening draw so the hand isn't empty at game start (no Energy charged).
     const opening = Math.min(cc.drawCount || 3, drawDeck.length);
