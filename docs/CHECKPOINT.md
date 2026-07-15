@@ -395,6 +395,10 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Mould eating slowed another 3×** (`config.js`): `trichoderma.leavesPerRound` 0.67 → **0.22**
+  (~2/9 cells/round, ≈1 leaf every ~4–5 rounds). A ~29-leaf pile now clears in ~132 rounds
+  (was ~44). One config knob; smoke test still green (clear + size-scaling).
+
 - **Threat tuning: hide ant HP bars, calmer worms, wider worm sight, slower mould eating** (branch same).
   - **Ant nest HP bars removed** (`main.js` `drawAnts`) — nest health is no longer surfaced.
   - **Nematode wriggle ~50% slower** (`main.js` `drawNematodes`): the writhe frequency `time*0.007`
