@@ -947,8 +947,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "89jb47";
-globalThis.__BUILD__ = "local 07-15 16:33";
+window.__ASSET_VER = "1wqpl2z";
+globalThis.__BUILD__ = "local 07-15 16:44";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2647,6 +2647,21 @@ class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
+  // True if any rock cell lies within `r` cells of (col,row). Rock SPRITES
+  // (boulders/formations/columns) render several cells larger than their flagged
+  // cells and `solidifyRock()` only fills that true footprint at render time — so
+  // spawns/food must keep this clearance or they read as sitting on a rock.
+  rockNear(col, row, r = 2.2) {
+    const ri = Math.ceil(r), r2 = r * r;
+    for (let dr = -ri; dr <= ri; dr++)
+      for (let dc = -ri; dc <= ri; dc++) {
+        if (dc * dc + dr * dr > r2) continue;
+        const cell = this.cellAt(col + dc, row + dr);
+        if (cell && cell.rock) return true;
+      }
+    return false;
+  }
+  rockNearWorld(x, y, r) { return this.rockNear(this.colAtX(x), this.rowAtY(y), r); }
 
   surfaceColumnAtX(x) {
     const c = this.colAtX(x);
@@ -4039,6 +4054,10 @@ const __m_engine_nematodes = (function () {
 // state objects) so there's no circular-import risk in the bundle.
 // =============================================================================
 
+// Min clearance (cells) a spawn must keep from any rock cell — rock sprites draw
+// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
+const SPAWN_ROCK_CLEARANCE = 3;
+
 function makeWorm(x, y, heading, phase) {
   return { x, y, heading, phase, hits: 0, stuck: 0, feeding: false, feedCd: 0 };
 }
@@ -4233,17 +4252,19 @@ function moveWorm(w, ux, uy, s, sub) {
 // colony — so a worm has a clear journey in.
 function openSpot(sub, rng, root, minFrac) {
   const minDist = sub.worldWidth * (minFrac || 0);
-  let fallback = null;
-  for (let t = 0; t < 40; t++) {
+  const maxY = (sub.rows - 1) * sub.cellSize * 0.6;   // no deeper than 60% of map depth
+  let clearAny = null, onGround = null;
+  for (let t = 0; t < 80; t++) {
     const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%).
-    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize * 0.6);
+    const y = sub.surfaceY + rng.range(sub.cellSize, maxY);
     const cell = sub.cellAtWorld(x, y);
     if (!cell || cell.rock) continue;
-    fallback = { x, y };
+    onGround = { x, y };
+    if (sub.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;   // clear of oversized rock sprites
+    clearAny = { x, y };
     if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
   }
-  return fallback || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
+  return clearAny || onGround || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
 }
 
 function totalNematodes(state) {
@@ -4283,6 +4304,10 @@ const __m_engine_threats = (function () {
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
+// Min clearance (cells) a spawn keeps from any rock cell — rock sprites draw
+// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
+const SPAWN_ROCK_CLEARANCE = 3;
+
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -4307,18 +4332,22 @@ function seedTrichoderma(substrate, config, rng, network) {
 // the colony — so a cloud has a clear journey ahead of it.
 function pickOpenSpot(substrate, rng, root, t) {
   const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
-  let fallback = null;
-  for (let tries = 0; tries < 40; tries++) {
+  // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
+  // mould nearer the surface so the deep rows stay clearer.
+  const maxY = (substrate.rows - 1) * substrate.cellSize * 0.6;
+  let clearAny = null, onGround = null;
+  for (let tries = 0; tries < 80; tries++) {
     const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
-    // mould nearer the surface so the deep rows stay clearer.
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize * 0.6);
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, maxY);
     const cell = substrate.cellAtWorld(x, y);
     if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
-    fallback = { x, y };
+    onGround = { x, y };
+    // Rock sprites draw several cells past their flagged cells, so keep clear of them.
+    if (substrate.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;
+    clearAny = { x, y };
     if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
   }
-  return fallback || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+  return clearAny || onGround || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
 }
 
 // Spawn a fresh roaming cloud in open ground far from the colony.

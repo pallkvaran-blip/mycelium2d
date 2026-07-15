@@ -423,7 +423,10 @@ Both menus are dark, on-theme, with glowing green borders.
   - **Level-complete overlay** (`showLevelComplete`): a "🍄 Level N of 11 cleared" badge, then (if a
     species unlocked) an elevated "✦ New species unlocked" headline + subline + the inspectable card,
     then a **"Next level →"** button. No verbose title/paragraph. Threat spawn depth (trichoderma +
-    nematodes) is capped at 60% of map depth (40% shallower) in `threats.js`/`nematodes.js`.
+    nematodes) is capped at 60% of map depth (40% shallower) in `threats.js`/`nematodes.js`; spawns
+    also keep a **3-cell clearance from rock** (`Substrate.rockNear`/`rockNearWorld`) — rock SPRITES
+    render several cells past their flagged cells and `solidifyRock()` only fills that true footprint
+    at render time, so a bare `cell.rock` check let threats land visually on top of rocks.
   - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode. A temporary
     **"Dev: win level ▸"** button (top-right, amber dashed) instantly clears the level to test the flow.
   - **Debug hooks** on `window.__game`: `winLevel()` (= the dev button) / `killColony()`.

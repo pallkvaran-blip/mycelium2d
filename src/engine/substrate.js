@@ -59,6 +59,21 @@ export class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
+  // True if any rock cell lies within `r` cells of (col,row). Rock SPRITES
+  // (boulders/formations/columns) render several cells larger than their flagged
+  // cells and `solidifyRock()` only fills that true footprint at render time — so
+  // spawns/food must keep this clearance or they read as sitting on a rock.
+  rockNear(col, row, r = 2.2) {
+    const ri = Math.ceil(r), r2 = r * r;
+    for (let dr = -ri; dr <= ri; dr++)
+      for (let dc = -ri; dc <= ri; dc++) {
+        if (dc * dc + dr * dr > r2) continue;
+        const cell = this.cellAt(col + dc, row + dr);
+        if (cell && cell.rock) return true;
+      }
+    return false;
+  }
+  rockNearWorld(x, y, r) { return this.rockNear(this.colAtX(x), this.rowAtY(y), r); }
 
   surfaceColumnAtX(x) {
     const c = this.colAtX(x);

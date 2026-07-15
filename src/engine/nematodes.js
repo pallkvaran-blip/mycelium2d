@@ -15,6 +15,10 @@
 // state objects) so there's no circular-import risk in the bundle.
 // =============================================================================
 
+// Min clearance (cells) a spawn must keep from any rock cell — rock sprites draw
+// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
+const SPAWN_ROCK_CLEARANCE = 3;
+
 function makeWorm(x, y, heading, phase) {
   return { x, y, heading, phase, hits: 0, stuck: 0, feeding: false, feedCd: 0 };
 }
@@ -209,17 +213,19 @@ function moveWorm(w, ux, uy, s, sub) {
 // colony — so a worm has a clear journey in.
 function openSpot(sub, rng, root, minFrac) {
   const minDist = sub.worldWidth * (minFrac || 0);
-  let fallback = null;
-  for (let t = 0; t < 40; t++) {
+  const maxY = (sub.rows - 1) * sub.cellSize * 0.6;   // no deeper than 60% of map depth
+  let clearAny = null, onGround = null;
+  for (let t = 0; t < 80; t++) {
     const x = rng.range(sub.cellSize, sub.worldWidth - sub.cellSize);
-    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%).
-    const y = sub.surfaceY + rng.range(sub.cellSize, (sub.rows - 1) * sub.cellSize * 0.6);
+    const y = sub.surfaceY + rng.range(sub.cellSize, maxY);
     const cell = sub.cellAtWorld(x, y);
     if (!cell || cell.rock) continue;
-    fallback = { x, y };
+    onGround = { x, y };
+    if (sub.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;   // clear of oversized rock sprites
+    clearAny = { x, y };
     if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
   }
-  return fallback || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
+  return clearAny || onGround || { x: sub.worldWidth / 2, y: sub.surfaceY + sub.cellSize * 3 };
 }
 
 export function totalNematodes(state) {

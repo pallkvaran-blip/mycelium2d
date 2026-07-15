@@ -26,6 +26,10 @@
 // with the live cloud list living on `state.clouds`.
 // =============================================================================
 
+// Min clearance (cells) a spawn keeps from any rock cell — rock sprites draw
+// several cells beyond their flagged footprint, so a bare cell.rock check isn't enough.
+const SPAWN_ROCK_CLEARANCE = 3;
+
 function makeCloud(cx, cy, r) {
   return { cx, cy, r, strength: 1, dying: false, heading: null };
 }
@@ -50,18 +54,22 @@ export function seedTrichoderma(substrate, config, rng, network) {
 // the colony — so a cloud has a clear journey ahead of it.
 function pickOpenSpot(substrate, rng, root, t) {
   const minDist = substrate.worldWidth * (t.seedMinColonyDistFrac || 0);
-  let fallback = null;
-  for (let tries = 0; tries < 40; tries++) {
+  // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
+  // mould nearer the surface so the deep rows stay clearer.
+  const maxY = (substrate.rows - 1) * substrate.cellSize * 0.6;
+  let clearAny = null, onGround = null;
+  for (let tries = 0; tries < 80; tries++) {
     const x = rng.range(substrate.cellSize, substrate.worldWidth - substrate.cellSize);
-    // Spawn no deeper than 60% of the map's depth (max spawn depth cut 40%) — keeps
-    // mould nearer the surface so the deep rows stay clearer.
-    const y = substrate.surfaceY + rng.range(substrate.cellSize, (substrate.rows - 1) * substrate.cellSize * 0.6);
+    const y = substrate.surfaceY + rng.range(substrate.cellSize, maxY);
     const cell = substrate.cellAtWorld(x, y);
     if (!cell || cell.rock || cell.maxNutrient > 0) continue;   // open ground only
-    fallback = { x, y };
+    onGround = { x, y };
+    // Rock sprites draw several cells past their flagged cells, so keep clear of them.
+    if (substrate.rockNearWorld(x, y, SPAWN_ROCK_CLEARANCE)) continue;
+    clearAny = { x, y };
     if (!root || Math.hypot(x - root.x, y - root.y) >= minDist) return { x, y };
   }
-  return fallback || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
+  return clearAny || onGround || { x: substrate.worldWidth / 2, y: substrate.surfaceY + substrate.cellSize * 3 };
 }
 
 // Spawn a fresh roaming cloud in open ground far from the colony.
