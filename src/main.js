@@ -1243,7 +1243,7 @@ function addEnergyFloater(wx, wy, amount, opts = {}) {
   if (amt <= 0) return;
   // `age` counts UP each frame (frame-based, not wall-clock) so an erratic rAF
   // timestamp can never skip or freeze the animation; it fades over `life` frames.
-  floaters.push({ x: wx, y: wy, amount: amt, sign: opts.sign || '', age: 0, life: opts.life || 80, rise: opts.rise != null ? opts.rise : 30, size: opts.size || 19 });
+  floaters.push({ x: wx, y: wy, amount: amt, sign: opts.sign || '', age: 0, life: opts.life || 80, rise: opts.rise != null ? opts.rise : 30, size: opts.size || 13 });
 }
 
 // A pile "+N⚡" pops the instant it finishes digesting (checkPileRewards stamped
@@ -1254,7 +1254,7 @@ function spawnFinishFloaters() {
   for (const p of sub.foodPiles) {
     if (p._floated || p.finishEnergy == null || !p.center) continue;
     p._floated = true;
-    if (p.finishEnergy > 0) addEnergyFloater(p.center.x, p.center.y - sub.cellSize * 1.4, p.finishEnergy, { sign: '+', dur: 1200, rise: 34, size: 21 });
+    if (p.finishEnergy > 0) addEnergyFloater(p.center.x, p.center.y - sub.cellSize * 1.4, p.finishEnergy, { sign: '+', rise: 30, size: 14 });
   }
 }
 
@@ -1284,7 +1284,7 @@ function showPileEnergyAt(sx, sy) {
     cx += cc.x; cy += cc.y; n++;
   }
   if (nut <= 0) return false;
-  addEnergyFloater(n ? cx / n : w.x, (n ? cy / n : w.y) - sub.cellSize * 0.6, nut * eff, { dur: 1500, rise: 28, size: 20 });
+  addEnergyFloater(n ? cx / n : w.x, (n ? cy / n : w.y) - sub.cellSize * 0.6, nut * eff, { rise: 26, size: 14 });
   return true;
 }
 
@@ -1332,18 +1332,18 @@ function drawFloaters(time) {
     const startX = s.x - (tw + gap + boltW) / 2;
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.lineJoin = 'round';
-    ctx.lineWidth = Math.max(2.5, f.size * 0.18);
+    ctx.lineWidth = Math.max(2, f.size * 0.2);
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';           // dark outline so it reads over any terrain
-    ctx.fillStyle = '#f6c832';
+    ctx.fillStyle = '#7fe6a3';                      // green — matches the top pill's energy value (--accent)
     ctx.strokeText(txt, startX, y);
     ctx.fillText(txt, startX, y);
     if (ENERGY_BOLT) {
       ctx.save();
       ctx.translate(startX + tw + gap, y - bolt / 2);
       ctx.scale(bolt / 24, bolt / 24);
-      ctx.lineWidth = 24 * 0.14;
+      ctx.lineWidth = 24 * 0.16;
       ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.stroke(ENERGY_BOLT);
-      ctx.fillStyle = '#f6c832'; ctx.fill(ENERGY_BOLT);
+      ctx.fillStyle = '#f4c22e'; ctx.fill(ENERGY_BOLT);   // gold bolt, same as the pill icon
       ctx.restore();
     }
   }
