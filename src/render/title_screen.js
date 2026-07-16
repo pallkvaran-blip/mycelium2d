@@ -152,15 +152,15 @@ export function showTitleScreen({ onNew, onContinue }) {
     for (let i = 0; i < 180; i++) {
       const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
       const ang = Math.atan2(s.y - titleY, s.x - cx) + rnd(-0.7, 0.7);
-      const len = 2 + ((Math.random() * 3) | 0);         // short: 2-4 segments (~half the old length)
+      const len = 1 + ((Math.random() * 2) | 0);         // very short: 1-2 segments
       let ex = s.x, ey = s.y;
       for (let k = 1; k <= len; k++) { ex = s.x + Math.cos(ang) * sp * k; ey = s.y + Math.sin(ang) * sp * k; g.attractors.push({ x: ex, y: ey }); }
       // branch/spray at the tip so each stray strand finishes with some branching
       const br = 3 + ((Math.random() * 4) | 0);
       for (let bi = 0; bi < br; bi++) {
-        const ba = ang + rnd(-1.0, 1.0), bl = g.attract * rnd(0.5, 1.2);
+        const ba = ang + rnd(-1.0, 1.0), bl = g.attract * rnd(0.4, 0.95);
         g.attractors.push({ x: ex + Math.cos(ba) * bl, y: ey + Math.sin(ba) * bl });
-        if (Math.random() < 0.45) g.attractors.push({ x: ex + Math.cos(ba) * bl * 1.8, y: ey + Math.sin(ba) * bl * 1.8 });
+        if (Math.random() < 0.35) g.attractors.push({ x: ex + Math.cos(ba) * bl * 1.6, y: ey + Math.sin(ba) * bl * 1.6 });
       }
     }
     if (reduce) { let guard = 0; while (!g.done && guard++ < 40000) step(g); flushInk(); }
