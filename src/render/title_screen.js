@@ -24,15 +24,14 @@ export function showTitleScreen({ onNew, onContinue }) {
   root.innerHTML =
     '<canvas id="tsCanvas"></canvas>' +
     '<div class="ts-menu">' +
-      '<div class="ts-block">' +
+      '<div class="ts-block ts-top">' +
         '<div class="ts-mode">Survival</div>' +
         '<div class="ts-actions">' +
           '<button class="ts-btn" id="tsNew" type="button">New</button>' +
           '<button class="ts-btn" id="tsCont" type="button">Continue</button>' +
         '</div>' +
       '</div>' +
-      '<div class="ts-gap" id="tsGap"></div>' +
-      '<div class="ts-block">' +
+      '<div class="ts-block ts-bottom">' +
         '<div class="ts-actions">' +
           '<span class="ts-btn ts-locked">New</span>' +
           '<span class="ts-btn ts-locked">Continue</span>' +
@@ -45,7 +44,6 @@ export function showTitleScreen({ onNew, onContinue }) {
 
   const canvas = root.querySelector('#tsCanvas');
   const ctx = canvas.getContext('2d');
-  const gapEl = root.querySelector('#tsGap');
 
   let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
   let titleSize = 0, titleY = 0, cx = 0;
@@ -205,36 +203,55 @@ export function showTitleScreen({ onNew, onContinue }) {
   }
 
   // ---- consume a menu word, then fire its callback ------------------------
-  function consume(btn, cb) {
-    if (consuming || finished) return; consuming = true;
-    root.querySelectorAll('.ts-btn').forEach((b) => { if (b !== btn) b.style.pointerEvents = 'none'; });
+  // Grow a mycelium version of a button's word in place (each letter blooms from a
+  // random point, like the title) — used after the DOM word has faded out.
+  function growButtonWord(btn) {
     const rr = root.getBoundingClientRect(), br = btn.getBoundingClientRect();
     const bx = br.left - rr.left + br.width / 2, by = br.top - rr.top + br.height / 2;
     const cs = getComputedStyle(btn);
-    const pts = attractorsFromText((o) => {
-      o.fillStyle = '#fff'; o.font = cs.fontWeight + ' ' + cs.fontSize + '/' + cs.fontSize + ' ' + cs.fontFamily;
-      o.textAlign = 'center'; o.textBaseline = 'middle';
-      // honour letter-spacing so the sampled mask matches the rendered word
-      const t = btn.textContent, ls = parseFloat(cs.letterSpacing) || 0;
-      if (ls) { o.save(); let total = 0; for (const ch of t) total += o.measureText(ch).width + ls; let x = bx - (total - ls) / 2; o.textAlign = 'left'; for (const ch of t) { o.fillText(ch, x, by); x += o.measureText(ch).width + ls; } o.restore(); }
-      else o.fillText(t, bx, by);
-    }, Math.max(2.5, titleSize * 0.02));
-    // bridge: a trail of attractors from the nearest title node to the button
-    let near = g.nodes[0] || { x: cx, y: titleY };
-    let bd = Infinity;
-    for (const n of g.nodes) { const d = (n.x - bx) ** 2 + (n.y - by) ** 2; if (d < bd) { bd = d; near = n; } }
-    const steps = Math.max(2, Math.hypot(bx - near.x, by - near.y) / (g.attract * 0.55) | 0);
-    for (let i = 1; i <= steps; i++) g.attractors.push({ x: near.x + (bx - near.x) * i / steps, y: near.y + (by - near.y) * i / steps });
-    for (const p of pts) g.attractors.push(p);
+    const size = parseFloat(cs.fontSize);
+    const spacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
+    const font = cs.fontWeight + ' ' + size + 'px ' + cs.fontFamily;
+    const text = btn.textContent;
+    const draw = (o, blur) => {
+      o.filter = blur ? 'blur(' + blur + 'px)' : 'none';
+      o.fillStyle = '#fff'; o.font = font; o.textAlign = 'center'; o.textBaseline = 'middle';
+      try { o.letterSpacing = spacing; } catch (_) {}
+      o.fillText(text, bx, by);
+    };
+    const glyph = attractorsFromText((o) => draw(o, 0), Math.max(2, Math.round(g.seg * 0.9)));
+    for (const p of glyph) g.attractors.push(p);
+    // one random seed per letter (x-bands)
+    const m = ctx; m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
+    const total = m.measureText(text).width, x0 = bx - total / 2;
+    let prevW = 0;
+    for (let i = 0; i < text.length; i++) {
+      const w = m.measureText(text.slice(0, i + 1)).width;
+      const lo = x0 + prevW, hi = x0 + w; prevW = w;
+      const inL = glyph.filter((pt) => pt.x >= lo && pt.x < hi);
+      if (inL.length) { const s = inL[(Math.random() * inL.length) | 0]; addNode(g, s.x, s.y, -1); }
+    }
+    try { m.letterSpacing = '0px'; } catch (_) {}
+    // light fringe so it matches the title's hairy edges
+    const fringe = attractorsFromText((o) => draw(o, size * 0.03), Math.max(3, g.seg * 3), 12, 100);
+    for (const f of fringe) g.attractors.push(f);
     g.done = false;
-    btn.classList.add('ts-consuming');
+  }
+
+  function consume(btn, cb) {
+    if (consuming || finished) return; consuming = true;
+    root.querySelectorAll('.ts-btn').forEach((b) => { if (b !== btn) b.style.pointerEvents = 'none'; });
+    btn.classList.add('ts-fading');                 // (1) the DOM word fades away quickly + completely
     const finish = () => {
       finished = true;
       root.style.transition = 'opacity .55s ease'; root.style.opacity = '0';
       setTimeout(() => { cancelAnimationFrame(raf); root.remove(); cb && cb(); }, 560);
     };
-    if (reduce) { let guard = 0; while (!g.done && guard++ < 4000) step(g); flushInk(); composite(); setTimeout(finish, 300); }
-    else setTimeout(finish, 1600);
+    if (reduce) { btn.style.opacity = '0'; growButtonWord(btn); let guard = 0; while (!g.done && guard++ < 8000) step(g); flushInk(); composite(); setTimeout(finish, 350); return; }
+    setTimeout(() => {                               // (2) then the mycelium grows the word back
+      growButtonWord(btn);
+      setTimeout(finish, 1400);                      // (3) then transition
+    }, 300);
   }
 
   // ---- layout / boot -----------------------------------------------------
@@ -246,9 +263,7 @@ export function showTitleScreen({ onNew, onContinue }) {
     ink = document.createElement('canvas'); ink.width = canvas.width; ink.height = canvas.height;
     ictx = ink.getContext('2d');
     titleSize = Math.min(H * 0.24, (W * 0.82) / (TITLE.length * 0.62));
-    gapEl.style.height = (titleSize * 1.6) + 'px';
-    const gr = gapEl.getBoundingClientRect(), rr = root.getBoundingClientRect();
-    cx = W / 2; titleY = gr.top - rr.top + gr.height / 2;
+    cx = W / 2; titleY = Math.round(H * 0.47);   // title sits at screen centre; menu blocks pin to top/bottom
     seedTitle();
     composite();
   }

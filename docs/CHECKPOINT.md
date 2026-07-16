@@ -402,14 +402,15 @@ Both menus are dark, on-theme, with glowing green borders.
   black: a self-contained **space-colonization** growth fills the letter glyphs with a DENSE mat of
   fine white filaments — the letters are made **entirely of strands** (no fill/ghost/second colour;
   legibility comes from strand density) — and each letter edge is fringed with short branch-tipped
-  stray strands. It **creeps in left-to-right** (~2.6s): a growth "front" (`g.frontX`, advanced by
-  time in `frame()`) gates which seeds/attractors are active, so the word visibly spreads across
-  rather than popping in. Fine seg + short attraction radius keeps the grid cheap. Menu is DOM
-  (layout/a11y/grayed states), canvas overlays it (`pointer-events:none`):
-  **Survival** — New / Continue (active); **Campaign** — New / Continue (grayed) + "coming soon".
-  Pressing New/Continue seeds a bridge of attractors from the title to that button and fills its
-  glyph mask → the word is **consumed into mycelium**, its DOM text cross-fades out, then the screen
-  fades and the callback fires. **New** = `resetProgress()` (wipe unlocks) → picker; **Continue** =
+  stray strands. Growth animation: **each letter blooms from its own single RANDOM point** (one seed
+  per letter x-band), all at once, paced by a fractional step accumulator (`STEP_RATE` ~1.4/frame).
+  Fine seg + short attraction radius keeps the grid cheap. Menu is DOM (layout/a11y/grayed states),
+  canvas overlays it (`pointer-events:none`); title sits at screen centre (`titleY≈0.47H`) with the
+  blocks pinned top/bottom: **Survival** (near top) — large New / Continue (grid `1fr 1fr`, each
+  centred in its half → symmetric about centre); **Campaign** (near bottom) — New / Continue (grayed)
+  + "coming soon". Pressing New/Continue: the DOM word **fades out quickly + completely** (`ts-fading`,
+  .22s), then `growButtonWord()` **regrows that word in mycelium in place** (per-letter bloom, like
+  the title), then the screen fades and the callback fires. **New** = `resetProgress()` (wipe unlocks) → picker; **Continue** =
   keep unlocks → picker. Boots before the picker (default boot only; `#dev`/`#puzzle`/`#notrich`
   still skip it). `prefers-reduced-motion` → grows synchronously (static). **Gotcha:** pixel-mask
   sampling MUST step the loop by an integer (fractional index into the typed array → `undefined` →
