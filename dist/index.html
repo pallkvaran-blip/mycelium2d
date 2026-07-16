@@ -741,7 +741,7 @@
     #titleScreen .ts-actions > *:first-child { justify-self:end; }
     #titleScreen .ts-actions > *:last-child { justify-self:start; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
-      font-size:clamp(30px,5vw,54px); letter-spacing:.14em; text-indent:.14em; text-transform:uppercase; font-weight:600;
+      font-size:clamp(40px,7vw,84px); letter-spacing:.14em; text-indent:.14em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
     #titleScreen .ts-btn:hover:not(.ts-locked) { color:#fff; text-shadow:0 0 26px rgba(190,255,230,0.8); }
     #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
@@ -987,8 +987,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1dkgfgt";
-globalThis.__BUILD__ = "local 07-16 10:26";
+window.__ASSET_VER = "cpnxrr";
+globalThis.__BUILD__ = "local 07-16 10:54";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9959,13 +9959,13 @@ function showTitleScreen({ onNew, onContinue }) {
         '<div class="ts-mode">Survival</div>' +
         '<div class="ts-actions">' +
           '<button class="ts-btn" id="tsNew" type="button">New</button>' +
-          '<button class="ts-btn" id="tsCont" type="button">Continue</button>' +
+          '<button class="ts-btn" id="tsCont" type="button">Old</button>' +
         '</div>' +
       '</div>' +
       '<div class="ts-block ts-bottom">' +
         '<div class="ts-actions">' +
           '<span class="ts-btn ts-locked">New</span>' +
-          '<span class="ts-btn ts-locked">Continue</span>' +
+          '<span class="ts-btn ts-locked">Old</span>' +
         '</div>' +
         '<div class="ts-mode ts-locked">Campaign</div>' +
         '<div class="ts-soon">coming soon</div>' +
@@ -9982,7 +9982,7 @@ function showTitleScreen({ onNew, onContinue }) {
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
   let finishFn = null;      // consume-completion handoff
   const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
-  const CONSUME_RATE = 6;   // faster while a strand shoots out and unfurls a menu word (fewer frames = snappier on hi-dpi)
+  const CONSUME_RATE = 12;  // the menu word grows at a finer scale (many more strands) — step fast so it completes in time
 
   // ---- spatial-grid space colonization -----------------------------------
   function grid(gr, x, y) { return ((x / gr.cell) | 0) + ',' + ((y / gr.cell) | 0); }
@@ -10144,25 +10144,40 @@ function showTitleScreen({ onNew, onContinue }) {
     return best;
   }
   // Lay a gently-wandering line of attractors between two points so growth creeps
-  // from one to the other, one segment at a time (a visible travelling strand).
-  // The wander is a SMOOTH sine along the length (single random phase/frequency) so
-  // consecutive points stay well within the attraction radius — a per-point random
-  // jitter would break the chain mid-way and stall the strand.
+  // from one to the other, one segment at a time (a visible travelling strand), with
+  // frequent little side-branches + tip sprays along the way so it reads as MYCELIUM
+  // rather than a bare line. The main wander is a SMOOTH sine along the length (single
+  // random phase/frequency) so consecutive points stay within the attraction radius —
+  // a per-point random jitter would break the chain mid-way and stall the strand.
   function bridgeAttractors(ax, ay, bx2, by2) {
     const dx = bx2 - ax, dy = by2 - ay, L = Math.hypot(dx, dy) || 1;
     const n = Math.max(1, Math.round(L / (g.attract * 0.55)));   // dense: spacing < attraction radius
     const px = -dy / L, py = dx / L;                             // unit perpendicular
     const amp = g.attract * 0.8, ph = rnd(0, Math.PI * 2), waves = rnd(1.2, 2.2);
+    let lx = ax, ly = ay;
     for (let k = 1; k <= n; k++) {
       const t = k / n;
       const w = Math.sin(ph + t * Math.PI * waves) * amp * Math.sin(t * Math.PI);   // tapers to 0 at both ends
-      g.attractors.push({ x: ax + dx * t + px * w, y: ay + dy * t + py * w });
+      const x = ax + dx * t + px * w, y = ay + dy * t + py * w;
+      g.attractors.push({ x, y });
+      if (k > 1 && k < n && Math.random() < 0.5) {               // side branch with a tip spray
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const bang = Math.atan2(y - ly, x - lx) + side * rnd(0.5, 1.15), blen = 1 + ((Math.random() * 2) | 0);
+        let ex = x, ey = y;
+        for (let s = 1; s <= blen; s++) { ex = x + Math.cos(bang) * g.attract * 0.85 * s; ey = y + Math.sin(bang) * g.attract * 0.85 * s; g.attractors.push({ x: ex, y: ey }); }
+        const tips = 1 + ((Math.random() * 3) | 0);
+        for (let ti = 0; ti < tips; ti++) { const ta = bang + rnd(-0.9, 0.9), tl = g.attract * rnd(0.4, 0.9); g.attractors.push({ x: ex + Math.cos(ta) * tl, y: ey + Math.sin(ta) * tl }); }
+      }
+      lx = x; ly = y;
     }
   }
 
-  // Sample a button's word into attractor points (glyph + hairy fringe) plus one
-  // random bloom seed per letter — all in the title's OWN growth units, so the word
-  // ends up drawn with identical strands/colour to MYCELIUM.
+  // Sample a button's word into attractor points (glyph + hairy fringe) plus several
+  // random bloom seeds per letter. The glyph is SUPERSAMPLED (rendered into a small
+  // canvas scaled ×S, then sampled) so a small menu word gets FAR more attractors than
+  // the coarse title-pixel grid would allow at this size — that's what makes the grown
+  // word dense + legible instead of a sparse tangle. `SPL` seeds per letter → several
+  // fans fill each glyph. Returns the font `size` so the caller can scale growth to it.
   function sampleWord(btn) {
     const rr = root.getBoundingClientRect(), br = btn.getBoundingClientRect();
     const bx = br.left - rr.left + br.width / 2, by = br.top - rr.top + br.height / 2;
@@ -10170,40 +10185,61 @@ function showTitleScreen({ onNew, onContinue }) {
     const size = parseFloat(cs.fontSize);
     const spacing = cs.letterSpacing === 'normal' ? '0px' : cs.letterSpacing;
     const font = cs.fontWeight + ' ' + size + 'px ' + cs.fontFamily;
-    const text = btn.textContent;
+    let text = btn.textContent;                    // match the button's DISPLAYED casing (CSS text-transform)
+    if (cs.textTransform === 'uppercase') text = text.toUpperCase();
+    else if (cs.textTransform === 'lowercase') text = text.toLowerCase();
+    const m = ctx; m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
+    const total = m.measureText(text).width; try { m.letterSpacing = '0px'; } catch (_) {}
+    const box = { x: bx - total / 2 - size * 0.4, y: by - size * 0.9, w: total + size * 0.8, h: size * 1.8 };
+    const S = 3;   // supersample factor → ~3× finer effective sampling than the 1px-integer floor
     const draw = (o, blur) => {
       o.filter = blur ? 'blur(' + blur + 'px)' : 'none';
       o.fillStyle = '#fff'; o.font = font; o.textAlign = 'center'; o.textBaseline = 'middle';
       try { o.letterSpacing = spacing; } catch (_) {}
       o.fillText(text, bx, by);
     };
-    const glyph = attractorsFromText((o) => draw(o, 0), Math.max(2, Math.round(g.seg * 0.9)));
-    const fringe = attractorsFromText((o) => draw(o, size * 0.03), Math.max(3, g.seg * 3), 12, 100);
-    const m = ctx; m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
-    const total = m.measureText(text).width, x0 = bx - total / 2;
-    const seeds = []; let prevW = 0;
+    const sample = (drawFn, stepPx, aMin, aMax) => {
+      const st = Math.max(2, Math.round(stepPx));
+      const cw = Math.max(1, Math.ceil(box.w * S)), ch = Math.max(1, Math.ceil(box.h * S));
+      const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+      const o = off.getContext('2d'); o.setTransform(S, 0, 0, S, -box.x * S, -box.y * S); drawFn(o);
+      const d = o.getImageData(0, 0, cw, ch).data, pts = [];
+      for (let y = 0; y < ch; y += st) for (let x = 0; x < cw; x += st) {
+        const a = d[(y * cw + x) * 4 + 3];
+        if (a >= aMin && a < aMax) pts.push({ x: box.x + (x + rnd(-st / 2, st / 2)) / S, y: box.y + (y + rnd(-st / 2, st / 2)) / S });
+      }
+      return pts;
+    };
+    const glyph = sample((o) => draw(o, 0), 2, 70, 256);
+    const fringe = sample((o) => draw(o, size * 0.03), 3, 12, 100);
+    const SPL = 3;   // bloom seeds per letter → several fans fill each glyph densely
+    m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
+    const x0 = bx - total / 2, seeds = []; let prevW = 0;
     for (let i = 0; i < text.length; i++) {
       const w = m.measureText(text.slice(0, i + 1)).width;
       const lo = x0 + prevW, hi = x0 + w; prevW = w;
       const inL = glyph.filter((pt) => pt.x >= lo && pt.x < hi);
-      if (inL.length) seeds.push(inL[(Math.random() * inL.length) | 0]);
+      for (let s = 0; s < SPL && inL.length; s++) seeds.push(inL[(Math.random() * inL.length) | 0]);
     }
     try { m.letterSpacing = '0px'; } catch (_) {}
-    return { glyph, fringe, seeds, bx, by };
+    return { glyph, fringe, seeds, bx, by, size };
   }
 
-  // Grow the button's word so it reads exactly like MYCELIUM: EVERY letter blooms
-  // from its own random point with dense glyph attractors + hairy strays (identical to
-  // seedTitle), AND 1–2 connector strands creep out of the nearest MYCELIUM letters so
-  // the word visibly grows straight out of the title. Same growth `g` → same strand
-  // style and colour by construction.
+  // Grow the button's word so it reads exactly like MYCELIUM: growth switches to the
+  // WORD's OWN (finer) scale so a small word gets as many strands, relatively, as the
+  // big title; EVERY letter blooms from its own random points with dense glyph
+  // attractors + hairy strays; AND 1–2 branching connector strands creep out of the
+  // nearest MYCELIUM letters so the word visibly grows straight out of the title.
   function growButtonWord(btn) {
-    const { glyph, fringe, seeds, bx, by } = sampleWord(btn);
+    const { glyph, fringe, seeds, bx, by, size } = sampleWord(btn);
+    if (!seeds.length) { g.done = false; return; }
+    // rescale growth to the word (leave g.cell alone — it keeps the title's grid buckets
+    // valid; a smaller attract than cell just makes nearestNode search a superset, fine)
+    g.seg = Math.max(0.6, size * 0.009);
+    g.attract = size * 0.05; g.attract2 = g.attract * g.attract; g.kill2 = g.seg * g.seg;
     for (const p of glyph) g.attractors.push(p);
     for (const f of fringe) g.attractors.push(f);
-    if (!seeds.length) { g.done = false; return; }
-    // (A) immediately: 1–2 connector strands creep OUT of the nearest MYCELIUM nodes
-    //     toward where the word will be — the visible "it grows from the title" beat.
+    // (A) immediately: 1–2 branching connector strands out of the nearest MYCELIUM nodes.
     const ranked = seeds.map((s) => {
       const ni = nearestExistingNode(s.x, s.y);
       const n = ni >= 0 ? g.nodes[ni] : null;
@@ -10212,12 +10248,11 @@ function showTitleScreen({ onNew, onContinue }) {
     const nBridge = seeds.length >= 2 ? 1 + ((Math.random() * 2) | 0) : 1;   // 1 or 2 strands
     for (const e of ranked.slice(0, nBridge)) if (e.n) bridgeAttractors(e.n.x, e.n.y, e.s.x, e.s.y);
     g.done = false;
-    // (B) a beat later: every letter blooms from its own random point (dense + legible,
-    //     exactly like the title) plus stray fuss — the strand resolves into a full word.
+    // (B) a beat later: every letter blooms from its own seeds (dense + legible) + strays.
     const bloom = () => {
       if (finished) return;
       for (const s of seeds) addNode(g, s.x, s.y, -1);
-      const edge = fringe.length ? fringe : glyph, sp = g.attract * 0.6, strays = Math.round(seeds.length * 8);
+      const edge = fringe.length ? fringe : glyph, sp = g.attract * 0.6, strays = Math.round(seeds.length * 10);
       for (let i = 0; i < strays; i++) {
         const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
         const ang = Math.atan2(s.y - by, s.x - bx) + rnd(-0.7, 0.7), len = 1 + ((Math.random() * 2) | 0);
@@ -10245,7 +10280,7 @@ function showTitleScreen({ onNew, onContinue }) {
     // (bloom seeds at +750ms). Predictable wall-clock pacing so the transition timing is
     // the same on every device — the word keeps maturing through the hold + fade.
     setTimeout(() => growButtonWord(btn), 300);
-    setTimeout(finishFn, 2100);                      // (3) fade to the next screen a beat after the word forms
+    setTimeout(finishFn, 2700);                      // (3) fade to the next screen a beat after the word forms
   }
 
   // ---- layout / boot -----------------------------------------------------

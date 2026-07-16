@@ -406,21 +406,27 @@ Both menus are dark, on-theme, with glowing green borders.
   per letter x-band), all at once, paced by a fractional step accumulator (`STEP_RATE` ~1.4/frame).
   Fine seg + short attraction radius keeps the grid cheap. Menu is DOM (layout/a11y/grayed states),
   canvas overlays it (`pointer-events:none`); title sits at screen centre (`titleY≈0.47H`) with the
-  blocks pinned top/bottom: **Survival** (near top) — large New / Continue; **Campaign** (near
-  bottom) — New / Continue (grayed) + "coming soon". Menu centring: `.ts-actions` is a
-  **`minmax(0,1fr) minmax(0,1fr)`** grid with NEW right-aligned / CONTINUE left-aligned around a
-  centred `column-gap`, so the **gap centre = SURVIVAL centre = screen centre** at every width (plain
-  `1fr 1fr` let the wider word CONTINUE grow its track and shove the gap left — hence `minmax(0,…)`).
-  Pressing New/Continue (`consume()`): the DOM word **fades out** (`ts-fading`, .22s); at +300ms
-  `growButtonWord()` shoots **1–2 connector strands out of the nearest MYCELIUM nodes** toward the
-  word (`bridgeAttractors`, a smooth-wander attractor chain — per-point random jitter would break the
-  chain mid-climb and stall it); at +750ms every letter blooms from its **own random seed** with dense
-  glyph attractors + strays (identical to `seedTitle`, so the word reads as MYCELIUM in the same
-  strands/colour) — the strand visibly grows out of the title, then the word unfurls from it. Growth
-  runs at `CONSUME_RATE` (~6 steps/frame, snappier on hi-dpi); the transition fires on a **fixed
-  wall-clock timer** (finishFn at +2100ms — predictable across devices; the word keeps maturing
-  through the .55s fade) rather than a fragile attractor/plateau heuristic. **New** = `resetProgress()`
-  (wipe unlocks) → picker; **Continue** = keep unlocks → picker. Boots before the picker (default boot
+  blocks pinned top/bottom: **Survival** (near top) — large **New / Old**; **Campaign** (near
+  bottom) — New / Old (grayed) + "coming soon". (Words are big, `clamp(40px,7vw,84px)`; NEW/OLD are
+  both 3 letters → naturally symmetric.) Menu centring: `.ts-actions` is a
+  **`minmax(0,1fr) minmax(0,1fr)`** grid with the left word right-aligned / right word left-aligned
+  around a centred `column-gap`, so the **gap centre = SURVIVAL centre = screen centre** at every
+  width (plain `1fr 1fr` let a wider word grow its track and shove the gap left — hence `minmax(0,…)`).
+  Pressing New/Old (`consume()`): the DOM word **fades out** (`ts-fading`, .22s); at +300ms
+  `growButtonWord()` shoots **1–2 branching connector strands out of the nearest MYCELIUM nodes**
+  toward the word (`bridgeAttractors` — a smooth-wander attractor chain with side-branches + tip
+  sprays along it; per-point random jitter would break the chain mid-climb and stall it); at +750ms
+  every letter blooms from its **own random seeds**. Crucially the word grows at the **word's OWN
+  finer scale** (`g.seg`/`attract`/`kill2` rescaled to the button font size, `g.cell` left alone to
+  keep the title's grid buckets valid) and the glyph is **supersampled** (`sampleWord`, rendered ×3
+  into a small canvas then sampled) with several seeds per letter — a small menu word therefore gets
+  ~the same *relative* strand density as the big title, so it reads as MYCELIUM in the same
+  strands/colour instead of a sparse tangle. Casing follows the button's `text-transform` (canvas
+  `fillText` ignores CSS → uppercase it explicitly). Growth runs at `CONSUME_RATE` (~12 steps/frame —
+  the finer scale is much more work); the transition fires on a **fixed wall-clock timer** (finishFn
+  at +2700ms — predictable across devices; the word keeps maturing through the .55s fade) rather than
+  a fragile attractor/plateau heuristic. **New** = `resetProgress()` (wipe unlocks) → picker; **Old**
+  = keep unlocks → picker. Boots before the picker (default boot
   only; `#dev`/`#puzzle`/`#notrich` still skip it). `prefers-reduced-motion` → grows synchronously.
   **Gotcha:** pixel-mask sampling MUST step the loop by an integer (fractional index into the typed
   array → `undefined` → no attractors → nothing grows).
