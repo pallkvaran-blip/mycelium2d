@@ -976,8 +976,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1ejsw18";
-globalThis.__BUILD__ = "local 07-16 08:32";
+window.__ASSET_VER = "peuoz6";
+globalThis.__BUILD__ = "local 07-16 08:51";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9970,8 +9970,7 @@ function showTitleScreen({ onNew, onContinue }) {
   let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
-  let raf = 0, consuming = false, finished = false, startT = 0;
-  const GROW_MS = 2600;   // left-to-right creep duration
+  let raf = 0, consuming = false, finished = false;
 
   // ---- spatial-grid space colonization -----------------------------------
   function grid(gr, x, y) { return ((x / gr.cell) | 0) + ',' + ((y / gr.cell) | 0); }
@@ -10003,7 +10002,6 @@ function showTitleScreen({ onNew, onContinue }) {
     return {
       nodes: [], segs: [], attractors: [], map: new Map(),
       seg, attract, attract2: attract * attract, kill2: (seg * 1.0) ** 2, cell: attract, _bd: 0, done: false,
-      frontX: Infinity, minX: 0, maxX: 0, pendingSeeds: [],   // left-to-right growth front (see frame())
     };
   }
 
@@ -10011,7 +10009,6 @@ function showTitleScreen({ onNew, onContinue }) {
     if (!gr.attractors.length || gr.nodes.length > 90000) { gr.done = true; return; }
     const infl = new Map(); const survivors = [];
     for (const at of gr.attractors) {
-      if (at.x > gr.frontX) { survivors.push(at); continue; }   // ahead of the growth front — not yet
       const ni = nearestNode(gr, at.x, at.y);
       if (ni < 0) { survivors.push(at); continue; }
       if (gr._bd <= gr.kill2) continue;                 // reached — consume this attractor
@@ -10050,14 +10047,22 @@ function showTitleScreen({ onNew, onContinue }) {
   function seedTitle() {
     g = newGrowth();
     // dense glyph attractors → the letters are built ENTIRELY from strands (no fill)
-    let pts = attractorsFromText((o) => {
+    const pts = attractorsFromText((o) => {
       o.fillStyle = '#fff'; o.font = titleFont(titleSize); o.textAlign = 'center'; o.textBaseline = 'middle';
       o.fillText(TITLE, cx, titleY);
     }, Math.max(2, Math.round(g.seg * 0.9)));
-    // seeds: many spread points become the first nodes so every part of every letter fills
-    for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pts[i]; pts[i] = pts[j]; pts[j] = t; }
-    const seeds = pts.splice(0, Math.min(220, pts.length));   // added left-to-right by the front (frame())
     g.attractors = pts;
+    // ONE seed per letter — each letter grows outward from a single central point.
+    ctx.font = titleFont(titleSize);
+    const total = ctx.measureText(TITLE).width, x0 = cx - total / 2;
+    let prevW = 0;
+    for (let i = 0; i < TITLE.length; i++) {
+      const w = ctx.measureText(TITLE.slice(0, i + 1)).width;
+      const bcx = x0 + (prevW + w) / 2; prevW = w;                 // this letter's x-centre
+      let best = null, bd = Infinity;                             // nearest glyph point to the letter centre
+      for (const pt of pts) { const d = (pt.x - bcx) ** 2 + (pt.y - titleY) ** 2; if (d < bd) { bd = d; best = pt; } }
+      if (best) addNode(g, best.x, best.y, -1);
+    }
     // FRINGE: a LIGHT wispy halo just outside each letter (sampled sparsely from a
     // lightly-blurred glyph mask) so a few filaments spill past the crisp edges —
     // hairy, but thin enough that letters stay separate and legible.
@@ -10069,7 +10074,7 @@ function showTitleScreen({ onNew, onContinue }) {
     for (const f of fringe) g.attractors.push(f);
     // STRAY STRANDS: many SHORT filaments straying off the letter edges, each finishing
     // in a little branch/spray. Start from edge (fringe) points, grow outward, then fork.
-    const edge = fringe.length ? fringe : seeds;
+    const edge = fringe.length ? fringe : pts;
     const sp = g.attract * 0.6;
     for (let i = 0; i < 180; i++) {
       const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
@@ -10085,18 +10090,8 @@ function showTitleScreen({ onNew, onContinue }) {
         if (Math.random() < 0.35) g.attractors.push({ x: ex + Math.cos(ba) * bl * 1.6, y: ey + Math.sin(ba) * bl * 1.6 });
       }
     }
-    // Growth front: seeds + attractors activate left-to-right so the word creeps in.
-    let minX = Infinity, maxX = -Infinity;
-    for (const a of g.attractors) { if (a.x < minX) minX = a.x; if (a.x > maxX) maxX = a.x; }
-    for (const s of seeds) { if (s.x < minX) minX = s.x; if (s.x > maxX) maxX = s.x; }
-    g.minX = minX; g.maxX = maxX;
-    g.pendingSeeds = seeds.sort((a, b) => a.x - b.x);
-    g.frontX = minX - 1;
-    if (reduce) {                                             // no animation — grow to completion at once
-      for (const s of seeds) addNode(g, s.x, s.y, -1);
-      g.pendingSeeds = []; g.frontX = maxX + 1e9;
-      let guard = 0; while (!g.done && guard++ < 40000) step(g); flushInk();
-    }
+    // Each letter grows from its single seed, all at once (no left-to-right front).
+    if (reduce) { let guard = 0; while (!g.done && guard++ < 40000) step(g); flushInk(); }
   }
 
   // ---- rendering ---------------------------------------------------------
@@ -10118,15 +10113,9 @@ function showTitleScreen({ onNew, onContinue }) {
     ctx.restore();
   }
 
-  function frame(t) {
+  function frame() {
     if (finished) return;
-    if (!startT) startT = t || 1;
-    if (!consuming) {                                   // advance the left-to-right growth front
-      const prog = Math.min(1, ((t || startT) - startT) / GROW_MS);
-      g.frontX = g.minX + (g.maxX - g.minX + 6) * prog;
-      while (g.pendingSeeds.length && g.pendingSeeds[0].x <= g.frontX) { const s = g.pendingSeeds.shift(); addNode(g, s.x, s.y, -1); }
-    }
-    if (!g.done || consuming) { for (let i = 0; i < 3; i++) step(g); flushInk(); }
+    if (!g.done || consuming) { for (let i = 0; i < 2; i++) step(g); flushInk(); }   // ~2 steps/frame paces the bloom
     composite();
     raf = requestAnimationFrame(frame);
   }
@@ -10153,7 +10142,7 @@ function showTitleScreen({ onNew, onContinue }) {
     const steps = Math.max(2, Math.hypot(bx - near.x, by - near.y) / (g.attract * 0.55) | 0);
     for (let i = 1; i <= steps; i++) g.attractors.push({ x: near.x + (bx - near.x) * i / steps, y: near.y + (by - near.y) * i / steps });
     for (const p of pts) g.attractors.push(p);
-    g.done = false; g.frontX = 1e9;          // consume ignores the growth front (grow anywhere now)
+    g.done = false;
     btn.classList.add('ts-consuming');
     const finish = () => {
       finished = true;
@@ -10176,7 +10165,6 @@ function showTitleScreen({ onNew, onContinue }) {
     gapEl.style.height = (titleSize * 1.6) + 'px';
     const gr = gapEl.getBoundingClientRect(), rr = root.getBoundingClientRect();
     cx = W / 2; titleY = gr.top - rr.top + gr.height / 2;
-    startT = 0;             // restart the creep-in animation for the new layout
     seedTitle();
     composite();
   }
