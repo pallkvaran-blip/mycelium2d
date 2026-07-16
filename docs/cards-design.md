@@ -98,6 +98,15 @@ energy/round). Flat BUY by rarity: **basic 0–2 · common 8 · uncommon 16 · r
 per map; plan to hit 4–6. A pile roughly pays for itself in energy but is strictly positive on
 cards — that's why you detour.
 
+> **AS-BUILT (2026-07-16) — supersedes the pile-energy numbers above.** Each map pile now pays a
+> small FIXED **1–8 Energy** (random per pile, `pile.energyValue`), fully decoupled from its nutrient
+> (impl: per-cell `cell.energyPerNutrient`; nutrient still drives attraction / threat-eating /
+> colonisation only). Counts: **11** normal (orange) route caches + a random **1–3** RED engine
+> caches per map. The draft grants **3 copies** of a basic / 1 of an event (no "see N/keep M"; you
+> pick 1 of 3 shown). This is a deliberate, aggressive Energy cut (food gave "way too much") — leans
+> the game toward card ENGINES for income; revisit if runs feel starved. Tunables: `substrate.foodClusterCount`,
+> `substrate.engineClusterMin/Max`, and the 1–8 range in `substrate.js drop()`.
+
 **Resources:** harvest is one-time from routing — lake tap +3 W (~3 charges), mineral +3 P
 (~3 charges), eating a nematode +2 N. Resource engines produce +1/round (rare +2). Resources
 gate *plays* only: minor effect 1, strong 2–3, power 3–4 or a mix. Stockpiles small (rarely >6),

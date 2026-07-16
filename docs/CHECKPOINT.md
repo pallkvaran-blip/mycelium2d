@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-15 (**CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+_Living status + knowledge doc. Last updated: 2026-07-16 (**economy/collision pass:** map food piles now give a small FIXED **1–8 Energy** each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged; ~11 route caches + **1–3 RED engine** caches/map · **soft rock edges** — growth may graze rock edges/corners within `growth.rockOverlap` (18 px) but never crosses a rock body; directional grows fall back to a clear tip instead of false-blocking · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -167,11 +167,19 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   (main.js) renders a pulsing ring. Suberin Wall sets `cell.mouldProof` (a per-cell ward
   aged down each tick **after** infection resolves, so N = N rounds); `threats.js
   cellProofed` skips warded nodes in both infection vectors.
-- **Growth never crosses rock:** `Network._segmentClear` samples each growth segment
-  (~⅓ cell) so a strand stops at rock instead of hopping/grazing over it — only a
-  punch/dig (`cell.bored`) may pass through rock. Used by `growDirected`, `_reachableSteps`,
-  **and `_fanRing`** (Foraging Fan / `growRadial` — it previously checked only the ray's
-  endpoint cell, so a ray could clip across a rock).
+- **Rock collision = SOFT edge margin (never crosses a body):** `Network._segmentClear`
+  samples each growth segment (~⅓ cell) and calls `_placeOk`, which allows a rock point as long
+  as OPEN ground is within `growth.rockOverlap` px (18) of it (`substrate.openWithin`). Net effect:
+  a strand may **skim/graze rock edges + corners and thread cell-sized gaps** (rocks ≲1 cell thick,
+  and boulder edges, are passable) but a rock body wider than ~a cell **blocks its core** — you can't
+  grow clear across a rock (verified: 0 nodes ever sink >`rockOverlap` px into any rock). Only a
+  punch/dig (`cell.bored`) fully passes through rock. Used by `growDirected`, `_reachableSteps`,
+  `growRadial` (Foraging Fan) and `_growStep` (Hyphal Extension, which also NOSES around a blocked
+  rock edge via widening angle offsets). **Ant trails do NOT block growth** (and don't eat the colony)
+  — mycelium and ant trails are independent; ants remain a food rival only.
+  - **Directional grows don't false-block:** `growDirected` prefers the aimed tip but falls through
+    to any frontier tip whose first step is clear, so an aimed lance toward open ground succeeds from
+    a capable strand instead of erroring when the exact strand you aimed from is boxed by a rock.
 - **Opening hand:** `initCards` deals a free `drawCount` (3) off the top of the
   draw deck so turn 1 starts with cards in hand (no Energy charged for it; deck
   drops from 15 → 12). See `cards-design.md` §18.1.
@@ -201,8 +209,9 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   a mix of **6 RED/autumn leaf** sprites (`leafRed{Maple,Oak,Sweetgum,Japanese,
   Dogwood,Beech}`, see `RED_LEAF_KEYS` in main.js) so it reads as a distinct, redder
   litter. Finishing it drafts an **Engine** card. Placed mostly near the SURFACE
-  (config `substrate.engine{ClusterCount,ClusterRadius,SurfaceRows,DeepChance}`,
-  ~3–5/map) so the player must climb UP to reach these. Set in `drop()` with
+  (config `substrate.engine{ClusterMin,ClusterMax,ClusterRadius,SurfaceRows,DeepChance}`,
+  a random **1–3/map** — placement retries at random x with a deeper fallback so a map reliably
+  gets its 1–3) so the player must climb UP to reach these. Set in `drop()` with
   `kind='engine'` (`foodPiles` entry `kind:'engine'`); the draft glyph reads RED
   (offer `kind:'engine'`). Colonise + digest exactly like a normal pile — there is
   no standing map icon (an earlier free-standing red 3-card marker was replaced by
@@ -210,6 +219,16 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 - **`nut`** — player-placed food (Acorn Cache etc.). Rendered as **acorn / chestnut
   / pine-cone** sprites, denser + smaller than leaves. Gives **energy only, no
   card**. Set in `deposit()` (never downgrades an existing `cache`).
+
+**Food ENERGY is decoupled from nutrient** (per-cell `cell.energyPerNutrient`). Every map pile is
+worth a small FIXED **1–8 Energy** (`pile.energyValue`, rolled in `drop()`), spread across its cells
+so draining the whole pile yields exactly that value. The **nutrient** amount (50/cell,
+`foodCellNutrient`) is UNCHANGED and still solely drives **attraction, threat-eating time, and
+colonisation timing** — only the Energy yield is small now. Every food→energy path multiplies drained
+nutrient by `cell.energyPerNutrient` (falling back to `energy.incomeEfficiency` for player-dropped
+caches, which have none set): `turn.js` passive drain, the Digest action, and the pile-tap "+N⚡"
+floater + `pile.finishEnergy` display. `foodClusterCount` = 11 (~25% fewer route caches than the old 14).
+`drop()` merges ALL same-kind piles a drop overlaps into one (no cell shared between piles).
 
 Rendering lives in `main.js drawSubstrateLeaves` → `_drawLeafHeap(sets, col, row,
 kind, alpha)` which picks the sprite set by `foodKind` (`_leafSets()` returns
@@ -221,7 +240,8 @@ but **shelved** (kept out of the active decks). Draft offers (`cards.js
 pushCardDraft`) are split by `displayCategory`: a NORMAL pile offers Basic/Event, an
 ENGINE pile offers Engine (`offerPileReward` picks by pile `kind`). **Basics + Events are
 INFINITE** (always offerable, repeatable across drafts) — a basic grants
-`cards.draftBasicCopies` = 3 copies, an event grants 1. Normal offers weight each slot
+`cards.draftBasicCopies` = 3 copies, an event grants 1 (the draft "Choose one" panel shows a **×3**
+corner badge on basics so the count is visible; events/engines show none). Normal offers weight each slot
 ~60/40 toward basics (`cards.draftBasicWeight`, via `weightedNormalChoices`) so the few
 basics aren't drowned out by the many events. **Engines are UNIQUE**, held in
 `state.cards.draftable` (one of each per run) — `chooseOffer` removes a chosen engine from
@@ -621,9 +641,13 @@ Both menus are dark, on-theme, with glowing green borders.
     (another run) grants Bleeding Tooth, a third grants nothing. An unlocked species **stays in its
     tier row** (playable in place, no LOCKED badge) — it is NOT promoted to "Available now", which
     holds only ungated species. Only **Complete level 1** pins real species today; other tiers are "?".
-  - **Level-complete overlay** (`showLevelComplete`): a "🍄 Level N of 11 cleared" badge, then (if a
-    species unlocked) an elevated "✦ New species unlocked" headline + subline + the inspectable card,
-    then a **"Next level →"** button. No verbose title/paragraph. Threat spawn depth (trichoderma +
+  - **Level-complete overlay** (`showLevelComplete`, redesigned 2026-07-16): NO container — a
+    randomized headline (**"Success"** / **"You made it"**) grown in procedural mycelium
+    (`growMyceliumTitle`, with grow-SFX + a radial-glow backdrop), then serif "You fruited and spored",
+    then EITHER "New species available next run!" + the inspectable unlock card OR a plain **black
+    "Proceed"** button. Shown OVER the won map (translucent scrim, `.ss-win`). The hand carousel is
+    collapsed (`ui.setHandOpen(false)`) before it appears and re-opened by `begin()` next level.
+    Threat spawn depth (trichoderma +
     nematodes) is capped at 60% of map depth (40% shallower). Spawn placement is centralised in
     **`Substrate.findSpawnSpot(rng, {root,minDist,avoidFood,i,count})`** (used by `openSpot`/
     `pickOpenSpot`): it (a) keeps a **4-cell clearance from rock** (`rockNear`) because rock SPRITES
@@ -1350,6 +1374,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **Food Energy is decoupled from nutrient — keep it that way.** Map piles pay a fixed 1–8 Energy via
+  per-cell `cell.energyPerNutrient`; `nutrient` (50/cell) exists ONLY for attraction / threat-eating /
+  colonisation timing / the draft trigger. If you ever go back to `nutrient × incomeEfficiency` for map
+  piles you'll re-inflate Energy AND (if you also touch nutrient to compensate) break threat/attraction
+  timing. All food→energy sites (`turn.js` drain, Digest action, `Saprotrophic Digest`, `pile.finishEnergy`,
+  `main.js showPileEnergyAt`) must use `cell.energyPerNutrient ?? incomeEfficiency`.
+- **`growth.rockOverlap` is a two-sided tuning trap.** It's the px a strand may overlap into a rock
+  (open ground must be within it). Too LOW (≈10) → straight lances false-block when grazing a boulder
+  edge; too HIGH (≈22) → edge-skims read as "growing over the rock" (though the probe shows it never
+  crosses a body at any tested value). Current sweet spot **18**. To check: a strand's deepest sink into
+  any rock should ≈ `rockOverlap` and never exceed it.
 - **Bundler strips imports by regex — keep `import` lines comment-free.** `build.mjs` inlines
   `src/` into a non-module `<script>` in `dist/index.html` by stripping `import ...;` lines with a
   regex anchored at `;\s*\n`. A **trailing comment** on an import line (e.g. `import { attackNest }
