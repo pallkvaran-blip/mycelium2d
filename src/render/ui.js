@@ -833,10 +833,14 @@ export class UI {
     // Build the panel once per offer (choices are fixed; selection is repainted
     // separately). Rebuilding every frame would fight the expand animation.
     if (this._offerBuiltFor !== off) {
+      const basicCopies = Math.max(1, (s.config && s.config.cards && s.config.cards.draftBasicCopies) || 3);
       const cards = off.choices.map((name) => {
         const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
         const sel = name === this.armedOffer ? ' selected' : '';
-        return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+        // Basics are drafted in a stack (×3); show that count in the corner so the player
+        // knows a basic gives 3 copies, not 1. Events/engines give 1 (no badge).
+        const copies = (c.displayCategory || c.type) === 'basic' ? basicCopies : 1;
+        return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, copies) + `</button>`;
       }).join('');
       el.innerHTML = `<div class="offerbox">`
         + `<button class="offermin-btn" id="offerminbtn" title="Set aside — look at your hand and the map">▾</button>`

@@ -60,7 +60,8 @@ export function stepAnts(state) {
     nest.phase = (nest.phase || 0) + 1;
   }
   setTrailFields(sub, nests);
-  eatStrandsOnTrail(state);
+  // (Ant trails no longer chew the colony — mycelium and ant trails don't affect each other.
+  //  Ants remain a FOOD rival: a nest still harvests nutrient off its target pile above.)
 }
 
 // Bomb the nearest nest within radius: remove a fraction of its MAX hp; destroy
@@ -133,8 +134,8 @@ function buildTrail(sub, nestCol, nestRow) {
   return { target: { col: foodIdx % W, row: (foodIdx / W) | 0 }, path };
 }
 
-// Stamp the trail barrier into cells: every trail cell EXCEPT the food endpoint
-// blocks growth (the endpoint stays reachable so you can still race for it).
+// Mark the trail cells (for the trail's visuals + nematode following). These no longer
+// block or eat the colony — mycelium and ant trails don't affect each other.
 function setTrailFields(sub, nests) {
   for (const c of sub.cells) c.antTrail = false;
   for (const nest of nests) {
@@ -144,19 +145,5 @@ function setTrailFields(sub, nests) {
       const cell = sub.cellAt(p.col, p.row);
       if (cell && !cell.rock) cell.antTrail = true;
     }
-  }
-}
-
-// Ants chew any of your strands a trail now runs through (e.g. after it moved).
-function eatStrandsOnTrail(state) {
-  const sub = state.substrate;
-  for (const net of state.networks) {
-    if (!net.alive) continue;
-    const remove = new Set();
-    for (const n of net.nodes) {
-      const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail && !(cell.hardened > 0)) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof (timed)
-    }
-    if (remove.size) net._removeNodes(remove);
   }
 }

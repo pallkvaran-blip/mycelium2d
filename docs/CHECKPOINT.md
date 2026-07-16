@@ -397,6 +397,31 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Draft ×3 badge · Foraging-Fan escapes rightward · grow through ant trails · food-energy rebalance**
+  (`src/render/ui.js`, `src/engine/network.js`, `src/engine/ants.js`, `src/engine/substrate.js`,
+  `src/engine/turn.js`, `src/engine/actions.js`, `src/engine/cards.js`, `src/config.js`, `test/smoke.test.js`).
+  - **Draft ×3 badge:** the draft "Choose one" panel now shows a **×3** corner badge on BASIC cards
+    (drafting a basic grants `cards.draftBasicCopies` = 3 copies); events/engines show none. `_renderOffer`
+    passes the copy count to the existing `cardFaceHTML(name, c, count)` `.stackn` badge.
+  - **Foraging-Fan escape hatch now starts on the RIGHT:** the escape sweep iterates colony nodes
+    rightmost-first (largest x = closest to the goal) and tries eastward rays first, so a boxed colony
+    fans toward the goal instead of back-left.
+  - **Grow through ant trails (no mutual impact):** ant trails no longer block growth (removed `antTrail`
+    from `_placeOk` / `_growStep` / the colonise sweep) AND no longer chew the colony (removed
+    `eatStrandsOnTrail`). Trails are still stamped (for their look + nematode following) and ants remain a
+    FOOD rival (a nest still harvests nutrient). Smoke test flipped to assert growth crosses a trail.
+  - **Food-energy rebalance:** `foodClusterCount` 14 → 11 (~25% fewer route caches). Each map pile now
+    yields a small FIXED **1–8 Energy** (per-pile `energyValue`), spread across its cells as
+    `cell.energyPerNutrient` so draining the pile totals exactly that value. Nutrient amounts (50/cell)
+    are UNCHANGED, so attraction, threat-eating, colonisation timing and the draft trigger are all
+    identical — only the Energy yield drops. All food→energy paths use the per-cell rate (`turn.js`
+    passive drain, `Digest` action, `Saprotrophic Digest`, the pile's `finishEnergy` "+N⚡"); player-dropped
+    caches (no `energyPerNutrient`) keep the old `incomeEfficiency`. Also fixed a latent merge bug so a
+    drop bridging two piles folds them all into one (no cell shared between piles).
+  - Verified: 5-seed headless check (every pile energyValue∈[1,8], pile total == value, nutrient still
+    50/cell); tests green; boxed-colony repro still escapes; in-game draft shows ×3 on a basic / none on an
+    event, 0 errors.
+
 - **More forgiving rock edges — grow cards don't dead-end against rock** (`src/engine/network.js`).
   A colony that had grown its frontier up against a rock cluster could get soft-locked: Foraging
   Fan reported "no space" and Hyphal Extension "no food in range" even with open ground nearby.

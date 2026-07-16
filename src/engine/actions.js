@@ -100,13 +100,14 @@ export const ACTIONS = {
       if (cells.length === 0) return { ok: false, message: 'No colonised substrate to digest.' };
       // Drain a fixed fraction of EACH occupied cell — 2 uses fully digests a
       // pile of any size, at no loss (you get its full Energy value, just now).
-      let gained = 0;
+      const eff = state.config.energy.incomeEfficiency;
+      let energyRaw = 0;
       for (const cell of cells) {
         const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction);
         cell.nutrient -= take;
-        gained += take;
+        energyRaw += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : eff);
       }
-      const energy = Math.round(gained * state.config.energy.incomeEfficiency);
+      const energy = Math.round(energyRaw);
       net.energy += energy;
       return { ok: true, message: `Digest: +${energy} Energy.` };
     },

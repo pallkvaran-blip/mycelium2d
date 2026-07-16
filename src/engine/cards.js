@@ -209,9 +209,13 @@ function offerPileReward(state, pile) {
   // cells' full value; mould-eaten cells have maxNutrient 0 so they don't count) so the
   // render layer can float a "+N⚡" where the pile was when it finishes.
   if (pile) {
+    // The Energy this pile yielded = its cells' full value at each cell's own rate
+    // (map piles carry a per-cell rate summing to the pile's fixed 1..8 value; mould-eaten
+    // cells have maxNutrient 0 so they don't count).
+    const eff = state.config.energy.incomeEfficiency || 0;
     let e = 0;
-    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient; }
-    pile.finishEnergy = Math.round(e * (state.config.energy.incomeEfficiency || 0));
+    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient * (c.energyPerNutrient != null ? c.energyPerNutrient : eff); }
+    pile.finishEnergy = Math.round(e);
     pile.center = center;
   }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
@@ -732,10 +736,10 @@ export const EFFECTS = {
     const net = s.active, sub = s.substrate;
     const cells = sub.cells.filter((c) => c.colonized > 0 && c.nutrient > 0 && !c.hazard);
     if (!cells.length) return { ok: false, message: 'No colonised substrate to digest.' };
-    const d = s.config.actions.digest;
-    let gained = 0;
-    for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; gained += take; }
-    const energy = Math.round(gained * s.config.energy.incomeEfficiency * 2);   // doubled
+    const d = s.config.actions.digest, eff = s.config.energy.incomeEfficiency;
+    let energyRaw = 0;
+    for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; energyRaw += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : eff); }
+    const energy = Math.round(energyRaw * 2);   // doubled
     net.energy += energy;
     return { ok: true, message: `Digest: +${energy}⚡.` };
   }),

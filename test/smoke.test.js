@@ -328,7 +328,7 @@ console.log('# Ants: nests seed at the surface, each with a trail to food');
   ok(s.ants.some((n) => n.path && n.path.length > 1), 'at least one nest ran a trail to food');
 }
 
-console.log('# Ants: the trail walls growth off (cannot pierce it)');
+console.log('# Ants: growth passes freely THROUGH a trail (no mutual impact)');
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
   const sub = s.substrate;
@@ -336,7 +336,7 @@ console.log('# Ants: the trail walls growth off (cannot pierce it)');
   s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
   const net = s.active;
   const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
-  // A near lure to pull growth toward the wall, plus food on the far side.
+  // A near lure to pull growth toward the trail, plus food on the far side.
   const nearCtr = sub.cellCenter(rootCol + 1, rootRow);
   sub.deposit(nearCtr.x, nearCtr.y, 100, 1);
   const wallCol = rootCol + 3;
@@ -346,7 +346,7 @@ console.log('# Ants: the trail walls growth off (cannot pierce it)');
   for (let i = 0; i < 40; i++) net.grow(sub, s.rng);
   const crossed = net.nodes.some((n) => sub.colAtX(n.x) > wallCol);
   ok(net.nodes.length > before, 'the colony grew toward the lure');
-  ok(!crossed, 'growth cannot cross an ant-trail wall');
+  ok(crossed, 'growth grows straight through an ant trail (mycelium + trails do not affect each other)');
 }
 
 console.log('# Ants: harvest the target food, then relocate when it runs out');
@@ -390,7 +390,7 @@ console.log('# Ants: bombing a nest removes 40% max HP; a kill clears its trail'
   s2.ants = [lone];
   stepAnts(s2);   // stamp only this nest's trail
   const trailBefore = s2.substrate.cells.filter((c) => c.antTrail).length;
-  ok(trailBefore > 0, `a lone nest stamps an impassable trail (${trailBefore} cells)`);
+  ok(trailBefore > 0, `a lone nest stamps a trail (${trailBefore} cells)`);
   let dead = false;
   for (let i = 0; i < 6 && !dead; i++) { const r = attackNest(s2, lone.x, lone.y, b.pickRadius, b.damageFrac); dead = !!(r && r.dead); }
   const trailAfter = s2.substrate.cells.filter((c) => c.antTrail).length;

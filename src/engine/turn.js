@@ -137,14 +137,18 @@ function resolveTraps(state, wormPrev) {
 function resolveIncome(net, substrate, config) {
   const e = config.energy;
   net.collectOccupiedCells(substrate);   // refresh cell.held (Trichoderma resistance)
-  let nutrientDrawn = 0;
+  // Nutrient drains at the SAME rate as before (so attraction / threat-eating /
+  // colonisation timing are unchanged) — only the Energy per unit nutrient differs:
+  // map food piles carry a per-cell rate summing to the pile's fixed 1..8 value; other
+  // food (player-dropped caches) falls back to the global incomeEfficiency.
+  let energyGained = 0;
   for (const cell of substrate.cells) {
     if (cell.colonized <= 0 || cell.nutrient <= 0 || cell.hazard) continue;
     const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
-    nutrientDrawn += take;
+    energyGained += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : e.incomeEfficiency);
   }
-  const income = nutrientDrawn * e.incomeEfficiency + e.baselineTrickle;
+  const income = energyGained + e.baselineTrickle;
   net.energy += income;
   return income;
 }

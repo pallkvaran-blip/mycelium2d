@@ -1034,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "sp0um1";
-globalThis.__BUILD__ = "local 07-16 15:39";
+window.__ASSET_VER = "7ahdpp";
+globalThis.__BUILD__ = "local 07-16 16:03";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1075,7 +1075,7 @@ const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 14,        // caches along the route (each is a card-draft pile) — +50% over the old sparse 9 to make the tutorial map easier
+    foodClusterCount: 11,        // caches along the route (each is a card-draft pile) — ~25% fewer than the old 14
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
@@ -2707,7 +2707,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -3208,9 +3208,24 @@ function generateSubstrate(config, rng) {
     // drops of the SAME kind into ONE pile so a connected blob grants exactly one
     // draft; never merge an engine cache into a normal one (different draft pools).
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
-    if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false, kind });
+    // Fold this drop into EVERY same-kind pile it overlaps (a drop can bridge two existing
+    // piles) — merge them all into one so no cell is ever shared between two piles.
+    const hit = sub.foodPiles.filter((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
+    let pile;
+    if (hit.length) {
+      pile = hit[0];
+      for (const idx of cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
+      for (let i = 1; i < hit.length; i++) {
+        for (const idx of hit[i].cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
+        const j = sub.foodPiles.indexOf(hit[i]); if (j >= 0) sub.foodPiles.splice(j, 1);
+      }
+    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(1, 8) }; sub.foodPiles.push(pile); }
+    // A map pile is worth a small FIXED Energy value (1..8), decoupled from its nutrient.
+    // Spread that value across the pile's cells as energy-per-nutrient so draining the whole
+    // pile yields exactly energyValue — while the nutrient amounts (and thus attraction,
+    // threat-eating and colonisation timing) stay exactly as before.
+    const per = pile.energyValue / Math.max(1, pile.cells.length * N);
+    for (const idx of pile.cells) sub.cells[idx].energyPerNutrient = per;
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;
@@ -3457,7 +3472,7 @@ class Network {
         ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
         nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
         const tcell = substrate.cellAtWorld(nx, ny);
-        if (tcell && (tcell.rock || tcell.antTrail)) continue;   // can't grow through rock / ant trail
+        if (tcell && tcell.rock) continue;   // can't grow through rock (ant trails no longer block growth)
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
         const child = this.addNode(nx, ny, node);
         newNodes.push(child); created++; placed = true; break;
@@ -3514,7 +3529,7 @@ class Network {
     const cell = substrate.cellAtWorld(nx, ny);
     if (!cell) return true;
     if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
-    return !(cell.rock || cell.antTrail);
+    return !cell.rock;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
@@ -3612,12 +3627,17 @@ class Network {
     // Bounded to a handful of new branches so "grow every direction" stays a fan, not a burst.
     if (created === 0) {
       const COMPASS = Math.max(6, g.foragingFanRays || 8), MAX_ESCAPE = 6;
+      // Start on the RIGHT (largest x = closest to the end goal) and prefer growing toward it:
+      // rightmost nodes first, and try the eastward rays (0, ±small) before the rest.
+      const escNodes = this.nodes.slice().sort((a, b) => b.x - a.x);
+      const rays = []; for (let k = 0; k < COMPASS; k++) rays.push((k / COMPASS) * Math.PI * 2);
+      rays.sort((a, b) => Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI) - Math.abs(((b + Math.PI) % (Math.PI * 2)) - Math.PI));  // east-first
       let escaped = 0;
-      for (const n of this.nodes) {
+      for (const n of escNodes) {
         if (escaped >= MAX_ESCAPE || this.nodes.length >= g.maxNodes) break;
         if (n.infected || n.colon) continue;
-        for (let k = 0; k < COMPASS; k++) {
-          if (growChain(n, (k / COMPASS) * Math.PI * 2) > 0) { created++; escaped++; break; }
+        for (const ang of rays) {
+          if (growChain(n, ang) > 0) { created++; escaped++; break; }
         }
       }
     }
@@ -4055,7 +4075,7 @@ class Network {
           if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
           if (nx <= 2 || nx >= substrate.worldWidth - 2) continue;
           const tc = substrate.cellAtWorld(nx, ny);
-          if (tc && (tc.rock || tc.antTrail)) continue;
+          if (tc && tc.rock) continue;
           this.addNode(nx, ny, parent).colon = true;   // mat hyphae: not a growth frontier
           created++;
         }
@@ -4831,7 +4851,8 @@ function stepAnts(state) {
     nest.phase = (nest.phase || 0) + 1;
   }
   setTrailFields(sub, nests);
-  eatStrandsOnTrail(state);
+  // (Ant trails no longer chew the colony — mycelium and ant trails don't affect each other.
+  //  Ants remain a FOOD rival: a nest still harvests nutrient off its target pile above.)
 }
 
 // Bomb the nearest nest within radius: remove a fraction of its MAX hp; destroy
@@ -4904,8 +4925,8 @@ function buildTrail(sub, nestCol, nestRow) {
   return { target: { col: foodIdx % W, row: (foodIdx / W) | 0 }, path };
 }
 
-// Stamp the trail barrier into cells: every trail cell EXCEPT the food endpoint
-// blocks growth (the endpoint stays reachable so you can still race for it).
+// Mark the trail cells (for the trail's visuals + nematode following). These no longer
+// block or eat the colony — mycelium and ant trails don't affect each other.
 function setTrailFields(sub, nests) {
   for (const c of sub.cells) c.antTrail = false;
   for (const nest of nests) {
@@ -4915,20 +4936,6 @@ function setTrailFields(sub, nests) {
       const cell = sub.cellAt(p.col, p.row);
       if (cell && !cell.rock) cell.antTrail = true;
     }
-  }
-}
-
-// Ants chew any of your strands a trail now runs through (e.g. after it moved).
-function eatStrandsOnTrail(state) {
-  const sub = state.substrate;
-  for (const net of state.networks) {
-    if (!net.alive) continue;
-    const remove = new Set();
-    for (const n of net.nodes) {
-      const cell = sub.cellAtWorld(n.x, n.y);
-      if (cell && cell.antTrail && !(cell.hardened > 0)) remove.add(n.id);   // Sclerotial Crust: hardened strands are eat-proof (timed)
-    }
-    if (remove.size) net._removeNodes(remove);
   }
 }
 
@@ -5354,9 +5361,13 @@ function offerPileReward(state, pile) {
   // cells' full value; mould-eaten cells have maxNutrient 0 so they don't count) so the
   // render layer can float a "+N⚡" where the pile was when it finishes.
   if (pile) {
+    // The Energy this pile yielded = its cells' full value at each cell's own rate
+    // (map piles carry a per-cell rate summing to the pile's fixed 1..8 value; mould-eaten
+    // cells have maxNutrient 0 so they don't count).
+    const eff = state.config.energy.incomeEfficiency || 0;
     let e = 0;
-    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient; }
-    pile.finishEnergy = Math.round(e * (state.config.energy.incomeEfficiency || 0));
+    for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) e += c.maxNutrient * (c.energyPerNutrient != null ? c.energyPerNutrient : eff); }
+    pile.finishEnergy = Math.round(e);
     pile.center = center;
   }
   pushCardDraft(state, !!(pile && pile.kind === 'engine'), center);
@@ -5877,10 +5888,10 @@ const EFFECTS = {
     const net = s.active, sub = s.substrate;
     const cells = sub.cells.filter((c) => c.colonized > 0 && c.nutrient > 0 && !c.hazard);
     if (!cells.length) return { ok: false, message: 'No colonised substrate to digest.' };
-    const d = s.config.actions.digest;
-    let gained = 0;
-    for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; gained += take; }
-    const energy = Math.round(gained * s.config.energy.incomeEfficiency * 2);   // doubled
+    const d = s.config.actions.digest, eff = s.config.energy.incomeEfficiency;
+    let energyRaw = 0;
+    for (const cell of cells) { const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction); cell.nutrient -= take; energyRaw += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : eff); }
+    const energy = Math.round(energyRaw * 2);   // doubled
     net.energy += energy;
     return { ok: true, message: `Digest: +${energy}⚡.` };
   }),
@@ -6310,14 +6321,18 @@ function resolveTraps(state, wormPrev) {
 function resolveIncome(net, substrate, config) {
   const e = config.energy;
   net.collectOccupiedCells(substrate);   // refresh cell.held (Trichoderma resistance)
-  let nutrientDrawn = 0;
+  // Nutrient drains at the SAME rate as before (so attraction / threat-eating /
+  // colonisation timing are unchanged) — only the Energy per unit nutrient differs:
+  // map food piles carry a per-cell rate summing to the pile's fixed 1..8 value; other
+  // food (player-dropped caches) falls back to the global incomeEfficiency.
+  let energyGained = 0;
   for (const cell of substrate.cells) {
     if (cell.colonized <= 0 || cell.nutrient <= 0 || cell.hazard) continue;
     const take = Math.min(cell.nutrient, e.passiveIncomeRate) * cell.colonized;
     cell.nutrient -= take;
-    nutrientDrawn += take;
+    energyGained += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : e.incomeEfficiency);
   }
-  const income = nutrientDrawn * e.incomeEfficiency + e.baselineTrickle;
+  const income = energyGained + e.baselineTrickle;
   net.energy += income;
   return income;
 }
@@ -6429,13 +6444,14 @@ const ACTIONS = {
       if (cells.length === 0) return { ok: false, message: 'No colonised substrate to digest.' };
       // Drain a fixed fraction of EACH occupied cell — 2 uses fully digests a
       // pile of any size, at no loss (you get its full Energy value, just now).
-      let gained = 0;
+      const eff = state.config.energy.incomeEfficiency;
+      let energyRaw = 0;
       for (const cell of cells) {
         const take = Math.min(cell.nutrient, cell.maxNutrient * d.drainFraction);
         cell.nutrient -= take;
-        gained += take;
+        energyRaw += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : eff);
       }
-      const energy = Math.round(gained * state.config.energy.incomeEfficiency);
+      const energy = Math.round(energyRaw);
       net.energy += energy;
       return { ok: true, message: `Digest: +${energy} Energy.` };
     },
@@ -9135,10 +9151,14 @@ class UI {
     // Build the panel once per offer (choices are fixed; selection is repainted
     // separately). Rebuilding every frame would fight the expand animation.
     if (this._offerBuiltFor !== off) {
+      const basicCopies = Math.max(1, (s.config && s.config.cards && s.config.cards.draftBasicCopies) || 3);
       const cards = off.choices.map((name) => {
         const c = CARD_BY_NAME[name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' };
         const sel = name === this.armedOffer ? ' selected' : '';
-        return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, 0) + `</button>`;
+        // Basics are drafted in a stack (×3); show that count in the corner so the player
+        // knows a basic gives 3 copies, not 1. Events/engines give 1 (no badge).
+        const copies = (c.displayCategory || c.type) === 'basic' ? basicCopies : 1;
+        return `<button class="offercard ${catClass(c)}${sel}" data-name="${escapeHtml(name)}">` + cardFaceHTML(name, c, copies) + `</button>`;
       }).join('');
       el.innerHTML = `<div class="offerbox">`
         + `<button class="offermin-btn" id="offerminbtn" title="Set aside — look at your hand and the map">▾</button>`

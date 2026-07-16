@@ -28,7 +28,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '' };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -529,9 +529,24 @@ export function generateSubstrate(config, rng) {
     // drops of the SAME kind into ONE pile so a connected blob grants exactly one
     // draft; never merge an engine cache into a normal one (different draft pools).
     const set = new Set(cells);
-    const merged = sub.foodPiles.find((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
-    if (merged) { for (const idx of cells) if (!merged.cells.includes(idx)) merged.cells.push(idx); }
-    else sub.foodPiles.push({ cells, rewarded: false, kind });
+    // Fold this drop into EVERY same-kind pile it overlaps (a drop can bridge two existing
+    // piles) — merge them all into one so no cell is ever shared between two piles.
+    const hit = sub.foodPiles.filter((p) => (p.kind || 'normal') === kind && p.cells.some((idx) => set.has(idx)));
+    let pile;
+    if (hit.length) {
+      pile = hit[0];
+      for (const idx of cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
+      for (let i = 1; i < hit.length; i++) {
+        for (const idx of hit[i].cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
+        const j = sub.foodPiles.indexOf(hit[i]); if (j >= 0) sub.foodPiles.splice(j, 1);
+      }
+    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(1, 8) }; sub.foodPiles.push(pile); }
+    // A map pile is worth a small FIXED Energy value (1..8), decoupled from its nutrient.
+    // Spread that value across the pile's cells as energy-per-nutrient so draining the whole
+    // pile yields exactly energyValue — while the nutrient amounts (and thus attraction,
+    // threat-eating and colonisation timing) stay exactly as before.
+    const per = pile.energyValue / Math.max(1, pile.cells.length * N);
+    for (const idx of pile.cells) sub.cells[idx].energyPerNutrient = per;
   };
   const count = Math.max(1, s.foodClusterCount);
   const xLo = startCols + 1, xHi = goalStart;

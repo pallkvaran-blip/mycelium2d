@@ -188,7 +188,7 @@ export class Network {
         ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
         nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
         const tcell = substrate.cellAtWorld(nx, ny);
-        if (tcell && (tcell.rock || tcell.antTrail)) continue;   // can't grow through rock / ant trail
+        if (tcell && tcell.rock) continue;   // can't grow through rock (ant trails no longer block growth)
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
         const child = this.addNode(nx, ny, node);
         newNodes.push(child); created++; placed = true; break;
@@ -245,7 +245,7 @@ export class Network {
     const cell = substrate.cellAtWorld(nx, ny);
     if (!cell) return true;
     if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
-    return !(cell.rock || cell.antTrail);
+    return !cell.rock;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
@@ -343,12 +343,17 @@ export class Network {
     // Bounded to a handful of new branches so "grow every direction" stays a fan, not a burst.
     if (created === 0) {
       const COMPASS = Math.max(6, g.foragingFanRays || 8), MAX_ESCAPE = 6;
+      // Start on the RIGHT (largest x = closest to the end goal) and prefer growing toward it:
+      // rightmost nodes first, and try the eastward rays (0, ±small) before the rest.
+      const escNodes = this.nodes.slice().sort((a, b) => b.x - a.x);
+      const rays = []; for (let k = 0; k < COMPASS; k++) rays.push((k / COMPASS) * Math.PI * 2);
+      rays.sort((a, b) => Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI) - Math.abs(((b + Math.PI) % (Math.PI * 2)) - Math.PI));  // east-first
       let escaped = 0;
-      for (const n of this.nodes) {
+      for (const n of escNodes) {
         if (escaped >= MAX_ESCAPE || this.nodes.length >= g.maxNodes) break;
         if (n.infected || n.colon) continue;
-        for (let k = 0; k < COMPASS; k++) {
-          if (growChain(n, (k / COMPASS) * Math.PI * 2) > 0) { created++; escaped++; break; }
+        for (const ang of rays) {
+          if (growChain(n, ang) > 0) { created++; escaped++; break; }
         }
       }
     }
@@ -786,7 +791,7 @@ export class Network {
           if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
           if (nx <= 2 || nx >= substrate.worldWidth - 2) continue;
           const tc = substrate.cellAtWorld(nx, ny);
-          if (tc && (tc.rock || tc.antTrail)) continue;
+          if (tc && tc.rock) continue;
           this.addNode(nx, ny, parent).colon = true;   // mat hyphae: not a growth frontier
           created++;
         }
