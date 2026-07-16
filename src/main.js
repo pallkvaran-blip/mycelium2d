@@ -1282,8 +1282,11 @@ function drawTerrainAssets() {
 }
 
 // Substrate food = heaped sprites, keyed to what the pile IS:
-//   • MAP caches (foodKind 'cache') → heaped oak/maple LEAVES — wild litter that
-//     grants a card draft when fully digested.
+//   • MAP caches (foodKind 'cache') → heaped ORANGE oak/maple LEAVES — wild litter
+//     that grants a Basic/Event card draft when fully digested.
+//   • ENGINE caches (foodKind 'cache-engine') → RED autumn leaves — draft an Engine.
+//   • DUFF caches (foodKind 'duff') → the SAME oak/maple leaves rendered BROWN &
+//     desaturated (decayed leaf mould), a smaller/flatter heap: energy only, NO draft.
 //   • PLAYER-placed food (foodKind 'nut') → a small scatter of ACORNS, CHESTNUTS
 //     and PINE CONES — a humble lower-tier cache that only yields energy.
 // The pile SHRINKS as the cell is digested (fewer pieces); every piece's
@@ -1309,8 +1312,10 @@ function _leafSets() {
 // consumed. Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
 function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const isNut = kind === 'nut';
+  const isDuff = kind === 'duff';
   // 'cache-engine' → red litter (fall back to normal leaves if red art missing);
-  // 'nut' → acorn/chestnut scatter; 'cache' (or anything else) → orange leaves.
+  // 'nut' → acorn/chestnut scatter; 'duff' → the orange leaves, tinted brown below;
+  // 'cache' (or anything else) → orange leaves.
   const set = isNut ? sets.nuts : (kind === 'cache-engine' ? (sets.red || sets.leaves) : sets.leaves);
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
@@ -1318,8 +1323,8 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const ctr = sub.cellCenter(col, row);
   const s = camera.worldToScreen(ctr.x, ctr.y);
   if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
-  const count = isNut ? 8 : 11;                // FIXED piece count — the heap never loses pieces as it drains
-  const base = cs * (isNut ? 0.26 : 0.64);     // …smaller pieces for nuts, so they read next to the leaves
+  const count = isNut ? 8 : isDuff ? 9 : 11;   // FIXED piece count — duff reads as a slightly thinner heap; never drops pieces as it drains
+  const base = cs * (isNut ? 0.26 : isDuff ? 0.52 : 0.64);  // …smaller pieces for nuts + duff, so they read as lower-value
   // Pull this cell's pieces toward the local food centroid so a cluster reads as
   // ONE heaped pile (not a cross of separate cells), keyed off the ORIGINAL
   // footprint so the arrangement stays put while neighbours drain.
@@ -1345,10 +1350,11 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     ctx.translate(s.x + ox, s.y + oy);
     // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
     ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
-    // nuts are muted + slightly translucent so glossy studio-lit sprites blend
-    // into the soil rather than reading as crisp cut-outs.
-    ctx.globalAlpha = (isNut ? 0.9 : 1) * alphaMul;
+    // nuts are muted + slightly translucent; duff is pushed BROWN + dark (decayed
+    // leaf mould) so the same orange leaves read as spent, low-value litter.
+    ctx.globalAlpha = (isNut ? 0.9 : isDuff ? 0.92 : 1) * alphaMul;
     if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
+    else if (isDuff) ctx.filter = 'brightness(0.6) saturate(0.5) sepia(0.6)';
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }
@@ -1494,7 +1500,7 @@ function drawSubstrateLeaves() {
   }
   sub.forEachCell((cell, col, row) => {
     if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
-    const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'nut'
+    const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'duff' | 'nut'
     if (cell.nutrient > 0) {
       cell._leafGone = 0;                                 // still has food → full heap, no fade
       _drawLeafHeap(sets, col, row, kind, 1);

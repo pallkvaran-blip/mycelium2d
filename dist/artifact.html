@@ -1034,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1soxkcd";
-globalThis.__BUILD__ = "local 07-16 18:50";
+window.__ASSET_VER = "1wopexo";
+globalThis.__BUILD__ = "local 07-16 19:23";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1075,11 +1075,20 @@ const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 11,        // caches along the route (each is a card-draft pile) — ~25% fewer than the old 14
+    foodClusterCount: 11,        // caches along the route — ~25% fewer than the old 14
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    foodEnergyMin: 1,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
+    foodEnergyMax: 8,            //   …decoupled from nutrient (see substrate.js drop())
+    // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
+    // "duff" — brown decayed leaf litter. Same food you colonise + digest, a SMALLER
+    // Energy yield, and NO card draft. Cuts drafting without starving map energy; renders
+    // as brown/desaturated oak-maple leaves (foodKind 'duff').
+    duffClusterFraction: 0.55,   // share of drafting caches converted to duff (~6 of 11)
+    duffEnergyMin: 1,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
+    duffEnergyMax: 4,
     // ENGINE caches: rarer, high-value RED-leaf litter piles that draft an ENGINE card
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
@@ -2904,8 +2913,8 @@ class Substrate {
         cell.maxNutrient = Math.max(cell.maxNutrient, amount);
         cell.hazard = false;
         // Player-placed food = a humble NUT cache (energy only, no card). Never
-        // downgrade a map cache cell that grants a draft.
-        if (cell.foodKind !== 'cache') cell.foodKind = 'nut';
+        // downgrade a MAP cache cell (orange draft / red engine / brown duff).
+        if (!cell.foodKind || cell.foodKind === 'nut') cell.foodKind = 'nut';
       }
     }
   }
@@ -3216,7 +3225,7 @@ function generateSubstrate(config, rng) {
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
-      if (kind === 'engine' && cell.nutrient > 0) return;   // never cannibalise a normal cache
+      if (cell.nutrient > 0 && cell.foodKind && cell.foodKind !== fk) return;   // never cannibalise a DIFFERENT-kind cache (keeps draft pools + looks separate)
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = fk;                          // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
@@ -3237,7 +3246,7 @@ function generateSubstrate(config, rng) {
         for (const idx of hit[i].cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
         const j = sub.foodPiles.indexOf(hit[i]); if (j >= 0) sub.foodPiles.splice(j, 1);
       }
-    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(1, 8) }; sub.foodPiles.push(pile); }
+    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(s.foodEnergyMin != null ? s.foodEnergyMin : 1, s.foodEnergyMax != null ? s.foodEnergyMax : 8) }; sub.foodPiles.push(pile); }
     // A map pile is worth a small FIXED Energy value (1..8), decoupled from its nutrient.
     // Spread that value across the pile's cells as energy-per-nutrient so draining the whole
     // pile yields exactly energyValue — while the nutrient amounts (and thus attraction,
@@ -3260,6 +3269,30 @@ function generateSubstrate(config, rng) {
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
+  }
+
+  // DUFF pass — down-tier a fraction of the drafting (orange) caches to LOW-VALUE
+  // "duff" (brown decayed litter): identical food you colonise + digest, but a SMALLER
+  // Energy roll and NO card draft (cards.js checkPileRewards skips kind 'duff'). Applied
+  // AFTER every normal drop so the fraction covers the true total (route + column + lake),
+  // and spread evenly left→right so low- and high-value piles alternate across the map.
+  const duffFrac = s.duffClusterFraction != null ? s.duffClusterFraction : 0.55;
+  if (duffFrac > 0) {
+    const normals = sub.foodPiles.filter((p) => (p.kind || 'normal') === 'normal');
+    normals.sort((a, b) => (a.cells[0] % sub.cols) - (b.cells[0] % sub.cols));
+    const total = normals.length;
+    const duffN = Math.round(total * duffFrac);
+    const dMin = s.duffEnergyMin != null ? s.duffEnergyMin : 1;
+    const dMax = s.duffEnergyMax != null ? s.duffEnergyMax : 4;
+    for (let i = 0; i < total; i++) {
+      // even-distribution: exactly duffN of `total`, spread out (not clumped)
+      if (Math.floor((i * duffN) / total) === Math.floor(((i + 1) * duffN) / total)) continue;
+      const pile = normals[i];
+      pile.kind = 'duff';
+      pile.energyValue = rng.int(dMin, dMax);
+      const per = pile.energyValue / Math.max(1, pile.cells.length * N);
+      for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) { c.foodKind = 'duff'; c.energyPerNutrient = per; } }
+    }
   }
 
   // ENGINE caches — rarer, high-value RED-leaf litter piles that draft an ENGINE card
@@ -5415,6 +5448,7 @@ function checkPileRewards(state) {
   const net = state.active; if (!net || !net.alive) return;
   for (const pile of sub.foodPiles) {
     if (pile.rewarded) continue;
+    if (pile.kind === 'duff') continue;         // low-value litter — Energy on digest, but NO card draft
     let total = 0, touched = false;
     for (const idx of pile.cells) {
       const cell = sub.cells[idx]; if (!cell) continue;
@@ -12052,8 +12086,11 @@ function drawTerrainAssets() {
 }
 
 // Substrate food = heaped sprites, keyed to what the pile IS:
-//   • MAP caches (foodKind 'cache') → heaped oak/maple LEAVES — wild litter that
-//     grants a card draft when fully digested.
+//   • MAP caches (foodKind 'cache') → heaped ORANGE oak/maple LEAVES — wild litter
+//     that grants a Basic/Event card draft when fully digested.
+//   • ENGINE caches (foodKind 'cache-engine') → RED autumn leaves — draft an Engine.
+//   • DUFF caches (foodKind 'duff') → the SAME oak/maple leaves rendered BROWN &
+//     desaturated (decayed leaf mould), a smaller/flatter heap: energy only, NO draft.
 //   • PLAYER-placed food (foodKind 'nut') → a small scatter of ACORNS, CHESTNUTS
 //     and PINE CONES — a humble lower-tier cache that only yields energy.
 // The pile SHRINKS as the cell is digested (fewer pieces); every piece's
@@ -12079,8 +12116,10 @@ function _leafSets() {
 // consumed. Deterministic per (col,row) so a cell's heap is stable frame-to-frame.
 function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const isNut = kind === 'nut';
+  const isDuff = kind === 'duff';
   // 'cache-engine' → red litter (fall back to normal leaves if red art missing);
-  // 'nut' → acorn/chestnut scatter; 'cache' (or anything else) → orange leaves.
+  // 'nut' → acorn/chestnut scatter; 'duff' → the orange leaves, tinted brown below;
+  // 'cache' (or anything else) → orange leaves.
   const set = isNut ? sets.nuts : (kind === 'cache-engine' ? (sets.red || sets.leaves) : sets.leaves);
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
@@ -12088,8 +12127,8 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const ctr = sub.cellCenter(col, row);
   const s = camera.worldToScreen(ctr.x, ctr.y);
   if (s.x < -margin || s.x > camera.viewW + margin || s.y < -margin || s.y > camera.viewH + margin) return;
-  const count = isNut ? 8 : 11;                // FIXED piece count — the heap never loses pieces as it drains
-  const base = cs * (isNut ? 0.26 : 0.64);     // …smaller pieces for nuts, so they read next to the leaves
+  const count = isNut ? 8 : isDuff ? 9 : 11;   // FIXED piece count — duff reads as a slightly thinner heap; never drops pieces as it drains
+  const base = cs * (isNut ? 0.26 : isDuff ? 0.52 : 0.64);  // …smaller pieces for nuts + duff, so they read as lower-value
   // Pull this cell's pieces toward the local food centroid so a cluster reads as
   // ONE heaped pile (not a cross of separate cells), keyed off the ORIGINAL
   // footprint so the arrangement stays put while neighbours drain.
@@ -12115,10 +12154,11 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     ctx.translate(s.x + ox, s.y + oy);
     // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
     ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
-    // nuts are muted + slightly translucent so glossy studio-lit sprites blend
-    // into the soil rather than reading as crisp cut-outs.
-    ctx.globalAlpha = (isNut ? 0.9 : 1) * alphaMul;
+    // nuts are muted + slightly translucent; duff is pushed BROWN + dark (decayed
+    // leaf mould) so the same orange leaves read as spent, low-value litter.
+    ctx.globalAlpha = (isNut ? 0.9 : isDuff ? 0.92 : 1) * alphaMul;
     if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
+    else if (isDuff) ctx.filter = 'brightness(0.6) saturate(0.5) sepia(0.6)';
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }
@@ -12264,7 +12304,7 @@ function drawSubstrateLeaves() {
   }
   sub.forEachCell((cell, col, row) => {
     if (cell.rock || !cell.foodKind) return;             // only leaf/nut food cells
-    const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'nut'
+    const kind = cell.foodKind;                          // 'cache' | 'cache-engine' | 'duff' | 'nut'
     if (cell.nutrient > 0) {
       cell._leafGone = 0;                                 // still has food → full heap, no fade
       _drawLeafHeap(sets, col, row, kind, 1);

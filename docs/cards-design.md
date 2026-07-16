@@ -98,14 +98,22 @@ energy/round). Flat BUY by rarity: **basic 0–2 · common 8 · uncommon 16 · r
 per map; plan to hit 4–6. A pile roughly pays for itself in energy but is strictly positive on
 cards — that's why you detour.
 
-> **AS-BUILT (2026-07-16) — supersedes the pile-energy numbers above.** Each map pile now pays a
-> small FIXED **1–8 Energy** (random per pile, `pile.energyValue`), fully decoupled from its nutrient
+> **AS-BUILT (2026-07-16) — supersedes the pile-energy numbers above.** Each map pile pays a
+> small FIXED Energy (random per pile, `pile.energyValue`), fully decoupled from its nutrient
 > (impl: per-cell `cell.energyPerNutrient`; nutrient still drives attraction / threat-eating /
-> colonisation only). Counts: **11** normal (orange) route caches + a random **1–3** RED engine
-> caches per map. The draft grants **3 copies** of a basic / 1 of an event (no "see N/keep M"; you
+> colonisation only). The draft grants **3 copies** of a basic / 1 of an event (no "see N/keep M"; you
 > pick 1 of 3 shown). This is a deliberate, aggressive Energy cut (food gave "way too much") — leans
-> the game toward card ENGINES for income; revisit if runs feel starved. Tunables: `substrate.foodClusterCount`,
-> `substrate.engineClusterMin/Max`, and the 1–8 range in `substrate.js drop()`.
+> the game toward card ENGINES for income; revisit if runs feel starved.
+>
+> **THREE map food tiers (2026-07-16, later pass — supersedes the counts above).** The map was
+> wall-to-wall drafting piles → too much drafting, so a third, lower tier was added. Value ladder
+> (color-coded): **RED** engine caches (`1–3`/map, draft an Engine, 1–8 Energy) > **ORANGE** route
+> caches (draft a Basic/Event, 1–8 Energy) > **BROWN "duff"** (decayed leaf mould — **Energy only,
+> NO draft**, a smaller **1–4** Energy). Placement is unchanged (every route/column/lake cache drops
+> `normal`); a **duff pass** then down-tiers a fraction (`substrate.duffClusterFraction` = 0.55) of
+> the normal piles to duff, giving ~**7 duff / ~5–6 orange / 1–3 red** per map — drafting piles
+> roughly **halved** without cutting map Energy. Tunables: `substrate.foodClusterCount`,
+> `engineClusterMin/Max`, `duffClusterFraction`, `duffEnergyMin/Max`, `foodEnergyMin/Max`.
 
 **Resources:** harvest is one-time from routing — lake tap +3 W (~3 charges), mineral +3 P
 (~3 charges), eating a nematode +2 N. Resource engines produce +1/round (rare +2). Resources

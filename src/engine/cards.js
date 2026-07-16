@@ -233,6 +233,7 @@ export function checkPileRewards(state) {
   const net = state.active; if (!net || !net.alive) return;
   for (const pile of sub.foodPiles) {
     if (pile.rewarded) continue;
+    if (pile.kind === 'duff') continue;         // low-value litter — Energy on digest, but NO card draft
     let total = 0, touched = false;
     for (const idx of pile.cells) {
       const cell = sub.cells[idx]; if (!cell) continue;

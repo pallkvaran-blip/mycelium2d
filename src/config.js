@@ -34,11 +34,20 @@ export const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 11,        // caches along the route (each is a card-draft pile) — ~25% fewer than the old 14
+    foodClusterCount: 11,        // caches along the route — ~25% fewer than the old 14
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    foodEnergyMin: 1,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
+    foodEnergyMax: 8,            //   …decoupled from nutrient (see substrate.js drop())
+    // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
+    // "duff" — brown decayed leaf litter. Same food you colonise + digest, a SMALLER
+    // Energy yield, and NO card draft. Cuts drafting without starving map energy; renders
+    // as brown/desaturated oak-maple leaves (foodKind 'duff').
+    duffClusterFraction: 0.55,   // share of drafting caches converted to duff (~6 of 11)
+    duffEnergyMin: 1,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
+    duffEnergyMax: 4,
     // ENGINE caches: rarer, high-value RED-leaf litter piles that draft an ENGINE card
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must

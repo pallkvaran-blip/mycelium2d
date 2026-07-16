@@ -200,11 +200,21 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 
 ## 5. Substrate food types (visual + conceptual split)
 
-`substrate.js` cell flag **`foodKind`**: `'' | 'cache' | 'cache-engine' | 'nut'`.
+`substrate.js` cell flag **`foodKind`**: `'' | 'cache' | 'cache-engine' | 'duff' | 'nut'`.
 
 - **`cache`** — map-placed NORMAL food (leaf litter). Rendered as **orange oak/maple
   leaf** sprites. Finishing a cache pile drafts a **Basic/Event** card. Set in
   `drop()` with `kind='normal'` (its `foodPiles` entry has `kind:'normal'`).
+- **`duff`** — map-placed LOW-VALUE food (decayed leaf mould). Rendered as the SAME
+  oak/maple sprites pushed **brown & desaturated** (`brightness(0.6) saturate(0.5)
+  sepia(0.6)`), a slightly smaller/flatter heap (9 pieces vs 11, base 0.52 vs 0.64) so
+  it reads as spent, lower-value litter. **Energy only — NO card draft** (`cards.js
+  checkPileRewards` skips `kind==='duff'`); yields a smaller fixed **1–4 Energy** vs the
+  drafting piles' 1–8. Not placed directly: `drop()` still stamps every route/feature
+  cache as `kind='normal'`, then a **DUFF PASS** in `generate()` down-tiers a fraction
+  (`substrate.duffClusterFraction` = 0.55, ~6–8/map) of the normal piles to `kind='duff'`
+  — spread evenly left→right so low- and high-value piles alternate. Purpose: cut
+  drafting (there were too many orange piles) without starving map Energy.
 - **`cache-engine`** — map-placed ENGINE food, a rarer high-value pile. Rendered as
   a mix of **6 RED/autumn leaf** sprites (`leafRed{Maple,Oak,Sweetgum,Japanese,
   Dogwood,Beech}`, see `RED_LEAF_KEYS` in main.js) so it reads as a distinct, redder
@@ -232,10 +242,11 @@ floater + `pile.finishEnergy` display. `foodClusterCount` = 11 (~25% fewer route
 
 Rendering lives in `main.js drawSubstrateLeaves` → `_drawLeafHeap(sets, col, row,
 kind, alpha)` which picks the sprite set by `foodKind` (`_leafSets()` returns
-`{leaves, red, nuts}`): `count = isNut ? 8 : 11`, `base = cs * (isNut ? 0.26 :
+`{leaves, red, nuts}`; `cache` and `duff` share the orange `leaves` set):
+`count = isNut ? 8 : isDuff ? 9 : 11`, `base = cs * (isNut ? 0.26 : isDuff ? 0.52 :
 0.64)`, sprite chosen by a stable hash so tiles are stable across frames (the
 per-piece pick naturally makes each engine pile a varied mix of the 6 red leaves);
-nut piles are muted via `ctx.filter`/`globalAlpha`. Leaf/humus cards are defined
+nut piles are muted and **duff piles pushed brown/dark** via `ctx.filter`/`globalAlpha`. Leaf/humus cards are defined
 but **shelved** (kept out of the active decks). Draft offers (`cards.js
 pushCardDraft`) are split by `displayCategory`: a NORMAL pile offers Basic/Event, an
 ENGINE pile offers Engine (`offerPileReward` picks by pile `kind`). **Basics + Events are
@@ -416,6 +427,31 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Third food tier — low-value "duff" piles (energy only, no draft)** (`src/config.js`,
+  `src/engine/substrate.js`, `src/engine/cards.js`, `src/main.js`). The map was wall-to-wall
+  **orange** drafting piles → too many card drafts. Added a THIRD map food type, **duff** (decayed
+  brown leaf mould), that gives Energy but **no card draft**, and reads as lower-value than the
+  orange (basic/event) and red (engine) piles. Value ladder is now color-coded: **red > orange >
+  brown**.
+  - **Generation** (`substrate.js generate()`): unchanged placement — every route/column/lake cache
+    still drops as `kind:'normal'`. A new **DUFF PASS** then down-tiers a fraction
+    (`substrate.duffClusterFraction` = 0.55) of ALL normal piles to `kind:'duff'`, chosen by an
+    even-distribution over their x-sorted order so low/high-value piles alternate across the map.
+    Down-tiered piles re-roll a smaller Energy value (`duffEnergyMin/Max` = 1–4 vs the drafting
+    piles' `foodEnergyMin/Max` = 1–8) and set every cell `foodKind='duff'` + its `energyPerNutrient`.
+    Result across seeds: ~7 duff / ~5–6 orange / 1–3 red — drafting piles roughly **halved**.
+  - **No draft** (`cards.js checkPileRewards`): `kind==='duff'` piles are skipped, so they never
+    offer a card. Energy still flows through normal digestion (per-cell `energyPerNutrient`), and
+    tap-inspect (`main.js showPileEnergyAt`) shows the correct lower value.
+  - **Render** (`main.js _drawLeafHeap`): duff reuses the orange oak/maple sprites pushed BROWN via
+    `ctx.filter = 'brightness(0.6) saturate(0.5) sepia(0.6)'`, in a slightly smaller/flatter heap
+    (9 pieces / base 0.52). Verified in-browser: an adjacent duff+orange pair renders as clearly
+    distinct brown vs orange heaps (cross-kind piles don't merge — generalised the `drop()`
+    anti-cannibalise guard to "never overwrite a DIFFERENT-kind cache cell").
+  - Also: `deposit()` (player food) now never downgrades ANY map cache (was 'cache'-only).
+    Tests green (101 smoke + 60 card); bundle rebuilt (0 import leaks). Tunables:
+    `substrate.duffClusterFraction`, `duffEnergyMin/Max`, `foodEnergyMin/Max`.
 
 - **Directional grow no longer false-blocks near rocks** (`src/engine/network.js`, `src/config.js`).
   A straight lance (Rhizomorph Lance / Apical Drive) aimed past a boulder was erroring "Blocked —

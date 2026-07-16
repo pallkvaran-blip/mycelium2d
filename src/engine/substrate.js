@@ -220,8 +220,8 @@ export class Substrate {
         cell.maxNutrient = Math.max(cell.maxNutrient, amount);
         cell.hazard = false;
         // Player-placed food = a humble NUT cache (energy only, no card). Never
-        // downgrade a map cache cell that grants a draft.
-        if (cell.foodKind !== 'cache') cell.foodKind = 'nut';
+        // downgrade a MAP cache cell (orange draft / red engine / brown duff).
+        if (!cell.foodKind || cell.foodKind === 'nut') cell.foodKind = 'nut';
       }
     }
   }
@@ -532,7 +532,7 @@ export function generateSubstrate(config, rng) {
     stamp(sub, c0.col, c0.row, radius, (cell, dist, col, row) => {
       if (cell.hazard || cell.rock) return;        // no food inside rock
       if (rockNear(col, row, BUF)) return;         // …or close enough to be under a boulder
-      if (kind === 'engine' && cell.nutrient > 0) return;   // never cannibalise a normal cache
+      if (cell.nutrient > 0 && cell.foodKind && cell.foodKind !== fk) return;   // never cannibalise a DIFFERENT-kind cache (keeps draft pools + looks separate)
       cell.nutrient = N; cell.maxNutrient = N;     // flat — same value every cell
       cell.foodKind = fk;                          // map cache = leaf litter that grants a card draft
       cells.push(sub.index(col, row));
@@ -553,7 +553,7 @@ export function generateSubstrate(config, rng) {
         for (const idx of hit[i].cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
         const j = sub.foodPiles.indexOf(hit[i]); if (j >= 0) sub.foodPiles.splice(j, 1);
       }
-    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(1, 8) }; sub.foodPiles.push(pile); }
+    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(s.foodEnergyMin != null ? s.foodEnergyMin : 1, s.foodEnergyMax != null ? s.foodEnergyMax : 8) }; sub.foodPiles.push(pile); }
     // A map pile is worth a small FIXED Energy value (1..8), decoupled from its nutrient.
     // Spread that value across the pile's cells as energy-per-nutrient so draining the whole
     // pile yields exactly energyValue — while the nutrient amounts (and thus attraction,
@@ -576,6 +576,30 @@ export function generateSubstrate(config, rng) {
   for (const lk of lakes) {
     const cc = Math.min(sub.cols - 2, lk.c1 + 1);    // just past the lake, beneath the deepest water
     drop(cc, Math.min(sub.rows - 1, lk.maxDepth + 1), s.foodClusterRadiusMax);
+  }
+
+  // DUFF pass — down-tier a fraction of the drafting (orange) caches to LOW-VALUE
+  // "duff" (brown decayed litter): identical food you colonise + digest, but a SMALLER
+  // Energy roll and NO card draft (cards.js checkPileRewards skips kind 'duff'). Applied
+  // AFTER every normal drop so the fraction covers the true total (route + column + lake),
+  // and spread evenly left→right so low- and high-value piles alternate across the map.
+  const duffFrac = s.duffClusterFraction != null ? s.duffClusterFraction : 0.55;
+  if (duffFrac > 0) {
+    const normals = sub.foodPiles.filter((p) => (p.kind || 'normal') === 'normal');
+    normals.sort((a, b) => (a.cells[0] % sub.cols) - (b.cells[0] % sub.cols));
+    const total = normals.length;
+    const duffN = Math.round(total * duffFrac);
+    const dMin = s.duffEnergyMin != null ? s.duffEnergyMin : 1;
+    const dMax = s.duffEnergyMax != null ? s.duffEnergyMax : 4;
+    for (let i = 0; i < total; i++) {
+      // even-distribution: exactly duffN of `total`, spread out (not clumped)
+      if (Math.floor((i * duffN) / total) === Math.floor(((i + 1) * duffN) / total)) continue;
+      const pile = normals[i];
+      pile.kind = 'duff';
+      pile.energyValue = rng.int(dMin, dMax);
+      const per = pile.energyValue / Math.max(1, pile.cells.length * N);
+      for (const idx of pile.cells) { const c = sub.cells[idx]; if (c) { c.foodKind = 'duff'; c.energyPerNutrient = per; } }
+    }
   }
 
   // ENGINE caches — rarer, high-value RED-leaf litter piles that draft an ENGINE card
