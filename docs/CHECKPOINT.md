@@ -401,8 +401,10 @@ Both menus are dark, on-theme, with glowing green borders.
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
   black: a self-contained **space-colonization** growth fills the letter glyphs with a DENSE mat of
   fine white filaments — the letters are made **entirely of strands** (no fill/ghost/second colour;
-  legibility comes from strand density) — and sends tendrils outward. Fine seg + short attraction
-  radius keeps the grid cheap so the high strand count stays smooth (~0.85s to grow). Menu is DOM
+  legibility comes from strand density) — and each letter edge is fringed with short branch-tipped
+  stray strands. It **creeps in left-to-right** (~2.6s): a growth "front" (`g.frontX`, advanced by
+  time in `frame()`) gates which seeds/attractors are active, so the word visibly spreads across
+  rather than popping in. Fine seg + short attraction radius keeps the grid cheap. Menu is DOM
   (layout/a11y/grayed states), canvas overlays it (`pointer-events:none`):
   **Survival** — New / Continue (active); **Campaign** — New / Continue (grayed) + "coming soon".
   Pressing New/Continue seeds a bridge of attractors from the title to that button and fills its
