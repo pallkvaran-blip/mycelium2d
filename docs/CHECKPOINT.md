@@ -397,6 +397,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **More forgiving rock edges — grow cards don't dead-end against rock** (`src/engine/network.js`).
+  A colony that had grown its frontier up against a rock cluster could get soft-locked: Foraging
+  Fan reported "no space" and Hyphal Extension "no food in range" even with open ground nearby.
+  - **Hyphal Extension** (`_growStep`): when the straight step toward sensed food lands on a rock
+    cell, it now noses AROUND the edge — tries progressively wider angle offsets (up to ~±97°) and
+    takes the first clear one — so food tucked just behind a rock is reachable (over `stepsPerGrow`
+    steps it curves past the edge) instead of the card giving up.
+  - **Foraging Fan** (`growRadial`): added an ESCAPE HATCH — if the outward fan finds nowhere (every
+    frontier tip walled by rock in front and its own mass behind), ANY colony node with open,
+    un-crowded ground beside it sprouts a fresh branch (bounded to ~6 new branches). So a colony
+    boxed against rock on its frontier can still fan into open space elsewhere (e.g. back the way it
+    came / to the side) — matching the card's "grow every direction". Rock/ant-trail segment-clearing
+    is still enforced (no growing THROUGH rock).
+  - Verified with a headless boxed-colony repro: fully-walled frontier + open ground behind →
+    growRadial now grows (was 0); food behind a rock wall → grow noses around it (was 0). Full test
+    suite green; dev-run in-game Foraging Fan grows 3→146 nodes, 0 errors.
+
 - **B&W picker buttons · centered card carousel · removed level chip** (`index.html` CSS,
   `src/main.js`).
   - **Species detail buttons** (`.ss-btn`) are now plain **black & white, no gradients**: Cancel

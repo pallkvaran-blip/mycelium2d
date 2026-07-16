@@ -1040,8 +1040,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "du565v";
-globalThis.__BUILD__ = "local 07-16 15:25";
+window.__ASSET_VER = "sp0um1";
+globalThis.__BUILD__ = "local 07-16 15:39";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3451,20 +3451,24 @@ class Network {
       if (!node) continue;
       const len = Math.hypot(inf.dx, inf.dy);
       if (len < 1e-4) continue;
-      let ang = Math.atan2(inf.dy, inf.dx) + rng.range(-g.branchJitter, g.branchJitter);
-      let nx = node.x + Math.cos(ang) * g.segmentLength;
-      let ny = node.y + Math.sin(ang) * g.segmentLength;
-      // Keep growth underground and inside the world.
-      ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
-      nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
-      // Can't grow through rock or across an active ant trail.
-      const tcell = substrate.cellAtWorld(nx, ny);
-      if (tcell && (tcell.rock || tcell.antTrail)) continue;
-      // Don't pile nodes on top of each other.
-      if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
-      const child = this.addNode(nx, ny, node);
-      newNodes.push(child);
-      created++;
+      const base = Math.atan2(inf.dy, inf.dx);
+      // Head straight at the food; if a rock edge is dead ahead, nose AROUND it —
+      // try progressively wider offsets and take the first clear one, so a strand
+      // can reach food tucked just behind a rock's edge instead of giving up.
+      let placed = false;
+      for (const off of [0, 0.5, -0.5, 0.9, -0.9, 1.3, -1.3, 1.7, -1.7]) {
+        const ang = base + off + (off === 0 ? rng.range(-g.branchJitter, g.branchJitter) : 0);
+        let nx = node.x + Math.cos(ang) * g.segmentLength;
+        let ny = node.y + Math.sin(ang) * g.segmentLength;
+        ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
+        nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
+        const tcell = substrate.cellAtWorld(nx, ny);
+        if (tcell && (tcell.rock || tcell.antTrail)) continue;   // can't grow through rock / ant trail
+        if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
+        const child = this.addNode(nx, ny, node);
+        newNodes.push(child); created++; placed = true; break;
+      }
+      void placed;
       if (this.nodes.length >= g.maxNodes) break;
     }
     return created;
@@ -3606,6 +3610,22 @@ class Network {
         else if (off === 0) break;   // straight-out truly walled in (rock+crowd) → skip the side rays too
       }
       void advanced;
+    }
+    // ESCAPE HATCH: if the outward fan found NOWHERE (every tip walled in front by rock
+    // and behind by the colony's own mass), let ANY node with open, un-crowded ground
+    // beside it sprout a fresh branch — so a colony boxed against rock on its frontier
+    // can still fan into open space elsewhere around it (e.g. back the way it came).
+    // Bounded to a handful of new branches so "grow every direction" stays a fan, not a burst.
+    if (created === 0) {
+      const COMPASS = Math.max(6, g.foragingFanRays || 8), MAX_ESCAPE = 6;
+      let escaped = 0;
+      for (const n of this.nodes) {
+        if (escaped >= MAX_ESCAPE || this.nodes.length >= g.maxNodes) break;
+        if (n.infected || n.colon) continue;
+        for (let k = 0; k < COMPASS; k++) {
+          if (growChain(n, (k / COMPASS) * Math.PI * 2) > 0) { created++; escaped++; break; }
+        }
+      }
     }
     // Fanning out also fully colonises any substrate pile within reach, in one step.
     created += this.colonizeReachablePiles(substrate, rng);
