@@ -11,6 +11,8 @@
 // Self-contained; the canvas is `.myc-title`. `opts`: { word, stepRate }.
 // =============================================================================
 
+import { playGrowBurst } from './sfx.js';
+
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 
 export function growMyceliumTitle(container, opts = {}) {
@@ -24,6 +26,7 @@ export function growMyceliumTitle(container, opts = {}) {
 
   let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
   let titleSize = 0, cx = 0, cy = 0, g = null, raf = 0, stepAcc = 0, alive = true;
+  let sfxAcc = 0, sfxLastT = 0;   // grow-SFX swell: nodes since last burst + throttle clock
   const STEP_RATE = opts.stepRate || 2.4;
 
   // ---- spatial-grid space colonization -----------------------------------
@@ -131,10 +134,21 @@ export function growMyceliumTitle(container, opts = {}) {
   }
   function frame() {
     if (!alive) return;
+    const before = g.nodes.length;
     stepAcc += STEP_RATE;
     while (stepAcc >= 1) { step(g); stepAcc -= 1; }
     flushInk(); composite();
+    playGrowSfx(g.nodes.length - before);
     if (!g.done) raf = requestAnimationFrame(frame);   // stop compositing once fully grown
+  }
+  // Layered "growing" swell that tracks the visible growth: size each burst by the
+  // strands added since the last one, throttled so it reads as one organic swell that
+  // settles when the word finishes (playGrowBurst self-caps layers/voices/gain).
+  function playGrowSfx(grew) {
+    if (grew <= 0) return;
+    sfxAcc += grew;
+    const now = performance.now();
+    if (now - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = now; }
   }
   function layout() {
     dpr = Math.min(2.5, window.devicePixelRatio || 1);

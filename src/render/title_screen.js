@@ -13,6 +13,8 @@
 // coupling to the sim. Namespaced #titleScreen / .ts-*.
 // =============================================================================
 
+import { playGrowBurst } from './sfx.js';
+
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
@@ -49,6 +51,7 @@ export function showTitleScreen({ onNew, onContinue }) {
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
+  let sfxAcc = 0, sfxLastT = 0;                       // grow-SFX swell: nodes since last burst + throttle clock
   let finishFn = null, consumeT0 = 0, bloomT0 = 0;   // handoff + phase clocks (strand / bloom bells)
   const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
   // A consumed menu word grows in TWO bell-paced phases:
@@ -231,12 +234,23 @@ export function showTitleScreen({ onNew, onContinue }) {
           rate = STRAND_MIN + (STRAND_PEAK - STRAND_MIN) * Math.sin(t * Math.PI / 2);
         } else rate = STRAND_MIN;
       }
+      const before = g.nodes.length;
       stepAcc += rate;
       while (stepAcc >= 1) { step(g); stepAcc -= 1; }
       flushInk();
+      playGrowSfx(g.nodes.length - before);
     }
     composite();
     raf = requestAnimationFrame(frame);
+  }
+  // Layered "growing" swell that tracks the visible growth (title bloom + each consumed
+  // menu word): size each burst by the strands added since the last, throttled so it reads
+  // as one organic swell that settles when growth stops (playGrowBurst self-caps).
+  function playGrowSfx(grew) {
+    if (grew <= 0) return;
+    sfxAcc += grew;
+    const tSfx = performance.now();
+    if (tSfx - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = tSfx; }
   }
 
   // ---- consume a menu word, then fire its callback ------------------------

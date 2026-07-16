@@ -397,6 +397,28 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Grow SFX on every mycelium wordmark growth** (`src/render/mycelium_title.js`,
+  `src/render/title_screen.js`). Both growth loops now feed each frame's new-node count into a
+  small `playGrowSfx(grew)` helper that fires the existing `playGrowBurst` (from `sfx.js`, the same
+  organic "growing" swell as an in-game grow) sized to the strands grown since the last burst,
+  throttled to ≥170 ms apart — so the sound reads as ONE swell that tracks the visible growth and
+  settles when it finishes. Covers: the **title** bloom + the **New/Old button-word** consume-grow
+  (`title_screen.js`), and the **species-picker banner** + **level-win headline** (both via
+  `growMyceliumTitle`). `playGrowBurst` self-caps (≤6 layers/burst, ≤8 concurrent voices, per-hit
+  gain ∝1/√layers, bus compressor), so over-firing can't overload. Audio needs a user gesture to
+  unlock (browser policy) — the very first title bloom on a cold load is silent until the first tap;
+  every later surface plays (a gesture already happened). Reduced-motion path grows synchronously →
+  no frames → no SFX (correct). Verified with a headless `createBufferSource().start()` counter:
+  title 8 · button-word 16 · species 4 · win 16 hits, 0 errors.
+
+- **Level-win minimizes the hand carousel** (`src/main.js`, `index.html` `.ss-win` CSS). Rather than
+  hiding the unlock card on short screens, `onLevelWon()` collapses the carousel
+  (`ui.setHandOpen(false)`) before the containerless win banner appears; `begin()` re-opens it
+  (`setHandOpen(true)`) when the next level loads. The `.ss-win` bottom pad now only clears the thin
+  collapsed strip (removed the big reserve + the `max-height:500px` card-hide rule), so the SUCCESS /
+  YOU MADE IT headline + unlock card + Proceed fit over the map at every viewport, landscape phone
+  included. Win words trimmed to "Success" / "You made it".
+
 - **MYCELIUM wordmark on the species picker + redesigned level-win** (`src/render/mycelium_title.js`
   — new reusable module; `species_select.js`, `build.mjs` MODULES, `index.html` `.ss-title` /
   `.ss-win` / `#speciesSelect` CSS). `growMyceliumTitle(container, opts)` grows the same procedural

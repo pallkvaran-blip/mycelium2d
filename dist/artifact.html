@@ -1034,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "18qihb";
-globalThis.__BUILD__ = "local 07-16 13:52";
+window.__ASSET_VER = "1fhgzt5";
+globalThis.__BUILD__ = "local 07-16 14:02";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9736,6 +9736,7 @@ function vitalityColor(v) {
 
 // ===================== src/render/mycelium_title.js =====================
 const __m_render_mycelium_title = (function () {
+  const { playGrowBurst } = __m_render_sfx;
 // =============================================================================
 // Reusable animated MYCELIUM wordmark — procedural white mycelium on a transparent
 // background, grown by space-colonization (mirrors the title screen's look).
@@ -9748,6 +9749,7 @@ const __m_render_mycelium_title = (function () {
 // composites every frame), so it's cheap to leave on the species picker.
 // Self-contained; the canvas is `.myc-title`. `opts`: { word, stepRate }.
 // =============================================================================
+
 
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 
@@ -9762,6 +9764,7 @@ function growMyceliumTitle(container, opts = {}) {
 
   let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
   let titleSize = 0, cx = 0, cy = 0, g = null, raf = 0, stepAcc = 0, alive = true;
+  let sfxAcc = 0, sfxLastT = 0;   // grow-SFX swell: nodes since last burst + throttle clock
   const STEP_RATE = opts.stepRate || 2.4;
 
   // ---- spatial-grid space colonization -----------------------------------
@@ -9869,10 +9872,21 @@ function growMyceliumTitle(container, opts = {}) {
   }
   function frame() {
     if (!alive) return;
+    const before = g.nodes.length;
     stepAcc += STEP_RATE;
     while (stepAcc >= 1) { step(g); stepAcc -= 1; }
     flushInk(); composite();
+    playGrowSfx(g.nodes.length - before);
     if (!g.done) raf = requestAnimationFrame(frame);   // stop compositing once fully grown
+  }
+  // Layered "growing" swell that tracks the visible growth: size each burst by the
+  // strands added since the last one, throttled so it reads as one organic swell that
+  // settles when the word finishes (playGrowBurst self-caps layers/voices/gain).
+  function playGrowSfx(grew) {
+    if (grew <= 0) return;
+    sfxAcc += grew;
+    const now = performance.now();
+    if (now - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = now; }
   }
   function layout() {
     dpr = Math.min(2.5, window.devicePixelRatio || 1);
@@ -10148,6 +10162,7 @@ function showGameWon({ onNewRun }) {
 
 // ===================== src/render/title_screen.js =====================
 const __m_render_title_screen = (function () {
+  const { playGrowBurst } = __m_render_sfx;
 // =============================================================================
 // Title screen — procedural white MYCELIUM on black.
 //
@@ -10162,6 +10177,7 @@ const __m_render_title_screen = (function () {
 // Self-contained (own growth + renderer) so it matches the game's look without
 // coupling to the sim. Namespaced #titleScreen / .ts-*.
 // =============================================================================
+
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
@@ -10199,6 +10215,7 @@ function showTitleScreen({ onNew, onContinue }) {
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
+  let sfxAcc = 0, sfxLastT = 0;                       // grow-SFX swell: nodes since last burst + throttle clock
   let finishFn = null, consumeT0 = 0, bloomT0 = 0;   // handoff + phase clocks (strand / bloom bells)
   const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
   // A consumed menu word grows in TWO bell-paced phases:
@@ -10381,12 +10398,23 @@ function showTitleScreen({ onNew, onContinue }) {
           rate = STRAND_MIN + (STRAND_PEAK - STRAND_MIN) * Math.sin(t * Math.PI / 2);
         } else rate = STRAND_MIN;
       }
+      const before = g.nodes.length;
       stepAcc += rate;
       while (stepAcc >= 1) { step(g); stepAcc -= 1; }
       flushInk();
+      playGrowSfx(g.nodes.length - before);
     }
     composite();
     raf = requestAnimationFrame(frame);
+  }
+  // Layered "growing" swell that tracks the visible growth (title bloom + each consumed
+  // menu word): size each burst by the strands added since the last, throttled so it reads
+  // as one organic swell that settles when growth stops (playGrowBurst self-caps).
+  function playGrowSfx(grew) {
+    if (grew <= 0) return;
+    sfxAcc += grew;
+    const tSfx = performance.now();
+    if (tSfx - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = tSfx; }
   }
 
   // ---- consume a menu word, then fire its callback ------------------------
