@@ -735,7 +735,7 @@
     #titleScreen .ts-actions > *:first-child { justify-self:end; }
     #titleScreen .ts-actions > *:last-child { justify-self:start; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
-      font-size:clamp(40px,7vw,84px); letter-spacing:.14em; text-indent:.14em; text-transform:uppercase; font-weight:600;
+      font-size:clamp(40px,7vw,84px); letter-spacing:.02em; text-indent:.02em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
     #titleScreen .ts-btn:hover:not(.ts-locked) { color:#fff; text-shadow:0 0 26px rgba(190,255,230,0.8); }
     #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
@@ -981,8 +981,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "cpnxrr";
-globalThis.__BUILD__ = "local 07-16 10:54";
+window.__ASSET_VER = "z4umo8";
+globalThis.__BUILD__ = "local 07-16 11:25";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9974,9 +9974,13 @@ function showTitleScreen({ onNew, onContinue }) {
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
-  let finishFn = null;      // consume-completion handoff
+  let finishFn = null, consumeT0 = 0;   // consume-completion handoff + growth-start time (drives the bell curve)
   const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
-  const CONSUME_RATE = 12;  // the menu word grows at a finer scale (many more strands) — step fast so it completes in time
+  // A consumed menu word grows on a BELL-SHAPED speed curve: starts slow, accelerates to
+  // full speed, then eases off towards the end (sin over 0..π across CONSUME_DUR).
+  const CONSUME_DUR = 2200; // ms the curve spans
+  const CONSUME_PEAK = 12;  // steps/frame at the bell's peak
+  const CONSUME_MIN = 3;    // steps/frame floor at the start/end (never fully stall)
 
   // ---- spatial-grid space colonization -----------------------------------
   function grid(gr, x, y) { return ((x / gr.cell) | 0) + ',' + ((y / gr.cell) | 0); }
@@ -10121,7 +10125,13 @@ function showTitleScreen({ onNew, onContinue }) {
   function frame() {
     if (finished) return;
     if (!g.done || consuming) {                       // fractional rate paces the bloom
-      stepAcc += consuming ? CONSUME_RATE : STEP_RATE;
+      let rate = STEP_RATE;
+      if (consuming) {                                // bell-shaped speed: slow → full → slow
+        const t = consumeT0 ? (performance.now() - consumeT0) / CONSUME_DUR : 0;
+        const bell = Math.sin(Math.PI * Math.max(0, Math.min(1, t)));
+        rate = CONSUME_MIN + (CONSUME_PEAK - CONSUME_MIN) * bell;
+      }
+      stepAcc += rate;
       while (stepAcc >= 1) { step(g); stepAcc -= 1; }
       flushInk();
     }
@@ -10143,7 +10153,7 @@ function showTitleScreen({ onNew, onContinue }) {
   // rather than a bare line. The main wander is a SMOOTH sine along the length (single
   // random phase/frequency) so consecutive points stay within the attraction radius —
   // a per-point random jitter would break the chain mid-way and stall the strand.
-  function bridgeAttractors(ax, ay, bx2, by2) {
+  function bridgeAttractors(ax, ay, bx2, by2, branch) {
     const dx = bx2 - ax, dy = by2 - ay, L = Math.hypot(dx, dy) || 1;
     const n = Math.max(1, Math.round(L / (g.attract * 0.55)));   // dense: spacing < attraction radius
     const px = -dy / L, py = dx / L;                             // unit perpendicular
@@ -10154,7 +10164,7 @@ function showTitleScreen({ onNew, onContinue }) {
       const w = Math.sin(ph + t * Math.PI * waves) * amp * Math.sin(t * Math.PI);   // tapers to 0 at both ends
       const x = ax + dx * t + px * w, y = ay + dy * t + py * w;
       g.attractors.push({ x, y });
-      if (k > 1 && k < n && Math.random() < 0.5) {               // side branch with a tip spray
+      if (branch && k > 1 && k < n && Math.random() < 0.5) {     // side branch with a tip spray
         const side = Math.random() < 0.5 ? 1 : -1;
         const bang = Math.atan2(y - ly, x - lx) + side * rnd(0.5, 1.15), blen = 1 + ((Math.random() * 2) | 0);
         let ex = x, ey = y;
@@ -10185,7 +10195,7 @@ function showTitleScreen({ onNew, onContinue }) {
     const m = ctx; m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
     const total = m.measureText(text).width; try { m.letterSpacing = '0px'; } catch (_) {}
     const box = { x: bx - total / 2 - size * 0.4, y: by - size * 0.9, w: total + size * 0.8, h: size * 1.8 };
-    const S = 3;   // supersample factor → ~3× finer effective sampling than the 1px-integer floor
+    const S = 2;   // supersample → ~1px effective sampling (dense but not so many attractors that steps crawl)
     const draw = (o, blur) => {
       o.filter = blur ? 'blur(' + blur + 'px)' : 'none';
       o.fillStyle = '#fff'; o.font = font; o.textAlign = 'center'; o.textBaseline = 'middle';
@@ -10206,58 +10216,71 @@ function showTitleScreen({ onNew, onContinue }) {
     };
     const glyph = sample((o) => draw(o, 0), 2, 70, 256);
     const fringe = sample((o) => draw(o, size * 0.03), 3, 12, 100);
-    const SPL = 3;   // bloom seeds per letter → several fans fill each glyph densely
+    // Split the glyph into per-letter groups. Each letter gets an entry `seed` (a point
+    // near its centre — where a connector strand plugs in) and its full `pts` (used to
+    // burst-seed the letter with many growth fronts so it fills fast once reached).
     m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
-    const x0 = bx - total / 2, seeds = []; let prevW = 0;
+    const x0 = bx - total / 2, letters = []; let prevW = 0;
     for (let i = 0; i < text.length; i++) {
       const w = m.measureText(text.slice(0, i + 1)).width;
-      const lo = x0 + prevW, hi = x0 + w; prevW = w;
-      const inL = glyph.filter((pt) => pt.x >= lo && pt.x < hi);
-      for (let s = 0; s < SPL && inL.length; s++) seeds.push(inL[(Math.random() * inL.length) | 0]);
+      const lo = x0 + prevW, hi = x0 + w, cxL = (lo + hi) / 2; prevW = w;
+      const pts = glyph.filter((pt) => pt.x >= lo && pt.x < hi);
+      let seed = null;
+      if (pts.length) {
+        const near = pts.slice().sort((a, b) => Math.abs(a.x - cxL) - Math.abs(b.x - cxL));
+        seed = near[(Math.random() * Math.min(near.length, Math.max(4, near.length >> 2))) | 0];
+      }
+      letters.push({ seed, pts });
     }
     try { m.letterSpacing = '0px'; } catch (_) {}
-    return { glyph, fringe, seeds, bx, by, size };
+    return { glyph, fringe, letters, bx, by, size };
   }
 
-  // Grow the button's word so it reads exactly like MYCELIUM: growth switches to the
-  // WORD's OWN (finer) scale so a small word gets as many strands, relatively, as the
-  // big title; EVERY letter blooms from its own random points with dense glyph
-  // attractors + hairy strays; AND 1–2 branching connector strands creep out of the
-  // nearest MYCELIUM letters so the word visibly grows straight out of the title.
+  // Grow the button's word so it reads exactly like MYCELIUM and unfurls FROM the title.
+  // Topology (request): a branching strand climbs out of the nearest MYCELIUM node to the
+  // MIDDLE letter (E in NEW, L in OLD) — the growth point; then plain connector strands
+  // reach from that middle letter out to each other letter. Each letter is then
+  // BURST-SEEDED (many nodes at once) as it's reached, so it fills fast + dense from many
+  // fronts (a single entry front fills far too slowly). The strand climbs at a coarse seg
+  // so it arrives quickly; letters fill at a fine seg so they read like the title.
   function growButtonWord(btn) {
-    const { glyph, fringe, seeds, bx, by, size } = sampleWord(btn);
-    if (!seeds.length) { g.done = false; return; }
-    // rescale growth to the word (leave g.cell alone — it keeps the title's grid buckets
-    // valid; a smaller attract than cell just makes nearestNode search a superset, fine)
-    g.seg = Math.max(0.6, size * 0.009);
-    g.attract = size * 0.05; g.attract2 = g.attract * g.attract; g.kill2 = g.seg * g.seg;
+    consumeT0 = performance.now();                    // start the bell-curve clock
+    const { glyph, fringe, letters, bx, by, size } = sampleWord(btn);
+    const valid = letters.filter((l) => l.seed);
+    if (!valid.length) { g.done = false; return; }
+    g.attract = size * 0.05; g.attract2 = g.attract * g.attract;   // (g.cell left alone → title buckets stay valid)
+    const coarse = () => { g.seg = Math.max(1.2, size * 0.02); g.kill2 = g.seg * g.seg; };   // fast-climbing strand
+    const fine = () => { g.seg = Math.max(0.6, size * 0.009); g.kill2 = g.seg * g.seg; };    // dense letter fill
+    coarse();
     for (const p of glyph) g.attractors.push(p);
     for (const f of fringe) g.attractors.push(f);
-    // (A) immediately: 1–2 branching connector strands out of the nearest MYCELIUM nodes.
-    const ranked = seeds.map((s) => {
-      const ni = nearestExistingNode(s.x, s.y);
-      const n = ni >= 0 ? g.nodes[ni] : null;
-      return { s, n, d: n ? (n.x - s.x) ** 2 + (n.y - s.y) ** 2 : Infinity };
-    }).sort((a, b) => a.d - b.d);
-    const nBridge = seeds.length >= 2 ? 1 + ((Math.random() * 2) | 0) : 1;   // 1 or 2 strands
-    for (const e of ranked.slice(0, nBridge)) if (e.n) bridgeAttractors(e.n.x, e.n.y, e.s.x, e.s.y);
+    // hairy strays around the word edge (fill in once the letters do)
+    const edge = fringe.length ? fringe : glyph, sp = g.attract * 0.6, strays = Math.round(valid.length * 10);
+    for (let i = 0; i < strays; i++) {
+      const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
+      const ang = Math.atan2(s.y - by, s.x - bx) + rnd(-0.7, 0.7), len = 1 + ((Math.random() * 2) | 0);
+      let ex = s.x, ey = s.y;
+      for (let k = 1; k <= len; k++) { ex = s.x + Math.cos(ang) * sp * k; ey = s.y + Math.sin(ang) * sp * k; g.attractors.push({ x: ex, y: ey }); }
+      const br = 2 + ((Math.random() * 3) | 0);
+      for (let bi = 0; bi < br; bi++) { const ba = ang + rnd(-1, 1), bl = g.attract * rnd(0.4, 0.9); g.attractors.push({ x: ex + Math.cos(ba) * bl, y: ey + Math.sin(ba) * bl }); }
+    }
+    // middle letter = growth point; branching strand from MYCELIUM into it
+    const centre = (letters.length - 1) / 2;
+    const midV = valid.reduce((best, o) => Math.abs(letters.indexOf(o) - centre) < Math.abs(letters.indexOf(best) - centre) ? o : best, valid[0]);
+    const mid = midV.seed, start = nearestExistingNode(mid.x, mid.y);
+    if (start >= 0) bridgeAttractors(g.nodes[start].x, g.nodes[start].y, mid.x, mid.y, true);
+    // plain connector strands from the middle letter out to each other letter
+    for (const o of valid) if (o !== midV) bridgeAttractors(mid.x, mid.y, o.seed.x, o.seed.y, false);
     g.done = false;
-    // (B) a beat later: every letter blooms from its own seeds (dense + legible) + strays.
-    const bloom = () => {
-      if (finished) return;
-      for (const s of seeds) addNode(g, s.x, s.y, -1);
-      const edge = fringe.length ? fringe : glyph, sp = g.attract * 0.6, strays = Math.round(seeds.length * 10);
-      for (let i = 0; i < strays; i++) {
-        const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
-        const ang = Math.atan2(s.y - by, s.x - bx) + rnd(-0.7, 0.7), len = 1 + ((Math.random() * 2) | 0);
-        let ex = s.x, ey = s.y;
-        for (let k = 1; k <= len; k++) { ex = s.x + Math.cos(ang) * sp * k; ey = s.y + Math.sin(ang) * sp * k; g.attractors.push({ x: ex, y: ey }); }
-        const br = 2 + ((Math.random() * 3) | 0);
-        for (let bi = 0; bi < br; bi++) { const ba = ang + rnd(-1, 1), bl = g.attract * rnd(0.4, 0.9); g.attractors.push({ x: ex + Math.cos(ba) * bl, y: ey + Math.sin(ba) * bl }); }
-      }
+    // burst-seed a letter with a FEW fronts so it fills over a visible beat (not instantly)
+    const burst = (l) => {
+      const pts = l.pts, k = Math.min(5, pts.length);
+      for (let i = 0; i < k; i++) { const p = pts[(Math.random() * pts.length) | 0]; addNode(g, p.x, p.y, -1); }
       g.done = false;
     };
-    if (reduce) bloom(); else setTimeout(bloom, 450);
+    if (reduce) { fine(); for (const v of valid) burst(v); return; }
+    setTimeout(() => { fine(); burst(midV); }, 800);                                   // middle fills as the strand arrives
+    setTimeout(() => { for (const v of valid) if (v !== midV) burst(v); }, 1250);      // others as the connectors arrive
   }
 
   function consume(btn, cb) {
@@ -10270,11 +10293,11 @@ function showTitleScreen({ onNew, onContinue }) {
       setTimeout(() => { cancelAnimationFrame(raf); root.remove(); cb && cb(); }, 560);
     };
     if (reduce) { btn.style.opacity = '0'; growButtonWord(btn); let guard = 0; while (!g.done && guard++ < 12000) step(g); flushInk(); composite(); setTimeout(finishFn, 350); return; }
-    // (2) a strand creeps out of MYCELIUM (at +300ms) and the word unfurls from it
-    // (bloom seeds at +750ms). Predictable wall-clock pacing so the transition timing is
-    // the same on every device — the word keeps maturing through the hold + fade.
+    // (2) at +300ms a strand creeps out of MYCELIUM into the word's middle letter and the
+    // word unfurls from it on a bell-shaped speed curve (CONSUME_DUR). Fixed wall-clock
+    // pacing → same timing on every device; the word keeps maturing through the fade.
     setTimeout(() => growButtonWord(btn), 300);
-    setTimeout(finishFn, 2700);                      // (3) fade to the next screen a beat after the word forms
+    setTimeout(finishFn, 2350);                       // (3) fade out a beat after the word finishes forming
   }
 
   // ---- layout / boot -----------------------------------------------------
