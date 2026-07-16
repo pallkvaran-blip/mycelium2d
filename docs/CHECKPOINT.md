@@ -397,6 +397,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
+  `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
+  black: a self-contained **space-colonization** growth fills the letter glyphs with glowing white
+  filaments (+ a faint blurred "core glow" under them so the word always reads) and sends tendrils
+  outward. Menu is DOM (layout/a11y/grayed states), canvas overlays it (`pointer-events:none`):
+  **Survival** — New / Continue (active); **Campaign** — New / Continue (grayed) + "coming soon".
+  Pressing New/Continue seeds a bridge of attractors from the title to that button and fills its
+  glyph mask → the word is **consumed into mycelium**, its DOM text cross-fades out, then the screen
+  fades and the callback fires. **New** = `resetProgress()` (wipe unlocks) → picker; **Continue** =
+  keep unlocks → picker. Boots before the picker (default boot only; `#dev`/`#puzzle`/`#notrich`
+  still skip it). `prefers-reduced-motion` → grows synchronously (static). **Gotcha:** pixel-mask
+  sampling MUST step the loop by an integer (fractional index into the typed array → `undefined` →
+  no attractors → nothing grows). Still a first pass — density/outward-reach/consume drama tunable.
+
 - **Campaign: level progression 1→11 + species unlocks** (`src/species.js`,
   `src/render/species_select.js`, `src/main.js`, `src/render/ui.js`, `index.html`; commit `0989061`).
   A run is now a ladder of **11 procedurally-generated levels**; maps stay procedural, only the

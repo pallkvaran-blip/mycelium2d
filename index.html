@@ -720,6 +720,30 @@
     }
 
     /* ============================================================
+       Title screen — procedural white MYCELIUM on black + menu.
+       ============================================================ */
+    #titleScreen { position:fixed; inset:0; z-index:1000; overflow:hidden; user-select:none;
+      background:radial-gradient(125% 95% at 50% 40%, #0a1013 0%, #05080b 46%, #010203 100%);
+      font-family:"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+    #tsCanvas { position:absolute; inset:0; z-index:2; pointer-events:none; }
+    #titleScreen .ts-menu { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; }
+    #titleScreen .ts-block { display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2.2vh,22px); }
+    #titleScreen .ts-gap { flex:0 0 auto; }
+    #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em;
+      text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
+    #titleScreen .ts-actions { display:flex; gap:clamp(28px,7vw,72px); }
+    #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:6px 12px;
+      font-size:clamp(18px,2.3vw,25px); letter-spacing:.2em; text-indent:.2em; text-transform:uppercase; font-weight:600;
+      color:#dbe9df; text-shadow:0 0 14px rgba(190,240,220,0.22); transition:color .2s, text-shadow .2s; }
+    #titleScreen .ts-btn:hover:not(.ts-locked) { color:#fff; text-shadow:0 0 24px rgba(190,255,230,0.75); }
+    #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
+    #titleScreen .ts-btn.ts-consuming { color:transparent !important; text-shadow:none; transition:color 1.1s ease; }
+    #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em;
+      text-transform:uppercase; color:#333c37; margin-top:3px; }
+    @media (max-width:560px) { #titleScreen .ts-actions { gap:clamp(20px,10vw,40px); } }
+
+    /* ============================================================
        Start-of-run species picker — overlay shown before a run.
        Everything is namespaced (#speciesSelect / .ss-*) so it never
        collides with the in-game .card / .overlay UI above.

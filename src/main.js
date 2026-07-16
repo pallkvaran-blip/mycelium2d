@@ -19,7 +19,8 @@ import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
-import { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress } from './species.js';
+import { showTitleScreen } from './render/title_screen.js';
+import { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -2634,5 +2635,8 @@ preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
-else showPicker();   // prompt the species picker first (a pick seeds a level-1 run; Dev button = default run)
+else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+  onNew: () => { resetProgress(); showPicker(); },
+  onContinue: () => showPicker(),
+});
 requestAnimationFrame(frame);

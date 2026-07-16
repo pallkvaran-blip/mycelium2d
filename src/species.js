@@ -125,6 +125,10 @@ export function loadProgress() {
 export function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
 }
+// "New" on the title screen: wipe all unlock progress (start from scratch).
+export function resetProgress() {
+  try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {}
+}
 export function clearsFor(progress, level) {
   return (progress && progress.clears && progress.clears[level]) || 0;
 }

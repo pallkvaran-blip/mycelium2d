@@ -721,6 +721,30 @@
     }
 
     /* ============================================================
+       Title screen — procedural white MYCELIUM on black + menu.
+       ============================================================ */
+    #titleScreen { position:fixed; inset:0; z-index:1000; overflow:hidden; user-select:none;
+      background:radial-gradient(125% 95% at 50% 40%, #0a1013 0%, #05080b 46%, #010203 100%);
+      font-family:"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+    #tsCanvas { position:absolute; inset:0; z-index:2; pointer-events:none; }
+    #titleScreen .ts-menu { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; }
+    #titleScreen .ts-block { display:flex; flex-direction:column; align-items:center; gap:clamp(12px,2.2vh,22px); }
+    #titleScreen .ts-gap { flex:0 0 auto; }
+    #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em;
+      text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
+    #titleScreen .ts-actions { display:flex; gap:clamp(28px,7vw,72px); }
+    #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:6px 12px;
+      font-size:clamp(18px,2.3vw,25px); letter-spacing:.2em; text-indent:.2em; text-transform:uppercase; font-weight:600;
+      color:#dbe9df; text-shadow:0 0 14px rgba(190,240,220,0.22); transition:color .2s, text-shadow .2s; }
+    #titleScreen .ts-btn:hover:not(.ts-locked) { color:#fff; text-shadow:0 0 24px rgba(190,255,230,0.75); }
+    #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
+    #titleScreen .ts-btn.ts-consuming { color:transparent !important; text-shadow:none; transition:color 1.1s ease; }
+    #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em;
+      text-transform:uppercase; color:#333c37; margin-top:3px; }
+    @media (max-width:560px) { #titleScreen .ts-actions { gap:clamp(20px,10vw,40px); } }
+
+    /* ============================================================
        Start-of-run species picker — overlay shown before a run.
        Everything is namespaced (#speciesSelect / .ss-*) so it never
        collides with the in-game .card / .overlay UI above.
@@ -958,8 +982,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1pnw2rw";
-globalThis.__BUILD__ = "local 07-16 06:51";
+window.__ASSET_VER = "1iovoac";
+globalThis.__BUILD__ = "local 07-16 08:01";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2543,6 +2567,10 @@ function loadProgress() {
 function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
 }
+// "New" on the title screen: wipe all unlock progress (start from scratch).
+function resetProgress() {
+  try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {}
+}
 function clearsFor(progress, level) {
   return (progress && progress.clears && progress.clears[level]) || 0;
 }
@@ -2568,7 +2596,7 @@ function newlyUnlockedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, tierSpecies, loadProgress, saveProgress, clearsFor, recordLevelCleared, isUnlocked, newlyUnlockedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, isUnlocked, newlyUnlockedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -9894,6 +9922,251 @@ function showGameWon({ onNewRun }) {
   return { showSpeciesSelect, showLevelComplete, showGameWon };
 })();
 
+// ===================== src/render/title_screen.js =====================
+const __m_render_title_screen = (function () {
+// =============================================================================
+// Title screen — procedural white MYCELIUM on black.
+//
+// The word "MYCELIUM" is spelled by living white mycelium: filaments fill the
+// letter shapes (space-colonization growth) and a few tendrils creep outward in
+// every direction. Menu words are DOM (for layout/accessibility/grayed states):
+//   Survival — New / Continue   (active)
+//   Campaign — New / Continue   (grayed) + "coming soon"
+// Pressing New/Continue grows the mycelium INTO that word and consumes it (the
+// word becomes mycelium) before the transition fires.
+//
+// Self-contained (own growth + renderer) so it matches the game's look without
+// coupling to the sim. Namespaced #titleScreen / .ts-*.
+// =============================================================================
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
+const TITLE = 'MYCELIUM';
+
+function showTitleScreen({ onNew, onContinue }) {
+  const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const root = el('div'); root.id = 'titleScreen';
+  root.innerHTML =
+    '<canvas id="tsCanvas"></canvas>' +
+    '<div class="ts-menu">' +
+      '<div class="ts-block">' +
+        '<div class="ts-mode">Survival</div>' +
+        '<div class="ts-actions">' +
+          '<button class="ts-btn" id="tsNew" type="button">New</button>' +
+          '<button class="ts-btn" id="tsCont" type="button">Continue</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ts-gap" id="tsGap"></div>' +
+      '<div class="ts-block">' +
+        '<div class="ts-actions">' +
+          '<span class="ts-btn ts-locked">New</span>' +
+          '<span class="ts-btn ts-locked">Continue</span>' +
+        '</div>' +
+        '<div class="ts-mode ts-locked">Campaign</div>' +
+        '<div class="ts-soon">coming soon</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(root);
+
+  const canvas = root.querySelector('#tsCanvas');
+  const ctx = canvas.getContext('2d');
+  const gapEl = root.querySelector('#tsGap');
+
+  let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
+  let titleSize = 0, titleY = 0, cx = 0;
+  let g = null;                 // growth state
+  let raf = 0, consuming = false, finished = false;
+
+  // ---- spatial-grid space colonization -----------------------------------
+  function grid(gr, x, y) { return ((x / gr.cell) | 0) + ',' + ((y / gr.cell) | 0); }
+  function addNode(gr, x, y, parent) {
+    const i = gr.nodes.length;
+    gr.nodes.push({ x, y, parent });
+    const k = grid(gr, x, y);
+    let a = gr.map.get(k); if (!a) { a = []; gr.map.set(k, a); }
+    a.push(i);
+    return i;
+  }
+  function nearestNode(gr, x, y) {                 // nearest node index within attractionDist, else -1
+    const cxg = (x / gr.cell) | 0, cyg = (y / gr.cell) | 0;
+    let best = -1, bd = gr.attract2;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const a = gr.map.get((cxg + dx) + ',' + (cyg + dy));
+      if (!a) continue;
+      for (const i of a) { const n = gr.nodes[i]; const d = (n.x - x) ** 2 + (n.y - y) ** 2; if (d < bd) { bd = d; best = i; } }
+    }
+    return best < 0 ? -1 : (gr._bd = bd, best);
+  }
+
+  function newGrowth() {
+    const seg = Math.max(2.2, titleSize * 0.024);
+    const attract = titleSize * 0.28;
+    return {
+      nodes: [], segs: [], attractors: [], map: new Map(),
+      seg, attract, attract2: attract * attract, kill2: (seg * 1.7) ** 2, cell: attract, _bd: 0, done: false,
+    };
+  }
+
+  function step(gr) {
+    if (!gr.attractors.length || gr.nodes.length > 16000) { gr.done = true; return; }
+    const infl = new Map(); const survivors = [];
+    for (const at of gr.attractors) {
+      const ni = nearestNode(gr, at.x, at.y);
+      if (ni < 0) { survivors.push(at); continue; }
+      if (gr._bd <= gr.kill2) continue;                 // reached — consume this attractor
+      survivors.push(at);
+      const n = gr.nodes[ni];
+      let e = infl.get(ni); if (!e) { e = [0, 0]; infl.set(ni, e); }
+      const dx = at.x - n.x, dy = at.y - n.y, L = Math.hypot(dx, dy) || 1;
+      e[0] += dx / L; e[1] += dy / L;
+    }
+    gr.attractors = survivors;
+    for (const [ni, e] of infl) {
+      const n = gr.nodes[ni];
+      let dx = e[0], dy = e[1]; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      const ja = rnd(-0.35, 0.35), c = Math.cos(ja), s = Math.sin(ja);
+      const rx = dx * c - dy * s, ry = dx * s + dy * c;
+      const nx = n.x + rx * gr.seg, ny = n.y + ry * gr.seg;
+      const idx = addNode(gr, nx, ny, ni);
+      gr.segs.push([n.x, n.y, nx, ny, gr.nodes[idx]]);
+    }
+  }
+
+  // Sample white pixels from a text render into attractor points (CSS coords).
+  function attractorsFromText(drawFn, stepPx) {
+    const st = Math.max(2, Math.round(stepPx));        // MUST be an integer — it indexes a typed pixel array
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    const o = off.getContext('2d'); drawFn(o);
+    const d = o.getImageData(0, 0, W, H).data, pts = [];
+    for (let y = 0; y < H; y += st) for (let x = 0; x < W; x += st) {
+      if (d[(y * W + x) * 4 + 3] > 70) pts.push({ x: x + rnd(-st / 2, st / 2), y: y + rnd(-st / 2, st / 2) });
+    }
+    return pts;
+  }
+  function titleFont(size) { return '800 ' + size + 'px "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif'; }
+
+  function seedTitle() {
+    g = newGrowth();
+    // faint "core glow" so the word always reads, even where filaments are sparse
+    ictx.save();
+    ictx.filter = 'blur(' + (titleSize * 0.02 * dpr) + 'px)';
+    ictx.fillStyle = 'rgba(150,220,190,0.13)';
+    ictx.textAlign = 'center'; ictx.textBaseline = 'middle';
+    ictx.font = titleFont(titleSize * dpr);
+    ictx.fillText(TITLE, cx * dpr, titleY * dpr);
+    ictx.restore();
+    // glyph attractors (dense) → filaments fill the letters
+    let pts = attractorsFromText((o) => {
+      o.fillStyle = '#fff'; o.font = titleFont(titleSize); o.textAlign = 'center'; o.textBaseline = 'middle';
+      o.fillText(TITLE, cx, titleY);
+    }, Math.max(3, g.seg * 1.1));
+    // seeds: a spread of glyph points become the first nodes (many → every letter covered)
+    for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pts[i]; pts[i] = pts[j]; pts[j] = t; }
+    const seeds = pts.splice(0, Math.min(40, pts.length));
+    for (const s of seeds) addNode(g, s.x, s.y, -1);
+    g.attractors = pts;
+    // outward halo — sparse points ringing the word so tendrils creep outward
+    const m = ctx; m.font = titleFont(titleSize);
+    const tw = m.measureText(TITLE).width, th = titleSize;
+    for (let i = 0; i < 210; i++) {
+      const a = rnd(0, Math.PI * 2), rx = tw * 0.6 * (1 + rnd(0.05, 0.6)), ry = th * 0.8 * (1 + rnd(0.1, 1.1));
+      g.attractors.push({ x: cx + Math.cos(a) * rx, y: titleY + Math.sin(a) * ry });
+    }
+    if (reduce) { let guard = 0; while (!g.done && guard++ < 12000) step(g); flushInk(); }
+  }
+
+  // ---- rendering ---------------------------------------------------------
+  function flushInk() {
+    if (!g.segs.length) return;
+    ictx.strokeStyle = 'rgba(233,255,247,0.92)';
+    ictx.lineWidth = 1.15 * dpr; ictx.lineCap = 'round';
+    ictx.beginPath();
+    for (const s of g.segs) { ictx.moveTo(s[0] * dpr, s[1] * dpr); ictx.lineTo(s[2] * dpr, s[3] * dpr); }
+    ictx.stroke();
+    g.segs.length = 0;
+  }
+  function composite() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.filter = 'blur(' + (2.5 * dpr) + 'px)'; ctx.globalAlpha = 0.55; ctx.drawImage(ink, 0, 0);   // bloom
+    ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.drawImage(ink, 0, 0);                              // sharp
+    ctx.restore();
+  }
+
+  function frame() {
+    if (finished) return;
+    if (!g.done || consuming) { for (let i = 0; i < 5; i++) step(g); flushInk(); }
+    composite();
+    raf = requestAnimationFrame(frame);
+  }
+
+  // ---- consume a menu word, then fire its callback ------------------------
+  function consume(btn, cb) {
+    if (consuming || finished) return; consuming = true;
+    root.querySelectorAll('.ts-btn').forEach((b) => { if (b !== btn) b.style.pointerEvents = 'none'; });
+    const rr = root.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    const bx = br.left - rr.left + br.width / 2, by = br.top - rr.top + br.height / 2;
+    const cs = getComputedStyle(btn);
+    const pts = attractorsFromText((o) => {
+      o.fillStyle = '#fff'; o.font = cs.fontWeight + ' ' + cs.fontSize + '/' + cs.fontSize + ' ' + cs.fontFamily;
+      o.textAlign = 'center'; o.textBaseline = 'middle';
+      // honour letter-spacing so the sampled mask matches the rendered word
+      const t = btn.textContent, ls = parseFloat(cs.letterSpacing) || 0;
+      if (ls) { o.save(); let total = 0; for (const ch of t) total += o.measureText(ch).width + ls; let x = bx - (total - ls) / 2; o.textAlign = 'left'; for (const ch of t) { o.fillText(ch, x, by); x += o.measureText(ch).width + ls; } o.restore(); }
+      else o.fillText(t, bx, by);
+    }, Math.max(2.5, titleSize * 0.02));
+    // bridge: a trail of attractors from the nearest title node to the button
+    let near = g.nodes[0] || { x: cx, y: titleY };
+    let bd = Infinity;
+    for (const n of g.nodes) { const d = (n.x - bx) ** 2 + (n.y - by) ** 2; if (d < bd) { bd = d; near = n; } }
+    const steps = Math.max(2, Math.hypot(bx - near.x, by - near.y) / (g.attract * 0.55) | 0);
+    for (let i = 1; i <= steps; i++) g.attractors.push({ x: near.x + (bx - near.x) * i / steps, y: near.y + (by - near.y) * i / steps });
+    for (const p of pts) g.attractors.push(p);
+    g.done = false;
+    btn.classList.add('ts-consuming');
+    const finish = () => {
+      finished = true;
+      root.style.transition = 'opacity .55s ease'; root.style.opacity = '0';
+      setTimeout(() => { cancelAnimationFrame(raf); root.remove(); cb && cb(); }, 560);
+    };
+    if (reduce) { let guard = 0; while (!g.done && guard++ < 4000) step(g); flushInk(); composite(); setTimeout(finish, 300); }
+    else setTimeout(finish, 1350);
+  }
+
+  // ---- layout / boot -----------------------------------------------------
+  function layout() {
+    dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    W = root.clientWidth; H = root.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ink = document.createElement('canvas'); ink.width = canvas.width; ink.height = canvas.height;
+    ictx = ink.getContext('2d');
+    titleSize = Math.min(H * 0.24, (W * 0.82) / (TITLE.length * 0.62));
+    gapEl.style.height = (titleSize * 1.6) + 'px';
+    const gr = gapEl.getBoundingClientRect(), rr = root.getBoundingClientRect();
+    cx = W / 2; titleY = gr.top - rr.top + gr.height / 2;
+    seedTitle();
+    composite();
+  }
+
+  root.querySelector('#tsNew').addEventListener('click', () => consume(root.querySelector('#tsNew'), onNew));
+  root.querySelector('#tsCont').addEventListener('click', () => consume(root.querySelector('#tsCont'), onContinue));
+
+  let rt = 0;
+  const onResize = () => { if (consuming || finished) return; clearTimeout(rt); rt = setTimeout(layout, 200); };
+  window.addEventListener('resize', onResize);
+
+  layout();
+  if (!reduce) raf = requestAnimationFrame(frame);
+
+  return { hide() { finished = true; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); root.remove(); } };
+}
+
+  return { showTitleScreen };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -9908,7 +10181,8 @@ const __m_main = (function () {
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug } = __m_render_ui;
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
-  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress } = __m_species;
+  const { showTitleScreen } = __m_render_title_screen;
+  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -12532,7 +12806,10 @@ preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
-else showPicker();   // prompt the species picker first (a pick seeds a level-1 run; Dev button = default run)
+else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+  onNew: () => { resetProgress(); showPicker(); },
+  onContinue: () => showPicker(),
+});
 requestAnimationFrame(frame);
 
   return {  };

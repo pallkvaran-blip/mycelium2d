@@ -45,6 +45,7 @@ const MODULES = [
   'src/render/music.js',
   'src/render/ui.js',
   'src/render/species_select.js',
+  'src/render/title_screen.js',
   'src/main.js',
 ];
 
