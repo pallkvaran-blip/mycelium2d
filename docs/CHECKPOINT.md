@@ -412,24 +412,28 @@ Both menus are dark, on-theme, with glowing green borders.
   `.ts-actions` is a **`minmax(0,1fr) minmax(0,1fr)`** grid with the left word right-aligned / right
   word left-aligned around a centred `column-gap`, so the **gap centre = SURVIVAL centre = screen
   centre** at every width (plain `1fr 1fr` let a wider word grow its track and shove the gap left).
-  Pressing New/Old (`consume()`, at +300ms `growButtonWord()`): the DOM word **fades out** and the
-  mycelium word grows out of the title with this topology — a **branching strand climbs from the
-  nearest MYCELIUM node to the word's MIDDLE letter** (E in NEW, L in OLD, the growth point), then
-  **plain connector strands reach from that middle letter out to each other letter**; each letter is
-  **burst-seeded** (a few growth fronts) as it's reached so it fills fast + dense (a single entry
-  front fills far too slowly — space colonisation is front-limited, not rate-limited). The strand
-  climbs at a **coarse seg** (arrives quickly; must stay < bridge spacing or the wander lets `kill2`
-  eat the next attractor and the strand stalls) and letters fill at a **fine seg** so they read like
-  the title. The glyph is supersampled (`sampleWord`, ×2 into a small canvas → ~1px sampling) so a
-  small word gets ~the title's relative strand density; casing follows the button's `text-transform`
-  (canvas `fillText` ignores CSS → uppercase it explicitly). **Speed follows a BELL curve**
-  (`CONSUME_DUR`/`CONSUME_PEAK`/`CONSUME_MIN`, `sin` over 0..π): slow strand → full-speed bloom →
-  eases off. The transition fires on a **fixed wall-clock timer** (finishFn ~+2350ms — predictable
-  across devices; the word keeps maturing through the .55s fade) rather than a fragile
-  attractor/plateau heuristic. Keep attractor count modest — each `step()` iterates ALL of them, so
-  too many (an over-dense supersample) throttles the frame rate and the strand crawls. **New** =
-  `resetProgress()` (wipe unlocks) → picker; **Old** = keep unlocks → picker. Boots before the picker
-  (default boot only; `#dev`/`#puzzle`/`#notrich` still skip it). `prefers-reduced-motion` → grows synchronously.
+  Pressing New/Old (`consume()`, at +300ms `growButtonWord()`) grows the mycelium word out of the
+  title in **TWO bell-paced phases**:
+  - **STRAND** — ONLY a branching strand is laid; it climbs (coarse seg) from the nearest MYCELIUM
+    node to the word's MIDDLE letter (E in NEW, L in OLD). Nothing else grows yet, so the word doesn't
+    start filling early. Rate ramps `STRAND_MIN`→`STRAND_PEAK` (`sin` quarter-wave) — nice and slow.
+  - **BLOOM** — the instant the strand reaches the letter (`frame()` detects it via a cheap running
+    `g.minY`, with a `STRAND_MAX` time fallback), the glyph/fringe/strays + **connector strands** to
+    the other letters are added and each letter is **burst-seeded** as it's reached; the other letters
+    fire **one at a time** (staggered) so the word unfurls middle-outward. This phase runs on its OWN
+    bell (`BLOOM_DUR`/`BLOOM_MIN`/`BLOOM_PEAK`, `sin` over 0..π): slow again as it hits the letter →
+    full speed → eases off at the end. `BLOOM_PEAK` is deliberately LOW so the fill is rate-limited
+    (bell-controlled) — otherwise front-multiplication blasts through the attractors at the peak and
+    there's no visible slow-down at the end.
+  Strand climbs at a coarse seg (must stay < bridge spacing or the wander lets `kill2` eat the next
+  attractor and the strand stalls); letters fill at a fine seg so they read like the title. Glyph is
+  supersampled (`sampleWord`, ×2 → ~1px sampling); casing follows the button's `text-transform`
+  (canvas `fillText` ignores CSS → uppercase it explicitly). The transition (`finishFn`) is scheduled
+  relative to bloom-start (`BLOOM_DUR - 150`), with a safety cap in `consume`. Keep attractor count
+  modest — each `step()` iterates ALL of them, so an over-dense supersample throttles the frame rate
+  and the strand crawls. **New** = `resetProgress()` (wipe unlocks) → picker; **Old** = keep unlocks →
+  picker. Boots before the picker (default boot only; `#dev`/`#puzzle`/`#notrich` still skip it).
+  `prefers-reduced-motion` → grows synchronously.
   **Gotcha:** pixel-mask sampling MUST step the loop by an integer (fractional index into the typed
   array → `undefined` → no attractors → nothing grows).
 
