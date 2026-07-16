@@ -261,25 +261,44 @@ export class Network {
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
     if (!tips.length) return 0;
+    const baseAng = Math.atan2(dy, dx);
+    // Dodge offsets (radians), SMALLEST deviation first: let an aimed grow round a
+    // rock CORNER and thread an off-axis gap instead of hard-stopping the instant
+    // the exact aim vector clips rock. off=0 always wins in the open, so growth
+    // stays dead-on-aim unless rock is actually in the way — it only bends the
+    // minimum needed to keep advancing. A "straight" lance bends just slightly
+    // (stays lance-like); a jittery grow may weave wider around an obstacle.
+    const DODGE = straight
+      ? [0, 0.26, -0.26, 0.5, -0.5]
+      : [0, 0.35, -0.35, 0.7, -0.7];
+    // First clear step from node `n` toward the aim (trying each dodge in turn);
+    // returns the new point, or null if walled in on every dodge.
+    const stepFrom = (n, jitter) => {
+      for (const off of DODGE) {
+        const ang = baseAng + (off === 0 ? jitter : off);
+        const nx = n.x + Math.cos(ang) * g.segmentLength;
+        const ny = n.y + Math.sin(ang) * g.segmentLength;
+        if (this._segmentClear(substrate, n.x, n.y, nx, ny)) return { nx, ny };
+      }
+      return null;
+    };
     // Choose where to grow from: prefer the aimed tip (startTip), else the frontier tip
     // furthest along the aim. But if that tip is walled in this direction, fall through to
-    // any tip whose FIRST step is clear — so an aimed grow toward open ground doesn't
-    // hard-fail just because the one strand you aimed from is boxed by a nearby rock.
-    const firstClear = (n) => this._segmentClear(substrate, n.x, n.y, n.x + dx * g.segmentLength, n.y + dy * g.segmentLength);
+    // any tip that can take a first step (straight OR dodged) — so an aimed grow toward
+    // open ground doesn't hard-fail just because the one strand you aimed from is boxed
+    // by a nearby rock.
     const ordered = tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy));
     const prefer = [];
     if (startTip && !startTip.infected) prefer.push(startTip);
     for (const n of ordered) if (n !== startTip) prefer.push(n);
-    let parent = prefer.find((n) => firstClear(n)) || prefer[0];
-    const baseAng = Math.atan2(dy, dx);
+    let parent = prefer.find((n) => stepFrom(n, 0)) || prefer[0];
     let created = 0;
     for (let i = 0; i < steps; i++) {
       if (this.nodes.length >= g.maxNodes) break;
-      const ang = straight ? baseAng : baseAng + rng.range(-g.branchJitter, g.branchJitter);
-      const nx = parent.x + Math.cos(ang) * g.segmentLength;
-      const ny = parent.y + Math.sin(ang) * g.segmentLength;
-      if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // blocked — rock/edge anywhere along the segment, not just its end
-      parent = this.addNode(nx, ny, parent);
+      const jitter = straight ? 0 : rng.range(-g.branchJitter, g.branchJitter);
+      const nxt = stepFrom(parent, jitter);
+      if (!nxt) break;   // walled in on every dodge — stop
+      parent = this.addNode(nxt.nx, nxt.ny, parent);
       created++;
     }
     // Directed growth also colonises any substrate pile it brought within reach.

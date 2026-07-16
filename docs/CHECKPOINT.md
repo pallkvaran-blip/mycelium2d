@@ -428,6 +428,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Directional grow now DODGES around rock corners** (`src/engine/network.js growDirected`).
+  Apical Drive / Rhizomorph Lance / Fruiting Vigil used to follow the exact aim vector and
+  hard-stop the instant a segment clipped rock ("Blocked — nothing grew"), even when a wide
+  gap sat just off the aim line — Foraging Fan (`growRadial`) already had a dodge, directional
+  grows didn't. Now each step tries the aim first, then progressively wider angular offsets
+  (smallest deviation wins, so growth stays dead-on-aim in the open and only bends the minimum
+  needed to keep advancing): a `straight` lance bends ≤~0.5 rad (stays lance-like), a jittery
+  grow ≤~0.7 rad. Tip-selection likewise now accepts any tip that can take a first step (straight
+  OR dodged). Measured: this widens the range of aim angles that thread a gap by ~40–60% for the
+  Lance (e.g. 7/21 → 11/21 aims through a 2-cell gap in a 3-cell wall); never regresses (NEW ≥ OLD
+  in every synthetic case). NOTE: also investigated a suspected collision-vs-art *offset* — an
+  on-canvas overlay of the stamped rock cells (dots at each cell centre = the point `stampSolid`
+  tests) confirmed collision MATCHES the visible rock (boulders block only their centre cell;
+  formations are solid across their art). So there is no stamp/draw misalignment — the earlier
+  "filled-square" overlay was misleading (full-cell squares spill half a cell past art edges).
 - **Third food tier — low-value "duff" piles (energy only, no draft)** (`src/config.js`,
   `src/engine/substrate.js`, `src/engine/cards.js`, `src/main.js`). The map was wall-to-wall
   **orange** drafting piles → too many card drafts. Added a THIRD map food type, **duff** (decayed
