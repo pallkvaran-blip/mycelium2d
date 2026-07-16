@@ -446,9 +446,12 @@ Both menus are dark, on-theme, with glowing green borders.
     tap-inspect (`main.js showPileEnergyAt`) shows the correct lower value.
   - **Render** (`main.js _drawLeafHeap`): duff reuses the orange oak/maple sprites pushed BROWN via
     `ctx.filter = 'brightness(0.6) saturate(0.5) sepia(0.6)'`, in a slightly smaller/flatter heap
-    (9 pieces / base 0.52). Verified in-browser: an adjacent duff+orange pair renders as clearly
-    distinct brown vs orange heaps (cross-kind piles don't merge — generalised the `drop()`
-    anti-cannibalise guard to "never overwrite a DIFFERENT-kind cache cell").
+    (9 pieces / base 0.52). A couple of pieces per heap (~2 of 9, chosen by a per-piece hash <0.26)
+    are pushed almost to BLACK (`brightness(0.26) saturate(0.4) sepia(0.55)`) so the otherwise-uniform
+    brown pile gains internal contrast and lifts off the brown soil instead of melting into it.
+    Verified in-browser: an adjacent duff+orange pair renders as clearly distinct brown vs orange
+    heaps (cross-kind piles don't merge — generalised the `drop()` anti-cannibalise guard to "never
+    overwrite a DIFFERENT-kind cache cell").
   - Also: `deposit()` (player food) now never downgrades ANY map cache (was 'cache'-only).
     Tests green (101 smoke + 60 card); bundle rebuilt (0 import leaks). Tunables:
     `substrate.duffClusterFraction`, `duffEnergyMin/Max`, `foodEnergyMin/Max`.

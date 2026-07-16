@@ -1286,7 +1286,8 @@ function drawTerrainAssets() {
 //     that grants a Basic/Event card draft when fully digested.
 //   • ENGINE caches (foodKind 'cache-engine') → RED autumn leaves — draft an Engine.
 //   • DUFF caches (foodKind 'duff') → the SAME oak/maple leaves rendered BROWN &
-//     desaturated (decayed leaf mould), a smaller/flatter heap: energy only, NO draft.
+//     desaturated (decayed leaf mould), with a couple of near-black pieces mixed in
+//     for contrast against the brown soil; a smaller/flatter heap: energy only, NO draft.
 //   • PLAYER-placed food (foodKind 'nut') → a small scatter of ACORNS, CHESTNUTS
 //     and PINE CONES — a humble lower-tier cache that only yields energy.
 // The pile SHRINKS as the cell is digested (fewer pieces); every piece's
@@ -1354,7 +1355,15 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     // leaf mould) so the same orange leaves read as spent, low-value litter.
     ctx.globalAlpha = (isNut ? 0.9 : isDuff ? 0.92 : 1) * alphaMul;
     if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
-    else if (isDuff) ctx.filter = 'brightness(0.6) saturate(0.5) sepia(0.6)';
+    else if (isDuff) {
+      // A couple of pieces per duff heap are pushed almost to BLACK (charred,
+      // rotted leaf mould) so the otherwise-brown pile gains internal contrast
+      // and lifts off the brown soil instead of melting into it.
+      const dark = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7) < 0.26;
+      ctx.filter = dark
+        ? 'brightness(0.26) saturate(0.4) sepia(0.55)'
+        : 'brightness(0.6) saturate(0.5) sepia(0.6)';
+    }
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }
