@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { playGrowBurst } from './sfx.js';
+import { loadProgress } from '../species.js';
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
@@ -475,7 +476,37 @@ export function showTitleScreen({ onNew, onContinue }) {
     soon.style.marginTop = Math.round(3 - gapMode) + 'px';   // keep "coming soon" tucked under CAMPAIGN
   }
 
-  root.querySelector('#tsNew').addEventListener('click', () => consume(root.querySelector('#tsNew'), onNew));
+  // True when there's saved unlock progress from an old run — which "New" (Survival) wipes
+  // (main.js onNew → resetProgress). Guard that with a confirm so it isn't erased by accident.
+  function hasProgress() {
+    try { const p = loadProgress(); return !!(p && p.clears && Object.keys(p.clears).length); } catch (_) { return false; }
+  }
+  // Plain black-and-white "erase progress?" confirm (no gradients). Yes → onYes(); Cancel/backdrop/Esc → dismiss.
+  function confirmNewRun(onYes) {
+    if (consuming || finished) return;
+    const back = el('div', 'ts-confirm');
+    back.innerHTML =
+      '<div class="ts-confirm-box" role="dialog" aria-modal="true">' +
+        '<p class="ts-confirm-msg">Are you sure? Starting a new game will erase all previous progress.</p>' +
+        '<div class="ts-confirm-actions">' +
+          '<button class="ts-confirm-btn" id="tsConfirmYes" type="button">Yes</button>' +
+          '<button class="ts-confirm-btn" id="tsConfirmCancel" type="button">Cancel</button>' +
+        '</div>' +
+      '</div>';
+    root.appendChild(back);
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    function close() { document.removeEventListener('keydown', onKey); back.remove(); }
+    back.querySelector('#tsConfirmYes').addEventListener('click', () => { close(); onYes(); });
+    back.querySelector('#tsConfirmCancel').addEventListener('click', close);
+    back.addEventListener('click', (e) => { if (e.target === back) close(); });
+    document.addEventListener('keydown', onKey);
+  }
+
+  root.querySelector('#tsNew').addEventListener('click', () => {
+    const btn = root.querySelector('#tsNew');
+    if (hasProgress()) confirmNewRun(() => consume(btn, onNew));
+    else consume(btn, onNew);
+  });
   root.querySelector('#tsCont').addEventListener('click', () => consume(root.querySelector('#tsCont'), onContinue));
 
   let rt = 0;

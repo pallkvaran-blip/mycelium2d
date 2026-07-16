@@ -397,6 +397,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Title "New" erase-progress confirm + picker cleanup** (`src/render/title_screen.js`,
+  `src/render/species_select.js`, `index.html` CSS).
+  - **Confirm on New (Survival):** pressing **New** wipes all unlock progress (`main.js onNew →
+    resetProgress`), so `title_screen.js` now guards it — if there's saved progress
+    (`loadProgress().clears` non-empty) it shows a plain **black-and-white** modal (`.ts-confirm`,
+    no gradients): "Are you sure? Starting a new game will erase all previous progress." **Yes** runs
+    the normal consume→onNew; **Cancel** / backdrop-click / **Esc** dismiss. No progress → straight
+    through, no prompt. **Old** (Continue) is unaffected (it keeps progress).
+  - **Picker:** removed the small green "MYCELIUM" eyebrow + its trailing rule line
+    (`.ss-eyebrow` / `::after`) inside `.ss-console` — redundant now the big procedural MYCELIUM
+    banner sits above the container. The container **border + glow are now white** (`.ss-console`
+    border/box-shadow/inner radial `rgba(127,230,163,·) → rgba(255,255,255,·)`; the dark drop shadow
+    kept). Section-divider rules + row labels stay their existing mint.
+
 - **Grow SFX on every mycelium wordmark growth** (`src/render/mycelium_title.js`,
   `src/render/title_screen.js`). Both growth loops feed each frame's new-node count into a small
   `playGrowSfx(grew)` helper that fires the existing `playGrowBurst` (from `sfx.js`, the same organic

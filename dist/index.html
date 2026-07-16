@@ -748,6 +748,17 @@
     #titleScreen .ts-btn.ts-fading { color:transparent !important; text-shadow:none; transition:color .22s ease, text-shadow .22s ease; }
     #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em; line-height:1;
       text-transform:uppercase; color:#333c37; margin-top:calc(3px - clamp(8px,1.6vh,16px)); }
+    /* "Start a new game?" confirm — plain black & white, no gradients. */
+    #titleScreen .ts-confirm { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.72); padding:24px; animation:tsConfirmIn .18s ease both; }
+    @keyframes tsConfirmIn { from { opacity:0; } to { opacity:1; } }
+    #titleScreen .ts-confirm-box { background:#000; border:1px solid #fff; border-radius:12px;
+      padding:30px 32px; max-width:min(460px,92vw); text-align:center; }
+    #titleScreen .ts-confirm-msg { color:#fff; font-size:clamp(15px,1.9vw,17px); line-height:1.5; margin:0 0 24px; }
+    #titleScreen .ts-confirm-actions { display:flex; gap:14px; justify-content:center; }
+    #titleScreen .ts-confirm-btn { cursor:pointer; font-family:inherit; font-weight:600; font-size:15px; letter-spacing:.02em;
+      color:#fff; background:#000; border:1px solid #fff; border-radius:8px; padding:11px 30px; transition:background .15s, color .15s; }
+    #titleScreen .ts-confirm-btn:hover { background:#fff; color:#000; }
 
     /* ============================================================
        Start-of-run species picker — overlay shown before a run.
@@ -780,15 +791,12 @@
       margin-bottom:clamp(6px,1.6vh,18px); pointer-events:none; }
 
     .ss-console { position:relative; width:min(1060px,100%); flex:0 0 auto;
-      background:radial-gradient(140% 60% at 50% 0%, rgba(127,230,163,0.05), transparent 60%), #05070d;
-      border:1.5px solid rgba(127,230,163,0.55); border-radius:18px;
-      box-shadow:0 0 22px -2px rgba(127,230,163,0.45), 0 0 60px -10px rgba(127,230,163,0.35),
-        inset 0 0 40px -14px rgba(127,230,163,0.18), 0 30px 80px -30px rgba(0,0,0,0.9); overflow:hidden; }
+      background:radial-gradient(140% 60% at 50% 0%, rgba(255,255,255,0.05), transparent 60%), #05070d;
+      border:1.5px solid rgba(255,255,255,0.55); border-radius:18px;
+      box-shadow:0 0 22px -2px rgba(255,255,255,0.45), 0 0 60px -10px rgba(255,255,255,0.35),
+        inset 0 0 40px -14px rgba(255,255,255,0.18), 0 30px 80px -30px rgba(0,0,0,0.9); overflow:hidden; }
 
     .ss-head { padding:clamp(18px,3vw,30px) clamp(20px,4vw,44px) 18px; }
-    .ss-eyebrow { font-size:11px; letter-spacing:0.34em; text-transform:uppercase; color:var(--ss-mint); font-weight:600;
-      opacity:0.85; display:flex; align-items:center; gap:10px; }
-    .ss-eyebrow::after { content:""; flex:1; height:1px; background:linear-gradient(90deg, rgba(127,230,163,0.4), transparent); }
     .ss-head h1 { font-family:var(--ss-serif); font-weight:600; font-size:clamp(28px,5vw,44px); line-height:1.02;
       margin:12px 0 6px; color:#eaf6ee; text-wrap:balance; text-shadow:0 0 26px rgba(127,230,163,0.28); }
     .ss-lede { font-size:14px; color:var(--ss-ink-dim); max-width:62ch; line-height:1.5; margin:0; }
@@ -1040,8 +1048,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "42v160";
-globalThis.__BUILD__ = "local 07-16 14:17";
+window.__ASSET_VER = "1kisaai";
+globalThis.__BUILD__ = "local 07-16 15:02";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10074,7 +10082,6 @@ function showSpeciesSelect({ onPick, onDev }) {
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
-        '<div class="ss-eyebrow">Mycelium</div>' +
         '<h1>Select your species</h1>' +
       '</header>' +
       '<div class="ss-body">' +
@@ -10178,6 +10185,7 @@ function showGameWon({ onNewRun }) {
 // ===================== src/render/title_screen.js =====================
 const __m_render_title_screen = (function () {
   const { playGrowBurst } = __m_render_sfx;
+  const { loadProgress } = __m_species;
 // =============================================================================
 // Title screen — procedural white MYCELIUM on black.
 //
@@ -10654,7 +10662,37 @@ function showTitleScreen({ onNew, onContinue }) {
     soon.style.marginTop = Math.round(3 - gapMode) + 'px';   // keep "coming soon" tucked under CAMPAIGN
   }
 
-  root.querySelector('#tsNew').addEventListener('click', () => consume(root.querySelector('#tsNew'), onNew));
+  // True when there's saved unlock progress from an old run — which "New" (Survival) wipes
+  // (main.js onNew → resetProgress). Guard that with a confirm so it isn't erased by accident.
+  function hasProgress() {
+    try { const p = loadProgress(); return !!(p && p.clears && Object.keys(p.clears).length); } catch (_) { return false; }
+  }
+  // Plain black-and-white "erase progress?" confirm (no gradients). Yes → onYes(); Cancel/backdrop/Esc → dismiss.
+  function confirmNewRun(onYes) {
+    if (consuming || finished) return;
+    const back = el('div', 'ts-confirm');
+    back.innerHTML =
+      '<div class="ts-confirm-box" role="dialog" aria-modal="true">' +
+        '<p class="ts-confirm-msg">Are you sure? Starting a new game will erase all previous progress.</p>' +
+        '<div class="ts-confirm-actions">' +
+          '<button class="ts-confirm-btn" id="tsConfirmYes" type="button">Yes</button>' +
+          '<button class="ts-confirm-btn" id="tsConfirmCancel" type="button">Cancel</button>' +
+        '</div>' +
+      '</div>';
+    root.appendChild(back);
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    function close() { document.removeEventListener('keydown', onKey); back.remove(); }
+    back.querySelector('#tsConfirmYes').addEventListener('click', () => { close(); onYes(); });
+    back.querySelector('#tsConfirmCancel').addEventListener('click', close);
+    back.addEventListener('click', (e) => { if (e.target === back) close(); });
+    document.addEventListener('keydown', onKey);
+  }
+
+  root.querySelector('#tsNew').addEventListener('click', () => {
+    const btn = root.querySelector('#tsNew');
+    if (hasProgress()) confirmNewRun(() => consume(btn, onNew));
+    else consume(btn, onNew);
+  });
   root.querySelector('#tsCont').addEventListener('click', () => consume(root.querySelector('#tsCont'), onContinue));
 
   let rt = 0;

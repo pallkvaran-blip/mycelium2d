@@ -142,7 +142,6 @@ export function showSpeciesSelect({ onPick, onDev }) {
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
-        '<div class="ss-eyebrow">Mycelium</div>' +
         '<h1>Select your species</h1>' +
       '</header>' +
       '<div class="ss-body">' +
