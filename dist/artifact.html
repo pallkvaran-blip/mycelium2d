@@ -976,8 +976,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "m04sh0";
-globalThis.__BUILD__ = "local 07-16 08:20";
+window.__ASSET_VER = "174e507";
+globalThis.__BUILD__ = "local 07-16 08:24";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10065,18 +10065,23 @@ function showTitleScreen({ onNew, onContinue }) {
       o.fillText(TITLE, cx, titleY);
     }, Math.max(4, g.seg * 3.5), 12, 100);
     for (const f of fringe) g.attractors.push(f);
-    // short stray "hairs" sprouting in random directions from a few edge points
-    for (let i = 0; i < 45; i++) {
-      const s = seeds[(Math.random() * seeds.length) | 0]; if (!s) break;
-      const ang = rnd(0, Math.PI * 2), n = 2 + ((Math.random() * 3) | 0);
-      for (let k = 1; k <= n; k++) g.attractors.push({ x: s.x + Math.cos(ang) * g.attract * 0.55 * k, y: s.y + Math.sin(ang) * g.attract * 0.55 * k });
-    }
-    // long outward tendrils: chains of attractors reaching out in all directions
-    for (let i = 0; i < 28; i++) {
-      const s = seeds[(Math.random() * seeds.length) | 0]; if (!s) break;
-      const ang = Math.atan2(s.y - titleY, s.x - cx) + rnd(-0.6, 0.6);
-      const n = 6 + ((Math.random() * 10) | 0);
-      for (let k = 1; k <= n; k++) g.attractors.push({ x: s.x + Math.cos(ang) * g.attract * 0.6 * k, y: s.y + Math.sin(ang) * g.attract * 0.6 * k });
+    // STRAY STRANDS: many SHORT filaments straying off the letter edges, each finishing
+    // in a little branch/spray. Start from edge (fringe) points, grow outward, then fork.
+    const edge = fringe.length ? fringe : seeds;
+    const sp = g.attract * 0.6;
+    for (let i = 0; i < 180; i++) {
+      const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
+      const ang = Math.atan2(s.y - titleY, s.x - cx) + rnd(-0.7, 0.7);
+      const len = 2 + ((Math.random() * 3) | 0);         // short: 2-4 segments (~half the old length)
+      let ex = s.x, ey = s.y;
+      for (let k = 1; k <= len; k++) { ex = s.x + Math.cos(ang) * sp * k; ey = s.y + Math.sin(ang) * sp * k; g.attractors.push({ x: ex, y: ey }); }
+      // branch/spray at the tip so each stray strand finishes with some branching
+      const br = 3 + ((Math.random() * 4) | 0);
+      for (let bi = 0; bi < br; bi++) {
+        const ba = ang + rnd(-1.0, 1.0), bl = g.attract * rnd(0.5, 1.2);
+        g.attractors.push({ x: ex + Math.cos(ba) * bl, y: ey + Math.sin(ba) * bl });
+        if (Math.random() < 0.45) g.attractors.push({ x: ex + Math.cos(ba) * bl * 1.8, y: ey + Math.sin(ba) * bl * 1.8 });
+      }
     }
     if (reduce) { let guard = 0; while (!g.done && guard++ < 40000) step(g); flushInk(); }
   }
