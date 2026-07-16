@@ -454,7 +454,7 @@
     /* Carousel: a single horizontal drag-scroll row on every platform (no nav
        buttons — you drag; Play Card lives in the bottom action bar). */
     .handcarousel { position: relative; align-items: center; gap: 8px; max-width: 100%; }   /* display gated by .handbar.open above; position:relative anchors the edge-fade nav arrows */
-    .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start;
+    .handlist { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: safe center;
       max-width: none; overflow-x: auto; overflow-y: hidden;
       scrollbar-width: none; scroll-snap-type: none; cursor: grab; }
     .handlist::-webkit-scrollbar { display: none; }
@@ -921,18 +921,15 @@
     .ss-cost .ss-ri { width:12px; height:12px; }
 
     .ss-actions { display:flex; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
+    /* Plain black-and-white buttons (no gradients): Cancel = black outline, Start = white fill. */
     .ss-btn { flex:1; font:inherit; cursor:pointer; border-radius:13px; padding:13px 16px; font-size:14px; font-weight:600; letter-spacing:.01em;
-      transition:background .16s, border-color .16s, box-shadow .16s, transform .06s; }
+      transition:background .16s, border-color .16s, color .16s, transform .06s; }
     .ss-btn:active { transform:translateY(1px); }
-    .ss-btn.ghost { background:rgba(255,255,255,0.03); border:1px solid rgba(120,160,140,0.3); color:var(--ss-ink); }
-    .ss-btn.ghost:hover { background:rgba(255,255,255,0.07); border-color:rgba(160,190,175,0.5); }
-    .ss-btn.primary { flex:1.6; color:#06120b; border:1px solid rgba(127,230,163,0.5);
-      background:linear-gradient(180deg, #a9f2c4, #6fdc9a); box-shadow:0 0 18px -3px rgba(127,230,163,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
-    .ss-btn.primary:hover { background:linear-gradient(180deg, #bdf7d3, #7fe6a3); box-shadow:0 0 26px -2px rgba(127,230,163,0.8), inset 0 1px 0 rgba(255,255,255,0.5); }
-    .ss-detail.warm .ss-btn.primary { color:#1c1204; border-color:rgba(230,180,92,0.55); background:linear-gradient(180deg, #f4d79a, #e6b45c); box-shadow:0 0 18px -3px rgba(230,180,92,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
-    .ss-detail.aqua .ss-btn.primary { color:#06181c; border-color:rgba(127,208,224,0.55); background:linear-gradient(180deg, #bfeaf2, #7fd0e0); box-shadow:0 0 18px -3px rgba(127,208,224,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
-    .ss-detail.spore .ss-btn.primary { color:#150c1c; border-color:rgba(199,155,230,0.55); background:linear-gradient(180deg, #e6d4f5, #c79be6); box-shadow:0 0 18px -3px rgba(199,155,230,0.6), inset 0 1px 0 rgba(255,255,255,0.4); }
-    .ss-detail .ss-btn.primary.is-locked { background:rgba(30,40,36,0.7); color:var(--ss-ink-dim); border-color:rgba(120,160,140,0.28); box-shadow:none; cursor:not-allowed; }
+    .ss-btn.ghost { background:#000; border:1px solid #fff; color:#fff; }
+    .ss-btn.ghost:hover { background:#1a1a1a; }
+    .ss-btn.primary { flex:1.6; background:#fff; color:#000; border:1px solid #fff; }
+    .ss-btn.primary:hover { background:#e6e6e6; border-color:#e6e6e6; }
+    .ss-detail .ss-btn.primary.is-locked { background:#111; color:var(--ss-ink-dim); border-color:rgba(255,255,255,0.2); cursor:not-allowed; }
 
     .ss-close { position:absolute; top:12px; right:12px; z-index:3; width:34px; height:34px; border-radius:999px; cursor:pointer;
       background:rgba(6,10,14,0.7); border:1px solid rgba(160,190,175,0.35); color:var(--ss-ink); font-size:18px; line-height:1;
@@ -1017,11 +1014,6 @@
     #devWin:hover { color:#fff; border-color:#e6b45c; background:rgba(24,26,18,0.92); }
 
     /* HUD campaign level chip (top-centre, non-interactive) */
-    #levelChip { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;
-      font-family:"Segoe UI", system-ui, sans-serif; font-size:12px; font-weight:700; letter-spacing:0.12em;
-      text-transform:uppercase; color:#bfeecb; background:linear-gradient(150deg, rgba(18,28,22,0.92), rgba(8,14,11,0.92));
-      border:1.5px solid rgba(130,230,166,0.5); border-radius:999px; padding:6px 14px;
-      box-shadow:0 0 14px -3px rgba(127,230,163,0.5), 0 6px 20px -8px rgba(0,0,0,0.7); backdrop-filter:blur(6px); }
 
     @media (max-width:720px) {
       /* Phone (portrait): one card per column so each is large. */
@@ -1042,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1kisaai";
-globalThis.__BUILD__ = "local 07-16 15:02";
+window.__ASSET_VER = "du565v";
+globalThis.__BUILD__ = "local 07-16 15:25";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10870,13 +10862,10 @@ function backToPicker() {
   showPicker();
 }
 
-// Small "Level N / 11" chip in the HUD (hidden in puzzle mode).
+// The top-centre "Level N / 11" chip was removed; clean up any lingering node.
 function updateLevelChip() {
-  let chip = document.getElementById('levelChip');
-  const ui0 = document.getElementById('ui');
-  if (!cardsCampaign()) { if (chip) chip.style.display = 'none'; return; }
-  if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
-  if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
+  const chip = document.getElementById('levelChip');
+  if (chip) chip.remove();
 }
 
 // TEMP dev button: instantly clear the current level (to test the campaign flow).

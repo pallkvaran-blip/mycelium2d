@@ -164,13 +164,10 @@ function backToPicker() {
   showPicker();
 }
 
-// Small "Level N / 11" chip in the HUD (hidden in puzzle mode).
+// The top-centre "Level N / 11" chip was removed; clean up any lingering node.
 function updateLevelChip() {
-  let chip = document.getElementById('levelChip');
-  const ui0 = document.getElementById('ui');
-  if (!cardsCampaign()) { if (chip) chip.style.display = 'none'; return; }
-  if (!chip && ui0) { chip = document.createElement('div'); chip.id = 'levelChip'; ui0.appendChild(chip); }
-  if (chip) { chip.style.display = ''; chip.textContent = 'Level ' + (state.level || 1) + ' / ' + MAX_LEVEL; }
+  const chip = document.getElementById('levelChip');
+  if (chip) chip.remove();
 }
 
 // TEMP dev button: instantly clear the current level (to test the campaign flow).

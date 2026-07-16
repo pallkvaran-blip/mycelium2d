@@ -397,6 +397,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **B&W picker buttons · centered card carousel · removed level chip** (`index.html` CSS,
+  `src/main.js`).
+  - **Species detail buttons** (`.ss-btn`) are now plain **black & white, no gradients**: Cancel
+    (`.ghost`) = black fill / white border+text; Start game (`.primary`) = white fill / black text.
+    Dropped the mint gradient + glow and the per-vibe (`warm`/`aqua`/`spore`) tinted-primary overrides.
+  - **Hand carousel** (`.handlist`) `justify-content: flex-start → safe center` — cards center when
+    there are only a few (looked odd left-justified); `safe` keeps a full hand fully scrollable
+    (centering an overflowing flex row otherwise clips/hides the start).
+  - **Removed** the top-centre "Level N / 11" chip: deleted `#levelChip` CSS and gutted
+    `main.js updateLevelChip()` to just clean up any stray node.
+
 - **Title "New" erase-progress confirm + picker cleanup** (`src/render/title_screen.js`,
   `src/render/species_select.js`, `index.html` CSS).
   - **Confirm on New (Survival):** pressing **New** wipes all unlock progress (`main.js onNew →
@@ -556,7 +567,7 @@ Both menus are dark, on-theme, with glowing green borders.
     (`.ss-detail`) is a fixed-max-height grid with `overflow:hidden`, so its scrolling body needs
     `grid-template-rows:minmax(0,1fr)` + `.ss-d-body{min-height:0}` — without it, a species with >3
     card types grew the row past the panel and clipped the Cancel/Start buttons out of reach.
-  - **HUD:** a small `#levelChip` ("Level N / 11") top-centre; hidden in puzzle mode. A temporary
+  - **HUD:** (the old top-centre `#levelChip` "Level N / 11" has been removed.) A temporary
     **"Dev: win level ▸"** button (top-right, amber dashed) instantly clears the level to test the flow.
   - **Debug hooks** on `window.__game`: `winLevel()` (= the dev button) / `killColony()`.
   - Verified end-to-end in the build: L1 threats 1/1/1 → carry 30E/30W + 20-card Fairy Ring hand to
