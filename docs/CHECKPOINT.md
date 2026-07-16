@@ -405,13 +405,17 @@ Both menus are dark, on-theme, with glowing green borders.
   stray strands. Growth animation: **each letter blooms from its own single RANDOM point** (one seed
   per letter x-band), all at once, paced by a fractional step accumulator (`STEP_RATE` ~1.4/frame).
   Fine seg + short attraction radius keeps the grid cheap. Menu is DOM (layout/a11y/grayed states),
-  canvas overlays it (`pointer-events:none`); title sits at screen centre (`titleY≈0.47H`) with the
-  blocks pinned top/bottom: **Survival** (near top) — large **New / Old**; **Campaign** (near
-  bottom) — New / Old (grayed) + "coming soon". (Words are big, `clamp(40px,7vw,84px)`, tight
-  `letter-spacing:.02em`; NEW/OLD are both 3 letters → naturally symmetric.) Menu centring:
-  `.ts-actions` is a **`minmax(0,1fr) minmax(0,1fr)`** grid with the left word right-aligned / right
-  word left-aligned around a centred `column-gap`, so the **gap centre = SURVIVAL centre = screen
-  centre** at every width (plain `1fr 1fr` let a wider word grow its track and shove the gap left).
+  canvas overlays it (`pointer-events:none`); title sits at `titleY≈0.47H`. Contents: **Survival** —
+  large **New / Old**; **Campaign** — New / Old (grayed) + "coming soon". (Words are big,
+  `clamp(40px,7vw,84px)`, tight `letter-spacing:.02em`; NEW/OLD are both 3 letters → naturally
+  symmetric.) **Vertical layout is symmetric about the title** (`positionMenu()`, run from `layout()`):
+  both NEW/OLD rows sit the same distance `D` from the title centre, and SURVIVAL / CAMPAIGN sit the
+  same distance `G` outside their row — computed from measured row heights, so it's exact on any
+  viewport (the blocks are JS-positioned around `titleY`, NOT edge-pinned). "coming soon" is tucked
+  ~3px under CAMPAIGN and deliberately excluded from the symmetry. Horizontal centring: `.ts-actions`
+  is a **`minmax(0,1fr) minmax(0,1fr)`** grid with the left word right-aligned / right word
+  left-aligned around a centred `column-gap`, so the **gap centre = SURVIVAL centre = screen centre**
+  at every width (plain `1fr 1fr` let a wider word grow its track and shove the gap left).
   Pressing New/Old (`consume()`, at +300ms `growButtonWord()`) grows the mycelium word out of the
   title in **TWO bell-paced phases**:
   - **STRAND** — ONLY a branching strand is laid; it climbs (coarse seg) from the nearest MYCELIUM

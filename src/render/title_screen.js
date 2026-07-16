@@ -410,9 +410,32 @@ export function showTitleScreen({ onNew, onContinue }) {
     ink = document.createElement('canvas'); ink.width = canvas.width; ink.height = canvas.height;
     ictx = ink.getContext('2d');
     titleSize = Math.min(H * 0.24, (W * 0.82) / (TITLE.length * 0.62));
-    cx = W / 2; titleY = Math.round(H * 0.47);   // title sits at screen centre; menu blocks pin to top/bottom
+    cx = W / 2; titleY = Math.round(H * 0.47);   // title centre; menu is positioned symmetrically around it
+    positionMenu();
     seedTitle();
     composite();
+  }
+
+  // Place the menu SYMMETRICALLY about the title centre: both NEW/OLD rows sit the same
+  // distance D from the title, and SURVIVAL / CAMPAIGN sit the same distance G outside
+  // their NEW/OLD row. ("coming soon" is tucked under CAMPAIGN and doesn't factor in.)
+  function positionMenu() {
+    const topB = root.querySelector('.ts-top'), botB = root.querySelector('.ts-bottom');
+    const surv = topB.querySelector('.ts-mode'), topAct = topB.querySelector('.ts-actions');
+    const camp = botB.querySelector('.ts-mode'), botAct = botB.querySelector('.ts-actions');
+    const soon = botB.querySelector('.ts-soon');
+    const modeH = surv.offsetHeight || camp.offsetHeight || 24;
+    const actH = topAct.offsetHeight || botAct.offsetHeight || 90;
+    const halfTitle = titleSize * 0.58;              // effective title half-height (incl. fringe)
+    const gapTitle = Math.max(14, H * 0.04);         // title edge → NEW/OLD
+    const gapMode = Math.max(10, H * 0.025);         // NEW/OLD → SURVIVAL/CAMPAIGN
+    const D = halfTitle + gapTitle + actH / 2;        // title centre → NEW/OLD centre (equal top & bottom)
+    const G = actH / 2 + gapMode + modeH / 2;         // NEW/OLD centre → SURVIVAL/CAMPAIGN centre (equal)
+    topB.style.bottom = 'auto'; topB.style.top = Math.round(titleY - D - G - modeH / 2) + 'px';
+    topB.style.rowGap = gapMode + 'px';
+    botB.style.bottom = 'auto'; botB.style.top = Math.round(titleY + D - actH / 2) + 'px';
+    botB.style.rowGap = gapMode + 'px';
+    soon.style.marginTop = Math.round(3 - gapMode) + 'px';   // keep "coming soon" tucked under CAMPAIGN
   }
 
   root.querySelector('#tsNew').addEventListener('click', () => consume(root.querySelector('#tsNew'), onNew));
