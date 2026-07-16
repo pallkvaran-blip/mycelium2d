@@ -51,7 +51,7 @@ export function showTitleScreen({ onNew, onContinue }) {
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
-  let sfxAcc = 0, sfxLastT = 0;                       // grow-SFX swell: nodes since last burst + throttle clock
+  let sfxAcc = 0, sfxLastT = 0, sfxPeak = 0, sfxQuiet = 0, sfxT0 = 0, sfxDone = false;   // grow-SFX swell state
   let finishFn = null, consumeT0 = 0, bloomT0 = 0;   // handoff + phase clocks (strand / bloom bells)
   const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
   // A consumed menu word grows in TWO bell-paced phases:
@@ -243,15 +243,27 @@ export function showTitleScreen({ onNew, onContinue }) {
     composite();
     raf = requestAnimationFrame(frame);
   }
-  // Layered "growing" swell that tracks the visible growth (title bloom + each consumed
-  // menu word): size each burst by the strands added since the last, throttled so it reads
-  // as one organic swell that settles when growth stops (playGrowBurst self-caps).
+  // Layered "growing" swell that tracks the visible bloom (title bloom + each consumed menu
+  // word): size each burst by the strands added since the last, throttled so it reads as one
+  // organic swell. It fires ONLY during the vigorous bloom and then latches off (sfxDone):
+  // the space-colonization tail trickles a few nodes ~forever (the mat wanders into scattered
+  // unreachable attractors), so without this the sound would loop endlessly. End the swell
+  // when activity falls to a trickle for a short run of frames, with a hard time cap backstop.
   function playGrowSfx(grew) {
+    if (sfxDone) return;
+    if (grew > sfxPeak) sfxPeak = grew;
+    if (sfxPeak >= 20 && grew < Math.max(4, sfxPeak * 0.06)) { if (++sfxQuiet >= 10) { sfxDone = true; return; } }
+    else sfxQuiet = 0;
     if (grew <= 0) return;
-    sfxAcc += grew;
     const tSfx = performance.now();
+    if (!sfxT0) sfxT0 = tSfx;
+    if (tSfx - sfxT0 > 1800) { sfxDone = true; return; }   // never sonify longer than the bloom
+    sfxAcc += grew;
     if (tSfx - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = tSfx; }
   }
+  // Restart the swell for a fresh growth phase (the strand → bloom of a consumed menu word),
+  // since the title bloom's swell has already latched off by the time a button is pressed.
+  function resetGrowSfx() { sfxAcc = 0; sfxLastT = 0; sfxPeak = 0; sfxQuiet = 0; sfxT0 = 0; sfxDone = false; }
 
   // ---- consume a menu word, then fire its callback ------------------------
   // Global nearest node (across ALL grown nodes, no distance cap) — used to pick the
@@ -361,6 +373,7 @@ export function showTitleScreen({ onNew, onContinue }) {
   //     slow), so the word grows at a gentle, visible pace.
   function growButtonWord(btn) {
     consumeT0 = performance.now(); bloomT0 = 0; startBloomFn = null;   // start the STRAND-phase clock
+    resetGrowSfx();                                                    // a fresh swell for the word's strand→bloom
     const { glyph, fringe, letters, bx, by, size } = sampleWord(btn);
     const valid = letters.filter((l) => l.seed);
     if (!valid.length) { g.done = false; return; }

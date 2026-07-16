@@ -26,7 +26,7 @@ export function growMyceliumTitle(container, opts = {}) {
 
   let W = 0, H = 0, dpr = 1, ink = null, ictx = null;
   let titleSize = 0, cx = 0, cy = 0, g = null, raf = 0, stepAcc = 0, alive = true;
-  let sfxAcc = 0, sfxLastT = 0;   // grow-SFX swell: nodes since last burst + throttle clock
+  let sfxAcc = 0, sfxLastT = 0, sfxPeak = 0, sfxQuiet = 0, sfxT0 = 0, sfxDone = false;   // grow-SFX swell state
   const STEP_RATE = opts.stepRate || 2.4;
 
   // ---- spatial-grid space colonization -----------------------------------
@@ -141,13 +141,22 @@ export function growMyceliumTitle(container, opts = {}) {
     playGrowSfx(g.nodes.length - before);
     if (!g.done) raf = requestAnimationFrame(frame);   // stop compositing once fully grown
   }
-  // Layered "growing" swell that tracks the visible growth: size each burst by the
-  // strands added since the last one, throttled so it reads as one organic swell that
-  // settles when the word finishes (playGrowBurst self-caps layers/voices/gain).
+  // Layered "growing" swell that tracks the visible bloom: size each burst by the strands
+  // added since the last one, throttled so it reads as one organic swell. It fires ONLY
+  // during the vigorous bloom and then latches off (sfxDone) — the space-colonization tail
+  // trickles a few nodes ~forever as the mat wanders into scattered unreachable attractors,
+  // so without this the sound would loop endlessly. End the swell when activity falls to a
+  // trickle relative to the peak for a short run of frames, with a hard time cap as backstop.
   function playGrowSfx(grew) {
+    if (sfxDone) return;
+    if (grew > sfxPeak) sfxPeak = grew;
+    if (sfxPeak >= 20 && grew < Math.max(4, sfxPeak * 0.06)) { if (++sfxQuiet >= 10) { sfxDone = true; return; } }
+    else sfxQuiet = 0;
     if (grew <= 0) return;
-    sfxAcc += grew;
     const now = performance.now();
+    if (!sfxT0) sfxT0 = now;
+    if (now - sfxT0 > 1800) { sfxDone = true; return; }   // never sonify longer than the bloom
+    sfxAcc += grew;
     if (now - sfxLastT >= 170) { playGrowBurst(sfxAcc, 350); sfxAcc = 0; sfxLastT = now; }
   }
   function layout() {

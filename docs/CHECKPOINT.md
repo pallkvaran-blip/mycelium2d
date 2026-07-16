@@ -398,18 +398,27 @@ Both menus are dark, on-theme, with glowing green borders.
 ## 9. Recent work log (most recent first)
 
 - **Grow SFX on every mycelium wordmark growth** (`src/render/mycelium_title.js`,
-  `src/render/title_screen.js`). Both growth loops now feed each frame's new-node count into a
-  small `playGrowSfx(grew)` helper that fires the existing `playGrowBurst` (from `sfx.js`, the same
-  organic "growing" swell as an in-game grow) sized to the strands grown since the last burst,
-  throttled to ≥170 ms apart — so the sound reads as ONE swell that tracks the visible growth and
-  settles when it finishes. Covers: the **title** bloom + the **New/Old button-word** consume-grow
-  (`title_screen.js`), and the **species-picker banner** + **level-win headline** (both via
-  `growMyceliumTitle`). `playGrowBurst` self-caps (≤6 layers/burst, ≤8 concurrent voices, per-hit
-  gain ∝1/√layers, bus compressor), so over-firing can't overload. Audio needs a user gesture to
-  unlock (browser policy) — the very first title bloom on a cold load is silent until the first tap;
-  every later surface plays (a gesture already happened). Reduced-motion path grows synchronously →
-  no frames → no SFX (correct). Verified with a headless `createBufferSource().start()` counter:
-  title 8 · button-word 16 · species 4 · win 16 hits, 0 errors.
+  `src/render/title_screen.js`). Both growth loops feed each frame's new-node count into a small
+  `playGrowSfx(grew)` helper that fires the existing `playGrowBurst` (from `sfx.js`, the same organic
+  "growing" swell as an in-game grow) sized to the strands grown since the last burst, throttled to
+  ≥170 ms apart — so it reads as ONE swell that tracks the visible bloom. Covers: the **title** bloom
+  + the **New/Old button-word** consume-grow (`title_screen.js`), and the **species-picker banner** +
+  **level-win headline** (both via `growMyceliumTitle`).
+  - **Bounded swell (important):** the space-colonization growth never truly terminates — the mat
+    keeps wandering into scattered *unreachable* stray attractors, trickling a few new nodes ~forever
+    (the RAF/compositing runs on; a latent, pre-existing churn). A naïve per-frame SFX therefore
+    **looped endlessly** on the species + win screens (the title only ever shows pre-gesture, so its
+    context is suspended and you never hear it). Fix: `playGrowSfx` latches OFF (`sfxDone`) once
+    activity falls to a trickle (`grew < max(4, 6% of the peak grew/frame)` for ~10 frames), with a
+    hard ~1.8 s time-cap backstop — so the sound is one bloom-length swell, then silence, even though
+    the growth keeps trickling. `title_screen` calls `resetGrowSfx()` at the start of each button-word
+    grow so that fresh growth gets its own swell after the title bloom's has latched off. Growth
+    itself is untouched (visuals unchanged).
+  - `playGrowBurst` self-caps (≤6 layers/burst, ≤8 voices, per-hit gain ∝1/√layers, bus compressor).
+    Audio needs a user gesture (browser policy): the first cold-load title bloom is silent until the
+    first tap; every later surface plays. Reduced-motion grows synchronously → no frames → no SFX.
+    Verified with a headless `createBufferSource().start()` counter that the hit count now RISES then
+    PLATEAUS (title 8 · button-word 16 · species +8 · win 8), instead of climbing forever.
 
 - **Level-win minimizes the hand carousel** (`src/main.js`, `index.html` `.ss-win` CSS). Rather than
   hiding the unlock card on short screens, `onLevelWon()` collapses the carousel
