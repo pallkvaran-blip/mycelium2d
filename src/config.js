@@ -158,10 +158,10 @@ export const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
-    rockOverlap: 10,             // px a strand may overlap INTO a rock: OK as long as open ground is within
-                                 //   this margin (skim edges only, "a few pixels"), so anything thicker than a
-                                 //   sliver blocks — a strand can't grow across a rock. Cell-sized gaps between
-                                 //   separate rocks still thread (those are open cells, always passable).
+    rockOverlap: 18,             // px a strand may overlap INTO a rock: OK as long as open ground is within
+                                 //   this margin, so a strand can skim/graze rock EDGES and corners (a lance
+                                 //   aimed past a boulder isn't hard-blocked) but a rock body thicker than ~a
+                                 //   cell still blocks its core — you can't grow clear across a rock.
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)

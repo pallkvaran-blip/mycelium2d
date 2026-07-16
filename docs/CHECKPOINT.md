@@ -397,6 +397,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Directional grow no longer false-blocks near rocks** (`src/engine/network.js`, `src/config.js`).
+  A straight lance (Rhizomorph Lance / Apical Drive) aimed past a boulder was erroring "Blocked —
+  the lance hit rock" even with open ground right there, because it grew ONLY from the exact aimed
+  tip and hard-failed if that one strand was boxed. Fix: `growDirected` now prefers the aimed tip but
+  **falls through to any frontier tip whose first step is clear** (ordered by projection along the
+  aim), so an aimed grow toward open ground succeeds from a capable strand instead of failing.
+  Also re-tuned `growth.rockOverlap` **10 → 18** — 10 was over-tightened (couldn't graze boulder
+  edges/corners); 18 lets a lance skim past a rock's edge while a rock body >~1 cell still blocks its
+  core (no growing across a rock; the probe confirms 0 deep crossings at any of these values).
+  Verified: aimed-tip-boxed → grows from the clear tip; corner-graze → grows; 3-cell wall → approaches
+  but does not cross.
+
 - **Soft rock edges · action-use error toast · pile-tap energy fix · fewer red caches**
   (`src/config.js`, `src/engine/substrate.js`, `src/engine/network.js`, `src/render/ui.js`,
   `src/main.js`, `test/cards.test.js`).

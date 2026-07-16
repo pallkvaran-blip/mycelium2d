@@ -261,13 +261,16 @@ export class Network {
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
     if (!tips.length) return 0;
-    let parent;
-    if (startTip && !startTip.infected) {
-      parent = startTip;   // grow from the given node (a branch, even if it isn't a tip)
-    } else {
-      parent = tips[0]; let bestProj = -Infinity;
-      for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
-    }
+    // Choose where to grow from: prefer the aimed tip (startTip), else the frontier tip
+    // furthest along the aim. But if that tip is walled in this direction, fall through to
+    // any tip whose FIRST step is clear — so an aimed grow toward open ground doesn't
+    // hard-fail just because the one strand you aimed from is boxed by a nearby rock.
+    const firstClear = (n) => this._segmentClear(substrate, n.x, n.y, n.x + dx * g.segmentLength, n.y + dy * g.segmentLength);
+    const ordered = tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy));
+    const prefer = [];
+    if (startTip && !startTip.infected) prefer.push(startTip);
+    for (const n of ordered) if (n !== startTip) prefer.push(n);
+    let parent = prefer.find((n) => firstClear(n)) || prefer[0];
     const baseAng = Math.atan2(dy, dx);
     let created = 0;
     for (let i = 0; i < steps; i++) {

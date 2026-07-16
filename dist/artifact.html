@@ -1034,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "3rarwg";
-globalThis.__BUILD__ = "local 07-16 18:40";
+window.__ASSET_VER = "1soxkcd";
+globalThis.__BUILD__ = "local 07-16 18:50";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1199,10 +1199,10 @@ const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
-    rockOverlap: 10,             // px a strand may overlap INTO a rock: OK as long as open ground is within
-                                 //   this margin (skim edges only, "a few pixels"), so anything thicker than a
-                                 //   sliver blocks — a strand can't grow across a rock. Cell-sized gaps between
-                                 //   separate rocks still thread (those are open cells, always passable).
+    rockOverlap: 18,             // px a strand may overlap INTO a rock: OK as long as open ground is within
+                                 //   this margin, so a strand can skim/graze rock EDGES and corners (a lance
+                                 //   aimed past a boulder isn't hard-blocked) but a rock body thicker than ~a
+                                 //   cell still blocks its core — you can't grow clear across a rock.
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
@@ -3568,13 +3568,16 @@ class Network {
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
     if (!tips.length) return 0;
-    let parent;
-    if (startTip && !startTip.infected) {
-      parent = startTip;   // grow from the given node (a branch, even if it isn't a tip)
-    } else {
-      parent = tips[0]; let bestProj = -Infinity;
-      for (const n of tips) { const p = n.x * dx + n.y * dy; if (p > bestProj) { bestProj = p; parent = n; } }
-    }
+    // Choose where to grow from: prefer the aimed tip (startTip), else the frontier tip
+    // furthest along the aim. But if that tip is walled in this direction, fall through to
+    // any tip whose FIRST step is clear — so an aimed grow toward open ground doesn't
+    // hard-fail just because the one strand you aimed from is boxed by a nearby rock.
+    const firstClear = (n) => this._segmentClear(substrate, n.x, n.y, n.x + dx * g.segmentLength, n.y + dy * g.segmentLength);
+    const ordered = tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy));
+    const prefer = [];
+    if (startTip && !startTip.infected) prefer.push(startTip);
+    for (const n of ordered) if (n !== startTip) prefer.push(n);
+    let parent = prefer.find((n) => firstClear(n)) || prefer[0];
     const baseAng = Math.atan2(dy, dx);
     let created = 0;
     for (let i = 0; i < steps; i++) {
