@@ -59,6 +59,19 @@ export class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
+  // True if OPEN (non-rock) ground lies within `margin` px of (x,y) — i.e. the point is no
+  // deeper than `margin` inside a rock. Used to let growth overlap rock EDGES / thread tiny
+  // gaps a little, while a wide rock's core (and two touching rocks) still read as solid.
+  openWithin(x, y, margin) {
+    const D = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.71, 0.71], [-0.71, 0.71], [0.71, -0.71], [-0.71, -0.71]];
+    for (const [ux, uy] of D) {
+      const px = x + ux * margin, py = y + uy * margin;
+      if (py <= this.surfaceY || px <= 0 || px >= this.worldWidth) continue;
+      const c = this.cellAtWorld(px, py);
+      if (c && !c.rock) return true;
+    }
+    return false;
+  }
   // True if any rock cell lies within `r` cells of (col,row). Rock SPRITES
   // (boulders/formations/columns) render several cells larger than their flagged
   // cells and `solidifyRock()` only fills that true footprint at render time — so
@@ -570,17 +583,22 @@ export function generateSubstrate(config, rng) {
   // them; the render layer draws them as red maple/autumn leaves (foodKind 'cache-engine').
   // Placed mostly right under the SURFACE so the player must climb UP (away from the
   // deeper goal path) to reach these valuable piles; a fraction sit deeper.
-  const engCount = Math.max(0, s.engineClusterCount || 0);
+  const engCount = rng.int(s.engineClusterMin != null ? s.engineClusterMin : 1, s.engineClusterMax != null ? s.engineClusterMax : 3);
   const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
   const band = Math.max(0, s.engineSurfaceRows || 2);
-  for (let i = 0; i < engCount; i++) {
-    const t = (i + 0.5) / engCount;
-    let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
-    cc = Math.max(1, Math.min(sub.cols - 2, cc));
-    const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
+  const engineCount = () => sub.foodPiles.filter((p) => p.kind === 'engine').length;
+  // Place `engCount` engine caches. A drop can fail (its spot is all rock/occupied), so RETRY
+  // at a fresh RANDOM x each time — and once the near-surface band keeps failing, fall back to
+  // deeper ground — until we've actually placed that many. So a map reliably gets its 1–3.
+  let placed = 0;
+  for (let attempt = 0; placed < engCount && attempt < 40; attempt++) {
+    const cc = Math.max(1, Math.min(sub.cols - 2, Math.round(xLo + rng.range(0, 1) * (xHi - xLo))));
+    const deep = rng.range(0, 1) < (s.engineDeepChance || 0) || attempt >= engCount * 4;
     const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
                     : rng.int(0, band);            // near-surface band by default
+    const before = engineCount();
     drop(cc, cr, engRadius, 'engine');
+    if (engineCount() > before) placed++;
   }
 
   return sub;

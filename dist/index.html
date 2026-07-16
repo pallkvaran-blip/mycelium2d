@@ -1040,8 +1040,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "7ahdpp";
-globalThis.__BUILD__ = "local 07-16 16:03";
+window.__ASSET_VER = "1s4j53m";
+globalThis.__BUILD__ = "local 07-16 16:31";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1090,7 +1090,8 @@ const CONFIG = {
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
-    engineClusterCount: 4,       // how many engine caches per map (3–5)
+    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
+    engineClusterMax: 3,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
@@ -1204,6 +1205,9 @@ const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
+    rockOverlap: 22,             // px a strand may overlap INTO a rock: OK as long as open ground is within
+                                 //   this margin (skim edges / thread tiny gaps), so rocks ≲2 cells thick are
+                                 //   passable but a wide rock's core (and two touching rocks) still block growth
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
@@ -2744,6 +2748,19 @@ class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
+  // True if OPEN (non-rock) ground lies within `margin` px of (x,y) — i.e. the point is no
+  // deeper than `margin` inside a rock. Used to let growth overlap rock EDGES / thread tiny
+  // gaps a little, while a wide rock's core (and two touching rocks) still read as solid.
+  openWithin(x, y, margin) {
+    const D = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.71, 0.71], [-0.71, 0.71], [0.71, -0.71], [-0.71, -0.71]];
+    for (const [ux, uy] of D) {
+      const px = x + ux * margin, py = y + uy * margin;
+      if (py <= this.surfaceY || px <= 0 || px >= this.worldWidth) continue;
+      const c = this.cellAtWorld(px, py);
+      if (c && !c.rock) return true;
+    }
+    return false;
+  }
   // True if any rock cell lies within `r` cells of (col,row). Rock SPRITES
   // (boulders/formations/columns) render several cells larger than their flagged
   // cells and `solidifyRock()` only fills that true footprint at render time — so
@@ -3255,17 +3272,22 @@ function generateSubstrate(config, rng) {
   // them; the render layer draws them as red maple/autumn leaves (foodKind 'cache-engine').
   // Placed mostly right under the SURFACE so the player must climb UP (away from the
   // deeper goal path) to reach these valuable piles; a fraction sit deeper.
-  const engCount = Math.max(0, s.engineClusterCount || 0);
+  const engCount = rng.int(s.engineClusterMin != null ? s.engineClusterMin : 1, s.engineClusterMax != null ? s.engineClusterMax : 3);
   const engRadius = s.engineClusterRadius != null ? s.engineClusterRadius : 1;
   const band = Math.max(0, s.engineSurfaceRows || 2);
-  for (let i = 0; i < engCount; i++) {
-    const t = (i + 0.5) / engCount;
-    let cc = Math.round(xLo + t * (xHi - xLo) + rng.range(-2, 2));
-    cc = Math.max(1, Math.min(sub.cols - 2, cc));
-    const deep = rng.range(0, 1) < (s.engineDeepChance || 0);
+  const engineCount = () => sub.foodPiles.filter((p) => p.kind === 'engine').length;
+  // Place `engCount` engine caches. A drop can fail (its spot is all rock/occupied), so RETRY
+  // at a fresh RANDOM x each time — and once the near-surface band keeps failing, fall back to
+  // deeper ground — until we've actually placed that many. So a map reliably gets its 1–3.
+  let placed = 0;
+  for (let attempt = 0; placed < engCount && attempt < 40; attempt++) {
+    const cc = Math.max(1, Math.min(sub.cols - 2, Math.round(xLo + rng.range(0, 1) * (xHi - xLo))));
+    const deep = rng.range(0, 1) < (s.engineDeepChance || 0) || attempt >= engCount * 4;
     const cr = deep ? Math.min(sub.rows - 1, Math.max(band + 2, Math.round((pathRow[cc] || band) * 0.6)))
                     : rng.int(0, band);            // near-surface band by default
+    const before = engineCount();
     drop(cc, cr, engRadius, 'engine');
+    if (engineCount() > before) placed++;
   }
 
   return sub;
@@ -3477,8 +3499,7 @@ class Network {
         let ny = node.y + Math.sin(ang) * g.segmentLength;
         ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
         nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
-        const tcell = substrate.cellAtWorld(nx, ny);
-        if (tcell && tcell.rock) continue;   // can't grow through rock (ant trails no longer block growth)
+        if (!this._placeOk(substrate, nx, ny)) continue;   // rock (beyond the soft edge margin) / edge / surface
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
         const child = this.addNode(nx, ny, node);
         newNodes.push(child); created++; placed = true; break;
@@ -3535,7 +3556,12 @@ class Network {
     const cell = substrate.cellAtWorld(nx, ny);
     if (!cell) return true;
     if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
-    return !cell.rock;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
+    if (!cell.rock) return true;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
+    // Rock is passable near its EDGE — allowed as long as open ground is within `rockOverlap`
+    // px (skim edges / thread tiny gaps), but a wide rock's core still blocks (no open ground
+    // within reach), so you can't grow clear across a big rock or between two touching rocks.
+    const m = this.config.growth.rockOverlap || 0;
+    return m > 0 && substrate.openWithin(nx, ny, m);
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
@@ -8853,7 +8879,9 @@ class UI {
     if (!show) { menu.innerHTML = ''; return; }
     menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('')
       + timed.map((t) => autoActionRowHTML(t)).join('');
-    menu.querySelectorAll('.use:not(.off)').forEach((b) => {
+    menu.querySelectorAll('.use').forEach((b) => {
+      // Wire EVERY Use button, including unusable ones — activateAction returns the reason
+      // (e.g. "Need 2 more Water" / "On cooldown") which onActivateAction toasts.
       b.onclick = (e) => { e.stopPropagation(); this.handlers.onActivateAction(+b.dataset.i); };  // don't also open the preview
     });
     // Click a row (anywhere but its Use button) to preview that card.
@@ -9697,7 +9725,7 @@ function actionRowHTML(a, i, state) {
     + `<div class="acteff">${escapeHtml(a.effect || '')}</div>`
     + (meta.length ? `<div class="actmeta">${meta.join('')}</div>` : '')
     + `</div>`
-    + `<button class="use${usable ? '' : ' off'}" data-i="${i}"${usable ? '' : ' disabled'}>Use</button></div>`;
+    + `<button class="use${usable ? '' : ' off'}" data-i="${i}">Use</button></div>`;   // clickable even when not usable, so it can explain WHY (e.g. "Need 2 more Water")
 }
 // An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
 // its own cadence, so it shows the same countdown lights + an "auto" tag instead
@@ -12124,7 +12152,8 @@ function spawnFinishFloaters() {
 }
 
 // Tap → the CURRENT energy value of the food pile under the tap (remaining nutrient ×
-// income efficiency), floated over the pile. Returns true if a pile was hit.
+// each cell's own energy-per-nutrient rate — a map pile totals its fixed 1..8 value),
+// floated over the pile. Returns true if a pile was hit.
 function showPileEnergyAt(sx, sy) {
   const sub = state.substrate;
   const w = camera.screenToWorld(sx, sy);
@@ -12141,15 +12170,15 @@ function showPileEnergyAt(sx, sy) {
   const idx = sub.index(best.col, best.row);
   const pile = (sub.foodPiles || []).find((p) => p.cells.includes(idx));
   const cellIdxs = pile ? pile.cells : floodFoodCells(sub, best.col, best.row);
-  let nut = 0, cx = 0, cy = 0, n = 0;
+  let energy = 0, cx = 0, cy = 0, n = 0;
   for (const ci of cellIdxs) {
     const c = sub.cells[ci]; if (!c || c.nutrient <= 0) continue;
-    nut += c.nutrient;
+    energy += c.nutrient * (c.energyPerNutrient != null ? c.energyPerNutrient : eff);
     const cc = sub.cellCenter(ci % sub.cols, Math.floor(ci / sub.cols));
     cx += cc.x; cy += cc.y; n++;
   }
-  if (nut <= 0) return false;
-  addEnergyFloater(n ? cx / n : w.x, (n ? cy / n : w.y) - sub.cellSize * 0.6, nut * eff, { rise: 26, size: 14 });
+  if (!n) return false;
+  addEnergyFloater(cx / n, cy / n - sub.cellSize * 0.6, energy, { rise: 26, size: 14 });
   return true;
 }
 

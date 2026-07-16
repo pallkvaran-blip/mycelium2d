@@ -1380,7 +1380,8 @@ function spawnFinishFloaters() {
 }
 
 // Tap → the CURRENT energy value of the food pile under the tap (remaining nutrient ×
-// income efficiency), floated over the pile. Returns true if a pile was hit.
+// each cell's own energy-per-nutrient rate — a map pile totals its fixed 1..8 value),
+// floated over the pile. Returns true if a pile was hit.
 function showPileEnergyAt(sx, sy) {
   const sub = state.substrate;
   const w = camera.screenToWorld(sx, sy);
@@ -1397,15 +1398,15 @@ function showPileEnergyAt(sx, sy) {
   const idx = sub.index(best.col, best.row);
   const pile = (sub.foodPiles || []).find((p) => p.cells.includes(idx));
   const cellIdxs = pile ? pile.cells : floodFoodCells(sub, best.col, best.row);
-  let nut = 0, cx = 0, cy = 0, n = 0;
+  let energy = 0, cx = 0, cy = 0, n = 0;
   for (const ci of cellIdxs) {
     const c = sub.cells[ci]; if (!c || c.nutrient <= 0) continue;
-    nut += c.nutrient;
+    energy += c.nutrient * (c.energyPerNutrient != null ? c.energyPerNutrient : eff);
     const cc = sub.cellCenter(ci % sub.cols, Math.floor(ci / sub.cols));
     cx += cc.x; cy += cc.y; n++;
   }
-  if (nut <= 0) return false;
-  addEnergyFloater(n ? cx / n : w.x, (n ? cy / n : w.y) - sub.cellSize * 0.6, nut * eff, { rise: 26, size: 14 });
+  if (!n) return false;
+  addEnergyFloater(cx / n, cy / n - sub.cellSize * 0.6, energy, { rise: 26, size: 14 });
   return true;
 }
 

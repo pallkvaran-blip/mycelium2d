@@ -397,6 +397,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Soft rock edges · action-use error toast · pile-tap energy fix · fewer red caches**
+  (`src/config.js`, `src/engine/substrate.js`, `src/engine/network.js`, `src/render/ui.js`,
+  `src/main.js`, `test/cards.test.js`).
+  - **Soft rock overlap (all grow cards):** growth may now overlap a rock by up to
+    `growth.rockOverlap` px (22) — `_placeOk` allows a rock point as long as open ground is within
+    that margin (new `substrate.openWithin`). So a strand can **skim rock edges / thread tiny gaps**
+    (rocks ≲1 cell thick pass), but a **wide rock's core** (and two touching rocks with no gap) still
+    block — you can no longer grow clear across a big rock. Applies to `_segmentClear` (directional /
+    fan / lunge) and `_growStep` (Hyphal Extension). Tune via `rockOverlap`.
+  - **Action "Use" error toast:** the Use button in the Actions menu is no longer `disabled` when you
+    can't afford it — every `.use` is wired, so clicking an unusable action toasts the reason
+    (`activateAction` already returns e.g. "Need 1 more Water." / "On cooldown — …").
+  - **Pile-tap energy fixed:** tapping a food pile now floats its value via each cell's
+    `energyPerNutrient` (the 1–8 rebalance), not the old `nutrient × incomeEfficiency` — so the
+    inspect number matches what harvesting actually gives (`main.js showPileEnergyAt`).
+  - **Red (engine) caches → random 1–3/map** (`engineClusterMin/Max` replace `engineClusterCount`);
+    placement retries at fresh random x (deeper fallback) so a map reliably gets its 1–3. Test forces
+    a fixed count where it needs one.
+
 - **Draft ×3 badge · Foraging-Fan escapes rightward · grow through ant trails · food-energy rebalance**
   (`src/render/ui.js`, `src/engine/network.js`, `src/engine/ants.js`, `src/engine/substrate.js`,
   `src/engine/turn.js`, `src/engine/actions.js`, `src/engine/cards.js`, `src/config.js`, `test/smoke.test.js`).

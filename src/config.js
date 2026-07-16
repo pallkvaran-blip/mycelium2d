@@ -43,7 +43,8 @@ export const CONFIG = {
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
-    engineClusterCount: 4,       // how many engine caches per map (3–5)
+    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
+    engineClusterMax: 3,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
@@ -157,6 +158,9 @@ export const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
+    rockOverlap: 22,             // px a strand may overlap INTO a rock: OK as long as open ground is within
+                                 //   this margin (skim edges / thread tiny gaps), so rocks ≲2 cells thick are
+                                 //   passable but a wide rock's core (and two touching rocks) still block growth
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)

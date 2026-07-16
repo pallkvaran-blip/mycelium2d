@@ -187,8 +187,7 @@ export class Network {
         let ny = node.y + Math.sin(ang) * g.segmentLength;
         ny = Math.max(substrate.surfaceY + 2, Math.min(substrate.worldHeight - 2, ny));
         nx = Math.max(2, Math.min(substrate.worldWidth - 2, nx));
-        const tcell = substrate.cellAtWorld(nx, ny);
-        if (tcell && tcell.rock) continue;   // can't grow through rock (ant trails no longer block growth)
+        if (!this._placeOk(substrate, nx, ny)) continue;   // rock (beyond the soft edge margin) / edge / surface
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
         const child = this.addNode(nx, ny, node);
         newNodes.push(child); created++; placed = true; break;
@@ -245,7 +244,12 @@ export class Network {
     const cell = substrate.cellAtWorld(nx, ny);
     if (!cell) return true;
     if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
-    return !cell.rock;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
+    if (!cell.rock) return true;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
+    // Rock is passable near its EDGE — allowed as long as open ground is within `rockOverlap`
+    // px (skim edges / thread tiny gaps), but a wide rock's core still blocks (no open ground
+    // within reach), so you can't grow clear across a big rock or between two touching rocks.
+    const m = this.config.growth.rockOverlap || 0;
+    return m > 0 && substrate.openWithin(nx, ny, m);
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from

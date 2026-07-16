@@ -529,7 +529,9 @@ export class UI {
     if (!show) { menu.innerHTML = ''; return; }
     menu.innerHTML = actions.map((a, i) => actionRowHTML(a, i, this.state)).join('')
       + timed.map((t) => autoActionRowHTML(t)).join('');
-    menu.querySelectorAll('.use:not(.off)').forEach((b) => {
+    menu.querySelectorAll('.use').forEach((b) => {
+      // Wire EVERY Use button, including unusable ones — activateAction returns the reason
+      // (e.g. "Need 2 more Water" / "On cooldown") which onActivateAction toasts.
       b.onclick = (e) => { e.stopPropagation(); this.handlers.onActivateAction(+b.dataset.i); };  // don't also open the preview
     });
     // Click a row (anywhere but its Use button) to preview that card.
@@ -1373,7 +1375,7 @@ function actionRowHTML(a, i, state) {
     + `<div class="acteff">${escapeHtml(a.effect || '')}</div>`
     + (meta.length ? `<div class="actmeta">${meta.join('')}</div>` : '')
     + `</div>`
-    + `<button class="use${usable ? '' : ' off'}" data-i="${i}"${usable ? '' : ' disabled'}>Use</button></div>`;
+    + `<button class="use${usable ? '' : ' off'}" data-i="${i}">Use</button></div>`;   // clickable even when not usable, so it can explain WHY (e.g. "Need 2 more Water")
 }
 // An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
 // its own cadence, so it shows the same countdown lights + an "auto" tag instead

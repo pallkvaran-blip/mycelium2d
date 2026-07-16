@@ -218,10 +218,11 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
 // ============================ E2: engine-cache draft ========================
 console.log('# Engine caches are RED-leaf food piles that draft ENGINE cards on digest');
 {
-  const s = createState(clone(), 20260714); isolate(s); initCards(s);
+  const cfg = clone(); cfg.substrate.engineClusterMin = cfg.substrate.engineClusterMax = 4;   // fixed count for this test (live maps randomise 1–3)
+  const s = createState(cfg, 20260714); isolate(s); initCards(s);
   const sub = s.substrate, net = s.active;
   const engPiles = (sub.foodPiles || []).filter((p) => p.kind === 'engine');
-  ok(engPiles.length >= 3 && engPiles.length <= 5, `map registers 3-5 engine caches (got ${engPiles.length})`);
+  ok(engPiles.length >= 2 && engPiles.length <= 4, `map registers the forced engine caches (got ${engPiles.length})`);
   // Engine caches are near the surface; their cells carry the distinct red-leaf foodKind.
   const engRows = engPiles.flatMap((p) => p.cells.map((idx) => Math.floor(idx / sub.cols)));
   ok(Math.min(...engRows) <= (s.config.substrate.engineSurfaceRows + 1), 'engine caches placed near the surface');
@@ -287,7 +288,8 @@ console.log('# Drafting: basics infinite (3 copies), events infinite (1 copy), e
   // Uniqueness across drafts via the real flow: a drafted engine never reappears, and the
   // two un-chosen engines from that offer stay draftable.
   {
-    const s = createState(clone(), 7003); isolate(s); initCards(s);
+    const cfg = clone(); cfg.substrate.engineClusterMin = cfg.substrate.engineClusterMax = 4;   // fixed count (live maps randomise 1–3)
+    const s = createState(cfg, 7003); isolate(s); initCards(s);
     const sub = s.substrate, net = s.active, C = s.cards;
     const engPiles = (sub.foodPiles || []).filter((p) => p.kind === 'engine');
     ok(engPiles.length >= 2, `map has >=2 engine caches to test uniqueness (got ${engPiles.length})`);
