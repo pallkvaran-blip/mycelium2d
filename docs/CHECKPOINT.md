@@ -406,15 +406,24 @@ Both menus are dark, on-theme, with glowing green borders.
   per letter x-band), all at once, paced by a fractional step accumulator (`STEP_RATE` ~1.4/frame).
   Fine seg + short attraction radius keeps the grid cheap. Menu is DOM (layout/a11y/grayed states),
   canvas overlays it (`pointer-events:none`); title sits at screen centre (`titleY≈0.47H`) with the
-  blocks pinned top/bottom: **Survival** (near top) — large New / Continue (grid `1fr 1fr`, each
-  centred in its half → symmetric about centre); **Campaign** (near bottom) — New / Continue (grayed)
-  + "coming soon". Pressing New/Continue: the DOM word **fades out quickly + completely** (`ts-fading`,
-  .22s), then `growButtonWord()` **regrows that word in mycelium in place** (per-letter bloom, like
-  the title), then the screen fades and the callback fires. **New** = `resetProgress()` (wipe unlocks) → picker; **Continue** =
-  keep unlocks → picker. Boots before the picker (default boot only; `#dev`/`#puzzle`/`#notrich`
-  still skip it). `prefers-reduced-motion` → grows synchronously (static). **Gotcha:** pixel-mask
-  sampling MUST step the loop by an integer (fractional index into the typed array → `undefined` →
-  no attractors → nothing grows). Still a first pass — density/outward-reach/consume drama tunable.
+  blocks pinned top/bottom: **Survival** (near top) — large New / Continue; **Campaign** (near
+  bottom) — New / Continue (grayed) + "coming soon". Menu centring: `.ts-actions` is a
+  **`minmax(0,1fr) minmax(0,1fr)`** grid with NEW right-aligned / CONTINUE left-aligned around a
+  centred `column-gap`, so the **gap centre = SURVIVAL centre = screen centre** at every width (plain
+  `1fr 1fr` let the wider word CONTINUE grow its track and shove the gap left — hence `minmax(0,…)`).
+  Pressing New/Continue (`consume()`): the DOM word **fades out** (`ts-fading`, .22s); at +300ms
+  `growButtonWord()` shoots **1–2 connector strands out of the nearest MYCELIUM nodes** toward the
+  word (`bridgeAttractors`, a smooth-wander attractor chain — per-point random jitter would break the
+  chain mid-climb and stall it); at +750ms every letter blooms from its **own random seed** with dense
+  glyph attractors + strays (identical to `seedTitle`, so the word reads as MYCELIUM in the same
+  strands/colour) — the strand visibly grows out of the title, then the word unfurls from it. Growth
+  runs at `CONSUME_RATE` (~6 steps/frame, snappier on hi-dpi); the transition fires on a **fixed
+  wall-clock timer** (finishFn at +2100ms — predictable across devices; the word keeps maturing
+  through the .55s fade) rather than a fragile attractor/plateau heuristic. **New** = `resetProgress()`
+  (wipe unlocks) → picker; **Continue** = keep unlocks → picker. Boots before the picker (default boot
+  only; `#dev`/`#puzzle`/`#notrich` still skip it). `prefers-reduced-motion` → grows synchronously.
+  **Gotcha:** pixel-mask sampling MUST step the loop by an integer (fractional index into the typed
+  array → `undefined` → no attractors → nothing grows).
 
 - **Campaign: level progression 1→11 + species unlocks** (`src/species.js`,
   `src/render/species_select.js`, `src/main.js`, `src/render/ui.js`, `index.html`; commit `0989061`).

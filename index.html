@@ -732,9 +732,13 @@
     #titleScreen .ts-bottom { bottom:clamp(22px,6vh,64px); gap:clamp(8px,1.6vh,16px); }
     #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em;
       text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
-    /* two equal columns, each word centred in its half → NEW / CONTINUE stay symmetric about centre */
-    #titleScreen .ts-actions { display:grid; grid-template-columns:1fr 1fr; justify-items:center; align-items:center;
-      column-gap:clamp(24px,6vw,80px); width:min(720px,88vw); }
+    /* Two equal columns: NEW right-aligned, CONTINUE left-aligned, split by a centred gap —
+       so the gap CENTRE (between where NEW ends and CONTINUE begins) sits on the screen
+       centre line, aligned with SURVIVAL / CAMPAIGN above/below. */
+    #titleScreen .ts-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center;
+      column-gap:clamp(40px,8vw,120px); width:min(760px,90vw); margin:0 auto; }
+    #titleScreen .ts-actions > *:first-child { justify-self:end; }
+    #titleScreen .ts-actions > *:last-child { justify-self:start; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(30px,5vw,54px); letter-spacing:.14em; text-indent:.14em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }

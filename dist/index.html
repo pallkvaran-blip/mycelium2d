@@ -733,9 +733,13 @@
     #titleScreen .ts-bottom { bottom:clamp(22px,6vh,64px); gap:clamp(8px,1.6vh,16px); }
     #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em;
       text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
-    /* two equal columns, each word centred in its half → NEW / CONTINUE stay symmetric about centre */
-    #titleScreen .ts-actions { display:grid; grid-template-columns:1fr 1fr; justify-items:center; align-items:center;
-      column-gap:clamp(24px,6vw,80px); width:min(720px,88vw); }
+    /* Two equal columns: NEW right-aligned, CONTINUE left-aligned, split by a centred gap —
+       so the gap CENTRE (between where NEW ends and CONTINUE begins) sits on the screen
+       centre line, aligned with SURVIVAL / CAMPAIGN above/below. */
+    #titleScreen .ts-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center;
+      column-gap:clamp(40px,8vw,120px); width:min(760px,90vw); margin:0 auto; }
+    #titleScreen .ts-actions > *:first-child { justify-self:end; }
+    #titleScreen .ts-actions > *:last-child { justify-self:start; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(30px,5vw,54px); letter-spacing:.14em; text-indent:.14em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
@@ -983,8 +987,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1gshzt5";
-globalThis.__BUILD__ = "local 07-16 09:37";
+window.__ASSET_VER = "1dkgfgt";
+globalThis.__BUILD__ = "local 07-16 10:26";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9976,7 +9980,9 @@ function showTitleScreen({ onNew, onContinue }) {
   let titleSize = 0, titleY = 0, cx = 0;
   let g = null;                 // growth state
   let raf = 0, consuming = false, finished = false, stepAcc = 0;
-  const STEP_RATE = 1.4;   // growth steps per frame (~30% slower than the old 2/frame)
+  let finishFn = null;      // consume-completion handoff
+  const STEP_RATE = 1.4;    // growth steps per frame while the title blooms (~30% slower than old 2/frame)
+  const CONSUME_RATE = 6;   // faster while a strand shoots out and unfurls a menu word (fewer frames = snappier on hi-dpi)
 
   // ---- spatial-grid space colonization -----------------------------------
   function grid(gr, x, y) { return ((x / gr.cell) | 0) + ',' + ((y / gr.cell) | 0); }
@@ -10121,7 +10127,7 @@ function showTitleScreen({ onNew, onContinue }) {
   function frame() {
     if (finished) return;
     if (!g.done || consuming) {                       // fractional rate paces the bloom
-      stepAcc += STEP_RATE;
+      stepAcc += consuming ? CONSUME_RATE : STEP_RATE;
       while (stepAcc >= 1) { step(g); stepAcc -= 1; }
       flushInk();
     }
@@ -10130,9 +10136,34 @@ function showTitleScreen({ onNew, onContinue }) {
   }
 
   // ---- consume a menu word, then fire its callback ------------------------
-  // Grow a mycelium version of a button's word in place (each letter blooms from a
-  // random point, like the title) — used after the DOM word has faded out.
-  function growButtonWord(btn) {
+  // Global nearest node (across ALL grown nodes, no distance cap) — used to pick the
+  // MYCELIUM point a new strand should sprout from.
+  function nearestExistingNode(x, y) {
+    const ns = g.nodes; let best = -1, bd = Infinity;
+    for (let i = 0; i < ns.length; i++) { const n = ns[i]; const d = (n.x - x) ** 2 + (n.y - y) ** 2; if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+  // Lay a gently-wandering line of attractors between two points so growth creeps
+  // from one to the other, one segment at a time (a visible travelling strand).
+  // The wander is a SMOOTH sine along the length (single random phase/frequency) so
+  // consecutive points stay well within the attraction radius — a per-point random
+  // jitter would break the chain mid-way and stall the strand.
+  function bridgeAttractors(ax, ay, bx2, by2) {
+    const dx = bx2 - ax, dy = by2 - ay, L = Math.hypot(dx, dy) || 1;
+    const n = Math.max(1, Math.round(L / (g.attract * 0.55)));   // dense: spacing < attraction radius
+    const px = -dy / L, py = dx / L;                             // unit perpendicular
+    const amp = g.attract * 0.8, ph = rnd(0, Math.PI * 2), waves = rnd(1.2, 2.2);
+    for (let k = 1; k <= n; k++) {
+      const t = k / n;
+      const w = Math.sin(ph + t * Math.PI * waves) * amp * Math.sin(t * Math.PI);   // tapers to 0 at both ends
+      g.attractors.push({ x: ax + dx * t + px * w, y: ay + dy * t + py * w });
+    }
+  }
+
+  // Sample a button's word into attractor points (glyph + hairy fringe) plus one
+  // random bloom seed per letter — all in the title's OWN growth units, so the word
+  // ends up drawn with identical strands/colour to MYCELIUM.
+  function sampleWord(btn) {
     const rr = root.getBoundingClientRect(), br = btn.getBoundingClientRect();
     const bx = br.left - rr.left + br.width / 2, by = br.top - rr.top + br.height / 2;
     const cs = getComputedStyle(btn);
@@ -10147,38 +10178,74 @@ function showTitleScreen({ onNew, onContinue }) {
       o.fillText(text, bx, by);
     };
     const glyph = attractorsFromText((o) => draw(o, 0), Math.max(2, Math.round(g.seg * 0.9)));
-    for (const p of glyph) g.attractors.push(p);
-    // one random seed per letter (x-bands)
+    const fringe = attractorsFromText((o) => draw(o, size * 0.03), Math.max(3, g.seg * 3), 12, 100);
     const m = ctx; m.font = font; try { m.letterSpacing = spacing; } catch (_) {}
     const total = m.measureText(text).width, x0 = bx - total / 2;
-    let prevW = 0;
+    const seeds = []; let prevW = 0;
     for (let i = 0; i < text.length; i++) {
       const w = m.measureText(text.slice(0, i + 1)).width;
       const lo = x0 + prevW, hi = x0 + w; prevW = w;
       const inL = glyph.filter((pt) => pt.x >= lo && pt.x < hi);
-      if (inL.length) { const s = inL[(Math.random() * inL.length) | 0]; addNode(g, s.x, s.y, -1); }
+      if (inL.length) seeds.push(inL[(Math.random() * inL.length) | 0]);
     }
     try { m.letterSpacing = '0px'; } catch (_) {}
-    // light fringe so it matches the title's hairy edges
-    const fringe = attractorsFromText((o) => draw(o, size * 0.03), Math.max(3, g.seg * 3), 12, 100);
+    return { glyph, fringe, seeds, bx, by };
+  }
+
+  // Grow the button's word so it reads exactly like MYCELIUM: EVERY letter blooms
+  // from its own random point with dense glyph attractors + hairy strays (identical to
+  // seedTitle), AND 1–2 connector strands creep out of the nearest MYCELIUM letters so
+  // the word visibly grows straight out of the title. Same growth `g` → same strand
+  // style and colour by construction.
+  function growButtonWord(btn) {
+    const { glyph, fringe, seeds, bx, by } = sampleWord(btn);
+    for (const p of glyph) g.attractors.push(p);
     for (const f of fringe) g.attractors.push(f);
+    if (!seeds.length) { g.done = false; return; }
+    // (A) immediately: 1–2 connector strands creep OUT of the nearest MYCELIUM nodes
+    //     toward where the word will be — the visible "it grows from the title" beat.
+    const ranked = seeds.map((s) => {
+      const ni = nearestExistingNode(s.x, s.y);
+      const n = ni >= 0 ? g.nodes[ni] : null;
+      return { s, n, d: n ? (n.x - s.x) ** 2 + (n.y - s.y) ** 2 : Infinity };
+    }).sort((a, b) => a.d - b.d);
+    const nBridge = seeds.length >= 2 ? 1 + ((Math.random() * 2) | 0) : 1;   // 1 or 2 strands
+    for (const e of ranked.slice(0, nBridge)) if (e.n) bridgeAttractors(e.n.x, e.n.y, e.s.x, e.s.y);
     g.done = false;
+    // (B) a beat later: every letter blooms from its own random point (dense + legible,
+    //     exactly like the title) plus stray fuss — the strand resolves into a full word.
+    const bloom = () => {
+      if (finished) return;
+      for (const s of seeds) addNode(g, s.x, s.y, -1);
+      const edge = fringe.length ? fringe : glyph, sp = g.attract * 0.6, strays = Math.round(seeds.length * 8);
+      for (let i = 0; i < strays; i++) {
+        const s = edge[(Math.random() * edge.length) | 0]; if (!s) break;
+        const ang = Math.atan2(s.y - by, s.x - bx) + rnd(-0.7, 0.7), len = 1 + ((Math.random() * 2) | 0);
+        let ex = s.x, ey = s.y;
+        for (let k = 1; k <= len; k++) { ex = s.x + Math.cos(ang) * sp * k; ey = s.y + Math.sin(ang) * sp * k; g.attractors.push({ x: ex, y: ey }); }
+        const br = 2 + ((Math.random() * 3) | 0);
+        for (let bi = 0; bi < br; bi++) { const ba = ang + rnd(-1, 1), bl = g.attract * rnd(0.4, 0.9); g.attractors.push({ x: ex + Math.cos(ba) * bl, y: ey + Math.sin(ba) * bl }); }
+      }
+      g.done = false;
+    };
+    if (reduce) bloom(); else setTimeout(bloom, 450);
   }
 
   function consume(btn, cb) {
     if (consuming || finished) return; consuming = true;
     root.querySelectorAll('.ts-btn').forEach((b) => { if (b !== btn) b.style.pointerEvents = 'none'; });
     btn.classList.add('ts-fading');                 // (1) the DOM word fades away quickly + completely
-    const finish = () => {
-      finished = true;
+    finishFn = () => {                               // (3) fade the screen out, then fire the callback (idempotent)
+      if (finished) return; finished = true;
       root.style.transition = 'opacity .55s ease'; root.style.opacity = '0';
       setTimeout(() => { cancelAnimationFrame(raf); root.remove(); cb && cb(); }, 560);
     };
-    if (reduce) { btn.style.opacity = '0'; growButtonWord(btn); let guard = 0; while (!g.done && guard++ < 8000) step(g); flushInk(); composite(); setTimeout(finish, 350); return; }
-    setTimeout(() => {                               // (2) then the mycelium grows the word back
-      growButtonWord(btn);
-      setTimeout(finish, 1400);                      // (3) then transition
-    }, 300);
+    if (reduce) { btn.style.opacity = '0'; growButtonWord(btn); let guard = 0; while (!g.done && guard++ < 12000) step(g); flushInk(); composite(); setTimeout(finishFn, 350); return; }
+    // (2) a strand creeps out of MYCELIUM (at +300ms) and the word unfurls from it
+    // (bloom seeds at +750ms). Predictable wall-clock pacing so the transition timing is
+    // the same on every device — the word keeps maturing through the hold + fade.
+    setTimeout(() => growButtonWord(btn), 300);
+    setTimeout(finishFn, 2100);                      // (3) fade to the next screen a beat after the word forms
   }
 
   // ---- layout / boot -----------------------------------------------------
