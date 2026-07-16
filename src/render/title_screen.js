@@ -77,16 +77,16 @@ export function showTitleScreen({ onNew, onContinue }) {
     // Fine segments + short reach + tight kill = a DENSE mat of strands that fills the
     // glyphs (the letters read from the strands alone — no fill/ghost). Short attraction
     // keeps the grid cheap so the high strand count stays smooth.
-    const seg = Math.max(2, titleSize * 0.016);
-    const attract = titleSize * 0.06;
+    const seg = Math.max(2, titleSize * 0.010);
+    const attract = titleSize * 0.05;
     return {
       nodes: [], segs: [], attractors: [], map: new Map(),
-      seg, attract, attract2: attract * attract, kill2: (seg * 1.05) ** 2, cell: attract, _bd: 0, done: false,
+      seg, attract, attract2: attract * attract, kill2: (seg * 1.0) ** 2, cell: attract, _bd: 0, done: false,
     };
   }
 
   function step(gr) {
-    if (!gr.attractors.length || gr.nodes.length > 60000) { gr.done = true; return; }
+    if (!gr.attractors.length || gr.nodes.length > 90000) { gr.done = true; return; }
     const infl = new Map(); const survivors = [];
     for (const at of gr.attractors) {
       const ni = nearestNode(gr, at.x, at.y);
@@ -132,7 +132,7 @@ export function showTitleScreen({ onNew, onContinue }) {
     }, Math.max(2, Math.round(g.seg * 0.9)));
     // seeds: many spread points become the first nodes so every part of every letter fills
     for (let i = pts.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; const t = pts[i]; pts[i] = pts[j]; pts[j] = t; }
-    const seeds = pts.splice(0, Math.min(140, pts.length));
+    const seeds = pts.splice(0, Math.min(220, pts.length));
     for (const s of seeds) addNode(g, s.x, s.y, -1);
     g.attractors = pts;
     // outward tendrils: chains of attractors leading out from seed points (reach in all dirs)
@@ -149,7 +149,7 @@ export function showTitleScreen({ onNew, onContinue }) {
   function flushInk() {
     if (!g.segs.length) return;
     ictx.strokeStyle = 'rgba(233,255,247,0.9)';
-    ictx.lineWidth = 0.85 * dpr; ictx.lineCap = 'round';
+    ictx.lineWidth = 0.7 * dpr; ictx.lineCap = 'round';
     ictx.beginPath();
     for (const s of g.segs) { ictx.moveTo(s[0] * dpr, s[1] * dpr); ictx.lineTo(s[2] * dpr, s[3] * dpr); }
     ictx.stroke();
