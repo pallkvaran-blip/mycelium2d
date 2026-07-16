@@ -939,29 +939,52 @@
 
     /* level-win: NO container — a procedural mycelium headline (with lighting behind),
        a plain sub-line, then the new-species card(s) and/or a plain black Proceed button.
-       Body-level overlay, so it re-declares the --ss-* palette the embedded cards need. */
+       Shown OVER the won map (translucent scrim, not opaque); a big bottom pad keeps the
+       compact content clear of the card carousel. Body-level overlay, so it re-declares
+       the --ss-* palette the embedded cards need. */
     .ss-win {
       --ss-mint:#7fe6a3; --ss-mint-hi:#c8fff0; --ss-ink:#d7e6dc; --ss-ink-dim:#8aa193; --ss-ink-faint:#57685f;
       --ss-gold:#e6b45c; --ss-water:#7fd0e0; --ss-white-rim:rgba(226,238,232,0.9);
       --ss-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
       --ss-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
       position:fixed; inset:0; z-index:1004; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:clamp(8px,1.8vh,20px); padding:clamp(20px,5vw,64px); text-align:center; overflow-y:auto;
+      gap:clamp(4px,1.1vh,13px); text-align:center; overflow:hidden;
+      padding:clamp(12px,3vh,28px) clamp(20px,5vw,56px) clamp(150px,27vh,300px);   /* bottom pad clears the carousel */
       font-family:var(--ss-sans); color:var(--ss-ink);
-      background:radial-gradient(58% 42% at 50% 42%, rgba(127,230,163,0.13), transparent 72%), #05070d;
+      background:radial-gradient(46% 40% at 50% 40%, rgba(127,230,163,0.10), transparent 66%),
+                 radial-gradient(52% 50% at 50% 40%, rgba(3,7,6,0.60), rgba(3,7,6,0.20) 60%, transparent 82%);
       animation:ssIn .5s ease both; }
-    .ss-win-title { position:relative; width:min(920px,94vw); height:clamp(120px,24vh,250px); pointer-events:none;
-      background:radial-gradient(50% 60% at 50% 50%, rgba(150,255,205,0.17), rgba(127,230,163,0.05) 46%, transparent 72%); }
-    .ss-win-sub { font-family:var(--ss-serif); font-weight:600; font-size:clamp(19px,3.2vw,32px); margin:0; color:#eaf6ee;
-      text-shadow:0 0 22px rgba(127,230,163,0.24); }
-    .ss-win-unlock { margin-top:clamp(6px,1.4vh,12px); font-size:12px; letter-spacing:.26em; text-transform:uppercase;
-      color:var(--ss-mint); font-weight:600; }
-    .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; }
-    .ss-win-cards .ss-card { flex:0 0 auto; width:min(78vw,224px); }
-    .ss-win-btn { margin-top:clamp(12px,3vh,28px); cursor:pointer; font-family:var(--ss-sans); font-weight:600;
-      font-size:clamp(15px,2vw,18px); letter-spacing:.05em; color:#fff; background:#000; border:1px solid rgba(255,255,255,0.28);
-      border-radius:11px; padding:15px 46px; transition:background .18s, border-color .18s; }
+    .ss-win-title { position:relative; width:min(680px,86vw); height:clamp(82px,14vh,150px); pointer-events:none;
+      background:radial-gradient(50% 60% at 50% 50%, rgba(150,255,205,0.18), rgba(127,230,163,0.05) 46%, transparent 72%); }
+    .ss-win-sub { font-family:var(--ss-serif); font-weight:600; font-size:clamp(16px,2.5vw,25px); margin:0; color:#eaf6ee;
+      text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 22px rgba(127,230,163,0.22); }
+    .ss-win-unlock { margin-top:clamp(3px,0.9vh,9px); font-size:11px; letter-spacing:.24em; text-transform:uppercase;
+      color:var(--ss-mint); font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
+    .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }
+    .ss-win-cards .ss-card { flex:0 0 auto; width:min(60vw,168px); }
+    .ss-win-btn { margin-top:clamp(8px,2vh,20px); cursor:pointer; font-family:var(--ss-sans); font-weight:600;
+      font-size:clamp(14px,1.9vw,17px); letter-spacing:.05em; color:#fff; background:#000; border:1px solid rgba(255,255,255,0.3);
+      border-radius:10px; padding:12px 40px; box-shadow:0 6px 22px -6px rgba(0,0,0,0.9);
+      transition:background .18s, border-color .18s; }
     .ss-win-btn:hover { background:#0d0d0d; border-color:rgba(255,255,255,0.55); }
+    /* Short (landscape-phone) screens: the carousel eats most of the height, so shrink the
+       win content hard and reserve a big bottom band to keep it clear of the cards. */
+    @media (max-height:600px) {
+      .ss-win { gap:2px; padding:6px clamp(16px,4vw,40px) clamp(150px,42vh,220px); }
+      .ss-win-title { width:min(560px,78vw); height:clamp(44px,15vh,84px); }
+      .ss-win-sub { font-size:clamp(14px,3.6vh,19px); }
+      .ss-win-unlock { margin-top:2px; font-size:10px; letter-spacing:.2em; }
+      .ss-win-cards .ss-card { width:min(28vw,116px); }
+      .ss-win-btn { margin-top:6px; padding:8px 28px; font-size:14px; }
+    }
+    /* Very short: there's no room for the unlock CARD above the carousel — the "new species"
+       LINE still informs (the card is shown on the picker next run), so drop the card. */
+    @media (max-height:500px) {
+      .ss-win { gap:1px; padding:4px 4vw clamp(120px,40vh,180px); }
+      .ss-win-cards { display:none; }
+      .ss-win-title { width:min(520px,72vw); height:clamp(38px,12vh,64px); }
+      .ss-win-sub { font-size:clamp(13px,3.2vh,16px); }
+    }
 
     /* between-level: level-complete / game-won panel (reuses the .ss-detailwrap backdrop) */
     .ss-lc { position:relative; width:min(560px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); overflow-y:auto;
@@ -1017,8 +1040,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1vomzfw";
-globalThis.__BUILD__ = "local 07-16 13:25";
+window.__ASSET_VER = "bc4tgz";
+globalThis.__BUILD__ = "local 07-16 13:44";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {

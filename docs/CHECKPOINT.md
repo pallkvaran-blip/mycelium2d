@@ -410,10 +410,14 @@ Both menus are dark, on-theme, with glowing green borders.
     it!" / "Yes!", uppercased) grown in mycelium over a radial-glow "lighting" backdrop, then plain
     serif "You fruited and spored", then EITHER "New species available next run!" + the unlocked
     species card(s) OR nothing, and always a plain black **Proceed** button (white text, no gradient).
-    Body-level overlay (`.ss-win`) re-declares the `--ss-*` palette the embedded cards need, is fully
-    opaque (`#05070d` base) so the game is hidden, z-index 1004 (below the 1006 inspector so unlocked
-    cards can still be inspected). `.ss-win-cards .ss-card` needs an explicit width (the card is
-    grid-sized in the picker; in flex it collapses). `showGameWon` still uses the old `.ss-lc` panel.
+    Shown **OVER the won map** (translucent radial scrim, NOT opaque — the map stays visible); a large
+    `padding-bottom` keeps the compact content clear of the card carousel. Body-level overlay
+    (`.ss-win`) re-declares the `--ss-*` palette the embedded cards need; z-index 1004 (below the 1006
+    inspector so unlocked cards can still be inspected). `.ss-win-cards .ss-card` needs an explicit
+    width (grid-sized in the picker; collapses in flex). **Short screens** (landscape phone): the
+    carousel eats most of the height, so `@media (max-height:600px)` shrinks everything and
+    `max-height:500px` **hides the unlock card** (the "new species" line still informs; the card shows
+    on the picker next run) so nothing overlaps the HUD/carousel. `showGameWon` still uses `.ss-lc`.
 
 - **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
