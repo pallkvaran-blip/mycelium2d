@@ -933,9 +933,10 @@
 
     /* level-win: NO container — a procedural mycelium headline (with lighting behind),
        a plain sub-line, then the new-species card(s) and/or a plain black Proceed button.
-       Shown OVER the won map (translucent scrim, not opaque); a big bottom pad keeps the
-       compact content clear of the card carousel. Body-level overlay, so it re-declares
-       the --ss-* palette the embedded cards need. */
+       Shown OVER the won map (translucent scrim, not opaque). The hand carousel is
+       collapsed to a thin strip before this appears (main.js onLevelWon), so the bottom
+       pad only needs to clear that strip. Body-level overlay, so it re-declares the
+       --ss-* palette the embedded cards need. */
     .ss-win {
       --ss-mint:#7fe6a3; --ss-mint-hi:#c8fff0; --ss-ink:#d7e6dc; --ss-ink-dim:#8aa193; --ss-ink-faint:#57685f;
       --ss-gold:#e6b45c; --ss-water:#7fd0e0; --ss-white-rim:rgba(226,238,232,0.9);
@@ -943,7 +944,7 @@
       --ss-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
       position:fixed; inset:0; z-index:1004; display:flex; flex-direction:column; align-items:center; justify-content:center;
       gap:clamp(4px,1.1vh,13px); text-align:center; overflow:hidden;
-      padding:clamp(12px,3vh,28px) clamp(20px,5vw,56px) clamp(150px,27vh,300px);   /* bottom pad clears the carousel */
+      padding:clamp(12px,3vh,28px) clamp(20px,5vw,56px) clamp(96px,13vh,150px);   /* bottom pad clears the collapsed carousel strip */
       font-family:var(--ss-sans); color:var(--ss-ink);
       background:radial-gradient(46% 40% at 50% 40%, rgba(127,230,163,0.10), transparent 66%),
                  radial-gradient(52% 50% at 50% 40%, rgba(3,7,6,0.60), rgba(3,7,6,0.20) 60%, transparent 82%);
@@ -961,21 +962,20 @@
       border-radius:10px; padding:12px 40px; box-shadow:0 6px 22px -6px rgba(0,0,0,0.9);
       transition:background .18s, border-color .18s; }
     .ss-win-btn:hover { background:#0d0d0d; border-color:rgba(255,255,255,0.55); }
-    /* Short (landscape-phone) screens: the carousel eats most of the height, so shrink the
-       win content hard and reserve a big bottom band to keep it clear of the cards. */
+    /* Short (landscape-phone) screens: with the carousel collapsed the bottom strip is thin,
+       but vertical room is still tight — shrink the win content so it all fits above the strip. */
     @media (max-height:600px) {
-      .ss-win { gap:2px; padding:6px clamp(16px,4vw,40px) clamp(150px,42vh,220px); }
+      .ss-win { gap:2px; padding:6px clamp(16px,4vw,40px) clamp(76px,14vh,110px); }
       .ss-win-title { width:min(560px,78vw); height:clamp(44px,15vh,84px); }
       .ss-win-sub { font-size:clamp(14px,3.6vh,19px); }
       .ss-win-unlock { margin-top:2px; font-size:10px; letter-spacing:.2em; }
       .ss-win-cards .ss-card { width:min(28vw,116px); }
       .ss-win-btn { margin-top:6px; padding:8px 28px; font-size:14px; }
     }
-    /* Very short: there's no room for the unlock CARD above the carousel — the "new species"
-       LINE still informs (the card is shown on the picker next run), so drop the card. */
+    /* Very short: the card still shows (carousel is collapsed, so there's room) — just keep
+       the headline/sub compact so the whole stack clears the thin bottom strip. */
     @media (max-height:500px) {
-      .ss-win { gap:1px; padding:4px 4vw clamp(120px,40vh,180px); }
-      .ss-win-cards { display:none; }
+      .ss-win { gap:1px; padding:4px 4vw clamp(66px,13vh,96px); }
       .ss-win-title { width:min(520px,72vw); height:clamp(38px,12vh,64px); }
       .ss-win-sub { font-size:clamp(13px,3.2vh,16px); }
     }
@@ -1034,8 +1034,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "bc4tgz";
-globalThis.__BUILD__ = "local 07-16 13:44";
+window.__ASSET_VER = "18qihb";
+globalThis.__BUILD__ = "local 07-16 13:52";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10100,7 +10100,7 @@ function showSpeciesSelect({ onPick, onDev }) {
 }
 
 // ===================== between-level: level complete =========================
-const WIN_WORDS = ['Success!', 'You made it!', 'Yes!'];
+const WIN_WORDS = ['Success', 'You made it'];
 
 function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
   const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';
@@ -10762,6 +10762,9 @@ function onLevelWon() {
   const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
   recordLevelCleared(cleared);
   ui.hideOverlay();
+  // Collapse the hand carousel so the (containerless) win banner has clear room
+  // over the map on short screens; begin() re-opens it when the next level loads.
+  if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
     showGameWon({ onNewRun: backToPicker });
   } else {
@@ -10837,6 +10840,7 @@ function begin(newState) {
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
+  if (ui.setHandOpen) ui.setHandOpen(true);   // re-open the carousel a level-win collapse may have closed
   ui.setSelectedAction(null);
   // Clear any armed aim/selection so a stale index never carries into the new run.
   if (ui.clearPendingCard) ui.clearPendingCard();

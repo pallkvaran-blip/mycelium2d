@@ -197,7 +197,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
 }
 
 // ===================== between-level: level complete =========================
-const WIN_WORDS = ['Success!', 'You made it!', 'Yes!'];
+const WIN_WORDS = ['Success', 'You made it'];
 
 export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
   const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';

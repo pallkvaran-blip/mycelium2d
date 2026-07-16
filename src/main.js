@@ -144,6 +144,9 @@ function onLevelWon() {
   const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
   recordLevelCleared(cleared);
   ui.hideOverlay();
+  // Collapse the hand carousel so the (containerless) win banner has clear room
+  // over the map on short screens; begin() re-opens it when the next level loads.
+  if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
     showGameWon({ onNewRun: backToPicker });
   } else {
@@ -219,6 +222,7 @@ function begin(newState) {
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
+  if (ui.setHandOpen) ui.setHandOpen(true);   // re-open the carousel a level-win collapse may have closed
   ui.setSelectedAction(null);
   // Clear any armed aim/selection so a stale index never carries into the new run.
   if (ui.clearPendingCard) ui.clearPendingCard();

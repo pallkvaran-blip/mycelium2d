@@ -406,18 +406,19 @@ Both menus are dark, on-theme, with glowing green borders.
   - **Picker:** rendered as a `.ss-title` banner ABOVE the `.ss-console` (picker root is now a flex
     **column**); `hide()` calls `title.destroy()`. (The console's small "MYCELIUM" eyebrow is now
     somewhat redundant with the banner — left as-is.)
-  - **Level win (`showLevelComplete`):** NO container — a randomized headline ("Success!" / "You made
-    it!" / "Yes!", uppercased) grown in mycelium over a radial-glow "lighting" backdrop, then plain
-    serif "You fruited and spored", then EITHER "New species available next run!" + the unlocked
-    species card(s) OR nothing, and always a plain black **Proceed** button (white text, no gradient).
-    Shown **OVER the won map** (translucent radial scrim, NOT opaque — the map stays visible); a large
-    `padding-bottom` keeps the compact content clear of the card carousel. Body-level overlay
+  - **Level win (`showLevelComplete`):** NO container — a randomized headline ("Success" / "You made
+    it", uppercased) grown in mycelium over a radial-glow "lighting" backdrop, then plain serif "You
+    fruited and spored", then EITHER "New species available next run!" + the unlocked species card(s)
+    OR nothing, and always a plain black **Proceed** button (white text, no gradient). Shown **OVER the
+    won map** (translucent radial scrim, NOT opaque — the map stays visible). Body-level overlay
     (`.ss-win`) re-declares the `--ss-*` palette the embedded cards need; z-index 1004 (below the 1006
     inspector so unlocked cards can still be inspected). `.ss-win-cards .ss-card` needs an explicit
-    width (grid-sized in the picker; collapses in flex). **Short screens** (landscape phone): the
-    carousel eats most of the height, so `@media (max-height:600px)` shrinks everything and
-    `max-height:500px` **hides the unlock card** (the "new species" line still informs; the card shows
-    on the picker next run) so nothing overlaps the HUD/carousel. `showGameWon` still uses `.ss-lc`.
+    width (grid-sized in the picker; collapses in flex). **Carousel handling:** rather than hiding the
+    unlock card on short screens, `main.js onLevelWon()` **collapses the hand carousel**
+    (`ui.setHandOpen(false)`) BEFORE the banner appears — so it shrinks to a thin filter strip and the
+    win content always has room (card included) over the map, even on a landscape phone. `begin()`
+    re-opens it (`ui.setHandOpen(true)`) when the next level loads. The `.ss-win` bottom pad only needs
+    to clear that thin strip now (no giant reserve). `showGameWon` still uses `.ss-lc`.
 
 - **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
