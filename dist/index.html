@@ -548,11 +548,10 @@
     .cardpop { position: fixed; inset: 0; z-index: 120; display: none; align-items: center; justify-content: center;
       background: rgba(6,10,8,0.5); padding: 20px; }
     .cardpop.show { display: flex; }
-    /* IDENTICAL to a hand card (.cardbtn) — only centred in the overlay instead of
-       pinned to the carousel's flex-start, non-interactive, and with a smaller art
-       window (the rules box keeps its normal size + text). */
-    .cardpop-card { align-self: center; cursor: default; max-width: calc(100vw - 40px); }
-    .cardpop-card .cart { aspect-ratio: 5 / 2; }
+    /* Same as a hand card (.cardbtn) — same 5/7 shape + 3/2 art window + rules box,
+       so the internal proportions match exactly — just a bit smaller and centred in
+       the overlay, non-interactive. */
+    .cardpop-card { align-self: center; cursor: default; width: 150px; max-width: calc(100vw - 40px); }
     /* Card-draft overlay: pick 1 of 3 after finishing a food pile */
     .offer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       background: rgba(6,10,14,0.72); z-index: 50; padding: 16px; }
@@ -953,8 +952,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "14uhxsi";
-globalThis.__BUILD__ = "local 07-15 17:25";
+window.__ASSET_VER = "15lfoos";
+globalThis.__BUILD__ = "local 07-16 06:19";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
