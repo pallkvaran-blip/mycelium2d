@@ -397,6 +397,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **MYCELIUM wordmark on the species picker** (`src/render/mycelium_title.js` — new reusable
+  module; `species_select.js`, `build.mjs` MODULES, `index.html` `.ss-title`/`#speciesSelect` CSS).
+  `growMyceliumTitle(container, opts)` grows the same procedural mycelium wordmark (supersampled,
+  per-letter bloom, fringe + strays) into any element and returns `{destroy()}`. Unlike the full
+  title screen it **stops its RAF once the word is grown** (no perpetual compositing) so it's cheap
+  to leave on the picker. `showSpeciesSelect` renders it as a `.ss-title` banner ABOVE the
+  `.ss-console` (the picker root is now a flex **column**); `hide()` calls `title.destroy()`. (NOTE:
+  the console's small "MYCELIUM" eyebrow is now somewhat redundant with the banner — left as-is.)
+
 - **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
   black: a self-contained **space-colonization** growth fills the letter glyphs with a DENSE mat of

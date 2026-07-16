@@ -16,6 +16,7 @@
 import { SPECIES, LOCKED_TIERS, isUnlocked, loadProgress } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
 import { cardSlug } from './ui.js';
+import { growMyceliumTitle } from './mycelium_title.js';
 
 const CARD_BY_NAME = {};
 for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
@@ -137,6 +138,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
   const progress = loadProgress();
   const root = el('div'); root.id = 'speciesSelect';
   root.innerHTML =
+    '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
@@ -153,7 +155,8 @@ export function showSpeciesSelect({ onPick, onDev }) {
     '</div>';
   document.body.appendChild(root);
 
-  function hide() { root.remove(); }
+  const title = growMyceliumTitle(root.querySelector('.ss-title'));
+  function hide() { title.destroy(); root.remove(); }
 
   const availGrid = root.querySelector('#ssAvail');
   for (const s of SPECIES) {

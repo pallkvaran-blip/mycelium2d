@@ -759,7 +759,7 @@
       --ss-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
       --ss-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
       position:fixed; inset:0; z-index:1000; overflow-y:auto; overscroll-behavior:contain;
-      display:flex; justify-content:center; align-items:flex-start; padding:clamp(14px,3vw,40px);
+      display:flex; flex-direction:column; justify-content:flex-start; align-items:center; padding:clamp(14px,3vw,40px);
       background:radial-gradient(120% 80% at 50% 118%, rgba(127,230,163,0.12), transparent 60%),
                  radial-gradient(90% 70% at 50% -20%, rgba(60,111,80,0.10), transparent 55%), #05070d;
       color:var(--ss-ink); font-family:var(--ss-sans); -webkit-font-smoothing:antialiased;
@@ -774,7 +774,11 @@
       padding:6px 13px; backdrop-filter:blur(4px); }
     .ss-dev:hover { color:var(--ss-mint-hi); border-color:var(--ss-mint); background:rgba(18,28,22,0.9); }
 
-    .ss-console { position:relative; width:min(1060px,100%);
+    /* Procedural MYCELIUM wordmark banner ABOVE the console (canvas injected by JS). */
+    .ss-title { width:min(1060px,100%); height:clamp(104px,17vh,208px); flex:0 0 auto;
+      margin-bottom:clamp(6px,1.6vh,18px); pointer-events:none; }
+
+    .ss-console { position:relative; width:min(1060px,100%); flex:0 0 auto;
       background:radial-gradient(140% 60% at 50% 0%, rgba(127,230,163,0.05), transparent 60%), #05070d;
       border:1.5px solid rgba(127,230,163,0.55); border-radius:18px;
       box-shadow:0 0 22px -2px rgba(127,230,163,0.45), 0 0 60px -10px rgba(127,230,163,0.35),
