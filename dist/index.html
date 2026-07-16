@@ -945,10 +945,11 @@
       .ss-detail { grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); }
       .ss-d-art { max-height:34vh; }
     }
-    /* Phone (landscape): also one card per column — capped + centred so a single card
-       doesn't stretch to the full panel width. */
+    /* Phone (landscape): one card per column, but cap the card by VIEWPORT HEIGHT
+       (the short dimension here) so a single card doesn't fill the screen — kept to a
+       comfortable size like portrait, centred. */
     @media (orientation:landscape) and (max-height:520px) {
-      .ss-grid { grid-template-columns:minmax(0,560px); justify-content:center; }
+      .ss-grid { grid-template-columns:minmax(0,min(340px,80vh)); justify-content:center; }
     }
     @media (prefers-reduced-motion: reduce) {
       #speciesSelect, #speciesSelect * { animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
@@ -958,8 +959,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "d0hct3";
-globalThis.__BUILD__ = "local 07-16 06:36";
+window.__ASSET_VER = "ln0z5u";
+globalThis.__BUILD__ = "local 07-16 06:47";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
