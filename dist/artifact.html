@@ -931,6 +931,32 @@
       display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .ss-close:hover { background:rgba(20,28,26,0.9); border-color:var(--ss-mint); color:var(--ss-mint-hi); }
 
+    /* level-win: NO container — a procedural mycelium headline (with lighting behind),
+       a plain sub-line, then the new-species card(s) and/or a plain black Proceed button.
+       Body-level overlay, so it re-declares the --ss-* palette the embedded cards need. */
+    .ss-win {
+      --ss-mint:#7fe6a3; --ss-mint-hi:#c8fff0; --ss-ink:#d7e6dc; --ss-ink-dim:#8aa193; --ss-ink-faint:#57685f;
+      --ss-gold:#e6b45c; --ss-water:#7fd0e0; --ss-white-rim:rgba(226,238,232,0.9);
+      --ss-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+      --ss-sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+      position:fixed; inset:0; z-index:1004; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:clamp(8px,1.8vh,20px); padding:clamp(20px,5vw,64px); text-align:center; overflow-y:auto;
+      font-family:var(--ss-sans); color:var(--ss-ink);
+      background:radial-gradient(58% 42% at 50% 42%, rgba(127,230,163,0.13), transparent 72%), #05070d;
+      animation:ssIn .5s ease both; }
+    .ss-win-title { position:relative; width:min(920px,94vw); height:clamp(120px,24vh,250px); pointer-events:none;
+      background:radial-gradient(50% 60% at 50% 50%, rgba(150,255,205,0.17), rgba(127,230,163,0.05) 46%, transparent 72%); }
+    .ss-win-sub { font-family:var(--ss-serif); font-weight:600; font-size:clamp(19px,3.2vw,32px); margin:0; color:#eaf6ee;
+      text-shadow:0 0 22px rgba(127,230,163,0.24); }
+    .ss-win-unlock { margin-top:clamp(6px,1.4vh,12px); font-size:12px; letter-spacing:.26em; text-transform:uppercase;
+      color:var(--ss-mint); font-weight:600; }
+    .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; }
+    .ss-win-cards .ss-card { flex:0 0 auto; width:min(78vw,224px); }
+    .ss-win-btn { margin-top:clamp(12px,3vh,28px); cursor:pointer; font-family:var(--ss-sans); font-weight:600;
+      font-size:clamp(15px,2vw,18px); letter-spacing:.05em; color:#fff; background:#000; border:1px solid rgba(255,255,255,0.28);
+      border-radius:11px; padding:15px 46px; transition:background .18s, border-color .18s; }
+    .ss-win-btn:hover { background:#0d0d0d; border-color:rgba(255,255,255,0.55); }
+
     /* between-level: level-complete / game-won panel (reuses the .ss-detailwrap backdrop) */
     .ss-lc { position:relative; width:min(560px,100%); max-height:calc(100vh - clamp(24px,6vw,72px)); overflow-y:auto;
       background:linear-gradient(160deg, rgba(15,22,20,0.97), rgba(7,11,10,0.99)); border:1.5px solid rgba(127,230,163,0.55);
@@ -985,8 +1011,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1jlz491";
-globalThis.__BUILD__ = "local 07-16 12:45";
+window.__ASSET_VER = "1vomzfw";
+globalThis.__BUILD__ = "local 07-16 13:25";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10051,26 +10077,30 @@ function showSpeciesSelect({ onPick, onDev }) {
 }
 
 // ===================== between-level: level complete =========================
+const WIN_WORDS = ['Success!', 'You made it!', 'Yes!'];
+
 function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
-  const root = el('div', 'ss-detailwrap open'); root.id = 'ssLevelComplete';
+  const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
+  const word = WIN_WORDS[(Math.random() * WIN_WORDS.length) | 0];
+  // No container — the win headline is grown in mycelium (with lighting behind), then a
+  // plain line + either the new-species card(s) or just a Proceed button.
   root.innerHTML =
-    '<div class="ss-lc' + (hasUnlock ? ' has-unlock' : '') + '">' +
-      '<div class="ss-lc-badge">🍄 Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
-      (hasUnlock
-        ? '<div class="ss-lc-unlock-head"><span class="ss-lc-star">✦</span>New species unlocked</div>' +
-          '<p class="ss-lc-unlock-sub">Congratulations! It\'s yours to play on your next run — tap to inspect it.</p>' +
-          '<div class="ss-lc-cards" id="ssLcCards"></div>'
-        : '') +
-      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Next level →</button></div>' +
-    '</div>';
+    '<div class="ss-win-title" role="img" aria-label="' + esc(word) + '"></div>' +
+    '<p class="ss-win-sub">You fruited and spored</p>' +
+    (hasUnlock
+      ? '<div class="ss-win-unlock">New species available next run!</div>' +
+        '<div class="ss-win-cards" id="ssWinCards"></div>'
+      : '') +
+    '<button class="ss-win-btn" id="ssWinProceed" type="button">Proceed</button>';
   document.body.appendChild(root);
-  function hide() { root.remove(); }
+  const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: word.toUpperCase(), stepRate: 3.2 });
+  function hide() { title.destroy(); root.remove(); }
   if (hasUnlock) {
-    const cards = root.querySelector('#ssLcCards');
+    const cards = root.querySelector('#ssWinCards');
     for (const s of unlocked) cards.appendChild(speciesCard(s, { locked: false, onClick: () => openSpeciesDetail(s, { mode: 'inspect' }) }));
   }
-  root.querySelector('#ssLcNext').addEventListener('click', () => { hide(); onNext && onNext(); });
+  root.querySelector('#ssWinProceed').addEventListener('click', () => { hide(); onNext && onNext(); });
   return { hide, root };
 }
 

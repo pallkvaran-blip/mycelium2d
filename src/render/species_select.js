@@ -197,26 +197,30 @@ export function showSpeciesSelect({ onPick, onDev }) {
 }
 
 // ===================== between-level: level complete =========================
+const WIN_WORDS = ['Success!', 'You made it!', 'Yes!'];
+
 export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
-  const root = el('div', 'ss-detailwrap open'); root.id = 'ssLevelComplete';
+  const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
+  const word = WIN_WORDS[(Math.random() * WIN_WORDS.length) | 0];
+  // No container — the win headline is grown in mycelium (with lighting behind), then a
+  // plain line + either the new-species card(s) or just a Proceed button.
   root.innerHTML =
-    '<div class="ss-lc' + (hasUnlock ? ' has-unlock' : '') + '">' +
-      '<div class="ss-lc-badge">🍄 Level ' + level + ' of ' + maxLevel + ' cleared</div>' +
-      (hasUnlock
-        ? '<div class="ss-lc-unlock-head"><span class="ss-lc-star">✦</span>New species unlocked</div>' +
-          '<p class="ss-lc-unlock-sub">Congratulations! It\'s yours to play on your next run — tap to inspect it.</p>' +
-          '<div class="ss-lc-cards" id="ssLcCards"></div>'
-        : '') +
-      '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssLcNext">Next level →</button></div>' +
-    '</div>';
+    '<div class="ss-win-title" role="img" aria-label="' + esc(word) + '"></div>' +
+    '<p class="ss-win-sub">You fruited and spored</p>' +
+    (hasUnlock
+      ? '<div class="ss-win-unlock">New species available next run!</div>' +
+        '<div class="ss-win-cards" id="ssWinCards"></div>'
+      : '') +
+    '<button class="ss-win-btn" id="ssWinProceed" type="button">Proceed</button>';
   document.body.appendChild(root);
-  function hide() { root.remove(); }
+  const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: word.toUpperCase(), stepRate: 3.2 });
+  function hide() { title.destroy(); root.remove(); }
   if (hasUnlock) {
-    const cards = root.querySelector('#ssLcCards');
+    const cards = root.querySelector('#ssWinCards');
     for (const s of unlocked) cards.appendChild(speciesCard(s, { locked: false, onClick: () => openSpeciesDetail(s, { mode: 'inspect' }) }));
   }
-  root.querySelector('#ssLcNext').addEventListener('click', () => { hide(); onNext && onNext(); });
+  root.querySelector('#ssWinProceed').addEventListener('click', () => { hide(); onNext && onNext(); });
   return { hide, root };
 }
 

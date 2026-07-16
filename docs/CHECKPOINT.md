@@ -397,14 +397,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **MYCELIUM wordmark on the species picker** (`src/render/mycelium_title.js` — new reusable
-  module; `species_select.js`, `build.mjs` MODULES, `index.html` `.ss-title`/`#speciesSelect` CSS).
-  `growMyceliumTitle(container, opts)` grows the same procedural mycelium wordmark (supersampled,
-  per-letter bloom, fringe + strays) into any element and returns `{destroy()}`. Unlike the full
-  title screen it **stops its RAF once the word is grown** (no perpetual compositing) so it's cheap
-  to leave on the picker. `showSpeciesSelect` renders it as a `.ss-title` banner ABOVE the
-  `.ss-console` (the picker root is now a flex **column**); `hide()` calls `title.destroy()`. (NOTE:
-  the console's small "MYCELIUM" eyebrow is now somewhat redundant with the banner — left as-is.)
+- **MYCELIUM wordmark on the species picker + redesigned level-win** (`src/render/mycelium_title.js`
+  — new reusable module; `species_select.js`, `build.mjs` MODULES, `index.html` `.ss-title` /
+  `.ss-win` / `#speciesSelect` CSS). `growMyceliumTitle(container, opts)` grows the same procedural
+  mycelium wordmark (supersampled, per-letter bloom, fringe + strays) into any element and returns
+  `{destroy()}`. Unlike the full title screen it **stops its RAF once the word is grown** (no
+  perpetual compositing) so it's cheap to reuse. `opts`: `{word, stepRate}`.
+  - **Picker:** rendered as a `.ss-title` banner ABOVE the `.ss-console` (picker root is now a flex
+    **column**); `hide()` calls `title.destroy()`. (The console's small "MYCELIUM" eyebrow is now
+    somewhat redundant with the banner — left as-is.)
+  - **Level win (`showLevelComplete`):** NO container — a randomized headline ("Success!" / "You made
+    it!" / "Yes!", uppercased) grown in mycelium over a radial-glow "lighting" backdrop, then plain
+    serif "You fruited and spored", then EITHER "New species available next run!" + the unlocked
+    species card(s) OR nothing, and always a plain black **Proceed** button (white text, no gradient).
+    Body-level overlay (`.ss-win`) re-declares the `--ss-*` palette the embedded cards need, is fully
+    opaque (`#05070d` base) so the game is hidden, z-index 1004 (below the 1006 inspector so unlocked
+    cards can still be inspected). `.ss-win-cards .ss-card` needs an explicit width (the card is
+    grid-sized in the picker; in flex it collapses). `showGameWon` still uses the old `.ss-lc` panel.
 
 - **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
