@@ -404,7 +404,12 @@ Both menus are dark, on-theme, with glowing green borders.
   legibility comes from strand density) — and each letter edge is fringed with short branch-tipped
   stray strands. Growth animation: **each letter blooms from its own single RANDOM point** (one seed
   per letter x-band), all at once, paced by a fractional step accumulator (`STEP_RATE` ~1.4/frame).
-  Fine seg + short attraction radius keeps the grid cheap. Menu is DOM (layout/a11y/grayed states),
+  Fine seg + short attraction radius keeps the grid cheap. **Scale-invariance (phones):** strand
+  density must track font size or a small (width-constrained) title renders sparse/malformed — so
+  `attractorsFromText(…, scale)` **supersamples** (draws into a `scale×` buffer → effective sample
+  step = px/scale) and `seedTitle` picks `S ≈ round(200/titleSize)` (1 on desktop, 2–3 on phone);
+  the growth `seg` floor is low (`0.5`, was `2`) so seg scales down with the title too. (The menu
+  words do the same in `sampleWord`.) Menu is DOM (layout/a11y/grayed states),
   canvas overlays it (`pointer-events:none`); title sits at `titleY≈0.47H`. Contents: **Survival** —
   large **New / Old**; **Campaign** — New / Old (grayed) + "coming soon". (Words are big,
   `clamp(40px,7vw,84px)`, tight `letter-spacing:.02em`; NEW/OLD are both 3 letters → naturally

@@ -90,7 +90,7 @@ export function showTitleScreen({ onNew, onContinue }) {
     // Fine segments + short reach + tight kill = a DENSE mat of strands that fills the
     // glyphs (the letters read from the strands alone — no fill/ghost). Short attraction
     // keeps the grid cheap so the high strand count stays smooth.
-    const seg = Math.max(2, titleSize * 0.010);
+    const seg = Math.max(0.5, titleSize * 0.010);   // scales with the title (small on narrow/portrait)
     const attract = titleSize * 0.05;
     return {
       nodes: [], segs: [], attractors: [], map: new Map(), minY: Infinity,
@@ -123,15 +123,20 @@ export function showTitleScreen({ onNew, onContinue }) {
     }
   }
 
-  // Sample white pixels from a text render into attractor points (CSS coords).
-  function attractorsFromText(drawFn, stepPx, aMin = 70, aMax = 256) {
+  // Sample white pixels from a text render into attractor points (CSS coords). `scale`
+  // supersamples: the text is drawn into a scale×W × scale×H buffer and sampled at the
+  // integer step there, giving an EFFECTIVE step of stepPx/scale — so a small title (or
+  // menu word) gets as many strands, relatively, as a big one (constant-px sampling
+  // otherwise leaves small text sparse/malformed).
+  function attractorsFromText(drawFn, stepPx, aMin = 70, aMax = 256, scale = 1) {
     const st = Math.max(2, Math.round(stepPx));        // MUST be an integer — it indexes a typed pixel array
-    const off = document.createElement('canvas'); off.width = W; off.height = H;
-    const o = off.getContext('2d'); drawFn(o);
-    const d = o.getImageData(0, 0, W, H).data, pts = [];
-    for (let y = 0; y < H; y += st) for (let x = 0; x < W; x += st) {
-      const a = d[(y * W + x) * 4 + 3];
-      if (a >= aMin && a < aMax) pts.push({ x: x + rnd(-st / 2, st / 2), y: y + rnd(-st / 2, st / 2) });
+    const cw = Math.max(1, Math.round(W * scale)), ch = Math.max(1, Math.round(H * scale));
+    const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+    const o = off.getContext('2d'); if (scale !== 1) o.scale(scale, scale); drawFn(o);
+    const d = o.getImageData(0, 0, cw, ch).data, pts = [];
+    for (let y = 0; y < ch; y += st) for (let x = 0; x < cw; x += st) {
+      const a = d[(y * cw + x) * 4 + 3];
+      if (a >= aMin && a < aMax) pts.push({ x: (x + rnd(-st / 2, st / 2)) / scale, y: (y + rnd(-st / 2, st / 2)) / scale });
     }
     return pts;
   }
@@ -139,11 +144,14 @@ export function showTitleScreen({ onNew, onContinue }) {
 
   function seedTitle() {
     g = newGrowth();
+    // Supersample small titles so strand density is ~constant relative to the title size
+    // (a fixed-px sample leaves a narrow/portrait title sparse and malformed).
+    const S = Math.max(1, Math.min(4, Math.round(200 / titleSize)));
     // dense glyph attractors → the letters are built ENTIRELY from strands (no fill)
     const pts = attractorsFromText((o) => {
       o.fillStyle = '#fff'; o.font = titleFont(titleSize); o.textAlign = 'center'; o.textBaseline = 'middle';
       o.fillText(TITLE, cx, titleY);
-    }, Math.max(2, Math.round(g.seg * 0.9)));
+    }, Math.max(2, Math.round(g.seg * 0.9)), 70, 256, S);
     g.attractors = pts;
     // ONE seed per letter — each letter grows outward from a single RANDOM point in it.
     ctx.font = titleFont(titleSize);
@@ -162,7 +170,7 @@ export function showTitleScreen({ onNew, onContinue }) {
       o.filter = 'blur(' + (titleSize * 0.028) + 'px)';
       o.fillStyle = '#fff'; o.font = titleFont(titleSize); o.textAlign = 'center'; o.textBaseline = 'middle';
       o.fillText(TITLE, cx, titleY);
-    }, Math.max(4, g.seg * 3.5), 12, 100);
+    }, Math.max(4, g.seg * 3.5), 12, 100, S);
     for (const f of fringe) g.attractors.push(f);
     // STRAY STRANDS: many SHORT filaments straying off the letter edges, each finishing
     // in a little branch/spray. Start from edge (fringe) points, grow outward, then fork.
@@ -343,8 +351,10 @@ export function showTitleScreen({ onNew, onContinue }) {
     const valid = letters.filter((l) => l.seed);
     if (!valid.length) { g.done = false; return; }
     g.attract = size * 0.05; g.attract2 = g.attract * g.attract;   // (g.cell left alone → title buckets stay valid)
-    const coarse = () => { g.seg = Math.max(1.2, size * 0.02); g.kill2 = g.seg * g.seg; };   // fast-climbing strand
-    const fine = () => { g.seg = Math.max(0.6, size * 0.009); g.kill2 = g.seg * g.seg; };    // dense letter fill
+    // seg MUST stay below the bridge spacing (≈0.0275·size) or the strand's first attractor
+    // lands inside kill2 and is eaten without advancing — the strand stalls (small fonts!).
+    const coarse = () => { g.seg = Math.max(0.7, size * 0.02); g.kill2 = g.seg * g.seg; };   // fast-climbing strand
+    const fine = () => { g.seg = Math.max(0.5, size * 0.009); g.kill2 = g.seg * g.seg; };    // dense letter fill
     // middle letter = growth point; lay ONLY the branching strand from MYCELIUM into it
     const centre = (letters.length - 1) / 2;
     const midV = valid.reduce((best, o) => Math.abs(letters.indexOf(o) - centre) < Math.abs(letters.indexOf(best) - centre) ? o : best, valid[0]);
