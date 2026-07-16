@@ -730,7 +730,7 @@
     #titleScreen .ts-block { position:absolute; left:0; right:0; display:flex; flex-direction:column; align-items:center; gap:clamp(14px,3vh,32px); }
     #titleScreen .ts-top { top:clamp(22px,6vh,64px); }
     #titleScreen .ts-bottom { bottom:clamp(22px,6vh,64px); gap:clamp(8px,1.6vh,16px); }
-    #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em;
+    #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em; line-height:1;
       text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
     /* Two equal columns: NEW right-aligned, CONTINUE left-aligned, split by a centred gap —
        so the gap CENTRE (between where NEW ends and CONTINUE begins) sits on the screen
@@ -745,8 +745,8 @@
     #titleScreen .ts-btn:hover:not(.ts-locked) { color:#fff; text-shadow:0 0 26px rgba(190,255,230,0.8); }
     #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
     #titleScreen .ts-btn.ts-fading { color:transparent !important; text-shadow:none; transition:color .22s ease, text-shadow .22s ease; }
-    #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em;
-      text-transform:uppercase; color:#333c37; margin-top:2px; }
+    #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em; line-height:1;
+      text-transform:uppercase; color:#333c37; margin-top:calc(3px - clamp(8px,1.6vh,16px)); }
 
     /* ============================================================
        Start-of-run species picker — overlay shown before a run.
