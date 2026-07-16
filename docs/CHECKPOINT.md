@@ -399,9 +399,11 @@ Both menus are dark, on-theme, with glowing green borders.
 
 - **Title screen** (`src/render/title_screen.js` — new; `main.js` boot, `species.js resetProgress`,
   `build.mjs` MODULES, `index.html` `#titleScreen`/`.ts-*` CSS). Procedural white **MYCELIUM** on
-  black: a self-contained **space-colonization** growth fills the letter glyphs with glowing white
-  filaments (+ a faint blurred "core glow" under them so the word always reads) and sends tendrils
-  outward. Menu is DOM (layout/a11y/grayed states), canvas overlays it (`pointer-events:none`):
+  black: a self-contained **space-colonization** growth fills the letter glyphs with a DENSE mat of
+  fine white filaments — the letters are made **entirely of strands** (no fill/ghost/second colour;
+  legibility comes from strand density) — and sends tendrils outward. Fine seg + short attraction
+  radius keeps the grid cheap so the high strand count stays smooth (~0.85s to grow). Menu is DOM
+  (layout/a11y/grayed states), canvas overlays it (`pointer-events:none`):
   **Survival** — New / Continue (active); **Campaign** — New / Continue (grayed) + "coming soon".
   Pressing New/Continue seeds a bridge of attractors from the title to that button and fills its
   glyph mask → the word is **consumed into mycelium**, its DOM text cross-fades out, then the screen
