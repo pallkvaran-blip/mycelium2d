@@ -41,23 +41,23 @@ export const CONFIG = {
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
     foodPileGapCells: 3,         // min separation (cells) a new pile keeps from other piles, so distinct
                                  //   piles don't merge into one blob (best-effort; falls back if no room)
-    foodEnergyMin: 3,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
-    foodEnergyMax: 5,            //   …decoupled from nutrient (see substrate.js drop())
+    foodEnergyMin: 2,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
+    foodEnergyMax: 3,            //   …decoupled from nutrient (see substrate.js drop())
     // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
     // "duff" — brown decayed leaf litter. Same food you colonise + digest, a SMALLER
     // Energy yield, and NO card draft. Cuts drafting without starving map energy; renders
     // as brown/desaturated oak-maple leaves (foodKind 'duff').
     duffClusterFraction: 0.5,    // share of drafting caches converted to duff (~half → yellow, half orange)
-    duffEnergyMin: 2,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
-    duffEnergyMax: 4,
+    duffEnergyMin: 1,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
+    duffEnergyMax: 2,
     // ENGINE caches: rarer, high-value RED-leaf litter piles that draft an ENGINE card
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
     engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
     engineClusterMax: 3,
-    engineEnergyMin: 4,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
-    engineEnergyMax: 7,
+    engineEnergyMin: 3,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
+    engineEnergyMax: 4,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)

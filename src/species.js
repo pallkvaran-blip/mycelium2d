@@ -80,17 +80,17 @@ export const MAX_LEVEL = 11;
 // index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
 export const LEVEL_THREATS = [
   null,
-  { ants: 1, nematodes: 1, trych: 1 },   // 1
-  { ants: 1, nematodes: 2, trych: 2 },   // 2
-  { ants: 2, nematodes: 3, trych: 2 },   // 3
-  { ants: 2, nematodes: 3, trych: 3 },   // 4
-  { ants: 2, nematodes: 4, trych: 3 },   // 5
-  { ants: 2, nematodes: 4, trych: 4 },   // 6
-  { ants: 3, nematodes: 4, trych: 4 },   // 7
-  { ants: 3, nematodes: 5, trych: 4 },   // 8
-  { ants: 3, nematodes: 5, trych: 5 },   // 9
-  { ants: 4, nematodes: 5, trych: 5 },   // 10
-  { ants: 6, nematodes: 6, trych: 6 },   // 11
+  { ants: 1, nematodes: 1,  trych: 1 },   // 1
+  { ants: 2, nematodes: 2,  trych: 2 },   // 2
+  { ants: 3, nematodes: 3,  trych: 3 },   // 3
+  { ants: 3, nematodes: 4,  trych: 4 },   // 4
+  { ants: 3, nematodes: 5,  trych: 5 },   // 5
+  { ants: 4, nematodes: 6,  trych: 6 },   // 6
+  { ants: 4, nematodes: 7,  trych: 7 },   // 7
+  { ants: 4, nematodes: 8,  trych: 8 },   // 8
+  { ants: 5, nematodes: 9,  trych: 9 },   // 9
+  { ants: 5, nematodes: 10, trych: 10 },  // 10
+  { ants: 6, nematodes: 11, trych: 11 },  // 11
 ];
 
 export function threatsForLevel(level) {

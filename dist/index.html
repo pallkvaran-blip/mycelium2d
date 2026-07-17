@@ -1047,8 +1047,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "xvb759";
-globalThis.__BUILD__ = "local 07-17 15:34";
+window.__ASSET_VER = "1l9j6dl";
+globalThis.__BUILD__ = "local 07-17 15:45";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1095,23 +1095,23 @@ const CONFIG = {
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
     foodPileGapCells: 3,         // min separation (cells) a new pile keeps from other piles, so distinct
                                  //   piles don't merge into one blob (best-effort; falls back if no room)
-    foodEnergyMin: 3,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
-    foodEnergyMax: 5,            //   …decoupled from nutrient (see substrate.js drop())
+    foodEnergyMin: 2,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
+    foodEnergyMax: 3,            //   …decoupled from nutrient (see substrate.js drop())
     // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
     // "duff" — brown decayed leaf litter. Same food you colonise + digest, a SMALLER
     // Energy yield, and NO card draft. Cuts drafting without starving map energy; renders
     // as brown/desaturated oak-maple leaves (foodKind 'duff').
     duffClusterFraction: 0.5,    // share of drafting caches converted to duff (~half → yellow, half orange)
-    duffEnergyMin: 2,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
-    duffEnergyMax: 4,
+    duffEnergyMin: 1,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
+    duffEnergyMax: 2,
     // ENGINE caches: rarer, high-value RED-leaf litter piles that draft an ENGINE card
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
     engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
     engineClusterMax: 3,
-    engineEnergyMin: 4,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
-    engineEnergyMax: 7,
+    engineEnergyMin: 3,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
+    engineEnergyMax: 4,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
@@ -2607,17 +2607,17 @@ const MAX_LEVEL = 11;
 // index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
 const LEVEL_THREATS = [
   null,
-  { ants: 1, nematodes: 1, trych: 1 },   // 1
-  { ants: 1, nematodes: 2, trych: 2 },   // 2
-  { ants: 2, nematodes: 3, trych: 2 },   // 3
-  { ants: 2, nematodes: 3, trych: 3 },   // 4
-  { ants: 2, nematodes: 4, trych: 3 },   // 5
-  { ants: 2, nematodes: 4, trych: 4 },   // 6
-  { ants: 3, nematodes: 4, trych: 4 },   // 7
-  { ants: 3, nematodes: 5, trych: 4 },   // 8
-  { ants: 3, nematodes: 5, trych: 5 },   // 9
-  { ants: 4, nematodes: 5, trych: 5 },   // 10
-  { ants: 6, nematodes: 6, trych: 6 },   // 11
+  { ants: 1, nematodes: 1,  trych: 1 },   // 1
+  { ants: 2, nematodes: 2,  trych: 2 },   // 2
+  { ants: 3, nematodes: 3,  trych: 3 },   // 3
+  { ants: 3, nematodes: 4,  trych: 4 },   // 4
+  { ants: 3, nematodes: 5,  trych: 5 },   // 5
+  { ants: 4, nematodes: 6,  trych: 6 },   // 6
+  { ants: 4, nematodes: 7,  trych: 7 },   // 7
+  { ants: 4, nematodes: 8,  trych: 8 },   // 8
+  { ants: 5, nematodes: 9,  trych: 9 },   // 9
+  { ants: 5, nematodes: 10, trych: 10 },  // 10
+  { ants: 6, nematodes: 11, trych: 11 },  // 11
 ];
 
 function threatsForLevel(level) {

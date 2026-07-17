@@ -116,14 +116,15 @@ cards — that's why you detour.
 > `engineClusterMin/Max`, `duffClusterFraction`, `duffEnergyMin/Max`, `foodEnergyMin/Max`.
 >
 > **ECONOMY TUNE (2026-07-17) — current per-map counts + Energy (supersedes above).** Tightened:
-> · **RED** engine cache — **1–3**/map, Energy **4–7** (`engineClusterMin/Max`, `engineEnergyMin/Max`) — highest tier, drafts an Engine.
-> · **ORANGE** route cache — **5–7**/map, Energy **3–5** (`foodEnergyMin/Max`) — drafts a Basic/Event.
-> · **YELLOW** "duff" (was brown) — **5–7**/map, Energy **2–4** (`duffEnergyMin/Max`) — Energy only, NO draft.
+> · **RED** engine cache — **1–3**/map, Energy **3–4** (`engineClusterMin/Max`, `engineEnergyMin/Max`) — highest tier, drafts an Engine.
+> · **ORANGE** route cache — **5–7**/map, Energy **2–3** (`foodEnergyMin/Max`) — drafts a Basic/Event.
+> · **YELLOW** "duff" (was brown) — **5–7**/map, Energy **1–2** (`duffEnergyMin/Max`) — Energy only, NO draft.
 > Counts come from `foodClusterCount = 8` route caches + one per rock column/lake, then a
 > `duffClusterFraction = 0.5` even split → ~half yellow, half orange (measured 50 seeds:
-> orange 5–7 avg 5.7, yellow 5–7 avg 6.3, red 1–3 avg 2.1; each colour's Energy within range).
-> Engine Energy roll is per-KIND in `substrate.drop()`. Also **removed the per-turn baseline Energy
-> trickle** (`energy.baselineTrickle` 1 → 0) — income is now purely from colonising food.
+> orange 5–7 avg 5.7, yellow 5–7 avg 6.3, red 1–3 avg 2.1; each colour's Energy within range —
+> yellow avg 1.5 E, orange 2.5, red 3.4). Engine Energy roll is per-KIND in `substrate.drop()`.
+> Also **removed the per-turn baseline Energy trickle** (`energy.baselineTrickle` 1 → 0) — income
+> is now purely from colonising food.
 
 **Resources:** harvest is one-time from routing — lake tap +3 W (~3 charges), mineral +3 P
 (~3 charges), eating a nematode +2 N. Resource engines produce +1/round (rare +2). Resources

@@ -5,7 +5,7 @@ rock-punch cards/actions (Appressorial Punch, Tap-Root Rhizomorph) now use the S
 as the grow cards — `punchThrough` takes a separate aim point (press seeds the rock search along the aim
 ray, drag sets the bore direction); single-tap still works. Low-value **duff** leaf piles are now
 DOMINANTLY YELLOW (new `leafYellow*` sprites) with a few brown/dark-brown mixed in, so they read against
-the brown soil — see §9. — earlier: **economy/collision pass:** map food piles pay a small FIXED Energy each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged. **Per-map (2026-07-17 tune):** 🟡 YELLOW duff **5–7** (Energy 2–4, no draft) · 🟠 ORANGE cache **5–7** (Energy 3–5, Basic/Event draft) · 🔴 RED engine **1–3** (Energy 4–7, Engine draft); **no per-turn trickle** (`baselineTrickle` 0 — income only from colonising food) · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+the brown soil — see §9. — earlier: **economy/collision pass:** map food piles pay a small FIXED Energy each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged. **Per-map (2026-07-17 tune):** 🟡 YELLOW duff **5–7** (Energy 1–2, no draft) · 🟠 ORANGE cache **5–7** (Energy 2–3, Basic/Event draft) · 🔴 RED engine **1–3** (Energy 3–4, Engine draft); **no per-turn trickle** (`baselineTrickle` 0 — income only from colonising food) · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -215,8 +215,8 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   oak/maple sprites pushed **brown & desaturated** (`brightness(0.6) saturate(0.5)
   sepia(0.6)`), a slightly smaller/flatter heap (9 pieces vs 11, base 0.52 vs 0.64) so
   it reads as spent, lower-value litter. **Energy only — NO card draft** (`cards.js
-  checkPileRewards` skips `kind==='duff'`); yields a smaller fixed **1–4 Energy** vs the
-  drafting piles' 1–8. Not placed directly: `drop()` still stamps every route/feature
+  checkPileRewards` skips `kind==='duff'`); yields a smaller fixed **1–2 Energy** vs the
+  drafting piles' 2–4. Not placed directly: `drop()` still stamps every route/feature
   cache as `kind='normal'`, then a **DUFF PASS** in `generate()` down-tiers a fraction
   (`substrate.duffClusterFraction` = 0.55, ~6–8/map) of the normal piles to `kind='duff'`
   — spread evenly left→right so low- and high-value piles alternate. Purpose: cut
@@ -237,7 +237,7 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   card**. Set in `deposit()` (never downgrades an existing `cache`).
 
 **Food ENERGY is decoupled from nutrient** (per-cell `cell.energyPerNutrient`). Every map pile is
-worth a small FIXED **1–8 Energy** (`pile.energyValue`, rolled in `drop()`), spread across its cells
+worth a small FIXED **1–4 Energy** (`pile.energyValue`, rolled in `drop()`), spread across its cells
 so draining the whole pile yields exactly that value. The **nutrient** amount (50/cell,
 `foodCellNutrient`) is UNCHANGED and still solely drives **attraction, threat-eating time, and
 colonisation timing** — only the Energy yield is small now. Every food→energy path multiplies drained
@@ -436,6 +436,14 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Energy trim + new threat curve** (`src/config.js`, `src/species.js`). Follow-up pass on the tune
+  below: leaf Energy lowered another step (counts unchanged) to 🟡 duff Energy **1–2** (`duffEnergyMin/Max`
+  2–4→1–2), 🟠 orange Energy **2–3** (`foodEnergyMin/Max` 3–5→2–3), 🔴 red engine Energy **3–4**
+  (`engineEnergyMin/Max` 4–7→3–4). Counts still 🟡 5–7 / 🟠 5–7 / 🔴 1–3; verified across 50 seeds
+  (yellow avg 1.5 E, orange 2.5, red 3.4; counts in range). **New enemy progression** (`LEVEL_THREATS`,
+  ants/nematodes/mould): L1 1/1/1, L2 2/2/2, L3 3/3/3, L4 3/4/4, L5 3/5/5, L6 4/6/6, L7 4/7/7, L8 4/8/8,
+  L9 5/9/9, L10 5/10/10, L11 6/11/11 — ants ramp slowest (cap 6), worms + mould climb to 11.
 
 - **Economy tune + no trickle** (`src/config.js`, `src/engine/substrate.js drop()`). Per-map food
   counts + Energy tightened to: 🟡 duff **5–7** / Energy **2–4**, 🟠 orange **5–7** / Energy **3–5**,
@@ -773,7 +781,8 @@ Both menus are dark, on-theme, with glowing green borders.
   `src/render/species_select.js`, `src/main.js`, `src/render/ui.js`, `index.html`; commit `0989061`).
   A run is now a ladder of **11 procedurally-generated levels**; maps stay procedural, only the
   **threat counts scale per level** (owner table in `species.js LEVEL_THREATS`: e.g. L1 = 1 ant /
-  1 nematode / 1 mould … L11 = 6/6/6). `main.js configForLevel(level)` clones CONFIG and sets
+  1 nematode / 1 mould … L11 = 6 ants / 11 nematodes / 11 mould — ants scale slowest). `main.js
+  configForLevel(level)` clones CONFIG and sets
   `ants.nestCount` / `nematodes.initialCount` / `trichoderma.initialPatches`.
   - **Carry between levels:** winning a level transplants the whole `state.cards` (hand/draw/discard/
     engines/actions/draftable) + resource pools onto the next map (`snapshotCarry`/`applyCarry`;
