@@ -1354,9 +1354,8 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     const pick = _hashf(col * 5.9 + k * 3.7, row * 8.3 + k * 9.1);
     let img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
     if (!img) continue;
-    // Per-piece look. Duff is DOMINANTLY yellow (the leaves are already gold) with a
-    // few pieces tinted mid-brown and a couple dark-brown (a dedicated dark leaf when
-    // loaded) mixed in, so a decayed-litter heap gains internal variety yet still
+    // Per-piece look. Duff is PURELY yellow/gold (the leaves are already gold, drawn
+    // from YELLOW_LEAF_KEYS) — the earlier brown/dark-brown mix was removed so the heap
     // reads clearly against the brown soil. Nuts are muted + slightly translucent.
     let filter = null, alpha = isNut ? 0.9 : 1;
     if (isNut) filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';

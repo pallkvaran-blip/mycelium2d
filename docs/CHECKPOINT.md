@@ -1,11 +1,14 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-17 (**punch aimer + yellow duff leaves:** the
+_Living status + knowledge doc. Last updated: 2026-07-17 (**energy + threat tune:** leaf Energy trimmed
+another step to 🟡 duff **1–2** / 🟠 orange **2–3** / 🔴 red **3–4** (per-map counts unchanged: 5–7 / 5–7 /
+1–3); **new enemy curve** (`species.js LEVEL_THREATS`, ants/nematodes/mould): L1 1/1/1 → L11 6/11/11, ants
+ramp slowest (cap 6) — see §9. — earlier: **punch aimer + yellow duff leaves:** the
 rock-punch cards/actions (Appressorial Punch, Tap-Root Rhizomorph) now use the SAME press-and-drag aimer
 as the grow cards — `punchThrough` takes a separate aim point (press seeds the rock search along the aim
 ray, drag sets the bore direction); single-tap still works. Low-value **duff** leaf piles are now
-DOMINANTLY YELLOW (new `leafYellow*` sprites) with a few brown/dark-brown mixed in, so they read against
-the brown soil — see §9. — earlier: **economy/collision pass:** map food piles pay a small FIXED Energy each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged. **Per-map (2026-07-17 tune):** 🟡 YELLOW duff **5–7** (Energy 1–2, no draft) · 🟠 ORANGE cache **5–7** (Energy 2–3, Basic/Event draft) · 🔴 RED engine **1–3** (Energy 3–4, Engine draft); **no per-turn trickle** (`baselineTrickle` 0 — income only from colonising food) · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+ALL YELLOW (5 `leafYellow*` sprites — Hophornbeam/Sassafras/Mulberry/Redbud/Sycamore; the earlier
+brown/dark-brown mix was removed), so they read against the brown soil — see §9. — earlier: **economy/collision pass:** map food piles pay a small FIXED Energy each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged. **Per-map (2026-07-17 tune):** 🟡 YELLOW duff **5–7** (Energy 1–2, no draft) · 🟠 ORANGE cache **5–7** (Energy 2–3, Basic/Event draft) · 🔴 RED engine **1–3** (Energy 3–4, Engine draft); **no per-turn trickle** (`baselineTrickle` 0 — income only from colonising food) · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -211,14 +214,16 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 - **`cache`** — map-placed NORMAL food (leaf litter). Rendered as **orange oak/maple
   leaf** sprites. Finishing a cache pile drafts a **Basic/Event** card. Set in
   `drop()` with `kind='normal'` (its `foodPiles` entry has `kind:'normal'`).
-- **`duff`** — map-placed LOW-VALUE food (decayed leaf mould). Rendered as the SAME
-  oak/maple sprites pushed **brown & desaturated** (`brightness(0.6) saturate(0.5)
-  sepia(0.6)`), a slightly smaller/flatter heap (9 pieces vs 11, base 0.52 vs 0.64) so
-  it reads as spent, lower-value litter. **Energy only — NO card draft** (`cards.js
+- **`duff`** — map-placed LOW-VALUE food (decayed leaf mould). Rendered from a dedicated
+  **all-yellow/gold** autumn-leaf set (`YELLOW_LEAF_KEYS` in main.js — Hophornbeam/Sassafras/
+  Mulberry/Redbud/Sycamore), kept vivid (`saturate(1.08) brightness(1.03)`) against the brown
+  soil; a slightly smaller/flatter heap (9 pieces vs 11, base 0.52 vs 0.64) so it reads as
+  spent, lower-value litter. (The earlier brown-pushed / brown-mixed look was removed.)
+  **Energy only — NO card draft** (`cards.js
   checkPileRewards` skips `kind==='duff'`); yields a smaller fixed **1–2 Energy** vs the
   drafting piles' 2–4. Not placed directly: `drop()` still stamps every route/feature
   cache as `kind='normal'`, then a **DUFF PASS** in `generate()` down-tiers a fraction
-  (`substrate.duffClusterFraction` = 0.55, ~6–8/map) of the normal piles to `kind='duff'`
+  (`substrate.duffClusterFraction` = 0.5, ~5–7/map) of the normal piles to `kind='duff'`
   — spread evenly left→right so low- and high-value piles alternate. Purpose: cut
   drafting (there were too many orange piles) without starving map Energy.
 - **`cache-engine`** — map-placed ENGINE food, a rarer high-value pile. Rendered as
@@ -243,7 +248,7 @@ so draining the whole pile yields exactly that value. The **nutrient** amount (5
 colonisation timing** — only the Energy yield is small now. Every food→energy path multiplies drained
 nutrient by `cell.energyPerNutrient` (falling back to `energy.incomeEfficiency` for player-dropped
 caches, which have none set): `turn.js` passive drain, the Digest action, and the pile-tap "+N⚡"
-floater + `pile.finishEnergy` display. `foodClusterCount` = 11 (~25% fewer route caches than the old 14).
+floater + `pile.finishEnergy` display. `foodClusterCount` = 8 (route caches, before the duff down-tier + feature caches).
 `drop()` merges ALL same-kind piles a drop overlaps into one (no cell shared between piles).
 
 Rendering lives in `main.js drawSubstrateLeaves` → `_drawLeafHeap(sets, col, row,
@@ -1534,8 +1539,9 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
-- **Food Energy is decoupled from nutrient — keep it that way.** Map piles pay a fixed 1–8 Energy via
-  per-cell `cell.energyPerNutrient`; `nutrient` (50/cell) exists ONLY for attraction / threat-eating /
+- **Food Energy is decoupled from nutrient — keep it that way.** Map piles pay a fixed 1–4 Energy via
+  per-cell `cell.energyPerNutrient` (by kind: yellow duff 1–2, orange 2–3, red engine 3–4); `nutrient`
+  (50/cell) exists ONLY for attraction / threat-eating /
   colonisation timing / the draft trigger. If you ever go back to `nutrient × incomeEfficiency` for map
   piles you'll re-inflate Energy AND (if you also touch nutrient to compensate) break threat/attraction
   timing. All food→energy sites (`turn.js` drain, Digest action, `Saprotrophic Digest`, `pile.finishEnergy`,
