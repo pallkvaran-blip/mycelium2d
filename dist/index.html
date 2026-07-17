@@ -741,9 +741,12 @@
     #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
     #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
-    /* Campaign + "coming soon" stacked in the centre column, so "coming soon" sits
-       directly beneath CAMPAIGN (not below the tall NEW/OLD baseline). */
-    #titleScreen .ts-modewrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    /* Campaign in the centre column, CENTRED on the NEW/OLD midline (matching SURVIVAL
+       in the top row); "coming soon" is tucked directly beneath it (absolute, so it
+       doesn't shift CAMPAIGN off-centre). */
+    #titleScreen .ts-modewrap { position:relative; display:flex; flex-direction:column; align-items:center; }
+    #titleScreen .ts-modewrap > .ts-soon { position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      margin-top:6px; white-space:nowrap; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(40px,7vw,84px); letter-spacing:.02em; text-indent:.02em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
@@ -1044,8 +1047,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1vb8qsu";
-globalThis.__BUILD__ = "local 07-17 14:24";
+window.__ASSET_VER = "1ardtqx";
+globalThis.__BUILD__ = "local 07-17 14:32";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12185,9 +12188,9 @@ function drawTerrainAssets() {
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
 const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
-// DUFF piles: golden/yellow leaves are the DOMINANT colour (they read against the
-// brown soil), with leafDuffBrown as the dark-brown minority (see _drawLeafHeap).
-const YELLOW_LEAF_KEYS = ['leafYellowGinkgo', 'leafYellowMaple', 'leafYellowPoplar', 'leafYellowAspen', 'leafYellowElm'];
+// DUFF piles: the yellowest leaf set (the owner's top-row pick) — reads clearly
+// yellow against the brown soil and distinct from the orange cache piles.
+const YELLOW_LEAF_KEYS = ['leafYellowHophornbeam', 'leafYellowSassafras', 'leafYellowMulberry', 'leafYellowRedbud', 'leafYellowSycamore'];
 function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
@@ -12195,11 +12198,10 @@ function _leafSets() {
   // ENGINE caches: a mix drawn from ALL SIX red/autumn leaves so each pile reads
   // as its own varied red litter (the heap picks a leaf per piece from this set).
   const red = RED_LEAF_KEYS.map(asset).filter(Boolean);
-  // DUFF caches: the yellow/gold set (dominant) + one dark-brown leaf for the minority.
+  // DUFF caches: the yellow leaf set (see YELLOW_LEAF_KEYS).
   const yellow = YELLOW_LEAF_KEYS.map(asset).filter(Boolean);
-  const duffDark = asset('leafDuffBrown') || null;
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, duffDark, nuts: nutSet.length ? nutSet : null };
+  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, nuts: nutSet.length ? nutSet : null };
 }
 
 // Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The

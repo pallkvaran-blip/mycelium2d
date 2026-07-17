@@ -740,9 +740,12 @@
     #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
     #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
-    /* Campaign + "coming soon" stacked in the centre column, so "coming soon" sits
-       directly beneath CAMPAIGN (not below the tall NEW/OLD baseline). */
-    #titleScreen .ts-modewrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
+    /* Campaign in the centre column, CENTRED on the NEW/OLD midline (matching SURVIVAL
+       in the top row); "coming soon" is tucked directly beneath it (absolute, so it
+       doesn't shift CAMPAIGN off-centre). */
+    #titleScreen .ts-modewrap { position:relative; display:flex; flex-direction:column; align-items:center; }
+    #titleScreen .ts-modewrap > .ts-soon { position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      margin-top:6px; white-space:nowrap; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(40px,7vw,84px); letter-spacing:.02em; text-indent:.02em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }

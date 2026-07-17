@@ -1297,9 +1297,9 @@ function drawTerrainAssets() {
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
 const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
-// DUFF piles: golden/yellow leaves are the DOMINANT colour (they read against the
-// brown soil), with leafDuffBrown as the dark-brown minority (see _drawLeafHeap).
-const YELLOW_LEAF_KEYS = ['leafYellowGinkgo', 'leafYellowMaple', 'leafYellowPoplar', 'leafYellowAspen', 'leafYellowElm'];
+// DUFF piles: the yellowest leaf set (the owner's top-row pick) — reads clearly
+// yellow against the brown soil and distinct from the orange cache piles.
+const YELLOW_LEAF_KEYS = ['leafYellowHophornbeam', 'leafYellowSassafras', 'leafYellowMulberry', 'leafYellowRedbud', 'leafYellowSycamore'];
 function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
@@ -1307,11 +1307,10 @@ function _leafSets() {
   // ENGINE caches: a mix drawn from ALL SIX red/autumn leaves so each pile reads
   // as its own varied red litter (the heap picks a leaf per piece from this set).
   const red = RED_LEAF_KEYS.map(asset).filter(Boolean);
-  // DUFF caches: the yellow/gold set (dominant) + one dark-brown leaf for the minority.
+  // DUFF caches: the yellow leaf set (see YELLOW_LEAF_KEYS).
   const yellow = YELLOW_LEAF_KEYS.map(asset).filter(Boolean);
-  const duffDark = asset('leafDuffBrown') || null;
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, duffDark, nuts: nutSet.length ? nutSet : null };
+  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, nuts: nutSet.length ? nutSet : null };
 }
 
 // Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The

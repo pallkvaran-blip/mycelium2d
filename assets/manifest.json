@@ -42,33 +42,28 @@
    "kind": "sprite"
   },
   {
-   "key": "leafYellowGinkgo",
-   "file": "leafYellowGinkgo.png",
+   "key": "leafYellowHophornbeam",
+   "file": "leafYellowHophornbeam.png",
    "kind": "sprite"
   },
   {
-   "key": "leafYellowMaple",
-   "file": "leafYellowMaple.png",
+   "key": "leafYellowSassafras",
+   "file": "leafYellowSassafras.png",
    "kind": "sprite"
   },
   {
-   "key": "leafYellowPoplar",
-   "file": "leafYellowPoplar.png",
+   "key": "leafYellowMulberry",
+   "file": "leafYellowMulberry.png",
    "kind": "sprite"
   },
   {
-   "key": "leafYellowAspen",
-   "file": "leafYellowAspen.png",
+   "key": "leafYellowRedbud",
+   "file": "leafYellowRedbud.png",
    "kind": "sprite"
   },
   {
-   "key": "leafYellowElm",
-   "file": "leafYellowElm.png",
-   "kind": "sprite"
-  },
-  {
-   "key": "leafDuffBrown",
-   "file": "leafDuffBrown.png",
+   "key": "leafYellowSycamore",
+   "file": "leafYellowSycamore.png",
    "kind": "sprite"
   },
   {
