@@ -739,7 +739,10 @@
       column-gap:clamp(20px,4vw,64px); width:min(820px,92vw); margin:0 auto; }
     #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
-    #titleScreen .ts-actions > .ts-mode { justify-self:center; }
+    #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
+    /* Campaign + "coming soon" stacked in the centre column, so "coming soon" sits
+       directly beneath CAMPAIGN (not below the tall NEW/OLD baseline). */
+    #titleScreen .ts-modewrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(40px,7vw,84px); letter-spacing:.02em; text-indent:.02em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
@@ -747,7 +750,7 @@
     #titleScreen .ts-btn.ts-locked { color:#39433d; cursor:default; pointer-events:none; text-shadow:none; }
     #titleScreen .ts-btn.ts-fading { color:transparent !important; text-shadow:none; transition:color .22s ease, text-shadow .22s ease; }
     #titleScreen .ts-soon { font-size:clamp(11px,1.4vw,13px); letter-spacing:.3em; text-indent:.3em; line-height:1;
-      text-transform:uppercase; color:#333c37; margin-top:calc(3px - clamp(8px,1.6vh,16px)); }
+      text-transform:uppercase; color:#5f7a68; }
     /* "Start a new game?" confirm — plain black & white, no gradients. */
     #titleScreen .ts-confirm { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
       background:rgba(0,0,0,0.72); padding:24px; animation:tsConfirmIn .18s ease both; }

@@ -2167,34 +2167,15 @@ const MOUNTAIN_PEAK_KEYS = ['mountain1', 'mountain2', 'mountain3', 'mountain4', 
 const MOUNTAIN_RANGE_KEYS = ['range1', 'range2'];   // wide ranges used as a distant backdrop
 const MOUNTAIN_W_MIN = 10;         // narrowest foreground mountain (tiles)
 const MOUNTAIN_W_MAX = 40;         // widest foreground mountain (tiles)
-const MOUNTAIN_EMBED_FRAC = 0.34;  // foreground: bury the base, clip to soil line so the peak emerges
+// Foreground peaks: the mountain sprites are full triangles whose BASE fills the
+// image width, so their slopes hit the left/right edges in the lower ~half — drawn
+// with a shallow embed that reads as a mountain CUT OFF at the sides. Fix by SIZING
+// + PLACEMENT: draw the peaks bigger and bury MORE of the base below the soil line,
+// so only the naturally-tapering UPPER peak (transparent sky on its sides) emerges —
+// the soil line reads as the horizon hiding the wide base. No side-fade needed.
+const MOUNTAIN_EMBED_FRAC = 0.5;   // foreground: bury the base + full-width lower slopes; only the peak emerges
+const MOUNTAIN_SIZE = 1.32;        // …drawn bigger so the emergent upper peak still reads large
 const RANGE_EMBED_FRAC = 0.76;     // background range: bury most of it so only a low distant skyline shows
-
-// Some peak sprites (mountain1/3/5) are opaque all the way to their left/right image
-// edges, so drawn straight they read as a mountain CUT OFF with a hard vertical edge.
-// Feather the outer ~14% of each side to transparent (baked once per sprite, cached)
-// so every peak's flanks dissolve into the night haze instead of ending in a wall.
-const _featherCache = new Map();
-function featheredPeak(img) {
-  const key = img.src || img;
-  let c = _featherCache.get(key);
-  if (c) return c;
-  c = document.createElement('canvas');
-  c.width = img.width; c.height = img.height;
-  const g = c.getContext('2d');
-  g.drawImage(img, 0, 0);
-  const m = Math.max(1, Math.round(img.width * 0.14));
-  g.globalCompositeOperation = 'destination-out';
-  let grad = g.createLinearGradient(0, 0, m, 0);
-  grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = grad; g.fillRect(0, 0, m, img.height);
-  grad = g.createLinearGradient(img.width - m, 0, img.width, 0);
-  grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,1)');
-  g.fillStyle = grad; g.fillRect(img.width - m, 0, m, img.height);
-  g.globalCompositeOperation = 'source-over';
-  _featherCache.set(key, c);
-  return c;
-}
 
 // Mountains are drawn in two layers: a single wide RANGE spanning the whole map
 // as a distant, dimmed backdrop, then the foreground single PEAKS overlaid at the
@@ -2265,7 +2246,7 @@ function drawMountains() {
     const aspect = img.height / img.width;
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);
-    let sw = cs * run.wCells * z;
+    let sw = cs * run.wCells * z * MOUNTAIN_SIZE;
     if (hasLake) {
       if (s.x <= lakeL) {                          // peak left of the lake: end at its left edge
         sw = Math.min(sw, Math.max(0, 2 * (lakeL - GAP - s.x)));
@@ -2289,7 +2270,7 @@ function drawMountains() {
     ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
     ctx.clip();
     ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
-    ctx.drawImage(featheredPeak(img), s.x - sw / 2, by - sh, sw, sh);   // feathered sides — no hard cut-off
+    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
     ctx.restore();
   });
 }

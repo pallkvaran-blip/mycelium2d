@@ -37,10 +37,9 @@ export function showTitleScreen({ onNew, onContinue }) {
       '<div class="ts-block ts-bottom">' +
         '<div class="ts-actions">' +
           '<span class="ts-btn ts-locked">New</span>' +
-          '<div class="ts-mode ts-locked">Campaign</div>' +
+          '<div class="ts-modewrap"><div class="ts-mode ts-locked">Campaign</div><div class="ts-soon">coming soon</div></div>' +
           '<span class="ts-btn ts-locked">Old</span>' +
         '</div>' +
-        '<div class="ts-soon">coming soon</div>' +
       '</div>' +
     '</div>';
   document.body.appendChild(root);
