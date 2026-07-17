@@ -114,6 +114,16 @@ cards — that's why you detour.
 > the normal piles to duff, giving ~**7 duff / ~5–6 orange / 1–3 red** per map — drafting piles
 > roughly **halved** without cutting map Energy. Tunables: `substrate.foodClusterCount`,
 > `engineClusterMin/Max`, `duffClusterFraction`, `duffEnergyMin/Max`, `foodEnergyMin/Max`.
+>
+> **ECONOMY TUNE (2026-07-17) — current per-map counts + Energy (supersedes above).** Tightened:
+> · **RED** engine cache — **1–3**/map, Energy **4–7** (`engineClusterMin/Max`, `engineEnergyMin/Max`) — highest tier, drafts an Engine.
+> · **ORANGE** route cache — **5–7**/map, Energy **3–5** (`foodEnergyMin/Max`) — drafts a Basic/Event.
+> · **YELLOW** "duff" (was brown) — **5–7**/map, Energy **2–4** (`duffEnergyMin/Max`) — Energy only, NO draft.
+> Counts come from `foodClusterCount = 8` route caches + one per rock column/lake, then a
+> `duffClusterFraction = 0.5` even split → ~half yellow, half orange (measured 50 seeds:
+> orange 5–7 avg 5.7, yellow 5–7 avg 6.3, red 1–3 avg 2.1; each colour's Energy within range).
+> Engine Energy roll is per-KIND in `substrate.drop()`. Also **removed the per-turn baseline Energy
+> trickle** (`energy.baselineTrickle` 1 → 0) — income is now purely from colonising food.
 
 **Resources:** harvest is one-time from routing — lake tap +3 W (~3 charges), mineral +3 P
 (~3 charges), eating a nematode +2 N. Resource engines produce +1/round (rare +2). Resources

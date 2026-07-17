@@ -34,21 +34,21 @@ export const CONFIG = {
     startCols: 2,                // width of the left entry zone (cols)
     barrierSegMinCols: 4,        // min run-length of one barrier-terrain segment
     barrierSegMaxCols: 10,       // max run-length (concrete / mountain / lake)
-    foodClusterCount: 11,        // caches along the route — ~25% fewer than the old 14
+    foodClusterCount: 8,         // caches along the route (before duff down-tier + feature caches)
     foodClusterRadiusMin: 1,     // small stepping-stone pockets (don't sink the node budget)
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
     foodPileGapCells: 3,         // min separation (cells) a new pile keeps from other piles, so distinct
                                  //   piles don't merge into one blob (best-effort; falls back if no room)
-    foodEnergyMin: 1,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
-    foodEnergyMax: 8,            //   …decoupled from nutrient (see substrate.js drop())
+    foodEnergyMin: 3,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
+    foodEnergyMax: 5,            //   …decoupled from nutrient (see substrate.js drop())
     // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
     // "duff" — brown decayed leaf litter. Same food you colonise + digest, a SMALLER
     // Energy yield, and NO card draft. Cuts drafting without starving map energy; renders
     // as brown/desaturated oak-maple leaves (foodKind 'duff').
-    duffClusterFraction: 0.55,   // share of drafting caches converted to duff (~6 of 11)
-    duffEnergyMin: 1,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
+    duffClusterFraction: 0.5,    // share of drafting caches converted to duff (~half → yellow, half orange)
+    duffEnergyMin: 2,            // a duff pile's fixed Energy value is a roll in [min,max] — lower than orange
     duffEnergyMax: 4,
     // ENGINE caches: rarer, high-value RED-leaf litter piles that draft an ENGINE card
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
@@ -56,6 +56,8 @@ export const CONFIG = {
     // climb UP (away from the goal) to reach these valuable piles.
     engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
     engineClusterMax: 3,
+    engineEnergyMin: 4,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
+    engineEnergyMax: 7,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
     engineSurfaceRows: 2,        // "near surface" band: rows [0, this] below the surface
     engineDeepChance: 0.25,      // fraction placed deeper (not all right at the surface)
@@ -108,7 +110,7 @@ export const CONFIG = {
   // ---- Resources (A3, B3) -------------------------------------------------
   energy: {
     start: 50,                   // starting Energy (SLIDER) — tight: ~3 draws or 4 skips before you must feed
-    baselineTrickle: 1,          // tiny per-action free trickle (you depend on colonising food)
+    baselineTrickle: 0,          // no free per-turn trickle — energy comes only from colonising food
     passiveIncomeRate: 25,       // nutrient pulled from each colonised cell/turn — a fully-colonised pile (50/cell) empties in 2 steps (SLIDER)
     incomeEfficiency: 0.6,       // Energy gained per unit nutrient consumed
   },

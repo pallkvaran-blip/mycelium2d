@@ -575,7 +575,14 @@ export function generateSubstrate(config, rng) {
         for (const idx of hit[i].cells) if (!pile.cells.includes(idx)) pile.cells.push(idx);
         const j = sub.foodPiles.indexOf(hit[i]); if (j >= 0) sub.foodPiles.splice(j, 1);
       }
-    } else { pile = { cells, rewarded: false, kind, energyValue: rng.int(s.foodEnergyMin != null ? s.foodEnergyMin : 1, s.foodEnergyMax != null ? s.foodEnergyMax : 8) }; sub.foodPiles.push(pile); }
+    } else {
+      // Fixed per-pile Energy roll, per KIND: engine (red) is the highest tier, normal
+      // (orange) mid. Duff (yellow) is re-rolled lower in the DUFF pass below.
+      const eMin = kind === 'engine' ? (s.engineEnergyMin != null ? s.engineEnergyMin : 4) : (s.foodEnergyMin != null ? s.foodEnergyMin : 1);
+      const eMax = kind === 'engine' ? (s.engineEnergyMax != null ? s.engineEnergyMax : 7) : (s.foodEnergyMax != null ? s.foodEnergyMax : 8);
+      pile = { cells, rewarded: false, kind, energyValue: rng.int(eMin, eMax) };
+      sub.foodPiles.push(pile);
+    }
     // A map pile is worth a small FIXED Energy value (1..8), decoupled from its nutrient.
     // Spread that value across the pile's cells as energy-per-nutrient so draining the whole
     // pile yields exactly energyValue — while the nutrient amounts (and thus attraction,
