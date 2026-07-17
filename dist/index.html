@@ -1026,6 +1026,74 @@
       padding:6px 12px; backdrop-filter:blur(4px); }
     #devWin:hover { color:#fff; border-color:#e6b45c; background:rgba(24,26,18,0.92); }
 
+    /* ============================ FIRST-RUN TUTORIAL ============================
+       Clean black & white popups with a slight white border-glow (mirrors the
+       species-select console) — NO gradients. Root is pointer-events:none so the
+       game underneath stays usable on the forced steps. */
+    #tutorial { position:fixed; inset:0; z-index:1200; pointer-events:none;
+      font:400 15px/1.5 "Segoe UI", system-ui, sans-serif; color:#fff; }
+    .tut-catcher { position:absolute; inset:0; pointer-events:auto; cursor:pointer;
+      background:rgba(0,0,0,0.34); }
+    .tut-pop { position:absolute; pointer-events:auto; left:50%; transform:translateX(-50%);
+      width:min(460px, calc(100vw - 40px)); background:#000;
+      border:1.5px solid rgba(255,255,255,0.72); border-radius:16px;
+      box-shadow:0 0 22px -2px rgba(255,255,255,0.42), 0 0 60px -10px rgba(255,255,255,0.30),
+        inset 0 0 40px -16px rgba(255,255,255,0.12), 0 30px 80px -30px rgba(0,0,0,0.95);
+      padding:20px 22px 16px; }
+    .tut-pop--bottom { bottom:120px; }
+    .tut-pop--top { top:26px; }
+    .tut-pop--center { top:50%; transform:translate(-50%,-50%); }
+    .tut-body { font-size:17px; line-height:1.5; letter-spacing:.004em; text-wrap:balance; }
+    .tut-body b { font-weight:700; }
+    .tut-body i { font-style:italic; color:#dcdcdc; }
+    .tut-fig { margin:-2px 0 14px; border:1px solid rgba(255,255,255,0.5); border-radius:10px;
+      overflow:hidden; background:#000; box-shadow:0 0 18px -6px rgba(255,255,255,0.4); }
+    .tut-fig img { display:block; width:100%; height:auto; max-height:236px; object-fit:cover;
+      filter:contrast(1.05); }
+    .tut-btns { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:16px; }
+    .tut-btn { font:inherit; font-weight:600; font-size:14px; cursor:pointer; pointer-events:auto;
+      border-radius:11px; padding:9px 18px; letter-spacing:.01em; transition:background .12s, color .12s, border-color .12s; }
+    .tut-end { background:#000; border:1px solid rgba(255,255,255,0.5); color:#c8c8c8; }
+    .tut-end:hover { background:#151515; color:#fff; border-color:#fff; }
+    .tut-next { background:#fff; border:1px solid #fff; color:#000; }
+    .tut-next:hover { background:#e6e6e6; border-color:#e6e6e6; }
+
+    /* pulsing target ring + a bouncing arrow pointing in from the popup side */
+    .tut-ring { position:absolute; border-radius:50%; border:2px solid rgba(255,255,255,0.95);
+      box-shadow:0 0 18px 2px rgba(255,255,255,0.55), inset 0 0 14px rgba(255,255,255,0.35);
+      pointer-events:none; animation:tutPulse 1.4s ease-in-out infinite; }
+    @keyframes tutPulse { 0%,100%{ opacity:0.95 } 50%{ opacity:0.5 } }
+    .tut-arrow { position:absolute; width:0; height:0; pointer-events:none;
+      border-left:11px solid transparent; border-right:11px solid transparent;
+      border-top:16px solid #fff; filter:drop-shadow(0 0 6px rgba(255,255,255,0.85));
+      animation:tutBounce 1.1s ease-in-out infinite; }
+    @keyframes tutBounce { 0%,100%{ opacity:0.7 } 50%{ opacity:1 } }
+
+    /* strong white glow on the card the player is being forced to play */
+    .cardbtn.tut-glow { outline:2px solid #fff; outline-offset:2px;
+      animation:tutCard 1.25s ease-in-out infinite; }
+    @keyframes tutCard {
+      0%,100%{ box-shadow:0 0 18px 2px rgba(255,255,255,0.55), 0 0 40px 8px rgba(255,255,255,0.22) }
+      50%{ box-shadow:0 0 30px 6px rgba(255,255,255,0.95), 0 0 60px 14px rgba(255,255,255,0.4) } }
+
+    /* drag-to-grow demo: a finger dot that repeatedly pulls outward from the colony */
+    .tut-demo { position:absolute; pointer-events:none; }
+    .tut-demo-dot { position:absolute; width:20px; height:20px; margin:-10px; border-radius:50%;
+      background:#fff; box-shadow:0 0 16px 4px rgba(255,255,255,0.8);
+      animation:tutDrag 1.7s ease-in-out infinite; }
+    @keyframes tutDrag {
+      0% { transform:translate(0,0); opacity:0 }
+      14% { opacity:1 }
+      68% { transform:translate(94px,-58px); opacity:1 }
+      100% { transform:translate(94px,-58px); opacity:0 } }
+
+    @media (max-width:720px) {
+      .tut-pop { width:min(440px, calc(100vw - 26px)); padding:16px 16px 12px; }
+      .tut-pop--bottom { bottom:98px; }
+      .tut-body { font-size:15.5px; }
+      .tut-fig img { max-height:190px; }
+    }
+
     /* HUD campaign level chip (top-centre, non-interactive) */
 
     @media (max-width:720px) {
@@ -1047,8 +1115,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1g6vx6";
-globalThis.__BUILD__ = "local 07-17 16:21";
+window.__ASSET_VER = "17s8gvw";
+globalThis.__BUILD__ = "local 07-17 17:18";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2770,6 +2838,38 @@ class Substrate {
   }
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
+  }
+  // Tutorial helper: guarantee a small LOW-VALUE yellow "duff" food pile in clear
+  // ground around (col,row) — mirrors the duff piles generate() makes (energy only,
+  // no card draft) so the "grow into substrate" step always has a pile to point at
+  // near the start. Returns the pile's world centre, or null if nothing clear fit.
+  injectDuffPile(col, row, radius, energyValue, cellNutrient) {
+    const N = cellNutrient || 50;
+    const cells = [];
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        if (Math.abs(dr) + Math.abs(dc) > radius) continue;            // diamond footprint
+        const c = col + dc, r = row + dr;
+        if (r < 0) continue;                                           // underground only
+        const cell = this.cellAt(c, r);
+        if (!cell || cell.rock || cell.water || cell.hazard) continue;
+        if (cell.nutrient > 0 && cell.foodKind && cell.foodKind !== 'duff') continue;
+        if (this.rockNear(c, r, 1.5)) continue;                        // clear of rock sprites
+        cell.nutrient = N; cell.maxNutrient = N; cell.foodKind = 'duff';
+        cells.push(this.index(c, r));
+      }
+    }
+    if (!cells.length) return null;
+    const pile = { cells, rewarded: false, kind: 'duff', energyValue };
+    const per = energyValue / Math.max(1, cells.length * N);
+    let sx = 0, sy = 0;
+    for (const idx of cells) {
+      this.cells[idx].energyPerNutrient = per;
+      const cc = idx % this.cols, rr = (idx / this.cols) | 0, p = this.cellCenter(cc, rr);
+      sx += p.x; sy += p.y;
+    }
+    (this.foodPiles = this.foodPiles || []).push(pile);
+    return { x: sx / cells.length, y: sy / cells.length };
   }
   // FINE-resolution rock collision for growth (built by main.js solidifyRock). True
   // if the exact point (x,y) is under a drawn rock sprite or lake water. The mask is
@@ -10896,6 +10996,269 @@ function showTitleScreen({ onNew, onContinue }) {
   return { showTitleScreen };
 })();
 
+// ===================== src/render/tutorial.js =====================
+const __m_render_tutorial = (function () {
+// =============================================================================
+// First-run TUTORIAL — a scripted series of clean black-and-white popups that
+// zoom in on what they describe and, where relevant, FORCE an interaction
+// (play Apical Drive, drag to grow) before advancing.
+//
+//   startTutorial(deps) → controller { tick(time), destroy(), get active() }
+//
+// The overlay ROOT is pointer-events:none so the game underneath (hand carousel,
+// canvas) stays usable during forced steps. Explanatory steps drop a transparent
+// full-screen catcher (pointer-events:auto) so a click ANYWHERE advances; forced
+// / interactive steps omit it so the player can act on the real game.
+//
+// deps (all supplied by main.js):
+//   getState()            → the live game state
+//   worldToScreen(x,y)    → {x,y} screen px for a world point (live camera)
+//   focusWorld(x,y,zoom)  → smoothly move the camera to frame a world point
+//   focusBounds(b,pad)    → smoothly frame a world bounding box
+//   handCardEl(name)      → the DOM .cardbtn for a hand card (or null)
+//   pendingCard()         → the currently-armed hand card {name,...} (or null)
+//   setHandOpen(open)     → open/close the hand carousel
+//   threats()             → { ant:{x,y}|null, nematode:{x,y}|null, trich:{x,y}|null }
+//   colonyRoot()          → {x,y} of the colony entry node (or null)
+//   goalPoint()           → {x,y} at the surface of the goal zone (or null)
+//   duffPile()            → {x,y} of the tutorial's guaranteed yellow pile (or null)
+//   onDone()              → called once when the tutorial ends (finish OR End)
+// =============================================================================
+
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+const threatImg = (slug) => `assets/tutorial/${slug}.jpg${VER}`;
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+function startTutorial(deps) {
+  // ---- step script --------------------------------------------------------
+  // Each step: { text, focus(s), target(s), image, gate(s,mem), interactive,
+  //              place, glowCard, demo, onEnter(s,mem) }
+  const APICAL = 'Apical Drive';
+  const steps = [
+    {
+      text: 'This is your mycelium colony.<br><b>You are mycelium. Mycelium is you.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.35),
+      target: (s) => worldTarget(deps.colonyRoot()),
+      place: 'bottom',
+    },
+    {
+      text: 'Your goal is to grow your colony all the way <b>here</b>, so you can fruit and throw spores.',
+      focus: (s) => world(deps.goalPoint(), 1.0),
+      target: (s) => worldTarget(deps.goalPoint()),
+      place: 'bottom',
+    },
+    {
+      text: 'This is your hand.<br><b>Double-click a card to play it.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.1),
+      onEnter: () => deps.setHandOpen(true),
+      target: () => cardTarget(APICAL),
+      glowCard: APICAL,
+      place: 'top',
+      // Forced: advance once Apical Drive is armed for aiming (double-clicked).
+      gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
+    },
+    {
+      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull in the direction you want it to reach.',
+      focus: (s) => world(deps.colonyRoot(), 1.1),
+      target: (s) => worldTarget(deps.colonyRoot()),
+      glowCard: APICAL,
+      demo: true,
+      place: 'top',
+      onEnter: (s, mem) => { mem.baseNodes = nodeCount(s); },
+      // Forced: advance the moment the colony actually grows.
+      gate: (s, mem) => nodeCount(s) > (mem.baseNodes || 0),
+    },
+    {
+      text: 'Grow into <b>substrate</b> to consume it — for energy, and&nbsp;<i>sometimes</i>&nbsp;new cards.',
+      focus: (s) => world(deps.duffPile() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.duffPile()),
+      place: 'bottom',
+    },
+    {
+      text: 'Ants will eat your substrate.',
+      focus: (s) => world(deps.threats().ant, 1.1),
+      target: (s) => worldTarget(deps.threats().ant),
+      image: threatImg('ant'),
+      place: 'bottom',
+    },
+    {
+      text: 'Nematodes love eating ants. But they love eating <b>you</b> more.<br>You are currently defenceless: <b>run or hide.</b>',
+      focus: (s) => world(deps.threats().nematode, 1.3),
+      target: (s) => worldTarget(deps.threats().nematode),
+      image: threatImg('nematode'),
+      place: 'bottom',
+    },
+    {
+      text: 'Trichoderma is drawn to substrate — and even more drawn to <b>you</b>.<br><b>Run or hide.</b>',
+      focus: (s) => world(deps.threats().trich, 1.3),
+      target: (s) => worldTarget(deps.threats().trich),
+      image: threatImg('trichoderma'),
+      place: 'bottom',
+    },
+    {
+      text: '<b>Click on threats</b> to see their field of vision.',
+      focus: (s) => world(deps.threats().nematode || deps.threats().trich || deps.threats().ant, 1.1),
+      target: (s) => worldTarget(deps.threats().nematode || deps.threats().trich || deps.threats().ant),
+      interactive: true,   // leave the canvas live so a threat-tap really shows its sight
+      place: 'bottom',
+    },
+    {
+      text: '<b>Good luck.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.0),
+      place: 'center',
+      last: true,
+    },
+  ];
+
+  // ---- helpers used by the script -----------------------------------------
+  function world(p, zoom) { return p ? { x: p.x, y: p.y, zoom } : null; }
+  function worldTarget(p) { return p ? { world: p } : null; }
+  function cardTarget(name) { const e = deps.handCardEl(name); return e ? { el: e } : null; }
+  function nodeCount(s) { return (s && s.active && s.active.nodes) ? s.active.nodes.length : 0; }
+
+  // ---- DOM scaffold -------------------------------------------------------
+  const root = el('div'); root.id = 'tutorial';
+  const catcher = el('div', 'tut-catcher');
+  const ring = el('div', 'tut-ring');
+  const arrow = el('div', 'tut-arrow');
+  const demo = el('div', 'tut-demo', '<div class="tut-demo-dot"></div>');
+  const pop = el('div', 'tut-pop');
+  pop.innerHTML =
+    '<div class="tut-fig" id="tutFig"><img id="tutImg" alt="" draggable="false"></div>' +
+    '<div class="tut-body" id="tutBody"></div>' +
+    '<div class="tut-btns">' +
+      '<button class="tut-btn tut-end" id="tutEnd" type="button">End</button>' +
+      '<button class="tut-btn tut-next" id="tutNext" type="button">Next ▸</button>' +
+    '</div>';
+  root.appendChild(catcher);
+  root.appendChild(ring);
+  root.appendChild(arrow);
+  root.appendChild(demo);
+  root.appendChild(pop);
+  document.body.appendChild(root);
+
+  const fig = pop.querySelector('#tutFig');
+  const img = pop.querySelector('#tutImg');
+  const body = pop.querySelector('#tutBody');
+  const btnEnd = pop.querySelector('#tutEnd');
+  const btnNext = pop.querySelector('#tutNext');
+
+  // ---- controller state ---------------------------------------------------
+  let idx = -1;
+  let mem = {};
+  let alive = true;
+  let glowed = null;
+
+  const stopEvt = (e) => e.stopPropagation();
+  pop.addEventListener('click', stopEvt);
+  catcher.addEventListener('click', () => next());
+  btnNext.addEventListener('click', (e) => { e.stopPropagation(); next(); });
+  btnEnd.addEventListener('click', (e) => { e.stopPropagation(); finish(); });
+  const onKey = (e) => { if (!alive) return; if (e.key === 'Escape') finish(); };
+  document.addEventListener('keydown', onKey);
+
+  function clearGlow() { if (glowed) { glowed.classList.remove('tut-glow'); glowed = null; } }
+  function applyGlow(name) {
+    clearGlow();
+    if (!name) return;
+    const e = deps.handCardEl(name);
+    if (e) { e.classList.add('tut-glow'); glowed = e; }
+  }
+
+  function enter(i) {
+    idx = i;
+    mem = {};
+    const step = steps[i];
+    // popup content
+    body.innerHTML = step.text;
+    if (step.image) { img.src = step.image; img.onerror = () => { fig.style.display = 'none'; }; fig.style.display = ''; }
+    else { fig.style.display = 'none'; img.removeAttribute('src'); }
+    // placement
+    pop.classList.remove('tut-pop--top', 'tut-pop--bottom', 'tut-pop--center');
+    pop.classList.add('tut-pop--' + (step.place || 'bottom'));
+    // forced (gated) → no Next, no catcher; interactive → Next but no catcher;
+    // explanatory → Next + full-screen click catcher.
+    const forced = !!step.gate;
+    const interactive = !!step.interactive;
+    btnNext.style.display = forced ? 'none' : '';
+    btnNext.textContent = step.last ? 'Begin ▸' : 'Next ▸';
+    catcher.style.display = (forced || interactive) ? 'none' : '';
+    // camera focus
+    const f = step.focus && step.focus(deps.getState());
+    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom);
+    else if (f && f.bounds) deps.focusBounds(f.bounds, f.pad || 80);
+    // card glow
+    applyGlow(step.glowCard);
+    // demo gesture
+    demo.style.display = step.demo ? '' : 'none';
+    if (step.onEnter) step.onEnter(deps.getState(), mem);
+    layout();
+  }
+
+  function next() {
+    if (!alive) return;
+    if (idx >= steps.length - 1) { finish(); return; }
+    enter(idx + 1);
+  }
+
+  function finish() {
+    if (!alive) return;
+    alive = false;
+    clearGlow();
+    document.removeEventListener('keydown', onKey);
+    root.remove();
+    try { deps.onDone && deps.onDone(); } catch (_) {}
+  }
+
+  // Position the ring + arrow (+ demo) over the current step's target each frame.
+  function layout() {
+    if (!alive) return;
+    const step = steps[idx]; if (!step) return;
+    const t = step.target && step.target(deps.getState());
+    let tx = null, ty = null, r = 46;
+    if (t && t.world) { const s = deps.worldToScreen(t.world.x, t.world.y); tx = s.x; ty = s.y; r = 52; }
+    else if (t && t.el) { const b = t.el.getBoundingClientRect(); if (b.width) { tx = b.left + b.width / 2; ty = b.top + b.height / 2; r = Math.max(b.width, b.height) / 2 + 12; } }
+    if (tx == null) { ring.style.display = 'none'; arrow.style.display = 'none'; }
+    else {
+      ring.style.display = '';
+      ring.style.left = (tx - r) + 'px'; ring.style.top = (ty - r) + 'px';
+      ring.style.width = ring.style.height = (r * 2) + 'px';
+      // arrow: sit just off the ring on the side facing the popup, pointing IN
+      const pr = pop.getBoundingClientRect();
+      const px = pr.left + pr.width / 2, py = pr.top + pr.height / 2;
+      const ang = Math.atan2(ty - py, tx - px);         // popup → target
+      const ax = tx - Math.cos(ang) * (r + 20), ay = ty - Math.sin(ang) * (r + 20);
+      arrow.style.display = '';
+      arrow.style.left = ax + 'px'; arrow.style.top = ay + 'px';
+      arrow.style.transform = 'translate(-50%,-50%) rotate(' + (ang * 180 / Math.PI + 90) + 'deg)';
+    }
+    // demo drag gesture anchored at the colony
+    if (step.demo) {
+      const rootp = deps.colonyRoot();
+      if (rootp) { const s = deps.worldToScreen(rootp.x, rootp.y); demo.style.left = s.x + 'px'; demo.style.top = s.y + 'px'; }
+    }
+  }
+
+  // Called each render frame by main.js: check the gate, keep the overlay glued.
+  function tick() {
+    if (!alive) return;
+    const step = steps[idx];
+    if (step && step.gate && step.gate(deps.getState(), mem)) { next(); return; }
+    layout();
+  }
+
+  enter(0);
+  return {
+    tick,
+    destroy: finish,
+    get active() { return alive; },
+  };
+}
+
+  return { startTutorial };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -10911,6 +11274,7 @@ const __m_main = (function () {
   const { UI, cardSlug } = __m_render_ui;
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
   const { showTitleScreen } = __m_render_title_screen;
+  const { startTutorial } = __m_render_tutorial;
   const { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
@@ -10938,6 +11302,17 @@ let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
+
+// First-run tutorial: a scripted popup walkthrough that fires ONCE, the first
+// time the player presses NEW. `tutorialPending` is armed by the title's New
+// button (if never seen) and consumed by begin() on level 1; `tutorial` is the
+// live controller while it runs. See render/tutorial.js.
+let tutorial = null;
+let tutorialPending = false;
+let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
+const TUT_KEY = 'mycelium.tutorial.v1';
+function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
+function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch (_) {} }
 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
@@ -11090,10 +11465,92 @@ function updateDevWinBtn() {
 }
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
+// --- tutorial camera + wiring ----------------------------------------------
+// A smooth camera move used by the tutorial to "zoom in on whatever it's talking
+// about". Runs as a short eased tween advanced each render frame; the tutorial's
+// arrows/rings track it because they re-read the live camera every frame.
+let camFocus = null;
+function focusWorld(x, y, zoom) {
+  if (x == null || y == null) return;
+  camFocus = { fromX: camera.x, fromY: camera.y, fromZoom: camera.zoom,
+    toX: x, toY: y, toZoom: zoom != null ? zoom : camera.zoom, t0: performance.now(), dur: 640 };
+}
+function focusBounds(b, pad = 80) {
+  if (!b) return;
+  const w = Math.max(1, b.maxX - b.minX), h = Math.max(1, b.maxY - b.minY);
+  const z = Math.max(camera.minZoom, Math.min(camera.maxZoom, Math.min(camera.viewW / (w + pad * 2), camera.viewH / (h + pad * 2))));
+  focusWorld((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, z);
+}
+function updateCamFocus(time) {
+  if (!camFocus) return;
+  const t = Math.min(1, (time - camFocus.t0) / camFocus.dur);
+  const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // easeInOutQuad
+  camera.x = camFocus.fromX + (camFocus.toX - camFocus.fromX) * e;
+  camera.y = camFocus.fromY + (camFocus.toY - camFocus.fromY) * e;
+  camera.zoom = camFocus.fromZoom + (camFocus.toZoom - camFocus.fromZoom) * e;
+  camera.clamp();
+  if (t >= 1) camFocus = null;
+}
+
+// Guarantee the two scripted props the tutorial points at: an Apical Drive in the
+// opening hand (whatever species was picked) and a low-value YELLOW pile in clear
+// soil a few cells from the colony root.
+function injectTutorialHelpers() {
+  const c = state.cards;
+  if (c && Array.isArray(c.hand) && !c.hand.some((h) => h.name === 'Apical Drive')) {
+    if (c.seq == null) c.seq = 1;
+    c.hand.unshift({ id: c.seq++, name: 'Apical Drive' });
+  }
+  tutorialDuff = null;
+  const sub = state.substrate;
+  const root = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]);
+  if (root && sub.injectDuffPile) {
+    const rc = sub.colAtX(root.x), rr = Math.max(0, sub.rowAtY(root.y));
+    const N = (state.config.substrate && state.config.substrate.foodCellNutrient) || 50;
+    for (const [dc, dr] of [[3, 0], [4, 1], [3, 2], [5, 0], [2, 2], [4, 3], [6, 1], [3, 3]]) {
+      const p = sub.injectDuffPile(rc + dc, Math.max(0, rr + dr), 1, 2, N);
+      if (p) { tutorialDuff = p; substrateRenderer.markDirty(); break; }
+    }
+  }
+}
+
+// The deps bundle the tutorial controller reads from (see render/tutorial.js).
+function tutorialDeps() {
+  const surf = () => state.substrate.surfaceY;
+  return {
+    getState: () => state,
+    worldToScreen: (x, y) => camera.worldToScreen(x, y),
+    focusWorld, focusBounds,
+    handCardEl: (name) => document.querySelector('#handlist .cardbtn[data-name="' + name + '"]'),
+    pendingCard: () => (ui && ui.pendingCard) || null,
+    setHandOpen: (open) => { if (ui && ui.setHandOpen) ui.setHandOpen(open); },
+    colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
+    goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
+    duffPile: () => tutorialDuff,
+    threats: () => ({
+      ant: (state.ants && state.ants[0]) ? { x: state.ants[0].x, y: surf() + 40 } : null,
+      nematode: (state.nematodes && state.nematodes[0]) ? { x: state.nematodes[0].x, y: state.nematodes[0].y } : null,
+      trich: (state.clouds && state.clouds[0]) ? { x: state.clouds[0].cx, y: state.clouds[0].cy } : null,
+    }),
+    onDone: () => { tutorial = null; },
+  };
+}
+
+// Start (or restart) the tutorial over the CURRENT run. Injects the scripted props
+// first. Exposed on window.__game for the future "replay tutorial" button + tests.
+function beginTutorial() {
+  if (!state || !state.cards) return;
+  if (tutorial) { tutorial.destroy(); tutorial = null; }
+  injectTutorialHelpers();
+  uiDirty = true;
+  tutorial = startTutorial(tutorialDeps());
+}
+
 function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
   _runOverPresented = false;
+  if (tutorial) { tutorial.destroy(); tutorial = null; }   // never carry a tutorial across levels/runs
   // Card layer online for procedural (non-puzzle) runs. Priority:
   //   carryOver  → transplant the deck+reserves from the previous level (campaign)
   //   chosenSpecies → that species' exact starting hand + resources
@@ -11116,6 +11573,9 @@ function begin(newState) {
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
+    // Tutorial hooks (used by the future "replay tutorial" button + tests).
+    startTutorial: () => beginTutorial(),
+    resetTutorial: () => { try { localStorage.removeItem(TUT_KEY); } catch (_) {} },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
@@ -11151,6 +11611,15 @@ function begin(newState) {
   uiDirty = true;
   updateLevelChip();
   updateDevWinBtn();
+  // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
+  // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
+  if (tutorialPending && currentLevel === 1 && state.mode !== 'puzzle') {
+    tutorialPending = false;
+    if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
+      markTutorialSeen();
+      beginTutorial();
+    }
+  }
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.
@@ -11729,6 +12198,7 @@ function frame(time) {
 
 function renderFrame(time) {
   lastTime = time;
+  updateCamFocus(time);         // advance the tutorial's smooth camera "zoom-in" tween
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   spawnFinishFloaters();        // pop a "+N⚡" the instant a pile finishes digesting
   // background (outside the world bounds)
@@ -11775,6 +12245,10 @@ function renderFrame(time) {
   drawFloaters(time);           // floating "+N⚡" energy labels over piles (on top of the map)
 
   if (uiDirty) { ui.update(); uiDirty = false; }
+
+  // Tutorial overlay: advance any forced-step gate + keep its rings/arrows glued to
+  // their targets. Runs AFTER ui.update() so the hand DOM it points at is current.
+  if (tutorial && tutorial.active) tutorial.tick(time);
 
   // The scene is now fully drawn this frame — fade it in (once) if a reveal is due.
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
@@ -13633,8 +14107,10 @@ preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
 else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
-  onNew: () => { resetProgress(); showPicker(); },
+  // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
+  onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
   onContinue: () => showPicker(),
 });
 requestAnimationFrame(frame);

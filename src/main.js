@@ -20,6 +20,7 @@ import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
 import { showTitleScreen } from './render/title_screen.js';
+import { startTutorial } from './render/tutorial.js';
 import { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
@@ -38,6 +39,17 @@ let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
+
+// First-run tutorial: a scripted popup walkthrough that fires ONCE, the first
+// time the player presses NEW. `tutorialPending` is armed by the title's New
+// button (if never seen) and consumed by begin() on level 1; `tutorial` is the
+// live controller while it runs. See render/tutorial.js.
+let tutorial = null;
+let tutorialPending = false;
+let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
+const TUT_KEY = 'mycelium.tutorial.v1';
+function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
+function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch (_) {} }
 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
@@ -190,10 +202,92 @@ function updateDevWinBtn() {
 }
 function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 
+// --- tutorial camera + wiring ----------------------------------------------
+// A smooth camera move used by the tutorial to "zoom in on whatever it's talking
+// about". Runs as a short eased tween advanced each render frame; the tutorial's
+// arrows/rings track it because they re-read the live camera every frame.
+let camFocus = null;
+function focusWorld(x, y, zoom) {
+  if (x == null || y == null) return;
+  camFocus = { fromX: camera.x, fromY: camera.y, fromZoom: camera.zoom,
+    toX: x, toY: y, toZoom: zoom != null ? zoom : camera.zoom, t0: performance.now(), dur: 640 };
+}
+function focusBounds(b, pad = 80) {
+  if (!b) return;
+  const w = Math.max(1, b.maxX - b.minX), h = Math.max(1, b.maxY - b.minY);
+  const z = Math.max(camera.minZoom, Math.min(camera.maxZoom, Math.min(camera.viewW / (w + pad * 2), camera.viewH / (h + pad * 2))));
+  focusWorld((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, z);
+}
+function updateCamFocus(time) {
+  if (!camFocus) return;
+  const t = Math.min(1, (time - camFocus.t0) / camFocus.dur);
+  const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;   // easeInOutQuad
+  camera.x = camFocus.fromX + (camFocus.toX - camFocus.fromX) * e;
+  camera.y = camFocus.fromY + (camFocus.toY - camFocus.fromY) * e;
+  camera.zoom = camFocus.fromZoom + (camFocus.toZoom - camFocus.fromZoom) * e;
+  camera.clamp();
+  if (t >= 1) camFocus = null;
+}
+
+// Guarantee the two scripted props the tutorial points at: an Apical Drive in the
+// opening hand (whatever species was picked) and a low-value YELLOW pile in clear
+// soil a few cells from the colony root.
+function injectTutorialHelpers() {
+  const c = state.cards;
+  if (c && Array.isArray(c.hand) && !c.hand.some((h) => h.name === 'Apical Drive')) {
+    if (c.seq == null) c.seq = 1;
+    c.hand.unshift({ id: c.seq++, name: 'Apical Drive' });
+  }
+  tutorialDuff = null;
+  const sub = state.substrate;
+  const root = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]);
+  if (root && sub.injectDuffPile) {
+    const rc = sub.colAtX(root.x), rr = Math.max(0, sub.rowAtY(root.y));
+    const N = (state.config.substrate && state.config.substrate.foodCellNutrient) || 50;
+    for (const [dc, dr] of [[3, 0], [4, 1], [3, 2], [5, 0], [2, 2], [4, 3], [6, 1], [3, 3]]) {
+      const p = sub.injectDuffPile(rc + dc, Math.max(0, rr + dr), 1, 2, N);
+      if (p) { tutorialDuff = p; substrateRenderer.markDirty(); break; }
+    }
+  }
+}
+
+// The deps bundle the tutorial controller reads from (see render/tutorial.js).
+function tutorialDeps() {
+  const surf = () => state.substrate.surfaceY;
+  return {
+    getState: () => state,
+    worldToScreen: (x, y) => camera.worldToScreen(x, y),
+    focusWorld, focusBounds,
+    handCardEl: (name) => document.querySelector('#handlist .cardbtn[data-name="' + name + '"]'),
+    pendingCard: () => (ui && ui.pendingCard) || null,
+    setHandOpen: (open) => { if (ui && ui.setHandOpen) ui.setHandOpen(open); },
+    colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
+    goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
+    duffPile: () => tutorialDuff,
+    threats: () => ({
+      ant: (state.ants && state.ants[0]) ? { x: state.ants[0].x, y: surf() + 40 } : null,
+      nematode: (state.nematodes && state.nematodes[0]) ? { x: state.nematodes[0].x, y: state.nematodes[0].y } : null,
+      trich: (state.clouds && state.clouds[0]) ? { x: state.clouds[0].cx, y: state.clouds[0].cy } : null,
+    }),
+    onDone: () => { tutorial = null; },
+  };
+}
+
+// Start (or restart) the tutorial over the CURRENT run. Injects the scripted props
+// first. Exposed on window.__game for the future "replay tutorial" button + tests.
+function beginTutorial() {
+  if (!state || !state.cards) return;
+  if (tutorial) { tutorial.destroy(); tutorial = null; }
+  injectTutorialHelpers();
+  uiDirty = true;
+  tutorial = startTutorial(tutorialDeps());
+}
+
 function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
   _runOverPresented = false;
+  if (tutorial) { tutorial.destroy(); tutorial = null; }   // never carry a tutorial across levels/runs
   // Card layer online for procedural (non-puzzle) runs. Priority:
   //   carryOver  → transplant the deck+reserves from the previous level (campaign)
   //   chosenSpecies → that species' exact starting hand + resources
@@ -216,6 +310,9 @@ function begin(newState) {
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
+    // Tutorial hooks (used by the future "replay tutorial" button + tests).
+    startTutorial: () => beginTutorial(),
+    resetTutorial: () => { try { localStorage.removeItem(TUT_KEY); } catch (_) {} },
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
@@ -251,6 +348,15 @@ function begin(newState) {
   uiDirty = true;
   updateLevelChip();
   updateDevWinBtn();
+  // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
+  // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
+  if (tutorialPending && currentLevel === 1 && state.mode !== 'puzzle') {
+    tutorialPending = false;
+    if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
+      markTutorialSeen();
+      beginTutorial();
+    }
+  }
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.
@@ -829,6 +935,7 @@ function frame(time) {
 
 function renderFrame(time) {
   lastTime = time;
+  updateCamFocus(time);         // advance the tutorial's smooth camera "zoom-in" tween
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
   spawnFinishFloaters();        // pop a "+N⚡" the instant a pile finishes digesting
   // background (outside the world bounds)
@@ -875,6 +982,10 @@ function renderFrame(time) {
   drawFloaters(time);           // floating "+N⚡" energy labels over piles (on top of the map)
 
   if (uiDirty) { ui.update(); uiDirty = false; }
+
+  // Tutorial overlay: advance any forced-step gate + keep its rings/arrows glued to
+  // their targets. Runs AFTER ui.update() so the hand DOM it points at is current.
+  if (tutorial && tutorial.active) tutorial.tick(time);
 
   // The scene is now fully drawn this frame — fade it in (once) if a reveal is due.
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
@@ -2733,8 +2844,10 @@ preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
 if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
 else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
-  onNew: () => { resetProgress(); showPicker(); },
+  // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
+  onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
   onContinue: () => showPicker(),
 });
 requestAnimationFrame(frame);

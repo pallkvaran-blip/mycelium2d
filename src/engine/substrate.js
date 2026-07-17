@@ -59,6 +59,38 @@ export class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
+  // Tutorial helper: guarantee a small LOW-VALUE yellow "duff" food pile in clear
+  // ground around (col,row) — mirrors the duff piles generate() makes (energy only,
+  // no card draft) so the "grow into substrate" step always has a pile to point at
+  // near the start. Returns the pile's world centre, or null if nothing clear fit.
+  injectDuffPile(col, row, radius, energyValue, cellNutrient) {
+    const N = cellNutrient || 50;
+    const cells = [];
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        if (Math.abs(dr) + Math.abs(dc) > radius) continue;            // diamond footprint
+        const c = col + dc, r = row + dr;
+        if (r < 0) continue;                                           // underground only
+        const cell = this.cellAt(c, r);
+        if (!cell || cell.rock || cell.water || cell.hazard) continue;
+        if (cell.nutrient > 0 && cell.foodKind && cell.foodKind !== 'duff') continue;
+        if (this.rockNear(c, r, 1.5)) continue;                        // clear of rock sprites
+        cell.nutrient = N; cell.maxNutrient = N; cell.foodKind = 'duff';
+        cells.push(this.index(c, r));
+      }
+    }
+    if (!cells.length) return null;
+    const pile = { cells, rewarded: false, kind: 'duff', energyValue };
+    const per = energyValue / Math.max(1, cells.length * N);
+    let sx = 0, sy = 0;
+    for (const idx of cells) {
+      this.cells[idx].energyPerNutrient = per;
+      const cc = idx % this.cols, rr = (idx / this.cols) | 0, p = this.cellCenter(cc, rr);
+      sx += p.x; sy += p.y;
+    }
+    (this.foodPiles = this.foodPiles || []).push(pile);
+    return { x: sx / cells.length, y: sy / cells.length };
+  }
   // FINE-resolution rock collision for growth (built by main.js solidifyRock). True
   // if the exact point (x,y) is under a drawn rock sprite or lake water. The mask is
   // several times finer than the 36px cell grid (see _fineSize), so it matches the

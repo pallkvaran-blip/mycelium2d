@@ -1,0 +1,257 @@
+// =============================================================================
+// First-run TUTORIAL — a scripted series of clean black-and-white popups that
+// zoom in on what they describe and, where relevant, FORCE an interaction
+// (play Apical Drive, drag to grow) before advancing.
+//
+//   startTutorial(deps) → controller { tick(time), destroy(), get active() }
+//
+// The overlay ROOT is pointer-events:none so the game underneath (hand carousel,
+// canvas) stays usable during forced steps. Explanatory steps drop a transparent
+// full-screen catcher (pointer-events:auto) so a click ANYWHERE advances; forced
+// / interactive steps omit it so the player can act on the real game.
+//
+// deps (all supplied by main.js):
+//   getState()            → the live game state
+//   worldToScreen(x,y)    → {x,y} screen px for a world point (live camera)
+//   focusWorld(x,y,zoom)  → smoothly move the camera to frame a world point
+//   focusBounds(b,pad)    → smoothly frame a world bounding box
+//   handCardEl(name)      → the DOM .cardbtn for a hand card (or null)
+//   pendingCard()         → the currently-armed hand card {name,...} (or null)
+//   setHandOpen(open)     → open/close the hand carousel
+//   threats()             → { ant:{x,y}|null, nematode:{x,y}|null, trich:{x,y}|null }
+//   colonyRoot()          → {x,y} of the colony entry node (or null)
+//   goalPoint()           → {x,y} at the surface of the goal zone (or null)
+//   duffPile()            → {x,y} of the tutorial's guaranteed yellow pile (or null)
+//   onDone()              → called once when the tutorial ends (finish OR End)
+// =============================================================================
+
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+const threatImg = (slug) => `assets/tutorial/${slug}.jpg${VER}`;
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+export function startTutorial(deps) {
+  // ---- step script --------------------------------------------------------
+  // Each step: { text, focus(s), target(s), image, gate(s,mem), interactive,
+  //              place, glowCard, demo, onEnter(s,mem) }
+  const APICAL = 'Apical Drive';
+  const steps = [
+    {
+      text: 'This is your mycelium colony.<br><b>You are mycelium. Mycelium is you.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.35),
+      target: (s) => worldTarget(deps.colonyRoot()),
+      place: 'bottom',
+    },
+    {
+      text: 'Your goal is to grow your colony all the way <b>here</b>, so you can fruit and throw spores.',
+      focus: (s) => world(deps.goalPoint(), 1.0),
+      target: (s) => worldTarget(deps.goalPoint()),
+      place: 'bottom',
+    },
+    {
+      text: 'This is your hand.<br><b>Double-click a card to play it.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.1),
+      onEnter: () => deps.setHandOpen(true),
+      target: () => cardTarget(APICAL),
+      glowCard: APICAL,
+      place: 'top',
+      // Forced: advance once Apical Drive is armed for aiming (double-clicked).
+      gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
+    },
+    {
+      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull in the direction you want it to reach.',
+      focus: (s) => world(deps.colonyRoot(), 1.1),
+      target: (s) => worldTarget(deps.colonyRoot()),
+      glowCard: APICAL,
+      demo: true,
+      place: 'top',
+      onEnter: (s, mem) => { mem.baseNodes = nodeCount(s); },
+      // Forced: advance the moment the colony actually grows.
+      gate: (s, mem) => nodeCount(s) > (mem.baseNodes || 0),
+    },
+    {
+      text: 'Grow into <b>substrate</b> to consume it — for energy, and&nbsp;<i>sometimes</i>&nbsp;new cards.',
+      focus: (s) => world(deps.duffPile() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.duffPile()),
+      place: 'bottom',
+    },
+    {
+      text: 'Ants will eat your substrate.',
+      focus: (s) => world(deps.threats().ant, 1.1),
+      target: (s) => worldTarget(deps.threats().ant),
+      image: threatImg('ant'),
+      place: 'bottom',
+    },
+    {
+      text: 'Nematodes love eating ants. But they love eating <b>you</b> more.<br>You are currently defenceless: <b>run or hide.</b>',
+      focus: (s) => world(deps.threats().nematode, 1.3),
+      target: (s) => worldTarget(deps.threats().nematode),
+      image: threatImg('nematode'),
+      place: 'bottom',
+    },
+    {
+      text: 'Trichoderma is drawn to substrate — and even more drawn to <b>you</b>.<br><b>Run or hide.</b>',
+      focus: (s) => world(deps.threats().trich, 1.3),
+      target: (s) => worldTarget(deps.threats().trich),
+      image: threatImg('trichoderma'),
+      place: 'bottom',
+    },
+    {
+      text: '<b>Click on threats</b> to see their field of vision.',
+      focus: (s) => world(deps.threats().nematode || deps.threats().trich || deps.threats().ant, 1.1),
+      target: (s) => worldTarget(deps.threats().nematode || deps.threats().trich || deps.threats().ant),
+      interactive: true,   // leave the canvas live so a threat-tap really shows its sight
+      place: 'bottom',
+    },
+    {
+      text: '<b>Good luck.</b>',
+      focus: (s) => world(deps.colonyRoot(), 1.0),
+      place: 'center',
+      last: true,
+    },
+  ];
+
+  // ---- helpers used by the script -----------------------------------------
+  function world(p, zoom) { return p ? { x: p.x, y: p.y, zoom } : null; }
+  function worldTarget(p) { return p ? { world: p } : null; }
+  function cardTarget(name) { const e = deps.handCardEl(name); return e ? { el: e } : null; }
+  function nodeCount(s) { return (s && s.active && s.active.nodes) ? s.active.nodes.length : 0; }
+
+  // ---- DOM scaffold -------------------------------------------------------
+  const root = el('div'); root.id = 'tutorial';
+  const catcher = el('div', 'tut-catcher');
+  const ring = el('div', 'tut-ring');
+  const arrow = el('div', 'tut-arrow');
+  const demo = el('div', 'tut-demo', '<div class="tut-demo-dot"></div>');
+  const pop = el('div', 'tut-pop');
+  pop.innerHTML =
+    '<div class="tut-fig" id="tutFig"><img id="tutImg" alt="" draggable="false"></div>' +
+    '<div class="tut-body" id="tutBody"></div>' +
+    '<div class="tut-btns">' +
+      '<button class="tut-btn tut-end" id="tutEnd" type="button">End</button>' +
+      '<button class="tut-btn tut-next" id="tutNext" type="button">Next ▸</button>' +
+    '</div>';
+  root.appendChild(catcher);
+  root.appendChild(ring);
+  root.appendChild(arrow);
+  root.appendChild(demo);
+  root.appendChild(pop);
+  document.body.appendChild(root);
+
+  const fig = pop.querySelector('#tutFig');
+  const img = pop.querySelector('#tutImg');
+  const body = pop.querySelector('#tutBody');
+  const btnEnd = pop.querySelector('#tutEnd');
+  const btnNext = pop.querySelector('#tutNext');
+
+  // ---- controller state ---------------------------------------------------
+  let idx = -1;
+  let mem = {};
+  let alive = true;
+  let glowed = null;
+
+  const stopEvt = (e) => e.stopPropagation();
+  pop.addEventListener('click', stopEvt);
+  catcher.addEventListener('click', () => next());
+  btnNext.addEventListener('click', (e) => { e.stopPropagation(); next(); });
+  btnEnd.addEventListener('click', (e) => { e.stopPropagation(); finish(); });
+  const onKey = (e) => { if (!alive) return; if (e.key === 'Escape') finish(); };
+  document.addEventListener('keydown', onKey);
+
+  function clearGlow() { if (glowed) { glowed.classList.remove('tut-glow'); glowed = null; } }
+  function applyGlow(name) {
+    clearGlow();
+    if (!name) return;
+    const e = deps.handCardEl(name);
+    if (e) { e.classList.add('tut-glow'); glowed = e; }
+  }
+
+  function enter(i) {
+    idx = i;
+    mem = {};
+    const step = steps[i];
+    // popup content
+    body.innerHTML = step.text;
+    if (step.image) { img.src = step.image; img.onerror = () => { fig.style.display = 'none'; }; fig.style.display = ''; }
+    else { fig.style.display = 'none'; img.removeAttribute('src'); }
+    // placement
+    pop.classList.remove('tut-pop--top', 'tut-pop--bottom', 'tut-pop--center');
+    pop.classList.add('tut-pop--' + (step.place || 'bottom'));
+    // forced (gated) → no Next, no catcher; interactive → Next but no catcher;
+    // explanatory → Next + full-screen click catcher.
+    const forced = !!step.gate;
+    const interactive = !!step.interactive;
+    btnNext.style.display = forced ? 'none' : '';
+    btnNext.textContent = step.last ? 'Begin ▸' : 'Next ▸';
+    catcher.style.display = (forced || interactive) ? 'none' : '';
+    // camera focus
+    const f = step.focus && step.focus(deps.getState());
+    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom);
+    else if (f && f.bounds) deps.focusBounds(f.bounds, f.pad || 80);
+    // card glow
+    applyGlow(step.glowCard);
+    // demo gesture
+    demo.style.display = step.demo ? '' : 'none';
+    if (step.onEnter) step.onEnter(deps.getState(), mem);
+    layout();
+  }
+
+  function next() {
+    if (!alive) return;
+    if (idx >= steps.length - 1) { finish(); return; }
+    enter(idx + 1);
+  }
+
+  function finish() {
+    if (!alive) return;
+    alive = false;
+    clearGlow();
+    document.removeEventListener('keydown', onKey);
+    root.remove();
+    try { deps.onDone && deps.onDone(); } catch (_) {}
+  }
+
+  // Position the ring + arrow (+ demo) over the current step's target each frame.
+  function layout() {
+    if (!alive) return;
+    const step = steps[idx]; if (!step) return;
+    const t = step.target && step.target(deps.getState());
+    let tx = null, ty = null, r = 46;
+    if (t && t.world) { const s = deps.worldToScreen(t.world.x, t.world.y); tx = s.x; ty = s.y; r = 52; }
+    else if (t && t.el) { const b = t.el.getBoundingClientRect(); if (b.width) { tx = b.left + b.width / 2; ty = b.top + b.height / 2; r = Math.max(b.width, b.height) / 2 + 12; } }
+    if (tx == null) { ring.style.display = 'none'; arrow.style.display = 'none'; }
+    else {
+      ring.style.display = '';
+      ring.style.left = (tx - r) + 'px'; ring.style.top = (ty - r) + 'px';
+      ring.style.width = ring.style.height = (r * 2) + 'px';
+      // arrow: sit just off the ring on the side facing the popup, pointing IN
+      const pr = pop.getBoundingClientRect();
+      const px = pr.left + pr.width / 2, py = pr.top + pr.height / 2;
+      const ang = Math.atan2(ty - py, tx - px);         // popup → target
+      const ax = tx - Math.cos(ang) * (r + 20), ay = ty - Math.sin(ang) * (r + 20);
+      arrow.style.display = '';
+      arrow.style.left = ax + 'px'; arrow.style.top = ay + 'px';
+      arrow.style.transform = 'translate(-50%,-50%) rotate(' + (ang * 180 / Math.PI + 90) + 'deg)';
+    }
+    // demo drag gesture anchored at the colony
+    if (step.demo) {
+      const rootp = deps.colonyRoot();
+      if (rootp) { const s = deps.worldToScreen(rootp.x, rootp.y); demo.style.left = s.x + 'px'; demo.style.top = s.y + 'px'; }
+    }
+  }
+
+  // Called each render frame by main.js: check the gate, keep the overlay glued.
+  function tick() {
+    if (!alive) return;
+    const step = steps[idx];
+    if (step && step.gate && step.gate(deps.getState(), mem)) { next(); return; }
+    layout();
+  }
+
+  enter(0);
+  return {
+    tick,
+    destroy: finish,
+    get active() { return alive; },
+  };
+}

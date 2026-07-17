@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-17 (**energy + threat tune:** leaf Energy trimmed
+_Living status + knowledge doc. Last updated: 2026-07-17 (**first-run tutorial:** a scripted 10-step B&W
+popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run — zooms the
+camera to each subject, FORCES the first grow (double-click Apical Drive → drag), and shows FLUX-generated
+threat portraits (owner-picked ant D / nematode B / trichoderma D); `#tutorial` hash or
+`window.__game.startTutorial()` replays it — see §9. — earlier: **energy + threat tune:** leaf Energy trimmed
 another step to 🟡 duff **1–2** / 🟠 orange **2–3** / 🔴 red **3–4** (per-map counts unchanged: 5–7 / 5–7 /
 1–3); **new enemy curve** (`species.js LEVEL_THREATS`, ants/nematodes/mould): L1 1/1/1 → L11 6/11/11, ants
 ramp slowest (cap 6) — see §9. — earlier: **punch aimer + yellow duff leaves:** the
@@ -441,6 +445,23 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **First-run TUTORIAL** (`src/render/tutorial.js` NEW, `src/main.js`, `src/engine/substrate.js`,
+  `index.html` CSS, `assets/tutorial/`, `scripts/gen_tutorial_threats.py`). A scripted 10-step B&W
+  popup walkthrough that fires **ONCE**, the first time NEW is pressed on a real species run (guarded by
+  `localStorage 'mycelium.tutorial.v1'`; `tutorialSeen`/`markTutorialSeen`). Steps zoom the camera to
+  whatever they describe (`focusWorld`/`focusBounds` eased tween in main.js, advanced by `updateCamFocus`)
+  and, on two steps, **force an interaction** before advancing: double-click Apical Drive (armed), then
+  drag-to-grow (gated on node count rising). `startTutorial(deps)` returns a controller `{tick,destroy,
+  active}`; main.js `tutorialDeps()` supplies the live camera/state/DOM hooks and `threats()` /
+  `colonyRoot()` / `goalPoint()` / `duffPile()` anchor points. `begin()` injects the two scripted props
+  via `injectTutorialHelpers()`: an **Apical Drive** into the opening hand + a guaranteed low-value
+  **yellow duff pile** in clear soil near the root (`substrate.injectDuffPile`). Overlay root is
+  `pointer-events:none` so the game stays live on forced steps; a `.tut-catcher` handles click-anywhere
+  on explanatory steps. Threat portraits (`assets/tutorial/{ant,nematode,trichoderma}.jpg`) are FLUX-
+  generated — 4 options each in `assets/tutorial_options/` (contact sheets `_sheet_*`), owner-picked
+  **ant D / nematode B / trichoderma D**; regenerate/re-pick via `scripts/gen_tutorial_threats.py`.
+  Test/replay hooks: `#tutorial` hash forces it; `window.__game.startTutorial()` / `.resetTutorial()`.
 
 - **Energy trim + new threat curve** (`src/config.js`, `src/species.js`). Follow-up pass on the tune
   below: leaf Energy lowered another step (counts unchanged) to 🟡 duff Energy **1–2** (`duffEnergyMin/Max`
