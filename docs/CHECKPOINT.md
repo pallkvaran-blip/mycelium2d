@@ -428,6 +428,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Rock collision = EXACTLY what's drawn (no more invisible walls)** (`src/main.js solidifyRock`).
+  ROOT CAUSE of the recurring "gap won't let me through" bug: generation flags cells `rock`
+  (+`column`/`formation`) as FILLED shapes — a column is a 2-wide strip, a formation a filled
+  ellipse — but the renderer draws an IRREGULAR sprite over them, and the old `solidifyRock` only
+  ADDED collision under the sprite (`rockFill`), never REMOVING the original flags. So every flagged
+  cell the sprite's silhouette didn't actually cover (ellipse corners, the gap between two nearby
+  formations, thin spots in a column) stayed a rock cell with NO art over it — an invisible wall.
+  Measured ~**55 of 225 flagged cells (24%) were invisible** on a sample map.
+  FIX: `stampSolid` → `markCover` writes the drawn silhouette into a coverage MASK; then once every
+  sprite has decoded, `solidifyRock` RECONCILES: `cell.rock = covered-by-a-sprite` (+ lake water stays
+  solid, the `pathClear` winnable corridor stays open). Generation flags are now "where to draw" only;
+  they never block growth on their own. Runs once all sprites decode (until then the original SUPERSET
+  flags stand, so nothing is ever wrongly passable early). No place-then-hide-then-overlay — one source
+  of truth; what you see is exactly what blocks. Verified: reconciliation truth-table 24/24 on 6 real
+  seeds (covered→rock, water kept, corridor open, uncovered-formation→cleared, rockFill only on
+  soil-overhang). Diagnostic left in: `__game.state.substrate._rockReclaimed`. CAVEAT to watch: columns
+  now block only where their sprites actually cover — if a column's stacked sprites leave a visible gap,
+  it's now (correctly) passable; if columns read as too leaky, thicken the column DRAW (more overlap),
+  don't re-add invisible rock.
 - **Directional grow now DODGES around rock corners** (`src/engine/network.js growDirected`).
   Apical Drive / Rhizomorph Lance / Fruiting Vigil used to follow the exact aim vector and
   hard-stop the instant a segment clipped rock ("Blocked — nothing grew"), even when a wide
