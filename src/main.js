@@ -1285,9 +1285,11 @@ function drawTerrainAssets() {
 //   • MAP caches (foodKind 'cache') → heaped ORANGE oak/maple LEAVES — wild litter
 //     that grants a Basic/Event card draft when fully digested.
 //   • ENGINE caches (foodKind 'cache-engine') → RED autumn leaves — draft an Engine.
-//   • DUFF caches (foodKind 'duff') → the SAME oak/maple leaves rendered BROWN &
-//     desaturated (decayed leaf mould), with a couple of near-black pieces mixed in
-//     for contrast against the brown soil; a smaller/flatter heap: energy only, NO draft.
+//   • DUFF caches (foodKind 'duff') → mostly YELLOW/golden autumn leaves (their own
+//     sprite set) so they lift off the brown soil, with a few pieces tinted mid-brown
+//     and a couple of dark-brown ones (a dedicated dark leaf) mixed in; a smaller/
+//     flatter heap: energy only, NO draft. (Was the orange leaves tinted brown, which
+//     melted into the brown background.)
 //   • PLAYER-placed food (foodKind 'nut') → a small scatter of ACORNS, CHESTNUTS
 //     and PINE CONES — a humble lower-tier cache that only yields energy.
 // The pile SHRINKS as the cell is digested (fewer pieces); every piece's
@@ -1295,6 +1297,9 @@ function drawTerrainAssets() {
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
 const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
+// DUFF piles: golden/yellow leaves are the DOMINANT colour (they read against the
+// brown soil), with leafDuffBrown as the dark-brown minority (see _drawLeafHeap).
+const YELLOW_LEAF_KEYS = ['leafYellowGinkgo', 'leafYellowMaple', 'leafYellowPoplar', 'leafYellowAspen', 'leafYellowElm'];
 function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
@@ -1302,8 +1307,11 @@ function _leafSets() {
   // ENGINE caches: a mix drawn from ALL SIX red/autumn leaves so each pile reads
   // as its own varied red litter (the heap picks a leaf per piece from this set).
   const red = RED_LEAF_KEYS.map(asset).filter(Boolean);
+  // DUFF caches: the yellow/gold set (dominant) + one dark-brown leaf for the minority.
+  const yellow = YELLOW_LEAF_KEYS.map(asset).filter(Boolean);
+  const duffDark = asset('leafDuffBrown') || null;
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  return { leaves, red: red.length ? red : null, nuts: nutSet.length ? nutSet : null };
+  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, duffDark, nuts: nutSet.length ? nutSet : null };
 }
 
 // Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The
@@ -1315,9 +1323,12 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const isNut = kind === 'nut';
   const isDuff = kind === 'duff';
   // 'cache-engine' → red litter (fall back to normal leaves if red art missing);
-  // 'nut' → acorn/chestnut scatter; 'duff' → the orange leaves, tinted brown below;
-  // 'cache' (or anything else) → orange leaves.
-  const set = isNut ? sets.nuts : (kind === 'cache-engine' ? (sets.red || sets.leaves) : sets.leaves);
+  // 'nut' → acorn/chestnut scatter; 'duff' → the YELLOW/gold set (a few pieces tinted
+  // brown below); 'cache' (or anything else) → orange leaves.
+  const set = isNut ? sets.nuts
+    : kind === 'cache-engine' ? (sets.red || sets.leaves)
+    : isDuff ? (sets.yellow || sets.leaves)
+    : sets.leaves;
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const margin = cs * 1.6 * z;
@@ -1342,8 +1353,26 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
     const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
     const pick = _hashf(col * 5.9 + k * 3.7, row * 8.3 + k * 9.1);
-    const img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
+    let img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
     if (!img) continue;
+    // Per-piece look. Duff is DOMINANTLY yellow (the leaves are already gold) with a
+    // few pieces tinted mid-brown and a couple dark-brown (a dedicated dark leaf when
+    // loaded) mixed in, so a decayed-litter heap gains internal variety yet still
+    // reads clearly against the brown soil. Nuts are muted + slightly translucent.
+    let filter = null, alpha = isNut ? 0.9 : 1;
+    if (isNut) filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
+    else if (isDuff) {
+      alpha = 0.96;
+      const cls = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7);
+      if (cls < 0.15) {                 // dark-brown minority (rotted mould)
+        if (sets.duffDark) img = sets.duffDark;
+        filter = sets.duffDark ? 'brightness(0.92) saturate(0.95)' : 'brightness(0.3) saturate(0.5) sepia(0.55)';
+      } else if (cls < 0.34) {          // mid-brown minority (a yellow leaf pushed brown)
+        filter = 'brightness(0.66) saturate(0.72) sepia(0.5)';
+      } else {                          // DOMINANT gold — keep it vivid against the soil
+        filter = 'saturate(1.08) brightness(1.03)';
+      }
+    }
     const lh = base * (0.7 + h1 * 0.6) * z;
     const lw = lh * (img.width / img.height);
     const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
@@ -1351,19 +1380,8 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     ctx.translate(s.x + ox, s.y + oy);
     // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
     ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
-    // nuts are muted + slightly translucent; duff is pushed BROWN + dark (decayed
-    // leaf mould) so the same orange leaves read as spent, low-value litter.
-    ctx.globalAlpha = (isNut ? 0.9 : isDuff ? 0.92 : 1) * alphaMul;
-    if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
-    else if (isDuff) {
-      // A couple of pieces per duff heap are pushed almost to BLACK (charred,
-      // rotted leaf mould) so the otherwise-brown pile gains internal contrast
-      // and lifts off the brown soil instead of melting into it.
-      const dark = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7) < 0.26;
-      ctx.filter = dark
-        ? 'brightness(0.26) saturate(0.4) sepia(0.55)'
-        : 'brightness(0.6) saturate(0.5) sepia(0.6)';
-    }
+    ctx.globalAlpha = alpha * alphaMul;
+    if (filter) ctx.filter = filter;
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }

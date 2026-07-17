@@ -42,6 +42,36 @@
    "kind": "sprite"
   },
   {
+   "key": "leafYellowGinkgo",
+   "file": "leafYellowGinkgo.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafYellowMaple",
+   "file": "leafYellowMaple.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafYellowPoplar",
+   "file": "leafYellowPoplar.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafYellowAspen",
+   "file": "leafYellowAspen.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafYellowElm",
+   "file": "leafYellowElm.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "leafDuffBrown",
+   "file": "leafDuffBrown.png",
+   "kind": "sprite"
+  },
+  {
    "key": "acorn",
    "file": "acorn.png",
    "kind": "sprite"

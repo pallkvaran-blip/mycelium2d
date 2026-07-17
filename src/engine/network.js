@@ -565,18 +565,38 @@ export class Network {
   // to a cap so one punch can't wipe out half the map).
   // Returns: >0 nodes threaded on success; 0 if there's no rock near the tap;
   // -1 if rock is there but no colony strand is in range to reach it.
-  punchThrough(substrate, rng, x, y) {
+  // `(x,y)` is the rock-find seed (where the player pressed); `(aimX,aimY)` is the
+  // point to bore TOWARD. With the drag-aimer the press snaps to a strand and the
+  // drag runs through the rock, so we walk the aim ray to find the rock the player
+  // aimed at; a single tap (aim == seed) falls back to a radial search around the
+  // tap. Direction of travel is always anchor → aim, so the strand emerges on the
+  // side the player aimed at.
+  punchThrough(substrate, rng, x, y, aimX = x, aimY = y) {
     const g = this.config.growth;
     const isRock = (cell) => cell && cell.rock && !cell.water;
-    // nearest rock cell to the tap (rocks render as sprites that spill well beyond
-    // their cells, so search a generous radius around the click)
-    const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+    const cs = substrate.cellSize;
     let start = null;
-    outer:
-    for (let rad = 0; rad <= 8 && !start; rad++) {
-      for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
-        if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
-        if (isRock(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+    // Drag-aim: scan along the aim ray from the press point for the first rock it
+    // crosses (the player drags from a strand through the rock they want to punch).
+    const aimLen = Math.hypot(aimX - x, aimY - y);
+    if (aimLen > cs) {
+      const ux = (aimX - x) / aimLen, uy = (aimY - y) / aimLen;
+      for (let t = 0; t <= aimLen + cs * 2 && !start; t += cs / 2) {
+        const cc = substrate.colAtX(x + ux * t), rr = substrate.rowAtY(y + uy * t);
+        if (isRock(substrate.cellAt(cc, rr))) start = { col: cc, row: rr };
+      }
+    }
+    // Single tap (or the ray missed the rock): nearest rock cell to the seed point
+    // (rocks render as sprites that spill well beyond their cells, so search a
+    // generous radius around the click).
+    if (!start) {
+      const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+      outer:
+      for (let rad = 0; rad <= 8 && !start; rad++) {
+        for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+          if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
+          if (isRock(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+        }
       }
     }
     if (!start) return 0;
@@ -609,8 +629,7 @@ export class Network {
     // the strand bores ACROSS the rock in the chosen direction and emerges on that
     // side. (Aiming at the rock's centroid instead dragged the strand down a long
     // column's whole length rather than out the side you picked.)
-    const cs = substrate.cellSize;
-    let dx = x - anchor.x, dy = y - anchor.y;
+    let dx = aimX - anchor.x, dy = aimY - anchor.y;
     if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
     const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
     // The rock ends, ALONG THE AIM DIRECTION, at the far edge of the CLICKED
@@ -627,7 +646,7 @@ export class Network {
       if (!substrate.inBounds(cc, rr)) continue;
       if (featSet.has(substrate.index(cc, rr))) { far = t; reached = true; }
     }
-    if (!reached) far = Math.min(maxCellDist, Math.hypot(x - anchor.x, y - anchor.y));
+    if (!reached) far = Math.min(maxCellDist, Math.hypot(aimX - anchor.x, aimY - anchor.y));
     // Bore a passable channel along the ray up to that exit — any rock on the way
     // (the feature itself, or something we pass through to reach it) is opened but
     // stays drawn as rock, so the strand overlays it instead of the rock vanishing.

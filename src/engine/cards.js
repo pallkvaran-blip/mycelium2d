@@ -515,6 +515,15 @@ function dirFrom(state, ctx) {
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
   return { fp, tip, dx, dy };
 }
+// Bore through rock for the drag-aimed punch cards (Appressorial Punch, Tap-Root
+// Rhizomorph). The press origin (ctx.srcX/srcY) seeds the rock search near the
+// aimed strand and the drag point (ctx.x/y) sets the bore direction; a plain tap
+// (no origin) falls back to seed == aim so punchThrough finds the rock at the tap.
+function punchAt(state, ctx) {
+  const px = ctx.srcX != null ? ctx.srcX : ctx.x;
+  const py = ctx.srcY != null ? ctx.srcY : ctx.y;
+  return state.active.punchThrough(state.substrate, state.rng, px, py, ctx.x, ctx.y);
+}
 function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const sub = state.substrate;
   const g = state.config.growth;
@@ -705,9 +714,13 @@ export const EFFECTS = {
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
     return { ok: false, message: 'Every food pile has already been reached — nothing new to lunge toward.' };
   }),
-  'Appressorial Punch': targeted((s, c, ctx) => {
+  // Bore-through cards/actions share the directional PRESS-AND-DRAG aimer with the
+  // grow cards: the press snaps to the strand nearest it, and the drag points which
+  // way to bore through the rock (ctx.srcX/srcY = origin strand, ctx.x/y = aim). A
+  // single tap (no drag origin) still works — punchThrough finds the rock at the tap.
+  'Appressorial Punch': directional((s) => s.config.cards.reachSegments, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+    const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to punch through.' };
@@ -778,8 +791,8 @@ export const EFFECTS = {
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
+    const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to grow through.' };

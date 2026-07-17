@@ -1040,8 +1040,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1328gr0";
-globalThis.__BUILD__ = "local 07-17 11:20";
+window.__ASSET_VER = "16kqgbw";
+globalThis.__BUILD__ = "local 07-17 11:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3914,18 +3914,38 @@ class Network {
   // to a cap so one punch can't wipe out half the map).
   // Returns: >0 nodes threaded on success; 0 if there's no rock near the tap;
   // -1 if rock is there but no colony strand is in range to reach it.
-  punchThrough(substrate, rng, x, y) {
+  // `(x,y)` is the rock-find seed (where the player pressed); `(aimX,aimY)` is the
+  // point to bore TOWARD. With the drag-aimer the press snaps to a strand and the
+  // drag runs through the rock, so we walk the aim ray to find the rock the player
+  // aimed at; a single tap (aim == seed) falls back to a radial search around the
+  // tap. Direction of travel is always anchor → aim, so the strand emerges on the
+  // side the player aimed at.
+  punchThrough(substrate, rng, x, y, aimX = x, aimY = y) {
     const g = this.config.growth;
     const isRock = (cell) => cell && cell.rock && !cell.water;
-    // nearest rock cell to the tap (rocks render as sprites that spill well beyond
-    // their cells, so search a generous radius around the click)
-    const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+    const cs = substrate.cellSize;
     let start = null;
-    outer:
-    for (let rad = 0; rad <= 8 && !start; rad++) {
-      for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
-        if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
-        if (isRock(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+    // Drag-aim: scan along the aim ray from the press point for the first rock it
+    // crosses (the player drags from a strand through the rock they want to punch).
+    const aimLen = Math.hypot(aimX - x, aimY - y);
+    if (aimLen > cs) {
+      const ux = (aimX - x) / aimLen, uy = (aimY - y) / aimLen;
+      for (let t = 0; t <= aimLen + cs * 2 && !start; t += cs / 2) {
+        const cc = substrate.colAtX(x + ux * t), rr = substrate.rowAtY(y + uy * t);
+        if (isRock(substrate.cellAt(cc, rr))) start = { col: cc, row: rr };
+      }
+    }
+    // Single tap (or the ray missed the rock): nearest rock cell to the seed point
+    // (rocks render as sprites that spill well beyond their cells, so search a
+    // generous radius around the click).
+    if (!start) {
+      const c0 = substrate.colAtX(x), r0 = substrate.rowAtY(y);
+      outer:
+      for (let rad = 0; rad <= 8 && !start; rad++) {
+        for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+          if (rad > 0 && Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
+          if (isRock(substrate.cellAt(c0 + dc, r0 + dr))) { start = { col: c0 + dc, row: r0 + dr }; break outer; }
+        }
       }
     }
     if (!start) return 0;
@@ -3958,8 +3978,7 @@ class Network {
     // the strand bores ACROSS the rock in the chosen direction and emerges on that
     // side. (Aiming at the rock's centroid instead dragged the strand down a long
     // column's whole length rather than out the side you picked.)
-    const cs = substrate.cellSize;
-    let dx = x - anchor.x, dy = y - anchor.y;
+    let dx = aimX - anchor.x, dy = aimY - anchor.y;
     if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
     const ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy);
     // The rock ends, ALONG THE AIM DIRECTION, at the far edge of the CLICKED
@@ -3976,7 +3995,7 @@ class Network {
       if (!substrate.inBounds(cc, rr)) continue;
       if (featSet.has(substrate.index(cc, rr))) { far = t; reached = true; }
     }
-    if (!reached) far = Math.min(maxCellDist, Math.hypot(x - anchor.x, y - anchor.y));
+    if (!reached) far = Math.min(maxCellDist, Math.hypot(aimX - anchor.x, aimY - anchor.y));
     // Bore a passable channel along the ray up to that exit — any rock on the way
     // (the feature itself, or something we pass through to reach it) is opened but
     // stays drawn as rock, so the strand overlays it instead of the rock vanishing.
@@ -5763,6 +5782,15 @@ function dirFrom(state, ctx) {
   if (Math.hypot(dx, dy) < 1) { dx = 1; dy = 0; }
   return { fp, tip, dx, dy };
 }
+// Bore through rock for the drag-aimed punch cards (Appressorial Punch, Tap-Root
+// Rhizomorph). The press origin (ctx.srcX/srcY) seeds the rock search near the
+// aimed strand and the drag point (ctx.x/y) sets the bore direction; a plain tap
+// (no origin) falls back to seed == aim so punchThrough finds the rock at the tap.
+function punchAt(state, ctx) {
+  const px = ctx.srcX != null ? ctx.srcX : ctx.x;
+  const py = ctx.srcY != null ? ctx.srcY : ctx.y;
+  return state.active.punchThrough(state.substrate, state.rng, px, py, ctx.x, ctx.y);
+}
 function depositAtSensingEdge(state, ctx, amount, radiusCells) {
   const sub = state.substrate;
   const g = state.config.growth;
@@ -5953,9 +5981,13 @@ const EFFECTS = {
     if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
     return { ok: false, message: 'Every food pile has already been reached — nothing new to lunge toward.' };
   }),
-  'Appressorial Punch': targeted((s, c, ctx) => {
+  // Bore-through cards/actions share the directional PRESS-AND-DRAG aimer with the
+  // grow cards: the press snaps to the strand nearest it, and the drag points which
+  // way to bore through the rock (ctx.srcX/srcY = origin strand, ctx.x/y = aim). A
+  // single tap (no drag origin) still works — punchThrough finds the rock at the tap.
+  'Appressorial Punch': directional((s) => s.config.cards.reachSegments, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+    const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to punch through.' };
@@ -6026,8 +6058,8 @@ const EFFECTS = {
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
-    const n = s.active.punchThrough(s.substrate, s.rng, ctx.x, ctx.y);
+  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
+    const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
     return { ok: false, message: 'No rock there to grow through.' };
@@ -12122,9 +12154,11 @@ function drawTerrainAssets() {
 //   • MAP caches (foodKind 'cache') → heaped ORANGE oak/maple LEAVES — wild litter
 //     that grants a Basic/Event card draft when fully digested.
 //   • ENGINE caches (foodKind 'cache-engine') → RED autumn leaves — draft an Engine.
-//   • DUFF caches (foodKind 'duff') → the SAME oak/maple leaves rendered BROWN &
-//     desaturated (decayed leaf mould), with a couple of near-black pieces mixed in
-//     for contrast against the brown soil; a smaller/flatter heap: energy only, NO draft.
+//   • DUFF caches (foodKind 'duff') → mostly YELLOW/golden autumn leaves (their own
+//     sprite set) so they lift off the brown soil, with a few pieces tinted mid-brown
+//     and a couple of dark-brown ones (a dedicated dark leaf) mixed in; a smaller/
+//     flatter heap: energy only, NO draft. (Was the orange leaves tinted brown, which
+//     melted into the brown background.)
 //   • PLAYER-placed food (foodKind 'nut') → a small scatter of ACORNS, CHESTNUTS
 //     and PINE CONES — a humble lower-tier cache that only yields energy.
 // The pile SHRINKS as the cell is digested (fewer pieces); every piece's
@@ -12132,6 +12166,9 @@ function drawTerrainAssets() {
 // frames and digestion peels pieces off the top. Nuts are drawn smaller, sparser
 // and slightly muted so they nestle into the soil instead of sitting on top.
 const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
+// DUFF piles: golden/yellow leaves are the DOMINANT colour (they read against the
+// brown soil), with leafDuffBrown as the dark-brown minority (see _drawLeafHeap).
+const YELLOW_LEAF_KEYS = ['leafYellowGinkgo', 'leafYellowMaple', 'leafYellowPoplar', 'leafYellowAspen', 'leafYellowElm'];
 function _leafSets() {
   const oak = asset('leafOak'), maple = asset('leafMaple');
   const acorn = asset('acorn'), chestnut = asset('chestnut'), pinecone = asset('pinecone');
@@ -12139,8 +12176,11 @@ function _leafSets() {
   // ENGINE caches: a mix drawn from ALL SIX red/autumn leaves so each pile reads
   // as its own varied red litter (the heap picks a leaf per piece from this set).
   const red = RED_LEAF_KEYS.map(asset).filter(Boolean);
+  // DUFF caches: the yellow/gold set (dominant) + one dark-brown leaf for the minority.
+  const yellow = YELLOW_LEAF_KEYS.map(asset).filter(Boolean);
+  const duffDark = asset('leafDuffBrown') || null;
   const nutSet = [acorn, chestnut, pinecone].filter(Boolean);
-  return { leaves, red: red.length ? red : null, nuts: nutSet.length ? nutSet : null };
+  return { leaves, red: red.length ? red : null, yellow: yellow.length ? yellow : null, duffDark, nuts: nutSet.length ? nutSet : null };
 }
 
 // Draw one cell's heaped pile of leaf/nut sprites at `alphaMul` opacity. The
@@ -12152,9 +12192,12 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
   const isNut = kind === 'nut';
   const isDuff = kind === 'duff';
   // 'cache-engine' → red litter (fall back to normal leaves if red art missing);
-  // 'nut' → acorn/chestnut scatter; 'duff' → the orange leaves, tinted brown below;
-  // 'cache' (or anything else) → orange leaves.
-  const set = isNut ? sets.nuts : (kind === 'cache-engine' ? (sets.red || sets.leaves) : sets.leaves);
+  // 'nut' → acorn/chestnut scatter; 'duff' → the YELLOW/gold set (a few pieces tinted
+  // brown below); 'cache' (or anything else) → orange leaves.
+  const set = isNut ? sets.nuts
+    : kind === 'cache-engine' ? (sets.red || sets.leaves)
+    : isDuff ? (sets.yellow || sets.leaves)
+    : sets.leaves;
   if (!set) return;                            // this pile's sprites not loaded
   const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
   const margin = cs * 1.6 * z;
@@ -12179,8 +12222,26 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     const h2 = _hashf(col * 3.3 + k * 17.1, row * 19.3 + k * 7.7);
     const h3 = _hashf(col * 23.7 + k * 2.1, row * 29.1 + k * 3.3);
     const pick = _hashf(col * 5.9 + k * 3.7, row * 8.3 + k * 9.1);
-    const img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
+    let img = set[Math.min(set.length - 1, Math.floor(pick * set.length))];
     if (!img) continue;
+    // Per-piece look. Duff is DOMINANTLY yellow (the leaves are already gold) with a
+    // few pieces tinted mid-brown and a couple dark-brown (a dedicated dark leaf when
+    // loaded) mixed in, so a decayed-litter heap gains internal variety yet still
+    // reads clearly against the brown soil. Nuts are muted + slightly translucent.
+    let filter = null, alpha = isNut ? 0.9 : 1;
+    if (isNut) filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
+    else if (isDuff) {
+      alpha = 0.96;
+      const cls = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7);
+      if (cls < 0.15) {                 // dark-brown minority (rotted mould)
+        if (sets.duffDark) img = sets.duffDark;
+        filter = sets.duffDark ? 'brightness(0.92) saturate(0.95)' : 'brightness(0.3) saturate(0.5) sepia(0.55)';
+      } else if (cls < 0.34) {          // mid-brown minority (a yellow leaf pushed brown)
+        filter = 'brightness(0.66) saturate(0.72) sepia(0.5)';
+      } else {                          // DOMINANT gold — keep it vivid against the soil
+        filter = 'saturate(1.08) brightness(1.03)';
+      }
+    }
     const lh = base * (0.7 + h1 * 0.6) * z;
     const lw = lh * (img.width / img.height);
     const ox = (h1 * 2 - 1) * cs * 0.3 * z + biasX, oy = (h2 * 2 - 1) * cs * 0.28 * z + biasY;
@@ -12188,19 +12249,8 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     ctx.translate(s.x + ox, s.y + oy);
     // leaves scatter every which way; nuts mostly sit upright (a slight tilt).
     ctx.rotate(isNut ? (h3 - 0.5) * 1.1 : h3 * Math.PI * 2);
-    // nuts are muted + slightly translucent; duff is pushed BROWN + dark (decayed
-    // leaf mould) so the same orange leaves read as spent, low-value litter.
-    ctx.globalAlpha = (isNut ? 0.9 : isDuff ? 0.92 : 1) * alphaMul;
-    if (isNut) ctx.filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
-    else if (isDuff) {
-      // A couple of pieces per duff heap are pushed almost to BLACK (charred,
-      // rotted leaf mould) so the otherwise-brown pile gains internal contrast
-      // and lifts off the brown soil instead of melting into it.
-      const dark = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7) < 0.26;
-      ctx.filter = dark
-        ? 'brightness(0.26) saturate(0.4) sepia(0.55)'
-        : 'brightness(0.6) saturate(0.5) sepia(0.6)';
-    }
+    ctx.globalAlpha = alpha * alphaMul;
+    if (filter) ctx.filter = filter;
     ctx.drawImage(img, -lw / 2, -lh / 2, lw, lh);
     ctx.restore();
   }

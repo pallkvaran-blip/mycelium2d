@@ -1,6 +1,11 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-17 (**economy/collision pass:** map food piles now give a small FIXED **1–8 Energy** each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged; ~11 route caches + **1–3 RED engine** caches/map · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+_Living status + knowledge doc. Last updated: 2026-07-17 (**punch aimer + yellow duff leaves:** the
+rock-punch cards/actions (Appressorial Punch, Tap-Root Rhizomorph) now use the SAME press-and-drag aimer
+as the grow cards — `punchThrough` takes a separate aim point (press seeds the rock search along the aim
+ray, drag sets the bore direction); single-tap still works. Low-value **duff** leaf piles are now
+DOMINANTLY YELLOW (new `leafYellow*` sprites) with a few brown/dark-brown mixed in, so they read against
+the brown soil — see §9. — earlier: **economy/collision pass:** map food piles now give a small FIXED **1–8 Energy** each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged; ~11 route caches + **1–3 RED engine** caches/map · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -431,6 +436,31 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Drag-aimer on the rock-punch cards + YELLOW duff leaves** (`src/engine/network.js punchThrough`,
+  `src/engine/cards.js`, `src/main.js _leafSets/_drawLeafHeap`, `assets/`, `scripts/gen_leaf_yellow.py`).
+  - **Rock-punch cards/actions now use the SAME press-and-drag aimer as the grow cards.** Appressorial
+    Punch (card) and Tap-Root Rhizomorph (action) were single-tap targets; they're now `directional` /
+    `aim:'drag'` (Punch via the `directional` helper; Tap-Root gains `aim:'drag'` + `reachFn` in its
+    `action` spec), so the player presses on a strand and drags to point the bore, with the identical
+    green aim arrow (`main.js armedDragTarget`/`beginAim`/`drawAimLine` are all shared, unchanged).
+    `punchThrough(sub,rng,x,y,aimX,aimY)` gained a separate aim point: the press `(x,y)` (ctx.srcX/srcY)
+    seeds the rock search by walking the aim RAY (so the drag can start on a strand and cross the rock),
+    and the drag `(aimX,aimY)` (ctx.x/y) sets the bore direction (anchor→aim). Single tap still works —
+    `aimX/aimY` default to `x/y`, giving the old radial rock-find + tap-direction behaviour. New helper
+    `cards.js punchAt(state,ctx)` wires the drag ctx into both effects. Verified: 10/10 headless (drag
+    bores through a wall, single-tap fallback, Tap-Root drag path); 101 smoke + 60 card tests green;
+    in-game the Punch card arms + is a drag target.
+  - **Duff (low-value) leaf piles are now DOMINANTLY YELLOW.** They were the orange oak/maple leaves
+    tinted brown, which melted into the brown soil. Generated 5 gold leaves (ginkgo/maple/poplar/aspen/
+    elm) + a dark-brown beech via Replicate FLUX + BiRefNet (`scripts/gen_leaf_yellow.py`), promoted to
+    `assets/leafYellow{Ginkgo,Maple,Poplar,Aspen,Elm}.png` + `assets/leafDuffBrown.png` (manifest
+    entries added; `_leafSets` returns a `yellow` set + `duffDark`). `_drawLeafHeap`'s duff branch now
+    draws mostly yellow (slightly vivified), with ~19% pieces tinted mid-brown and ~15% the dark beech,
+    so the heap keeps decayed-litter variety yet reads clearly against soil. Value ladder stays
+    colour-coded: **red (engine) > orange (cache/draft) > yellow (duff)**. Verified in-game: duff piles
+    render as bright gold clusters that pop against the brown background (Playwright screenshot).
+    TUNABLE: the yellow/mid-brown/dark split thresholds in `_drawLeafHeap`; `YELLOW_LEAF_KEYS`.
 
 - **FINE rock collision — a ¼-cell solid mask that matches the drawn art** (`src/main.js solidifyRock`
   → `src/engine/substrate.js solidAtWorld` → `network.js _placeOk/_segmentClear`). The 36px cell grid
