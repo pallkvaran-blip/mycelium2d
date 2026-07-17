@@ -262,15 +262,18 @@ export class Network {
     const tips = this.tips();
     if (!tips.length) return 0;
     const baseAng = Math.atan2(dy, dx);
-    // Dodge offsets (radians), SMALLEST deviation first: let an aimed grow round a
-    // rock CORNER and thread an off-axis gap instead of hard-stopping the instant
-    // the exact aim vector clips rock. off=0 always wins in the open, so growth
-    // stays dead-on-aim unless rock is actually in the way — it only bends the
-    // minimum needed to keep advancing. A "straight" lance bends just slightly
-    // (stays lance-like); a jittery grow may weave wider around an obstacle.
+    // The "grow around rock edge" assistant. Rock is now FIRM (rockOverlap 0 — a
+    // strand may never enter a rock cell), so this dodge does all the work of
+    // getting growth past rock: try the exact aim, then progressively WIDER angular
+    // offsets (smallest deviation first) and take the first that lands a clear
+    // segment through open soil. off=0 always wins in the open, so growth stays
+    // dead-on-aim unless rock is in the way — but when it IS, the search is generous
+    // (out to ~65° for a lance, ~80° for a jittery grow, in fine steps) so a strand
+    // reliably rounds a corner or threads a real gap instead of hard-stopping. It
+    // only ever finds routes through genuine open soil — it never grows into rock.
     const DODGE = straight
-      ? [0, 0.26, -0.26, 0.5, -0.5]
-      : [0, 0.35, -0.35, 0.7, -0.7];
+      ? [0, 0.2, -0.2, 0.4, -0.4, 0.62, -0.62, 0.85, -0.85, 1.1, -1.1]
+      : [0, 0.26, -0.26, 0.52, -0.52, 0.8, -0.8, 1.08, -1.08, 1.4, -1.4];
     // First clear step from node `n` toward the aim (trying each dodge in turn);
     // returns the new point, or null if walled in on every dodge.
     const stepFrom = (n, jitter) => {
