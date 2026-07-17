@@ -462,6 +462,12 @@ Both menus are dark, on-theme, with glowing green borders.
   generated — 4 options each in `assets/tutorial_options/` (contact sheets `_sheet_*`), owner-picked
   **ant D / nematode B / trichoderma D**; regenerate/re-pick via `scripts/gen_tutorial_threats.py`.
   Test/replay hooks: `#tutorial` hash forces it; `window.__game.startTutorial()` / `.resetTutorial()`.
+  **Portrait phone:** `tutorial.js` MINIMIZES the hand carousel (`setHandOpen(false)`) on every step that
+  doesn't need the hand — steps carry `hand:'open'` for the two that do (the hand + drag steps) — and
+  MAXIMIZES it again in `finish()`. A `@media (max-width:720px) and (orientation:portrait)` block shrinks
+  the pics (`.tut-fig img` max-height 146px) + text (14px) and hugs the popup to the edges: bottom steps sit
+  just above the minimized carousel, top steps drop below the top-left resource pill. Gated behind
+  `phonePortrait()` so wider screens are untouched.
 
 - **Energy trim + new threat curve** (`src/config.js`, `src/species.js`). Follow-up pass on the tune
   below: leaf Energy lowered another step (counts unchanged) to 🟡 duff Energy **1–2** (`duffEnergyMin/Max`

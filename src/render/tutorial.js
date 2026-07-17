@@ -28,6 +28,15 @@
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 const threatImg = (slug) => `assets/tutorial/${slug}.jpg${VER}`;
 
+// On a PORTRAIT PHONE the popup + threat pics are large relative to the screen, so
+// the tutorial MINIMIZES the hand carousel on every step that doesn't need the hand
+// (and maximizes it again when the tutorial ends — see enter()/finish()). On wider
+// screens there's room for both, so the hand is left alone.
+const phonePortrait = () => {
+  try { return !!(window.matchMedia && window.matchMedia('(max-width:720px) and (orientation:portrait)').matches); }
+  catch (_) { return false; }
+};
+
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 
 export function startTutorial(deps) {
@@ -51,9 +60,9 @@ export function startTutorial(deps) {
     {
       text: 'This is your hand.<br><b>Double-click a card to play it.</b>',
       focus: (s) => world(deps.colonyRoot(), 1.1),
-      onEnter: () => deps.setHandOpen(true),
       target: () => cardTarget(APICAL),
       glowCard: APICAL,
+      hand: 'open',          // needs the carousel visible (points at Apical Drive)
       place: 'top',
       // Forced: advance once Apical Drive is armed for aiming (double-clicked).
       gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
@@ -64,6 +73,7 @@ export function startTutorial(deps) {
       target: (s) => worldTarget(deps.colonyRoot()),
       glowCard: APICAL,
       demo: true,
+      hand: 'open',          // keep the glowing card visible while dragging to grow
       place: 'top',
       onEnter: (s, mem) => { mem.baseNodes = nodeCount(s); },
       // Forced: advance the moment the colony actually grows.
@@ -177,6 +187,11 @@ export function startTutorial(deps) {
     // placement
     pop.classList.remove('tut-pop--top', 'tut-pop--bottom', 'tut-pop--center');
     pop.classList.add('tut-pop--' + (step.place || 'bottom'));
+    // hand carousel: open it for the steps that need it; on a portrait phone,
+    // MINIMIZE it on every other step so the popup + pics have room. Wider screens
+    // keep the hand as-is. The hand is maximized again when the tutorial ends.
+    if (step.hand === 'open') deps.setHandOpen(true);
+    else if (phonePortrait()) deps.setHandOpen(false);
     // forced (gated) → no Next, no catcher; interactive → Next but no catcher;
     // explanatory → Next + full-screen click catcher.
     const forced = !!step.gate;
@@ -206,6 +221,7 @@ export function startTutorial(deps) {
     if (!alive) return;
     alive = false;
     clearGlow();
+    deps.setHandOpen(true);   // always leave the hand carousel maximized afterward
     document.removeEventListener('keydown', onKey);
     root.remove();
     try { deps.onDone && deps.onDone(); } catch (_) {}

@@ -1092,6 +1092,20 @@
       .tut-body { font-size:15.5px; }
       .tut-fig img { max-height:190px; }
     }
+    /* Portrait phone: smallest pics + text, and the popup hugs the screen edges — it
+       sits just above the MINIMIZED hand carousel (bottom steps; tutorial.js collapses
+       the hand) and drops below the top-left resource pill (top steps) so it clears
+       both. Overlapping the pill is tolerated but avoided here. */
+    @media (max-width:720px) and (orientation:portrait) {
+      .tut-pop { width:min(400px, calc(100vw - 18px)); padding:13px 15px 11px; }
+      .tut-pop--bottom { bottom:calc(60px + env(safe-area-inset-bottom, 0px)); }
+      .tut-pop--top { top:60px; }             /* clear the top-left resource pill */
+      .tut-body { font-size:14px; line-height:1.45; }
+      .tut-fig { margin:-1px 0 10px; }
+      .tut-fig img { max-height:146px; }
+      .tut-btns { margin-top:11px; }
+      .tut-btn { padding:8px 15px; font-size:13px; }
+    }
 
     /* HUD campaign level chip (top-centre, non-interactive) */
 
