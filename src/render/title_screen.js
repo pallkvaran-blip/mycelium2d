@@ -20,7 +20,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-export function showTitleScreen({ onNew, onContinue }) {
+export function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -43,6 +43,19 @@ export function showTitleScreen({ onNew, onContinue }) {
       '</div>' +
     '</div>';
   document.body.appendChild(root);
+
+  // TEMP dev button (bottom-right): jump straight into the tutorial with a random
+  // starter species — bypasses New/picker. Only shown when a handler is supplied.
+  let devBtn = null;
+  if (onDevTutorial) {
+    devBtn = el('button', null, 'Dev: tutorial ▸');
+    devBtn.id = 'tsDevTut'; devBtn.type = 'button';
+    devBtn.style.cssText =
+      'position:absolute; right:14px; bottom:14px; z-index:6; font:600 12px/1 "Segoe UI",system-ui,sans-serif;' +
+      'color:#e6b45c; background:rgba(24,26,18,0.7); border:1px dashed rgba(230,180,92,0.6);' +
+      'border-radius:8px; padding:7px 12px; cursor:pointer; letter-spacing:.02em; backdrop-filter:blur(4px);';
+    root.appendChild(devBtn);
+  }
 
   const canvas = root.querySelector('#tsCanvas');
   const ctx = canvas.getContext('2d');
@@ -504,6 +517,13 @@ export function showTitleScreen({ onNew, onContinue }) {
   let rt = 0;
   const onResize = () => { if (consuming || finished) return; clearTimeout(rt); rt = setTimeout(layout, 200); };
   window.addEventListener('resize', onResize);
+
+  // TEMP dev: skip the consume animation and hand straight off to the tutorial run.
+  if (devBtn) devBtn.addEventListener('click', () => {
+    if (consuming || finished) return;
+    finished = true; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); root.remove();
+    onDevTutorial && onDevTutorial();
+  });
 
   layout();
   if (!reduce) raf = requestAnimationFrame(frame);

@@ -462,6 +462,14 @@ Both menus are dark, on-theme, with glowing green borders.
   generated — 4 options each in `assets/tutorial_options/` (contact sheets `_sheet_*`), owner-picked
   **ant D / nematode B / trichoderma D**; regenerate/re-pick via `scripts/gen_tutorial_threats.py`.
   Test/replay hooks: `#tutorial` hash forces it; `window.__game.startTutorial()` / `.resetTutorial()`.
+  **Portrait phone:** `tutorial.js phonePortrait()` MINIMIZES the hand carousel on every step that
+  doesn't need it (steps carrying `hand:'open'` — the hand + drag steps — keep it open) and maximizes
+  it again in `finish()`; an `index.html` `@media (max-width:720px) and (orientation:portrait)` block
+  shrinks the pics (146px) + text (14px) and pushes the popup clear of the top resource pill / minimized
+  carousel. **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
+  when `onDevTutorial` is passed): jumps straight into a level-1 tutorial run with a RANDOM `SPECIES`,
+  via `tutorialDevForce` (fires the tutorial WITHOUT `markTutorialSeen`, so the real first-run flow is
+  unaffected). Remove the button + flag when the tutorial ships.
   **Portrait phone:** `tutorial.js` MINIMIZES the hand carousel (`setHandOpen(false)`) on every step that
   doesn't need the hand — steps carry `hand:'open'` for the two that do (the hand + drag steps) — and
   MAXIMIZES it again in `finish()`. A `@media (max-width:720px) and (orientation:portrait)` block shrinks

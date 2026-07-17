@@ -21,7 +21,7 @@ import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
-import { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -46,6 +46,7 @@ const networkRenderers = new Map();
 // live controller while it runs. See render/tutorial.js.
 let tutorial = null;
 let tutorialPending = false;
+let tutorialDevForce = false;          // TEMP dev title button: fire the tutorial (random species) without marking it seen
 let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
 const TUT_KEY = 'mycelium.tutorial.v1';
 function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
@@ -350,10 +351,13 @@ function begin(newState) {
   updateDevWinBtn();
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
-  if (tutorialPending && currentLevel === 1 && state.mode !== 'puzzle') {
-    tutorialPending = false;
+  // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
+  // it seen — so it never interferes with testing the real first-run flow.
+  if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
+    const devForced = tutorialDevForce;
+    tutorialPending = false; tutorialDevForce = false;
     if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
-      markTutorialSeen();
+      if (!devForced) markTutorialSeen();
       beginTutorial();
     }
   }
@@ -2849,5 +2853,11 @@ else showTitleScreen({          // title → Survival New (wipe unlocks) / Conti
   // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
   onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
   onContinue: () => showPicker(),
+  // TEMP dev: jump straight into the tutorial with a random starter species.
+  onDevTutorial: () => {
+    chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
+    currentLevel = 1; carryOver = null; tutorialDevForce = true;
+    startRun();
+  },
 });
 requestAnimationFrame(frame);

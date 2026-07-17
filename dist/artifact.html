@@ -1123,8 +1123,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "r6w21e";
-globalThis.__BUILD__ = "local 07-17 18:42";
+window.__ASSET_VER = "1y8qan7";
+globalThis.__BUILD__ = "local 07-17 19:35";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10510,7 +10510,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-function showTitleScreen({ onNew, onContinue }) {
+function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -10533,6 +10533,19 @@ function showTitleScreen({ onNew, onContinue }) {
       '</div>' +
     '</div>';
   document.body.appendChild(root);
+
+  // TEMP dev button (bottom-right): jump straight into the tutorial with a random
+  // starter species — bypasses New/picker. Only shown when a handler is supplied.
+  let devBtn = null;
+  if (onDevTutorial) {
+    devBtn = el('button', null, 'Dev: tutorial ▸');
+    devBtn.id = 'tsDevTut'; devBtn.type = 'button';
+    devBtn.style.cssText =
+      'position:absolute; right:14px; bottom:14px; z-index:6; font:600 12px/1 "Segoe UI",system-ui,sans-serif;' +
+      'color:#e6b45c; background:rgba(24,26,18,0.7); border:1px dashed rgba(230,180,92,0.6);' +
+      'border-radius:8px; padding:7px 12px; cursor:pointer; letter-spacing:.02em; backdrop-filter:blur(4px);';
+    root.appendChild(devBtn);
+  }
 
   const canvas = root.querySelector('#tsCanvas');
   const ctx = canvas.getContext('2d');
@@ -10995,6 +11008,13 @@ function showTitleScreen({ onNew, onContinue }) {
   const onResize = () => { if (consuming || finished) return; clearTimeout(rt); rt = setTimeout(layout, 200); };
   window.addEventListener('resize', onResize);
 
+  // TEMP dev: skip the consume animation and hand straight off to the tutorial run.
+  if (devBtn) devBtn.addEventListener('click', () => {
+    if (consuming || finished) return;
+    finished = true; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); root.remove();
+    onDevTutorial && onDevTutorial();
+  });
+
   layout();
   if (!reduce) raf = requestAnimationFrame(frame);
 
@@ -11299,7 +11319,7 @@ const __m_main = (function () {
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
-  const { MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -11333,6 +11353,7 @@ const networkRenderers = new Map();
 // live controller while it runs. See render/tutorial.js.
 let tutorial = null;
 let tutorialPending = false;
+let tutorialDevForce = false;          // TEMP dev title button: fire the tutorial (random species) without marking it seen
 let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
 const TUT_KEY = 'mycelium.tutorial.v1';
 function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
@@ -11637,10 +11658,13 @@ function begin(newState) {
   updateDevWinBtn();
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
-  if (tutorialPending && currentLevel === 1 && state.mode !== 'puzzle') {
-    tutorialPending = false;
+  // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
+  // it seen — so it never interferes with testing the real first-run flow.
+  if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
+    const devForced = tutorialDevForce;
+    tutorialPending = false; tutorialDevForce = false;
     if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
-      markTutorialSeen();
+      if (!devForced) markTutorialSeen();
       beginTutorial();
     }
   }
@@ -14136,6 +14160,12 @@ else showTitleScreen({          // title → Survival New (wipe unlocks) / Conti
   // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
   onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
   onContinue: () => showPicker(),
+  // TEMP dev: jump straight into the tutorial with a random starter species.
+  onDevTutorial: () => {
+    chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
+    currentLevel = 1; carryOver = null; tutorialDevForce = true;
+    startRun();
+  },
 });
 requestAnimationFrame(frame);
 
