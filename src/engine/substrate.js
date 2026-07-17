@@ -59,18 +59,19 @@ export class Substrate {
   cellAtWorld(x, y) {
     return this.cellAt(this.colAtX(x), this.rowAtY(y));
   }
-  // True if OPEN (non-rock) ground lies within `margin` px of (x,y) — i.e. the point is no
-  // deeper than `margin` inside a rock. Used to let growth overlap rock EDGES / thread tiny
-  // gaps a little, while a wide rock's core (and two touching rocks) still read as solid.
-  openWithin(x, y, margin) {
-    const D = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.71, 0.71], [-0.71, 0.71], [0.71, -0.71], [-0.71, -0.71]];
-    for (const [ux, uy] of D) {
-      const px = x + ux * margin, py = y + uy * margin;
-      if (py <= this.surfaceY || px <= 0 || px >= this.worldWidth) continue;
-      const c = this.cellAtWorld(px, py);
-      if (c && !c.rock) return true;
-    }
-    return false;
+  // FINE-resolution rock collision for growth (built by main.js solidifyRock). True
+  // if the exact point (x,y) is under a drawn rock sprite or lake water. The mask is
+  // several times finer than the 36px cell grid (see _fineSize), so it matches the
+  // VISIBLE art closely: growth threads a real gap and stops at a real edge, with no
+  // coarse-grid false gaps (grow through touching rocks) or false walls (blocked at a
+  // visible gap). Falls back to the coarse cell.rock flag before the mask exists.
+  solidAtWorld(x, y) {
+    const fs = this._fineSolid;
+    if (!fs) { const c = this.cellAtWorld(x, y); return !!(c && c.rock); }
+    const fc = Math.floor(x / this._fineSize);
+    const fr = Math.floor((y - this.surfaceY) / this._fineSize);
+    if (fc < 0 || fr < 0 || fc >= this._fineCols || fr >= this._fineRows) return false;
+    return fs[fr * this._fineCols + fc] === 1;
   }
   // True if any rock cell lies within `r` cells of (col,row). Rock SPRITES
   // (boulders/formations/columns) render several cells larger than their flagged

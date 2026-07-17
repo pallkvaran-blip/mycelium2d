@@ -244,12 +244,11 @@ export class Network {
     const cell = substrate.cellAtWorld(nx, ny);
     if (!cell) return true;
     if (cell.bored) return true;   // rock a punch has bored a channel through — passable, still drawn as rock
-    if (!cell.rock) return true;   // ant trails don't block growth (mycelium and ant trails don't affect each other)
-    // Rock is passable near its EDGE — allowed as long as open ground is within `rockOverlap`
-    // px (skim edges / thread tiny gaps), but a wide rock's core still blocks (no open ground
-    // within reach), so you can't grow clear across a big rock or between two touching rocks.
-    const m = this.config.growth.rockOverlap || 0;
-    return m > 0 && substrate.openWithin(nx, ny, m);
+    // FIRM, FINE-resolution collision: a strand may sit anywhere EXCEPT under drawn rock.
+    // solidAtWorld matches the visible sprite to ~¼ cell, so a strand threads a real gap and
+    // stops at a real edge — no half-cell edge-skim, no squeezing between two touching rocks,
+    // and no getting blocked at a gap that's clearly open. (Ant trails never block growth.)
+    return !substrate.solidAtWorld(nx, ny);
   }
 
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
@@ -262,9 +261,9 @@ export class Network {
     const tips = this.tips();
     if (!tips.length) return 0;
     const baseAng = Math.atan2(dy, dx);
-    // The "grow around rock edge" assistant. Rock is now FIRM (rockOverlap 0 — a
-    // strand may never enter a rock cell), so this dodge does all the work of
-    // getting growth past rock: try the exact aim, then progressively WIDER angular
+    // The "grow around rock edge" assistant. Rock is now FIRM (a strand may never sit
+    // under drawn rock — see substrate.solidAtWorld), so this dodge does all the work
+    // of getting growth past rock: try the exact aim, then progressively WIDER angular
     // offsets (smallest deviation first) and take the first that lands a clear
     // segment through open soil. off=0 always wins in the open, so growth stays
     // dead-on-aim unless rock is in the way — but when it IS, the search is generous
@@ -447,7 +446,10 @@ export class Network {
   // punch/dig (which marks cells `bored`) may cross rock; _placeOk allows those.
   _segmentClear(substrate, x0, y0, x1, y1) {
     const dx = x1 - x0, dy = y1 - y0;
-    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (substrate.cellSize / 3)));
+    // Sample at the collision resolution (the fine mask, when built) so a segment can't
+    // hop over a thin rock sliver between samples; fall back to ~⅓ cell pre-solidify.
+    const step = substrate._fineSize ? substrate._fineSize * 0.7 : substrate.cellSize / 3;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / step));
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       if (!this._placeOk(substrate, x0 + dx * t, y0 + dy * t)) return false;

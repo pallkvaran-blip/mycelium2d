@@ -167,14 +167,12 @@ export const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
-    rockOverlap: 0,              // px a strand may overlap INTO a rock. ZERO = FIRM: a strand may never sit
-                                 //   in a rock cell at all — no edge-skimming, no squeezing between two
-                                 //   barely-touching rocks. Rock COLLISION matches the drawn silhouette
-                                 //   (main.js solidifyRock), so growth stops exactly at visible rock. Genuine
-                                 //   gaps are real open soil (they thread WITHOUT overlap); routing around
-                                 //   rock edges is handled generously by the grow cards' dodge/offset search
-                                 //   (network.js growDirected DODGE, _growStep offsets, growRadial ARC), NOT
-                                 //   by letting strands grow into the rock.
+    // Rock collision is FIRM and FINE: a strand may never sit under drawn rock. It's
+    // enforced by a ¼-cell solid mask (main.js solidifyRock → substrate.solidAtWorld),
+    // which matches the visible sprite, so there's no overlap knob — growth stops at the
+    // visible edge and threads real gaps. Routing around rock is handled generously by
+    // the grow cards' dodge/offset search (network.js growDirected DODGE, _growStep
+    // offsets, growRadial ARC), NOT by letting strands grow into the rock.
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)

@@ -1843,58 +1843,74 @@ function _alphaMask(img) {
   return m;
 }
 
-// Mark (into `cover`) every cell whose CENTRE falls under one rock sprite's opaque
+// Mark (into `mask`, a gCols×gRows grid of `gSize`-px cells whose rows start at the
+// surface line) every grid cell whose CENTRE falls under one rock sprite's opaque
 // silhouette — the point growth-collision tests. Geometry matches the draw exactly
-// (centre cxW,cyW, size wW×hW, rotation rot), so what blocks == what you see. Skips
-// lake water + food + above-surface cells. Returns false if the sprite isn't
-// decodable yet (caller retries next frame). Unlike a naive fill it does NOT skip
-// already-rock cells: we want true coverage for EVERY drawn cell so solidifyRock
-// can clear any flagged cell the sprite never actually covers (no invisible walls).
-function markCover(sub, cs, img, cxW, cyW, wW, hW, rot, cover) {
+// (centre cxW,cyW, size wW×hW, rotation rot), so what blocks == what you see. Called
+// twice per sprite: once on the COARSE cell grid (→ cell.rock, for LoS/spawn/draw)
+// and once on a FINE grid (→ the growth collision mask, several× finer so it tracks
+// the visible art and there are no coarse-grid false gaps / false walls). Skips lake
+// water + food + above-surface. Returns false if the sprite isn't decodable yet.
+function markCoverGrid(sub, img, cxW, cyW, wW, hW, rot, mask, gCols, gRows, gSize) {
   const m = _alphaMask(img);
   if (!m) return false;
   const cr = Math.cos(rot), sr = Math.sin(rot);
   const hwR = Math.abs(wW / 2 * cr) + Math.abs(hW / 2 * sr);   // rotated AABB half-extents
   const hhR = Math.abs(wW / 2 * sr) + Math.abs(hW / 2 * cr);
-  const c0 = Math.max(0, sub.colAtX(cxW - hwR)), c1 = Math.min(sub.cols - 1, sub.colAtX(cxW + hwR));
-  const r0 = Math.max(0, sub.rowAtY(cyW - hhR)), r1 = Math.min(sub.rows - 1, sub.rowAtY(cyW + hhR));
-  for (let col = c0; col <= c1; col++) {
-    for (let row = r0; row <= r1; row++) {
-      const cell = sub.cellAt(col, row);
-      if (!cell || cell.water) continue;                          // lakes stay water (handled separately)
-      if (cell.nutrient > 0 || cell.maxNutrient > 0) continue;    // never bury a food pile
-      const ctr = sub.cellCenter(col, row);
-      if (ctr.y <= sub.surfaceY) continue;                        // underground only
-      const dx = ctr.x - cxW, dy = ctr.y - cyW;
+  const surfaceY = sub.surfaceY;
+  const c0 = Math.max(0, Math.floor((cxW - hwR) / gSize)), c1 = Math.min(gCols - 1, Math.floor((cxW + hwR) / gSize));
+  const r0 = Math.max(0, Math.floor((cyW - hhR - surfaceY) / gSize)), r1 = Math.min(gRows - 1, Math.floor((cyW + hhR - surfaceY) / gSize));
+  for (let gc = c0; gc <= c1; gc++) {
+    for (let gr = r0; gr <= r1; gr++) {
+      const wx = gc * gSize + gSize / 2, wy = surfaceY + gr * gSize + gSize / 2;
+      if (wy <= surfaceY) continue;                               // underground only
+      const cell = sub.cellAtWorld(wx, wy);
+      if (cell && cell.water) continue;                           // lakes stay water (handled separately)
+      if (cell && (cell.nutrient > 0 || cell.maxNutrient > 0)) continue;   // never bury a food pile
+      const dx = wx - cxW, dy = wy - cyW;
       const lx = cr * dx + sr * dy, ly = -sr * dx + cr * dy;      // world -> sprite-local (undo rot)
       const u = (lx + wW / 2) / wW, v = (ly + hW / 2) / hW;
       if (u < 0 || u > 1 || v < 0 || v > 1) continue;
       const px = Math.min(m.mw - 1, Math.max(0, Math.floor(u * m.mw)));
       const py = Math.min(m.mh - 1, Math.max(0, Math.floor(v * m.mh)));
       if (m.data[(py * m.mw + px) * 4 + 3] < 128) continue;       // sprite transparent here — leave as soil
-      cover[row * sub.cols + col] = 1;
+      mask[gr * gCols + gc] = 1;
     }
   }
   return true;
 }
 
-// One-shot per map: derive rock COLLISION from EXACTLY what we draw. Generation
-// flags cells rock/column/formation only to tell the renderer WHERE to draw a
-// sprite; on their own those flags must NOT block growth, or a cell the sprite's
-// irregular silhouette never covers (an ellipse's corner, the gap between two
-// formations, a thin spot in a column) becomes an INVISIBLE WALL. So we stamp the
-// opaque silhouette of every drawn sprite (boulders, formations, columns) into a
-// coverage mask, then reconcile: a cell blocks growth iff a sprite covers it, plus
-// lake water. The guaranteed winnable corridor (pathClear) is always left open.
+// One-shot per map: derive rock COLLISION from EXACTLY what we draw, at TWO
+// resolutions. Generation flags cells rock/column/formation only to tell the
+// renderer WHERE to draw a sprite; on their own those flags must NOT block growth,
+// or a cell the sprite's irregular silhouette never covers becomes an INVISIBLE
+// WALL. So we stamp the opaque silhouette of every drawn sprite (boulders,
+// formations, columns) into:
+//   • a COARSE per-cell cover → reconciled into cell.rock (LoS / spawn / rendering).
+//   • a FINE mask (¼-cell, `sub._fineSolid`) → the GROWTH collision. The 36px cell
+//     grid is too coarse to match the art: a cell can fall in the seam between two
+//     touching rocks (a false gap you grow through) or cover a real sub-cell channel
+//     (a false wall that blocks you). The fine mask tracks the visible sprite, so
+//     growth threads a real gap and stops at a real edge — WYSIWYG.
+// Both keep lake water solid and the guaranteed winnable corridor (pathClear) open.
 // Runs only once ALL sprites decode, so we never reconcile against a half-loaded
-// set; until then the original (SUPERSET) flags stay, so nothing is ever wrongly
-// passable early. No first-place-then-hide-then-overlay: one source of truth.
+// set; until then the original (SUPERSET) flags stay, so nothing is wrongly passable.
 function solidifyRock() {
   const sub = state.substrate;
   if (sub._rockSolidified) return;
   const cs = sub.cellSize;
   const cover = new Uint8Array(sub.cols * sub.rows);
+  const K = 4, fSize = cs / K;                                  // fine mask: 4× finer (9px cells)
+  const fCols = Math.max(1, Math.round(sub.worldWidth / fSize));
+  const fRows = Math.max(1, Math.ceil((sub.worldHeight - sub.surfaceY) / fSize));
+  const fine = new Uint8Array(fCols * fRows);
   let ready = true;
+  // Stamp one sprite into BOTH the coarse and fine masks (identical geometry).
+  const stamp = (img, cx, cy, w, h, rot) => {
+    const a = markCoverGrid(sub, img, cx, cy, w, h, rot, cover, sub.cols, sub.rows, cs);
+    const b = markCoverGrid(sub, img, cx, cy, w, h, rot, fine, fCols, fRows, fSize);
+    return a && b;
+  };
 
   // Boulders (drawRockPiles / drawBoulder geometry, k=0, mult=1).
   for (const g of rockGroups()) {
@@ -1908,7 +1924,7 @@ function solidifyRock() {
       const bhW = cs * (1.35 + h1 * h1 * 2.0);
       const bwW = bhW * (img.width / img.height);
       const ox = (h1 * 2 - 1) * cs * 0.3, oy = (h2 * 2 - 1) * cs * 0.3;
-      if (!markCover(sub, cs, img, c.x + ox, c.y + oy, bwW, bhW, (h3 * 2 - 1) * 0.3, cover)) ready = false;
+      if (!stamp(img, c.x + ox, c.y + oy, bwW, bhW, (h3 * 2 - 1) * 0.3)) ready = false;
     }
   }
 
@@ -1918,7 +1934,7 @@ function solidifyRock() {
   for (const g of formationGroups()) {
     const r = formationRect(g, sub, cs);
     if (!r) { ready = false; continue; }
-    if (!markCover(sub, cs, r.img, r.cx, r.topW + r.dh / 2, r.dw, r.dh, 0, cover)) ready = false;
+    if (!stamp(r.img, r.cx, r.topW + r.dh / 2, r.dw, r.dh, 0)) ready = false;
   }
 
   // Columns (drawRockColumns geometry — a stack of rotated sprites per column).
@@ -1957,18 +1973,31 @@ function solidifyRock() {
         const longW = ell, crossW = ell / aspect;
         const t = ell / 2 + i * ell * (1 - overlap);
         const rot = Math.PI / 2 + (_hashf(ci * 9.1 + i, seed * 0.023) * 2 - 1) * (Math.PI / 6);
-        if (!markCover(sub, cs, img, startX + ux * t, startY + uy * t, longW, crossW, rot, cover)) ready = false;
+        if (!stamp(img, startX + ux * t, startY + uy * t, longW, crossW, rot)) ready = false;
       }
     });
   }
 
   if (!ready) return;   // some rock sprite still loading — retry next frame (original superset flags stand)
 
-  // Reconcile: a cell blocks growth iff a sprite actually covers it (+ lake water).
-  // Every rock flag with no sprite over it — the invisible walls — is cleared here.
-  // _rockReclaimed / _rockFlagged: a lightweight diagnostic — how many generation
-  // rock cells the drawn sprites never covered (the invisible walls we just cleared)
-  // out of the total flagged. Inspect via __game.state.substrate._rockReclaimed.
+  // Bake lakes (solid) + the guaranteed winnable corridor (open) into the FINE mask,
+  // per coarse cell → all K×K of its fine sub-cells.
+  for (let r = 0; r < sub.rows; r++) {
+    for (let c = 0; c < sub.cols; c++) {
+      const cell = sub.cells[r * sub.cols + c];
+      if (!cell.water && !cell.pathClear) continue;
+      const val = cell.water ? 1 : 0;
+      for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) {
+        const fc = c * K + b, fr = r * K + a;
+        if (fc < fCols && fr < fRows) fine[fr * fCols + fc] = val;
+      }
+    }
+  }
+
+  // Reconcile the COARSE cell.rock (LoS / spawn / rendering) from the coarse cover:
+  // a cell reads as rock iff a sprite covers its centre (+ lake water); the winnable
+  // corridor stays open. _rockReclaimed / _rockFlagged: diagnostic (invisible-wall
+  // cells cleared vs total flagged) — inspect via __game.state.substrate._rockReclaimed.
   let reclaimed = 0, flagged = 0;
   for (let i = 0; i < sub.cells.length; i++) {
     const cell = sub.cells[i];
@@ -1982,6 +2011,8 @@ function solidifyRock() {
     if (covered) cell.hazard = false;
   }
   sub._rockReclaimed = reclaimed; sub._rockFlagged = flagged;
+  // Publish the FINE growth-collision mask (read by substrate.solidAtWorld / network _placeOk).
+  sub._fineSolid = fine; sub._fineSize = fSize; sub._fineCols = fCols; sub._fineRows = fRows;
   sub._rockSolidified = true;
 }
 

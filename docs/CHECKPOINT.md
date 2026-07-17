@@ -428,6 +428,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **FINE rock collision — a ¼-cell solid mask that matches the drawn art** (`src/main.js solidifyRock`
+  → `src/engine/substrate.js solidAtWorld` → `network.js _placeOk/_segmentClear`). The 36px cell grid
+  was too coarse to match the sprites: a cell could fall in the seam between two touching rocks (a false
+  GAP you grew through — "grew over the red rocks, no visible gap") OR cover a real sub-cell channel (a
+  false WALL — "couldn't grow through the obvious gap"). Nudging `rockOverlap` can't fix both at once.
+  Fix: `solidifyRock` now stamps every drawn sprite into TWO masks — the COARSE per-cell cover (→
+  `cell.rock`, unchanged, for LoS/spawn/rendering) AND a FINE mask at 9px (K=4, `sub._fineSolid`, with
+  lake water baked solid + the pathClear corridor open). Growth collision (`_placeOk`) now tests
+  `substrate.solidAtWorld(x,y)` against the fine mask instead of the coarse `cell.rock`, and
+  `_segmentClear` samples at the fine resolution so it can't hop a thin sliver. Net: collision tracks the
+  visible sprite — if you can see brown between rocks you can grow through it; if they visually touch you
+  can't. `rockOverlap` is GONE (no overlap knob; firmness is inherent). Verified: pure-Node growth
+  integration (solid wall blocks, real 36px channel threads, 0 nodes ever under rock) + browser fine-mask
+  overlay matches the art. TUNABLE: `K` in solidifyRock (4=9px; raise for finer/more-WYSIWYG, lower for
+  firmer-on-thin-seams). If ambiguous thin seams between formations still read wrong, the deeper fix is at
+  GENERATION (place formations to clearly overlap or clearly separate — no hairline seams).
 - **Rock collision = EXACTLY what's drawn (no more invisible walls)** (`src/main.js solidifyRock`).
   ROOT CAUSE of the recurring "gap won't let me through" bug: generation flags cells `rock`
   (+`column`/`formation`) as FILLED shapes — a column is a 2-wide strip, a formation a filled
