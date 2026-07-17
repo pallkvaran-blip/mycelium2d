@@ -506,16 +506,37 @@ export function generateSubstrate(config, rng) {
       }
     return false;
   };
+  // True if no existing food cell (any pile, any kind) lies within `sep` cells of
+  // (col,row). Keeps distinct piles a little apart so they don't read as one blob.
+  const clearOfPiles = (col, row, sep) => {
+    const ri = Math.ceil(sep);
+    for (let dr = -ri; dr <= ri; dr++)
+      for (let dc = -ri; dc <= ri; dc++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) > sep) continue;
+        const cell = sub.cellAt(col + dc, row + dr);
+        if (cell && cell.maxNutrient > 0) return false;
+      }
+    return true;
+  };
+  // Min separation (cells) a new pile's centre keeps from any existing pile — a
+  // little breathing room so piles don't merge into one big blob. 0 = disabled.
+  const PILE_GAP = s.foodPileGapCells != null ? s.foodPileGapCells : 3;
   // Find the nearest cell to (cc,cr) that's open and clear of rock (spiral out).
+  // First try to also keep PILE_GAP away from other piles; if nowhere within reach
+  // qualifies, fall back to the nearest merely-clear cell (never fail to place).
   const findClear = (cc, cr) => {
-    for (let r = 0; r <= 6; r++)
-      for (let dr = -r; dr <= r; dr++)
-        for (let dc = -r; dc <= r; dc++) {
-          if (r > 0 && Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue; // ring only
-          const col = cc + dc, row = cr + dr;
-          const cell = sub.cellAt(col, row);
-          if (cell && !cell.rock && !cell.hazard && !rockNear(col, row, BUF)) return { col, row };
-        }
+    for (let pass = 0; pass < 2; pass++) {
+      const wantGap = pass === 0 && PILE_GAP > 0;
+      for (let r = 0; r <= 6; r++)
+        for (let dr = -r; dr <= r; dr++)
+          for (let dc = -r; dc <= r; dc++) {
+            if (r > 0 && Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue; // ring only
+            const col = cc + dc, row = cr + dr;
+            const cell = sub.cellAt(col, row);
+            if (cell && !cell.rock && !cell.hazard && !rockNear(col, row, BUF)
+                && (!wantGap || clearOfPiles(col, row, PILE_GAP))) return { col, row };
+          }
+    }
     return null;
   };
   // Every cluster placed here is a MAP pile: finishing (fully digesting) one

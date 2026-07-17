@@ -733,13 +733,14 @@
     #titleScreen .ts-bottom { bottom:clamp(22px,6vh,64px); gap:clamp(8px,1.6vh,16px); }
     #titleScreen .ts-mode { font-size:clamp(15px,2.3vw,22px); letter-spacing:.44em; text-indent:.44em; line-height:1;
       text-transform:uppercase; font-weight:700; color:#bfeecb; text-shadow:0 0 20px rgba(127,230,163,0.45); }
-    /* Two equal columns: NEW right-aligned, CONTINUE left-aligned, split by a centred gap —
-       so the gap CENTRE (between where NEW ends and CONTINUE begins) sits on the screen
-       centre line, aligned with SURVIVAL / CAMPAIGN above/below. */
-    #titleScreen .ts-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center;
-      column-gap:clamp(40px,8vw,120px); width:min(760px,90vw); margin:0 auto; }
-    #titleScreen .ts-actions > *:first-child { justify-self:end; }
-    #titleScreen .ts-actions > *:last-child { justify-self:start; }
+    /* Three columns: NEW (right-aligned) · MODE (centred) · OLD (left-aligned). The MODE
+       label (SURVIVAL / CAMPAIGN) sits INLINE between the two buttons and on the screen
+       centre line; the equal 1fr side columns keep NEW/OLD aligned across both rows. */
+    #titleScreen .ts-actions { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center;
+      column-gap:clamp(20px,4vw,64px); width:min(820px,92vw); margin:0 auto; }
+    #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
+    #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
+    #titleScreen .ts-actions > .ts-mode { justify-self:center; }
     #titleScreen .ts-btn { background:none; border:none; cursor:pointer; font-family:inherit; padding:4px 10px;
       font-size:clamp(40px,7vw,84px); letter-spacing:.02em; text-indent:.02em; text-transform:uppercase; font-weight:600;
       color:#dbe9df; text-shadow:0 0 16px rgba(190,240,220,0.25); transition:color .2s, text-shadow .2s; }
@@ -1040,8 +1041,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "16kqgbw";
-globalThis.__BUILD__ = "local 07-17 11:59";
+window.__ASSET_VER = "9jp17b";
+globalThis.__BUILD__ = "local 07-17 12:49";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1086,6 +1087,8 @@ const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    foodPileGapCells: 3,         // min separation (cells) a new pile keeps from other piles, so distinct
+                                 //   piles don't merge into one blob (best-effort; falls back if no room)
     foodEnergyMin: 1,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
     foodEnergyMax: 8,            //   …decoupled from nutrient (see substrate.js drop())
     // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE
@@ -3207,16 +3210,37 @@ function generateSubstrate(config, rng) {
       }
     return false;
   };
+  // True if no existing food cell (any pile, any kind) lies within `sep` cells of
+  // (col,row). Keeps distinct piles a little apart so they don't read as one blob.
+  const clearOfPiles = (col, row, sep) => {
+    const ri = Math.ceil(sep);
+    for (let dr = -ri; dr <= ri; dr++)
+      for (let dc = -ri; dc <= ri; dc++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) > sep) continue;
+        const cell = sub.cellAt(col + dc, row + dr);
+        if (cell && cell.maxNutrient > 0) return false;
+      }
+    return true;
+  };
+  // Min separation (cells) a new pile's centre keeps from any existing pile — a
+  // little breathing room so piles don't merge into one big blob. 0 = disabled.
+  const PILE_GAP = s.foodPileGapCells != null ? s.foodPileGapCells : 3;
   // Find the nearest cell to (cc,cr) that's open and clear of rock (spiral out).
+  // First try to also keep PILE_GAP away from other piles; if nowhere within reach
+  // qualifies, fall back to the nearest merely-clear cell (never fail to place).
   const findClear = (cc, cr) => {
-    for (let r = 0; r <= 6; r++)
-      for (let dr = -r; dr <= r; dr++)
-        for (let dc = -r; dc <= r; dc++) {
-          if (r > 0 && Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue; // ring only
-          const col = cc + dc, row = cr + dr;
-          const cell = sub.cellAt(col, row);
-          if (cell && !cell.rock && !cell.hazard && !rockNear(col, row, BUF)) return { col, row };
-        }
+    for (let pass = 0; pass < 2; pass++) {
+      const wantGap = pass === 0 && PILE_GAP > 0;
+      for (let r = 0; r <= 6; r++)
+        for (let dr = -r; dr <= r; dr++)
+          for (let dc = -r; dc <= r; dc++) {
+            if (r > 0 && Math.max(Math.abs(dc), Math.abs(dr)) !== r) continue; // ring only
+            const col = cc + dc, row = cr + dr;
+            const cell = sub.cellAt(col, row);
+            if (cell && !cell.rock && !cell.hazard && !rockNear(col, row, BUF)
+                && (!wantGap || clearOfPiles(col, row, PILE_GAP))) return { col, row };
+          }
+    }
     return null;
   };
   // Every cluster placed here is a MAP pile: finishing (fully digesting) one
@@ -10371,18 +10395,18 @@ function showTitleScreen({ onNew, onContinue }) {
     '<canvas id="tsCanvas"></canvas>' +
     '<div class="ts-menu">' +
       '<div class="ts-block ts-top">' +
-        '<div class="ts-mode">Survival</div>' +
         '<div class="ts-actions">' +
           '<button class="ts-btn" id="tsNew" type="button">New</button>' +
+          '<div class="ts-mode">Survival</div>' +
           '<button class="ts-btn" id="tsCont" type="button">Old</button>' +
         '</div>' +
       '</div>' +
       '<div class="ts-block ts-bottom">' +
         '<div class="ts-actions">' +
           '<span class="ts-btn ts-locked">New</span>' +
+          '<div class="ts-mode ts-locked">Campaign</div>' +
           '<span class="ts-btn ts-locked">Old</span>' +
         '</div>' +
-        '<div class="ts-mode ts-locked">Campaign</div>' +
         '<div class="ts-soon">coming soon</div>' +
       '</div>' +
     '</div>';
@@ -10797,26 +10821,19 @@ function showTitleScreen({ onNew, onContinue }) {
     composite();
   }
 
-  // Place the menu SYMMETRICALLY about the title centre: both NEW/OLD rows sit the same
-  // distance D from the title, and SURVIVAL / CAMPAIGN sit the same distance G outside
-  // their NEW/OLD row. ("coming soon" is tucked under CAMPAIGN and doesn't factor in.)
+  // Place the two menu rows SYMMETRICALLY about the title centre: each NEW·MODE·OLD
+  // row (SURVIVAL now sits INLINE between NEW and OLD) sits the same distance D from
+  // the title. ("coming soon" tucks under the Campaign row and doesn't factor in.)
   function positionMenu() {
     const topB = root.querySelector('.ts-top'), botB = root.querySelector('.ts-bottom');
-    const surv = topB.querySelector('.ts-mode'), topAct = topB.querySelector('.ts-actions');
-    const camp = botB.querySelector('.ts-mode'), botAct = botB.querySelector('.ts-actions');
-    const soon = botB.querySelector('.ts-soon');
-    const modeH = surv.offsetHeight || camp.offsetHeight || 24;
+    const topAct = topB.querySelector('.ts-actions');
+    const botAct = botB.querySelector('.ts-actions');
     const actH = topAct.offsetHeight || botAct.offsetHeight || 90;
     const halfTitle = titleSize * 0.58;              // effective title half-height (incl. fringe)
-    const gapTitle = Math.max(14, H * 0.04);         // title edge → NEW/OLD
-    const gapMode = Math.max(10, H * 0.025);         // NEW/OLD → SURVIVAL/CAMPAIGN
-    const D = halfTitle + gapTitle + actH / 2;        // title centre → NEW/OLD centre (equal top & bottom)
-    const G = actH / 2 + gapMode + modeH / 2;         // NEW/OLD centre → SURVIVAL/CAMPAIGN centre (equal)
-    topB.style.bottom = 'auto'; topB.style.top = Math.round(titleY - D - G - modeH / 2) + 'px';
-    topB.style.rowGap = gapMode + 'px';
+    const gapTitle = Math.max(16, H * 0.045);        // title edge → row
+    const D = halfTitle + gapTitle + actH / 2;        // title centre → row centre (equal top & bottom)
+    topB.style.bottom = 'auto'; topB.style.top = Math.round(titleY - D - actH / 2) + 'px';
     botB.style.bottom = 'auto'; botB.style.top = Math.round(titleY + D - actH / 2) + 'px';
-    botB.style.rowGap = gapMode + 'px';
-    soon.style.marginTop = Math.round(3 - gapMode) + 'px';   // keep "coming soon" tucked under CAMPAIGN
   }
 
   // True when there's saved unlock progress from an old run — which "New" (Survival) wipes
@@ -12230,17 +12247,9 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     // reads clearly against the brown soil. Nuts are muted + slightly translucent.
     let filter = null, alpha = isNut ? 0.9 : 1;
     if (isNut) filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
-    else if (isDuff) {
+    else if (isDuff) {                  // DUFF = purely YELLOW/gold leaves (no brown/grey mixed in)
       alpha = 0.96;
-      const cls = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7);
-      if (cls < 0.15) {                 // dark-brown minority (rotted mould)
-        if (sets.duffDark) img = sets.duffDark;
-        filter = sets.duffDark ? 'brightness(0.92) saturate(0.95)' : 'brightness(0.3) saturate(0.5) sepia(0.55)';
-      } else if (cls < 0.34) {          // mid-brown minority (a yellow leaf pushed brown)
-        filter = 'brightness(0.66) saturate(0.72) sepia(0.5)';
-      } else {                          // DOMINANT gold — keep it vivid against the soil
-        filter = 'saturate(1.08) brightness(1.03)';
-      }
+      filter = 'saturate(1.08) brightness(1.03)';   // keep the gold vivid against the brown soil
     }
     const lh = base * (0.7 + h1 * 0.6) * z;
     const lw = lh * (img.width / img.height);
@@ -13047,6 +13056,32 @@ const MOUNTAIN_W_MAX = 40;         // widest foreground mountain (tiles)
 const MOUNTAIN_EMBED_FRAC = 0.34;  // foreground: bury the base, clip to soil line so the peak emerges
 const RANGE_EMBED_FRAC = 0.76;     // background range: bury most of it so only a low distant skyline shows
 
+// Some peak sprites (mountain1/3/5) are opaque all the way to their left/right image
+// edges, so drawn straight they read as a mountain CUT OFF with a hard vertical edge.
+// Feather the outer ~14% of each side to transparent (baked once per sprite, cached)
+// so every peak's flanks dissolve into the night haze instead of ending in a wall.
+const _featherCache = new Map();
+function featheredPeak(img) {
+  const key = img.src || img;
+  let c = _featherCache.get(key);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const m = Math.max(1, Math.round(img.width * 0.14));
+  g.globalCompositeOperation = 'destination-out';
+  let grad = g.createLinearGradient(0, 0, m, 0);
+  grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, m, img.height);
+  grad = g.createLinearGradient(img.width - m, 0, img.width, 0);
+  grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,1)');
+  g.fillStyle = grad; g.fillRect(img.width - m, 0, m, img.height);
+  g.globalCompositeOperation = 'source-over';
+  _featherCache.set(key, c);
+  return c;
+}
+
 // Mountains are drawn in two layers: a single wide RANGE spanning the whole map
 // as a distant, dimmed backdrop, then the foreground single PEAKS overlaid at the
 // wall runs (a distinct variant + varied width each) — giving depth and variety.
@@ -13140,7 +13175,7 @@ function drawMountains() {
     ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
     ctx.clip();
     ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
-    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.drawImage(featheredPeak(img), s.x - sw / 2, by - sh, sw, sh);   // feathered sides — no hard cut-off
     ctx.restore();
   });
 }

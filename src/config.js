@@ -39,6 +39,8 @@ export const CONFIG = {
     foodClusterRadiusMax: 1,
     foodCellNutrient: 50,        // every food cell is worth the same — a pile's value is its SIZE
     foodRockBuffer: 2.2,         // min clearance (cells) food keeps from rock — boulders spill past their cells
+    foodPileGapCells: 3,         // min separation (cells) a new pile keeps from other piles, so distinct
+                                 //   piles don't merge into one blob (best-effort; falls back if no room)
     foodEnergyMin: 1,            // a DRAFTING (orange) pile's fixed Energy value is a roll in [min,max]…
     foodEnergyMax: 8,            //   …decoupled from nutrient (see substrate.js drop())
     // DUFF caches: a fraction of the route/feature caches are down-tiered to LOW-VALUE

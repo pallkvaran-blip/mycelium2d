@@ -184,8 +184,10 @@ console.log('# Finishing a MAP food pile drafts a card; player piles do not');
   const sub = s.substrate, net = s.active;
   ok(sub.foodPiles && sub.foodPiles.length > 0, `map food piles registered (${sub.foodPiles ? sub.foodPiles.length : 0})`);
 
-  // Take the first map pile: mark it colonized and fully drained, then tick.
-  const pile = sub.foodPiles[0];
+  // Take the first NORMAL (draft-granting) map pile — duff piles grant no draft and
+  // engine piles offer engines; index 0 isn't guaranteed to be normal.
+  const pile = sub.foodPiles.find((p) => (p.kind || 'normal') === 'normal');
+  ok(pile, 'has at least one normal (draft-granting) map pile');
   for (const idx of pile.cells) { sub.cells[idx].colonized = 1; sub.cells[idx].nutrient = 0; }
   net.energy = 50;
   const offers0 = s.cards.pendingOffers.length;

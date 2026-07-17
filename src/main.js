@@ -1361,17 +1361,9 @@ function _drawLeafHeap(sets, col, row, kind, alphaMul) {
     // reads clearly against the brown soil. Nuts are muted + slightly translucent.
     let filter = null, alpha = isNut ? 0.9 : 1;
     if (isNut) filter = 'brightness(0.9) saturate(0.82) contrast(0.9)';
-    else if (isDuff) {
+    else if (isDuff) {                  // DUFF = purely YELLOW/gold leaves (no brown/grey mixed in)
       alpha = 0.96;
-      const cls = _hashf(col * 4.3 + k * 6.1, row * 2.9 + k * 12.7);
-      if (cls < 0.15) {                 // dark-brown minority (rotted mould)
-        if (sets.duffDark) img = sets.duffDark;
-        filter = sets.duffDark ? 'brightness(0.92) saturate(0.95)' : 'brightness(0.3) saturate(0.5) sepia(0.55)';
-      } else if (cls < 0.34) {          // mid-brown minority (a yellow leaf pushed brown)
-        filter = 'brightness(0.66) saturate(0.72) sepia(0.5)';
-      } else {                          // DOMINANT gold — keep it vivid against the soil
-        filter = 'saturate(1.08) brightness(1.03)';
-      }
+      filter = 'saturate(1.08) brightness(1.03)';   // keep the gold vivid against the brown soil
     }
     const lh = base * (0.7 + h1 * 0.6) * z;
     const lw = lh * (img.width / img.height);
@@ -2178,6 +2170,32 @@ const MOUNTAIN_W_MAX = 40;         // widest foreground mountain (tiles)
 const MOUNTAIN_EMBED_FRAC = 0.34;  // foreground: bury the base, clip to soil line so the peak emerges
 const RANGE_EMBED_FRAC = 0.76;     // background range: bury most of it so only a low distant skyline shows
 
+// Some peak sprites (mountain1/3/5) are opaque all the way to their left/right image
+// edges, so drawn straight they read as a mountain CUT OFF with a hard vertical edge.
+// Feather the outer ~14% of each side to transparent (baked once per sprite, cached)
+// so every peak's flanks dissolve into the night haze instead of ending in a wall.
+const _featherCache = new Map();
+function featheredPeak(img) {
+  const key = img.src || img;
+  let c = _featherCache.get(key);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const m = Math.max(1, Math.round(img.width * 0.14));
+  g.globalCompositeOperation = 'destination-out';
+  let grad = g.createLinearGradient(0, 0, m, 0);
+  grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, m, img.height);
+  grad = g.createLinearGradient(img.width - m, 0, img.width, 0);
+  grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,1)');
+  g.fillStyle = grad; g.fillRect(img.width - m, 0, m, img.height);
+  g.globalCompositeOperation = 'source-over';
+  _featherCache.set(key, c);
+  return c;
+}
+
 // Mountains are drawn in two layers: a single wide RANGE spanning the whole map
 // as a distant, dimmed backdrop, then the foreground single PEAKS overlaid at the
 // wall runs (a distinct variant + varied width each) — giving depth and variety.
@@ -2271,7 +2289,7 @@ function drawMountains() {
     ctx.rect(0, skyTopY, camera.viewW, surfY - skyTopY);
     ctx.clip();
     ctx.filter = `brightness(${bright.toFixed(3)}) saturate(0.82)`;
-    ctx.drawImage(img, s.x - sw / 2, by - sh, sw, sh);
+    ctx.drawImage(featheredPeak(img), s.x - sw / 2, by - sh, sw, sh);   // feathered sides — no hard cut-off
     ctx.restore();
   });
 }

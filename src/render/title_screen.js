@@ -28,18 +28,18 @@ export function showTitleScreen({ onNew, onContinue }) {
     '<canvas id="tsCanvas"></canvas>' +
     '<div class="ts-menu">' +
       '<div class="ts-block ts-top">' +
-        '<div class="ts-mode">Survival</div>' +
         '<div class="ts-actions">' +
           '<button class="ts-btn" id="tsNew" type="button">New</button>' +
+          '<div class="ts-mode">Survival</div>' +
           '<button class="ts-btn" id="tsCont" type="button">Old</button>' +
         '</div>' +
       '</div>' +
       '<div class="ts-block ts-bottom">' +
         '<div class="ts-actions">' +
           '<span class="ts-btn ts-locked">New</span>' +
+          '<div class="ts-mode ts-locked">Campaign</div>' +
           '<span class="ts-btn ts-locked">Old</span>' +
         '</div>' +
-        '<div class="ts-mode ts-locked">Campaign</div>' +
         '<div class="ts-soon">coming soon</div>' +
       '</div>' +
     '</div>';
@@ -454,26 +454,19 @@ export function showTitleScreen({ onNew, onContinue }) {
     composite();
   }
 
-  // Place the menu SYMMETRICALLY about the title centre: both NEW/OLD rows sit the same
-  // distance D from the title, and SURVIVAL / CAMPAIGN sit the same distance G outside
-  // their NEW/OLD row. ("coming soon" is tucked under CAMPAIGN and doesn't factor in.)
+  // Place the two menu rows SYMMETRICALLY about the title centre: each NEW·MODE·OLD
+  // row (SURVIVAL now sits INLINE between NEW and OLD) sits the same distance D from
+  // the title. ("coming soon" tucks under the Campaign row and doesn't factor in.)
   function positionMenu() {
     const topB = root.querySelector('.ts-top'), botB = root.querySelector('.ts-bottom');
-    const surv = topB.querySelector('.ts-mode'), topAct = topB.querySelector('.ts-actions');
-    const camp = botB.querySelector('.ts-mode'), botAct = botB.querySelector('.ts-actions');
-    const soon = botB.querySelector('.ts-soon');
-    const modeH = surv.offsetHeight || camp.offsetHeight || 24;
+    const topAct = topB.querySelector('.ts-actions');
+    const botAct = botB.querySelector('.ts-actions');
     const actH = topAct.offsetHeight || botAct.offsetHeight || 90;
     const halfTitle = titleSize * 0.58;              // effective title half-height (incl. fringe)
-    const gapTitle = Math.max(14, H * 0.04);         // title edge → NEW/OLD
-    const gapMode = Math.max(10, H * 0.025);         // NEW/OLD → SURVIVAL/CAMPAIGN
-    const D = halfTitle + gapTitle + actH / 2;        // title centre → NEW/OLD centre (equal top & bottom)
-    const G = actH / 2 + gapMode + modeH / 2;         // NEW/OLD centre → SURVIVAL/CAMPAIGN centre (equal)
-    topB.style.bottom = 'auto'; topB.style.top = Math.round(titleY - D - G - modeH / 2) + 'px';
-    topB.style.rowGap = gapMode + 'px';
+    const gapTitle = Math.max(16, H * 0.045);        // title edge → row
+    const D = halfTitle + gapTitle + actH / 2;        // title centre → row centre (equal top & bottom)
+    topB.style.bottom = 'auto'; topB.style.top = Math.round(titleY - D - actH / 2) + 'px';
     botB.style.bottom = 'auto'; botB.style.top = Math.round(titleY + D - actH / 2) + 'px';
-    botB.style.rowGap = gapMode + 'px';
-    soon.style.marginTop = Math.round(3 - gapMode) + 'px';   // keep "coming soon" tucked under CAMPAIGN
   }
 
   // True when there's saved unlock progress from an old run — which "New" (Survival) wipes
