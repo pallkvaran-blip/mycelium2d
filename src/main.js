@@ -1912,11 +1912,13 @@ function solidifyRock() {
     }
   }
 
-  // Formations (formationRect / drawRockFormations geometry, rot 0).
+  // Formations (formationRect / drawRockFormations geometry, rot 0). Cover the
+  // sprite's FULL drawn box [topW, topW+dh] — NOT [topW, baseY], which is shorter
+  // for a surface-clamped formation and would leave its deep half un-collided.
   for (const g of formationGroups()) {
     const r = formationRect(g, sub, cs);
     if (!r) { ready = false; continue; }
-    if (!markCover(sub, cs, r.img, r.cx, (r.topW + r.baseY) / 2, r.dw, r.baseY - r.topW, 0, cover)) ready = false;
+    if (!markCover(sub, cs, r.img, r.cx, r.topW + r.dh / 2, r.dw, r.dh, 0, cover)) ready = false;
   }
 
   // Columns (drawRockColumns geometry — a stack of rotated sprites per column).

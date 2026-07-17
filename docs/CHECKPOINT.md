@@ -447,6 +447,18 @@ Both menus are dark, on-theme, with glowing green borders.
   now block only where their sprites actually cover — if a column's stacked sprites leave a visible gap,
   it's now (correctly) passable; if columns read as too leaky, thicken the column DRAW (more overlap),
   don't re-add invisible rock.
+  - FOLLOW-UP (same effort): once collision matched the art, strands started reading as growing OVER
+    rocks. Two causes fixed: (1) `config.growth.rockOverlap` 18→6 — it was tuned high to compensate for
+    the OLD over-blocking (invisible walls + filled ellipses); with accurate collision a strand should
+    stop AT the visible edge, not sink half a cell in / cross a 1-cell-thin rock. Genuine gaps are now
+    real open soil, so they thread WITHOUT needing overlap. (2) formation `markCover` geometry: it stamped
+    `[topW, baseY]` but the sprite is DRAWN over `[topW, topW+dh]`; for a surface-CLAMPED formation
+    baseY<topW+dh, so its deep half got no collision (a hole). Now stamps the full drawn box
+    (`center=topW+dh/2, height=dh`). NOTE the residual: rock ART inherently extends up to ~½ a cell (18px)
+    past cell-quantised COLLISION, and the network draws OVER rocks (main.js draw order: rocks 844-846,
+    network ~854), so a strand may still visually clip a rock EDGE by up to ½ a cell. If that's not
+    acceptable, the fix is to draw the blocking rocks AFTER the network (rocks occlude strands) — a bigger
+    z-order change, deferred.
 - **Directional grow now DODGES around rock corners** (`src/engine/network.js growDirected`).
   Apical Drive / Rhizomorph Lance / Fruiting Vigil used to follow the exact aim vector and
   hard-stop the instant a segment clipped rock ("Blocked — nothing grew"), even when a wide

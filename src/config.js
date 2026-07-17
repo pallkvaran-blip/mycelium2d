@@ -167,10 +167,13 @@ export const CONFIG = {
     sensingRadius: 135,          // tips sense substrate attractors within this radius
     killDistance: 22,            // attractor is consumed when a node gets this close
     segmentLength: 17,           // length of one growth segment
-    rockOverlap: 18,             // px a strand may overlap INTO a rock: OK as long as open ground is within
-                                 //   this margin, so a strand can skim/graze rock EDGES and corners (a lance
-                                 //   aimed past a boulder isn't hard-blocked) but a rock body thicker than ~a
-                                 //   cell still blocks its core — you can't grow clear across a rock.
+    rockOverlap: 6,              // px a strand may overlap INTO a rock. Small: since rock COLLISION now
+                                 //   matches the drawn silhouette exactly (main.js solidifyRock — no more
+                                 //   invisible walls / filled-ellipse over-blocking), strands should stop AT
+                                 //   the visible rock edge, not sink into it. A tiny margin lets a tip reach
+                                 //   the edge and thread genuine gaps (which are now real open soil, so they
+                                 //   don't need overlap); <½ a cell (18px) so a 1-cell-thin rock still blocks
+                                 //   its core — you can't grow across a rock or through two touching ones.
     stepsPerGrow: 7,             // space-colonization iterations per Grow action
     maxNodes: 6000,              // safety cap on network size (raised: buffed growth + colonisation fills the old 2500 in ~18 plays)
     attractorThreshold: 1,       // any cell with food attracts growth (so no scraps get left behind, which confuses players)
