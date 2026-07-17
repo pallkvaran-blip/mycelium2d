@@ -1,6 +1,6 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-16 (**economy/collision pass:** map food piles now give a small FIXED **1–8 Energy** each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged; ~11 route caches + **1–3 RED engine** caches/map · **soft rock edges** — growth may graze rock edges/corners within `growth.rockOverlap` (18 px) but never crosses a rock body; directional grows fall back to a clear tip instead of false-blocking · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
+_Living status + knowledge doc. Last updated: 2026-07-17 (**economy/collision pass:** map food piles now give a small FIXED **1–8 Energy** each — decoupled from nutrient (`cell.energyPerNutrient`), so attraction/threats/colonisation are unchanged; ~11 route caches + **1–3 RED engine** caches/map · **FIRM, FINE rock collision** — growth-collision is a ¼-cell (9px) `_fineSolid` mask baked from the sprite silhouettes (`solidifyRock`→`substrate.solidAtWorld`), so a strand stops exactly at the visible rock edge and threads any real gap but can't skim edges or squeeze between touching rocks (no `rockOverlap` knob); the grow cards' generous dodge routes around it · **ant trails are neutral** to mycelium (no block, no eating) · title "New" shows an erase-progress confirm; picker border/buttons are white/B&W · procedural MYCELIUM wordmark reused on the picker + level-win, with grow-SFX. — earlier: **CAMPAIGN: 11 procedural levels with per-level threat scaling** — win a level to carry your deck+resources to the next; beat L11 to win; clearing a level unlocks species (saved in localStorage); death → species picker · **start-of-run SPECIES PICKER gates every run** — pick a real mushroom species seeded with its exact starting hand + resources; a temporary "Dev quick-start" button, or `#dev`, skips it and runs the old `testall` scaffold (300E/W/P + 5× every card) · **draft economy: basics infinite/3-copies + events infinite/1-copy, engines unique; normal drafts weighted ~60/40 to basics** · draft panel minimizes to a glowing chip & LOCKS play until chosen · nematodes fan out, eat every tick, breed 0.8 — wiping the colony ends the run with a defeat overlay · engine-cache draft = a distinct RED-leaf litter pile · directional grows use a press-and-drag aim, press away to pan · Foraging Fan grows from ALL strands)._
 
 A running record of **where the project is**, **how it's built**, and **what we
 know** — so any session (human or Claude) can pick up without re-deriving
@@ -167,16 +167,17 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
   (main.js) renders a pulsing ring. Suberin Wall sets `cell.mouldProof` (a per-cell ward
   aged down each tick **after** infection resolves, so N = N rounds); `threats.js
   cellProofed` skips warded nodes in both infection vectors.
-- **Rock collision = SOFT edge margin (never crosses a body):** `Network._segmentClear`
-  samples each growth segment (~⅓ cell) and calls `_placeOk`, which allows a rock point as long
-  as OPEN ground is within `growth.rockOverlap` px (18) of it (`substrate.openWithin`). Net effect:
-  a strand may **skim/graze rock edges + corners and thread cell-sized gaps** (rocks ≲1 cell thick,
-  and boulder edges, are passable) but a rock body wider than ~a cell **blocks its core** — you can't
-  grow clear across a rock (verified: 0 nodes ever sink >`rockOverlap` px into any rock). Only a
-  punch/dig (`cell.bored`) fully passes through rock. Used by `growDirected`, `_reachableSteps`,
-  `growRadial` (Foraging Fan) and `_growStep` (Hyphal Extension, which also NOSES around a blocked
-  rock edge via widening angle offsets). **Ant trails do NOT block growth** (and don't eat the colony)
-  — mycelium and ant trails are independent; ants remain a food rival only.
+- **Rock collision = FINE solid mask that matches the drawn art (FIRM):** `Network._segmentClear`
+  samples each growth segment (at the fine-mask resolution) and calls `_placeOk`, which blocks any
+  point that is under drawn rock — `substrate.solidAtWorld(x,y)`, a ¼-cell (9px) `_fineSolid` mask
+  baked by `main.js solidifyRock` from the sprite silhouettes (see §9 head + "WYSIWYG solid rock"
+  below). A strand may **never sit under drawn rock** (no edge-skim, no squeezing between two touching
+  rocks), but it **threads any real gap** you can see between rocks and stops exactly at the visible
+  edge — WYSIWYG. There is **no `rockOverlap` knob** (removed; firmness is inherent). Only a punch/dig
+  (`cell.bored`) fully passes through rock. Routing around firm rock is handled by the grow cards'
+  generous dodge/offset search — `growDirected` (the "grow around rock edge" DODGE, out to ~65–80°),
+  `growRadial` (Foraging Fan ARC), `_growStep` (Hyphal Extension offsets). **Ant trails do NOT block
+  growth** (and don't eat the colony) — mycelium and ant trails are independent; ants stay a food rival.
   - **Directional grows don't false-block:** `growDirected` prefers the aimed tip but falls through
     to any frontier tip whose first step is clear, so an aimed lance toward open ground succeeds from
     a capable strand instead of erroring when the exact strand you aimed from is boxed by a rock.
@@ -372,16 +373,19 @@ Both menus are dark, on-theme, with glowing green borders.
   **`lighting.compose`** — the network glow + sensing aura follow the reveal (skip un-started
   nodes, move + fade each light with the growing tip; the sensing `sparseBoost` is
   reveal-weighted) so the colony never **flashes its end state** before animating.
-- **WYSIWYG solid rock (`main.js solidifyRock`)** — every rock TYPE is drawn as a sprite
-  larger than its cell footprint, so mycelium in the open soil a sprite covers used to look
-  like it grew ON the rock. Once per map (guarded by `sub._rockSolidified`, called in `frame()`
-  before the rock draws) `solidifyRock` stamps EVERY sprite — boulders (`drawBoulder`),
-  formations (`formationRect`), columns (`drawRockColumns` geometry). `stampSolid` samples the
-  sprite's **opaque silhouette** (alpha, rotation-aware; per-image mask built once + cached in
-  `_alphaMaskCache`) and marks each covered soil cell `rock` + `rockFill`. `rockFill` cells are
-  excluded from `rockGroups` (never re-drawn as their own boulder); food / water / above-surface
-  cells are skipped. **Winnability is deliberately NOT protected** (the old `pathClear` corridor
-  exception was removed) — the owner verifies maps directly.
+- **WYSIWYG solid rock (`main.js solidifyRock`)** — every rock TYPE is drawn as a sprite larger
+  than its cell footprint, so collision must be derived from what's actually DRAWN, not the
+  generation flags (which are just "draw a sprite here" — see §9). Once per map (guarded by
+  `sub._rockSolidified`, called in `frame()` before the rock draws, only once ALL sprites decode)
+  `solidifyRock` stamps EVERY sprite — boulders (`drawBoulder`), formations (`formationRect`),
+  columns (`drawRockColumns` geometry) — into TWO grids via `markCoverGrid` (samples the sprite's
+  **opaque silhouette**: alpha, rotation-aware; per-image mask cached in `_alphaMaskCache`):
+  (1) a COARSE per-cell cover → reconciled into `cell.rock`/`rockFill` (for LoS / spawn / rendering;
+  `rockFill` cells are excluded from `rockGroups` so they're never re-drawn as their own boulder);
+  (2) a FINE ¼-cell (9px) `_fineSolid` mask → the GROWTH collision (`substrate.solidAtWorld` ←
+  `_placeOk`), which tracks the visible sprite far more closely than 36px cells. Lake water is baked
+  solid in both; the guaranteed winnable corridor (`pathClear`) is kept OPEN in both. Food /
+  above-surface cells are skipped.
 
 ---
 
@@ -439,11 +443,13 @@ Both menus are dark, on-theme, with glowing green borders.
   `substrate.solidAtWorld(x,y)` against the fine mask instead of the coarse `cell.rock`, and
   `_segmentClear` samples at the fine resolution so it can't hop a thin sliver. Net: collision tracks the
   visible sprite — if you can see brown between rocks you can grow through it; if they visually touch you
-  can't. `rockOverlap` is GONE (no overlap knob; firmness is inherent). Verified: pure-Node growth
-  integration (solid wall blocks, real 36px channel threads, 0 nodes ever under rock) + browser fine-mask
-  overlay matches the art. TUNABLE: `K` in solidifyRock (4=9px; raise for finer/more-WYSIWYG, lower for
-  firmer-on-thin-seams). If ambiguous thin seams between formations still read wrong, the deeper fix is at
-  GENERATION (place formations to clearly overlap or clearly separate — no hairline seams).
+  can't. `rockOverlap` is GONE (no overlap knob; firmness is inherent). **USER-CONFIRMED working in-game**
+  (fixed both the "grew over touching red rocks" and "blocked at the obvious blue/green gap" cases).
+  Also verified pure-Node (solid wall blocks, real 36px channel threads, 0 nodes ever under rock).
+  TUNABLE: `K` in solidifyRock (4=9px; raise for finer/more-WYSIWYG, lower for firmer-on-thin-seams). If a
+  future map has ambiguous hairline seams between formations that should read as a barrier, the levers are
+  (a) lower K, (b) dilate `_fineSolid` by ~1 fine cell to close sub-~27px gaps, or (c) fix GENERATION to
+  place formations so they clearly overlap or clearly separate (no hairline seams).
 - **Rock collision = EXACTLY what's drawn (no more invisible walls)** (`src/main.js solidifyRock`).
   ROOT CAUSE of the recurring "gap won't let me through" bug: generation flags cells `rock`
   (+`column`/`formation`) as FILLED shapes — a column is a 2-wide strip, a formation a filled
@@ -1485,11 +1491,15 @@ Both menus are dark, on-theme, with glowing green borders.
   piles you'll re-inflate Energy AND (if you also touch nutrient to compensate) break threat/attraction
   timing. All food→energy sites (`turn.js` drain, Digest action, `Saprotrophic Digest`, `pile.finishEnergy`,
   `main.js showPileEnergyAt`) must use `cell.energyPerNutrient ?? incomeEfficiency`.
-- **`growth.rockOverlap` is a two-sided tuning trap.** It's the px a strand may overlap into a rock
-  (open ground must be within it). Too LOW (≈10) → straight lances false-block when grazing a boulder
-  edge; too HIGH (≈22) → edge-skims read as "growing over the rock" (though the probe shows it never
-  crosses a body at any tested value). Current sweet spot **18**. To check: a strand's deepest sink into
-  any rock should ≈ `rockOverlap` and never exceed it.
+- **Rock collision is a FINE `_fineSolid` mask, NOT an overlap margin (`rockOverlap` is gone).** The
+  old `rockOverlap` px-into-rock margin was a two-sided trap (too low → false-blocks grazing a boulder;
+  too high → reads as "growing over the rock") AND, on the coarse 36px grid, it couldn't be both firm on
+  touching rocks and forgiving on real gaps. Replaced by `main.js solidifyRock` baking a ¼-cell (9px)
+  solid mask from the sprite silhouettes → `substrate.solidAtWorld` → `_placeOk`. Collision now matches
+  the visible art: firm (a strand never sits under rock, touching rocks block) AND forgiving (any visible
+  gap threads). To tune firmness-vs-fidelity, change `K` in solidifyRock (higher = finer). Do NOT
+  reintroduce an overlap knob. To check: `__game.state.substrate._rockReclaimed` (invisible cells cleared)
+  and that no grown node satisfies `solidAtWorld`.
 - **Bundler strips imports by regex — keep `import` lines comment-free.** `build.mjs` inlines
   `src/` into a non-module `<script>` in `dist/index.html` by stripping `import ...;` lines with a
   regex anchored at `;\s*\n`. A **trailing comment** on an import line (e.g. `import { attackNest }
