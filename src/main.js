@@ -208,10 +208,26 @@ function startPuzzle() { begin(createPuzzleState(CONFIG)); }
 // about". Runs as a short eased tween advanced each render frame; the tutorial's
 // arrows/rings track it because they re-read the live camera every frame.
 let camFocus = null;
-function focusWorld(x, y, zoom) {
+function isPortraitPhone() {
+  try { return !!(window.matchMedia && window.matchMedia('(max-width:720px) and (orientation:portrait)').matches); }
+  catch (_) { return false; }
+}
+// anchorY = where the SUBJECT should sit vertically, as a fraction of viewport height
+// (0 = top, 0.5 = centre). On a portrait phone the tutorial passes ~0.28 for steps whose
+// popup is at the BOTTOM (so the subject stays in the top half, clear of the popup) and
+// 0.5 for top-popup steps; it also zooms out ~50% there for a wider view. Wider screens
+// ignore anchorY and use the given zoom (there's room for a centred subject + popup).
+function focusWorld(x, y, zoom, anchorY) {
   if (x == null || y == null) return;
+  let z = zoom != null ? zoom : camera.zoom;
+  let ty = y;
+  if (isPortraitPhone()) {
+    z *= 0.5;                                              // wider view
+    const f = (anchorY != null) ? anchorY : 0.5;
+    ty = y + (0.5 - f) * camera.viewH / z;                // centre the camera BELOW the subject → it lands at fraction f
+  }
   camFocus = { fromX: camera.x, fromY: camera.y, fromZoom: camera.zoom,
-    toX: x, toY: y, toZoom: zoom != null ? zoom : camera.zoom, t0: performance.now(), dur: 640 };
+    toX: x, toY: ty, toZoom: z, t0: performance.now(), dur: 640 };
 }
 function focusBounds(b, pad = 80) {
   if (!b) return;

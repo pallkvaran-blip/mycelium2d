@@ -466,7 +466,9 @@ Both menus are dark, on-theme, with glowing green borders.
   doesn't need it (steps carrying `hand:'open'` — the hand + drag steps — keep it open) and maximizes
   it again in `finish()`; an `index.html` `@media (max-width:720px) and (orientation:portrait)` block
   shrinks the pics (146px) + text (14px) and pushes the popup clear of the top resource pill / minimized
-  carousel. **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
+  carousel. On portrait the camera (`main.js focusWorld`, `isPortraitPhone()`) also **zooms out ~50%**
+  (wider view) and **frames the subject in the TOP HALF** (anchor ~0.28 for bottom-popup steps, 0.5 for
+  top-popup steps — passed by `tutorial.js enter()` off `step.place`) so the bottom popup never covers it. **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
   when `onDevTutorial` is passed): jumps straight into a level-1 tutorial run with a RANDOM `SPECIES`,
   via `tutorialDevForce` (fires the tutorial WITHOUT `markTutorialSeen`, so the real first-run flow is
   unaffected). Remove the button + flag when the tutorial ships.

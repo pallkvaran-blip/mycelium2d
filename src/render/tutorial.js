@@ -199,9 +199,12 @@ export function startTutorial(deps) {
     btnNext.style.display = forced ? 'none' : '';
     btnNext.textContent = step.last ? 'Begin ▸' : 'Next ▸';
     catcher.style.display = (forced || interactive) ? 'none' : '';
-    // camera focus
+    // camera focus. On a portrait phone the popup sits at the BOTTOM for most steps, so
+    // frame the subject in the top half (anchor ~0.28); top-popup steps centre it (0.5)
+    // so it isn't pushed under their popup. focusWorld ignores the anchor on wider screens.
+    const anchorY = step.place === 'top' ? 0.5 : 0.28;
     const f = step.focus && step.focus(deps.getState());
-    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom);
+    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom, anchorY);
     else if (f && f.bounds) deps.focusBounds(f.bounds, f.pad || 80);
     // card glow
     applyGlow(step.glowCard);
