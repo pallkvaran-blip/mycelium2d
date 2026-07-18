@@ -384,7 +384,7 @@
       font-size:15px; color:#f2f2f2; margin:10px 0 2px; font-weight:600; }
     .overlay .card.death .death-spores b { color:#ffffff; font-weight:700; }
     .overlay .card.death .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto;
-      filter:grayscale(1) brightness(1.6); }
+      filter:brightness(0) invert(1); }
 
     /* mobile-ish */
     @media (max-width: 720px) {
@@ -887,7 +887,7 @@
 
     /* ---- Spores (unlock currency): wallet counter, cost badges, buy sheet ---- */
     .spore-ic { width:16px; height:16px; flex:0 0 auto; display:inline-block; vertical-align:-0.18em;
-      filter:drop-shadow(0 0 4px rgba(150,220,255,0.55)); }
+      filter:brightness(0) invert(1) drop-shadow(0 0 4px rgba(190,230,255,0.55)); }
     .ss-headrow { display:flex; align-items:center; justify-content:space-between; gap:14px 20px; flex-wrap:wrap; }
     .ss-spores { display:inline-flex; align-items:center; gap:7px; padding:6px 14px 6px 10px; border-radius:999px;
       background:linear-gradient(150deg, rgba(20,34,46,0.92), rgba(8,16,22,0.94)); border:1.5px solid rgba(150,210,240,0.5);
@@ -909,7 +909,7 @@
       display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
     .ss-buyhint b { color:#dff2ff; font-weight:700; }
     .ss-btn.ss-buybtn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
-    .ss-btn.ss-buybtn .spore-ic { width:17px; height:17px; filter:drop-shadow(0 0 4px rgba(90,140,180,0.5)); }
+    .ss-btn.ss-buybtn .spore-ic { width:17px; height:17px; filter:brightness(0) invert(1) drop-shadow(0 0 4px rgba(120,170,210,0.5)); }
     .ss-buyn { font-weight:700; }
     /* Spores line on the win / run-complete banners. */
     .ss-win-spores { display:inline-flex; align-items:center; gap:8px; font-family:var(--ss-serif);
@@ -1043,6 +1043,8 @@
       background:radial-gradient(50% 60% at 50% 50%, rgba(150,255,205,0.18), rgba(127,230,163,0.05) 46%, transparent 72%); }
     .ss-win-sub { font-family:var(--ss-serif); font-weight:600; font-size:clamp(16px,2.5vw,25px); margin:0; color:#eaf6ee;
       text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 22px rgba(127,230,163,0.22); }
+    .ss-win-sub b { color:#eaf7ff; font-weight:700; }
+    .ss-win-sub .spore-ic { width:1.02em; height:1.02em; vertical-align:-0.14em; margin-left:3px; }
     .ss-win-unlock { margin-top:clamp(3px,0.9vh,9px); font-size:11px; letter-spacing:.24em; text-transform:uppercase;
       color:var(--ss-mint); font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
     .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }

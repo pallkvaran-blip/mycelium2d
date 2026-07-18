@@ -176,14 +176,8 @@ function presentRunOver() {
 // the last spores keep sailing past behind it. Cleared by begin() on the next run.
 let winCele = null;
 let _sporeSprite = null;
-const CELE_SPORE_START = 1500, CELE_SPORE_END = 4400, CELE_BANNER_AT = 5000, CELE_HARD_END = 8200;
-const CELE_CAPS = [
-  { cap: '#e6b45c', top: '#ffe7b4', spot: '#fff6dc', glow: '230,180,92' },   // warm amber
-  { cap: '#d98a68', top: '#ffd2bd', spot: '#ffeae1', glow: '232,150,110' },  // soft coral
-  { cap: '#79c99a', top: '#c8ffe1', spot: '#ecfff4', glow: '127,225,163' },  // meadow green
-  { cap: '#6cbfe2', top: '#c2ecff', spot: '#eaf8ff', glow: '150,225,255' },  // spore teal
-  { cap: '#b79be6', top: '#e7d8ff', spot: '#f5eeff', glow: '199,155,230' },  // violet glow
-];
+const CELE_SPORE_START = 1400, CELE_SPORE_END = 4600, CELE_BANNER_AT = 5200, CELE_HARD_END = 8600;
+const CELE_MAX_SPORES = 2600;
 function sporeSprite() {
   if (_sporeSprite) return _sporeSprite;
   const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
@@ -202,18 +196,35 @@ function startWinCelebration(onFinish) {
   const sub = state.substrate, cs = sub.cellSize;
   const g0 = goalCol0(), surfY = sub.surfaceY;
   if (g0 < 0) { onFinish(); return; }                       // no goal meadow found — skip straight to the banner
-  const span = Math.max(6, Math.min(14, sub.cols - g0 - 1));
-  const N = 9, mushrooms = [];
+  const span = Math.max(6, Math.min(16, sub.cols - g0 - 1));
+  // Green-hill rise in world units (matches drawGoalBackdrop's mound), so mushrooms
+  // can spread UP the slope: ones set higher read as further away (smaller = depth).
+  const hill = asset('goalhill');
+  const wWorld = sub.worldWidth - g0 * cs;
+  const hillRise = hill ? wWorld * (hill.height / hill.width) : span * cs * 0.4;
+  const riseMax = hillRise * 0.42;                          // keep them on the green, not up in the sky
+  // Keep mushrooms off the two goal bushes (drawGoalProps clusters) — no fruiting on
+  // top of the trees, only on the open hill. Exclude each canopy's horizontal footprint.
+  const bush = asset('goalbush'), bAsp = bush ? bush.width / bush.height : 1;
+  const treeZones = [[g0 + 4, 3.0], [g0 + 9, 2.2]].map(([col, hC]) => [(col + 0.5) * cs, cs * hC * bAsp * 0.5]);
+  const underTree = (x) => treeZones.some(([c, hw]) => Math.abs(x - c) < hw);
+  const N = 46, mushrooms = [];
   for (let i = 0; i < N; i++) {
-    const frac = (i + 0.5) / N + (Math.random() - 0.5) * 0.05;   // even spread across the meadow + jitter
+    let fx = 0.03 + Math.random() * 0.94, x = (g0 + 1 + fx * (span - 1)) * cs;   // horizontal fraction across the meadow
+    for (let tries = 0; tries < 6 && underTree(x); tries++) { fx = 0.03 + Math.random() * 0.94; x = (g0 + 1 + fx * (span - 1)) * cs; }
+    if (underTree(x)) continue;                             // landed on a tree every try — skip this one
+    const dome = 0.28 + 0.72 * Math.pow(Math.sin(Math.PI * fx), 0.7);   // mound is taller through the middle
+    const d = Math.random();                                // depth: 0 = foreground (low + big), 1 = far (high + small)
+    const rise = riseMax * dome * d;
+    const depthS = 1 - 0.62 * d;                            // higher up the slope → smaller
     const spots = [];
-    for (let k = 0, ns = 2 + (Math.random() * 3 | 0); k < ns; k++)
-      spots.push([(Math.random() - 0.5) * 1.15, 0.12 + Math.random() * 0.55, 0.06 + Math.random() * 0.08]);
+    for (let k = 0, ns = 1 + (Math.random() * 3 | 0); k < ns; k++)
+      spots.push([(Math.random() - 0.5) * 1.1, 0.15 + Math.random() * 0.5, 0.05 + Math.random() * 0.07]);
     mushrooms.push({
-      x: (g0 + 1 + frac * (span - 1)) * cs, y: surfY - Math.random() * 1.5,
-      h: 20 + Math.random() * 20, capR: 8 + Math.random() * 7,
-      delay: 150 + i * 130 + Math.random() * 130, grow: 620 + Math.random() * 260,
-      ci: (Math.random() * CELE_CAPS.length) | 0, sway: Math.random() * Math.PI * 2, spots, lastEmit: 0,
+      x, y: surfY - rise - Math.random() * 1.2,
+      h: (7 + Math.random() * 7) * depthS, capR: (2.6 + Math.random() * 2.6) * depthS,
+      delay: 120 + Math.random() * 1200, grow: 520 + Math.random() * 320,
+      sway: Math.random() * Math.PI * 2, spots, lastEmit: 0, depth: d,
     });
   }
   winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [] };
@@ -225,42 +236,41 @@ function startWinCelebration(onFinish) {
 }
 
 function emitSpores(list, m, n, time) {
-  if (list.length > 260) return;
+  if (list.length >= CELE_MAX_SPORES) return;
   const capX = m.x, capY = m.y - m.h * 0.95;                // world position of the cap top
   for (let k = 0; k < n; k++) list.push({
-    x0: capX + (Math.random() - 0.5) * m.capR * 1.5, y0: capY - Math.random() * m.capR * 0.6,
-    vx: 0.06 + Math.random() * 0.10, rise: 0.010 + Math.random() * 0.03,
-    swayA: 3 + Math.random() * 7, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
-    size: 1.6 + Math.random() * 3.2, born: time, life: 3600 + Math.random() * 2400, alpha: 0.5 + Math.random() * 0.5,
+    x0: capX + (Math.random() - 0.5) * m.capR * 1.6, y0: capY - Math.random() * m.capR * 0.7,
+    vx: 0.05 + Math.random() * 0.11, rise: 0.006 + Math.random() * 0.022,
+    swayA: 1.5 + Math.random() * 3.5, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
+    size: 0.45 + Math.random() * 1.05, born: time, life: 3800 + Math.random() * 2600, alpha: 0.4 + Math.random() * 0.5,
   });
 }
 
 function drawCeleMushroom(m, g, time) {
   if (g <= 0) return;
   const base = camera.worldToScreen(m.x, m.y), z = camera.zoom;
-  const h = m.h * z * g, capR = m.capR * z * Math.min(1.12, g), capH = capR * 0.82;
-  const topY = base.y - h, cx = base.x + Math.sin(time * 0.0016 + m.sway) * 1.6 * z * g;   // gentle bob
-  const col = CELE_CAPS[m.ci];
+  const h = m.h * z * g, capR = m.capR * z * Math.min(1.12, g), capH = capR * 0.8;
+  const topY = base.y - h, cx = base.x + Math.sin(time * 0.0016 + m.sway) * 1.1 * z * g;   // gentle bob
   ctx.save();
-  // glow halo behind the cap
-  const gl = ctx.createRadialGradient(cx, topY, 0, cx, topY, capR * 2.4);
-  gl.addColorStop(0, `rgba(${col.glow},${0.34 * g})`); gl.addColorStop(1, `rgba(${col.glow},0)`);
-  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, topY, capR * 2.4, 0, Math.PI * 2); ctx.fill();
-  // stalk (tapered cream)
-  const sw = Math.max(1.5, capR * 0.34);
-  ctx.fillStyle = '#efe7d6';
+  // soft white glow behind the cap
+  const gl = ctx.createRadialGradient(cx, topY, 0, cx, topY, capR * 2.6);
+  gl.addColorStop(0, `rgba(226,244,255,${0.30 * g})`); gl.addColorStop(1, 'rgba(226,244,255,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(cx, topY, capR * 2.6, 0, Math.PI * 2); ctx.fill();
+  // stalk (tapered soft white)
+  const sw = Math.max(1.1, capR * 0.36);
+  ctx.fillStyle = 'rgba(238,246,252,0.96)';
   ctx.beginPath();
   ctx.moveTo(base.x - sw * 0.5, base.y);
   ctx.quadraticCurveTo(cx - sw * 0.55, (base.y + topY) / 2, cx - sw * 0.42, topY);
   ctx.lineTo(cx + sw * 0.42, topY);
   ctx.quadraticCurveTo(cx + sw * 0.55, (base.y + topY) / 2, base.x + sw * 0.5, base.y);
   ctx.closePath(); ctx.fill();
-  // cap dome + underside rim + highlight
-  ctx.fillStyle = col.cap; ctx.beginPath(); ctx.ellipse(cx, topY, capR, capH, 0, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.ellipse(cx, topY, capR, capH * 0.28, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.globalAlpha = 0.5; ctx.fillStyle = col.top;
-  ctx.beginPath(); ctx.ellipse(cx - capR * 0.28, topY - capH * 0.4, capR * 0.5, capH * 0.42, -0.4, Math.PI, 0); ctx.fill();
-  ctx.globalAlpha = 0.85; ctx.fillStyle = col.spot;
+  // cap dome (white) + cool underside + highlight
+  ctx.fillStyle = '#f6fbff'; ctx.beginPath(); ctx.ellipse(cx, topY, capR, capH, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(150,190,215,0.25)'; ctx.beginPath(); ctx.ellipse(cx, topY, capR, capH * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.9; ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(cx - capR * 0.26, topY - capH * 0.38, capR * 0.44, capH * 0.4, -0.4, Math.PI, 0); ctx.fill();
+  ctx.globalAlpha = 0.7; ctx.fillStyle = 'rgba(210,232,245,0.9)';
   for (const [sx, sy, sr] of m.spots) { ctx.beginPath(); ctx.arc(cx + sx * capR, topY - sy * capH, sr * capR, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 }
@@ -273,8 +283,8 @@ function drawWinCelebration(time) {
     const mt = t - m.delay; if (mt <= 0) continue;
     const g = easeOutBack(Math.min(1, mt / m.grow));
     drawCeleMushroom(m, g, time);
-    if (g > 0.8 && t >= CELE_SPORE_START && t < CELE_SPORE_END && time - m.lastEmit > 66) {
-      m.lastEmit = time; emitSpores(winCele.spores, m, 1 + (Math.random() * 2 | 0), time);
+    if (g > 0.75 && t >= CELE_SPORE_START && t < CELE_SPORE_END && time - m.lastEmit > 45) {
+      m.lastEmit = time; emitSpores(winCele.spores, m, 3 + (Math.random() * 4 | 0), time);
     }
   }
   const spr = sporeSprite(), spores = winCele.spores, W = camera.viewW;
@@ -282,12 +292,17 @@ function drawWinCelebration(time) {
   for (let i = spores.length - 1; i >= 0; i--) {
     const p = spores[i], age = time - p.born;
     if (age >= p.life) { spores.splice(i, 1); continue; }
-    const wx = p.x0 + p.vx * age, wy = p.y0 - p.rise * age + p.swayA * Math.sin(age * p.swayF + p.ph);
+    // drift right on the wind; a coherent travelling wave (based on world-x + time)
+    // makes the whole cloud weave and ripple as it flows, showing the wind.
+    const wx = p.x0 + p.vx * age;
+    const wy = p.y0 - p.rise * age
+             + p.swayA * Math.sin(age * p.swayF + p.ph)
+             + 5.5 * Math.sin(wx * 0.03 - time * 0.004 + p.ph * 0.5);
     const s = camera.worldToScreen(wx, wy);
     if (s.x > W + 60) { spores.splice(i, 1); continue; }
-    const a = Math.min(1, age / 280) * (1 - smooth01(0.72, 1, age / p.life)) * (1 - smooth01(W - 90, W + 30, s.x)) * p.alpha;
+    const a = Math.min(1, age / 200) * (1 - smooth01(0.72, 1, age / p.life)) * (1 - smooth01(W - 90, W + 30, s.x)) * p.alpha;
     if (a <= 0.01) continue;
-    const r = p.size * camera.zoom * 2.2;
+    const r = p.size * camera.zoom * 1.7;
     ctx.globalAlpha = a; ctx.drawImage(spr, s.x - r, s.y - r, r * 2, r * 2);
   }
   ctx.restore();

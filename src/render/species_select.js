@@ -260,9 +260,7 @@ export function showLevelComplete({ level, maxLevel, unlocked, earned, balance, 
   // plain line + the spores earned + either the new-species card(s) or just Proceed.
   root.innerHTML =
     '<div class="ss-win-title" role="img" aria-label="' + esc(word) + '"></div>' +
-    '<p class="ss-win-sub">You fruited and spored</p>' +
-    (earned ? '<div class="ss-win-spores">' + SPORE_ICON + '<b>+' + earned + '</b>&nbsp;Spores' +
-        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
+    '<p class="ss-win-sub">You fruited and spored' + (earned ? ' <b>+' + earned + '</b>' + SPORE_ICON : '') + '</p>' +
     (hasUnlock
       ? '<div class="ss-win-unlock">New species available for purchase!</div>' +
         '<div class="ss-win-cards" id="ssWinCards"></div>'
@@ -287,8 +285,7 @@ export function showGameWon({ spores, balance, onNewRun }) {
       '<div class="ss-lc-badge">Run complete</div>' +
       '<h2 class="ss-lc-title">You carried the colony to the surface — all the way. 🍄✦</h2>' +
       '<p class="ss-lc-sub">Every level cleared. The mycelium has conquered the deep. Start a fresh run with any species you\'ve unlocked.</p>' +
-      (spores ? '<div class="ss-win-spores ss-lc-spores">' + SPORE_ICON + '<b>+' + spores + '</b>&nbsp;Spores' +
-        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
+      (spores ? '<div class="ss-win-spores ss-lc-spores">You fruited and spored <b>+' + spores + '</b>' + SPORE_ICON + '</div>' : '') +
       '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssGwNew">Begin a new run ↻</button></div>' +
     '</div>';
   document.body.appendChild(root);

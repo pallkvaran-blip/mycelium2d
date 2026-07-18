@@ -455,14 +455,25 @@ Both menus are dark, on-theme, with glowing green borders.
 ## 9. Recent work log (most recent first)
 
 - **Win celebration — fruiting + spore drift before the banner** (`src/main.js`, render-only).
-  On a card-mode win, `presentRunOver` now runs `startWinCelebration(finish)` before the success
-  banner: `focusWorld` frames the green goal meadow, ~9 little mushrooms (`CELE_CAPS` palette,
-  glow halo + tapered stalk + spotted cap) pop up with an `easeOutBack` bounce (staggered), mature,
-  then puff **spores** (cached `sporeSprite()` glow, additive) that drift right + rise + sway on the
-  wind and fade off the right edge. `drawWinCelebration(time)` runs each frame from `renderFrame`
-  (after floaters); the banner fires at `CELE_BANNER_AT` (5s) and its soft vignette lets the last
-  spores sail on behind it; `winCele` cleared in `begin()`. Puzzle wins skip it. (Dev "win level"
-  button triggers it too.) Timeline: mushrooms 0.15–2.6s, spores 1.5–4.4s, banner 5s.
+  On a card-mode win, `presentRunOver` runs `startWinCelebration(finish)` before the success
+  banner: `focusWorld` frames the green goal meadow, then **~46 small white mushrooms** pop up with
+  an `easeOutBack` bounce (staggered) spread **across the hill** — placed up a `dome` mound profile
+  by a random depth `d` so ones higher up the slope sit smaller (`depthS`), for distance/depth. They
+  avoid the two goal bushes (`treeZones` = `drawGoalProps` clusters at `g0+4`/`g0+9`; `underTree(x)`
+  retry-then-skip) so nothing fruits on top of a tree. Matured caps puff **spores** — cached
+  `sporeSprite()` soft glow, additive, up to `CELE_MAX_SPORES` (2600), each tiny — that drift right,
+  rise, and **weave on a coherent world-x + time wind wave** (`5.5·sin(wx·0.03 − time·0.004 + …)`),
+  then fade off the right edge. `drawWinCelebration(time)` runs each frame from `renderFrame` (after
+  floaters); the banner fires at `CELE_BANNER_AT` (5.2s) and its soft vignette lets the last spores
+  sail on behind it; `winCele` cleared in `begin()`. Puzzle wins skip it. (Dev "win level" button
+  triggers it too.) Timeline: mushrooms 0.12–~1.9s, spores 1.4–4.6s, banner 5.2s.
+
+- **Win banner copy + white spore icon.** The level-complete / game-won banners now read
+  **"You fruited and spored +N 🍄"** (`species_select.js showLevelComplete`/`showGameWon`) — the
+  earned Spores fold into the one line with the spore icon inline; the separate chip, the word
+  "Spores", and the "· N banked" total are gone. The **spore-print icon renders white everywhere**
+  (`.spore-ic { filter: brightness(0) invert(1) … }` in `index.html`, matching the buy-button and
+  B&W death-card overrides) instead of its native teal.
 
 - **Spore-print currency icon** (`src/render/ui.js`, `assets/spores/spore-print.png`). `SPORE_ICON`
   is now an `<img>` of a matted mushroom spore-print (Replicate; `scripts/gen_spore.py`,
