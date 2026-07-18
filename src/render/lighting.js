@@ -113,8 +113,10 @@ export class Lighting {
       }
     }
 
-    // The living network — mint glow following the filaments.
-    for (const net of state.networks) {
+    // The living network — mint glow following the filaments (the round lit halo
+    // around the colony). Part of the mycelium's "sensing-range lighting", so it's
+    // gated by the same toggle as the aura above; ambient + hazard glow stay.
+    if (this.senseAura !== false) for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
       const bright = breath; // glow independent of vitality
       const nodes = net.nodes;

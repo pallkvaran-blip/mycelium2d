@@ -459,12 +459,12 @@ Both menus are dark, on-theme, with glowing green borders.
   `.hudtop` flex row) opens a settings menu (`_wireSettings`) with **Event log · Music · Sensing-range
   lighting · Replay tutorial** — Log + Mute moved out of the pill into here. The **Sensing-range lighting**
   toggle sets `lighting.senseAura` each frame (`main.js sensingLightOn`, persisted in
-  `localStorage 'mycelium.settings.v1'`, via handlers `isLightingOn`/`setLightingOn`); it gates ONLY the
-  sense-aura loop in `lighting.compose` (the soft glow at the colony's sensing frontier) — ambient darkening,
-  the colony's own mint glow, and hazard glow ALWAYS run, so the overall look is unchanged when it's off
-  (an earlier version wrongly skipped the whole compose, flattening the scene). It's a modest perf lever
-  (drops the per-frontier-tip glow draws); the bigger per-frame cost is the two full-canvas composite blits,
-  which stay — see §10 for a real phone perf lever (DPR cap). **Replay tutorial** → `handlers.onReplayTutorial`
+  `localStorage 'mycelium.settings.v1'`, via handlers `isLightingOn`/`setLightingOn`); it gates BOTH the
+  mycelium's light passes in `lighting.compose` — the sense-aura loop AND the network mint-glow halo around
+  the colony — while ambient darkening (`ambientLight` 0.62) and hazard glow ALWAYS run, so OFF = a flat,
+  evenly-lit earth with NO colony halo (not a whole-scene change; an even earlier version wrongly skipped
+  the entire compose). Modest perf lever (drops the per-node/per-tip glow draws); the two full-canvas
+  composite blits stay — see §10 for the real phone lever (DPR cap). **Replay tutorial** → `handlers.onReplayTutorial`
   = `beginTutorial()`. Mute/lighting are in-place toggles (menu stays open, On/Off chip updates); log/replay
   close the menu; a capture-phase pointerdown click-away closes it.
 
