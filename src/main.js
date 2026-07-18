@@ -32,6 +32,14 @@ const ctx = canvas.getContext('2d');
 const camera = new Camera();
 const lighting = new Lighting(CONFIG);
 
+// Player settings (persisted). The sensing-range LIGHTING is the biggest per-frame
+// cost (two full-canvas composite blits + a glow draw per node/tip), so it's a toggle
+// in the settings menu — off = a flat, un-dimmed scene that's much lighter on phones.
+const SETTINGS_KEY = 'mycelium.settings.v1';
+function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (_) { return {}; } }
+let sensingLightOn = loadSettings().lighting !== false;   // default ON
+function saveSettings() { try { const s = loadSettings(); s.lighting = sensingLightOn; localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (_) {} }
+
 let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
@@ -419,6 +427,10 @@ function expandedBounds() {
 
 // --- input handlers (passed to UI) -----------------------------------------
 const handlers = {
+  // Settings menu (gear button, ui.js): replay the tutorial + toggle sensing-range lighting.
+  onReplayTutorial: () => beginTutorial(),
+  isLightingOn: () => sensingLightOn,
+  setLightingOn: (v) => { sensingLightOn = !!v; saveSettings(); uiDirty = true; },
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];
@@ -1000,8 +1012,9 @@ function renderFrame(time) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
-  // Dynamic lighting: dim the earth, then add the colony's glow back in.
-  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  // Dynamic lighting: dim the earth, then add the colony's glow back in. Skippable
+  // via the settings toggle (biggest per-frame cost; off = flat, un-dimmed scene).
+  if (sensingLightOn) lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
 
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);

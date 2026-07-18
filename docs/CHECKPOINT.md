@@ -454,6 +454,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Settings gear menu + sensing-range lighting toggle** (`src/render/ui.js`, `src/main.js`, `index.html`).
+  The top-left resource pill now holds ONLY resources; a **gear button** to its right (`.gearbtn` in a
+  `.hudtop` flex row) opens a settings menu (`_wireSettings`) with **Event log · Music · Sensing-range
+  lighting · Replay tutorial** — Log + Mute moved out of the pill into here. The **Sensing-range lighting**
+  toggle gates the single `lighting.compose` call in the render loop (`main.js sensingLightOn`, persisted in
+  `localStorage 'mycelium.settings.v1'`, via handlers `isLightingOn`/`setLightingOn`); OFF = a flat, un-dimmed
+  scene that SKIPS the two full-canvas composite blits + the per-node/per-tip glow draws — the biggest
+  per-frame GPU cost and a real perf lever on phones. **Replay tutorial** → `handlers.onReplayTutorial`
+  = `beginTutorial()`. Mute/lighting are in-place toggles (menu stays open, On/Off chip updates); log/replay
+  close the menu; a capture-phase pointerdown click-away closes it.
+
 - **Card-name mycology pass — 7 renames + 1 reflavor.** A mushroom-accuracy review flagged names that
   weren't true to fungal biology; owner-approved changes: **Nutrient Transmutation → Metabolic Reroute**,
   **Suberin Wall → Melanized Wall**, **Mycorrhizal Mat → Humic Mat** (archived), **Symbiont Weave → Cord

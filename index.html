@@ -63,16 +63,29 @@
     /* Resource marks (bolt / water drop / phosphorus spark) — inherit currentColor. */
     .ri { display: inline-block; width: 1em; height: 1em; flex: 0 0 auto; vertical-align: -0.14em; }
     .res .ri { width: 16px; height: 16px; align-self: center; }
-    .logbtn { font-family: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
-      background: rgba(127,230,163,0.12); border: 1px solid rgba(130,230,166,0.4); border-radius: 999px;
-      padding: 4px 11px; cursor: pointer; margin-left: 2px; display: inline-flex; align-items: center; gap: 4px; }
-    .logbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
-    .logbtn .lchev { font-size: 9px; color: var(--ink-dim); }
-    .mutebtn { font-size: 13px; line-height: 1; background: rgba(127,230,163,0.12);
+    /* Settings: a gear button sits to the RIGHT of the resource pill (log + mute now
+       live in its menu, alongside Replay tutorial + the Sensing-range lighting toggle). */
+    .hudtop { display: flex; align-items: flex-start; gap: 8px; }
+    .gearbtn { color: var(--ink); background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.4); border-radius: 999px; cursor: pointer;
-      width: 26px; height: 26px; padding: 0; margin-left: 2px; display: inline-flex;
-      align-items: center; justify-content: center; }
-    .mutebtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+      width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(6px); transition: background .12s, border-color .12s, transform .3s ease; }
+    .gearbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .gearbtn[aria-expanded="true"] { transform: rotate(55deg); border-color: rgba(170,255,205,0.7); }
+    .gearbtn svg { display: block; }
+    .settingsmenu { margin-top: 8px; min-width: 220px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+      background: linear-gradient(150deg, rgba(16,24,20,0.96), rgba(8,13,11,0.96));
+      border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
+      box-shadow: 0 0 12px -3px rgba(130,230,166,0.35), 0 10px 28px -10px rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+    .settingsmenu.hidden { display: none; }
+    .setitem { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+      font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: transparent; border: 0;
+      border-radius: 8px; padding: 9px 11px; cursor: pointer; text-align: left; }
+    .setitem:hover { background: rgba(127,230,163,0.12); }
+    .setchev { color: var(--ink-dim); font-size: 10px; }
+    .settoggle { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--accent);
+      background: rgba(127,230,163,0.16); border: 1px solid rgba(130,230,166,0.45); border-radius: 999px; padding: 2px 9px; }
+    .settoggle.off { color: var(--ink-dim); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); }
     .logdrop { margin-top: 8px; max-width: 340px; padding: 8px 12px;
       background: linear-gradient(150deg, rgba(16,24,20,0.94), rgba(8,13,11,0.94));
       border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;

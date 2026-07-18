@@ -40,6 +40,7 @@ const RES_ICON = {
 // A proper tilted pickaxe (Lucide "pickaxe", ISC-licensed): diagonal handle + a
 // curved double-point head, which reads far more like a pickaxe than a plain arc.
 const PICK_SVG = '<svg class="pk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3L11 9.999"/><path d="M15.973 4.027A13 13 0 0 0 5.902 2.373c-1.398.342-1.092 2.158.277 2.601a19.9 19.9 0 0 1 5.822 3.024"/><path d="M16.001 11.999a19.9 19.9 0 0 1 3.024 5.824c.444 1.369 2.26 1.676 2.603.278A13 13 0 0 0 20 8.069"/><path d="M18.352 3.352a1.205 1.205 0 0 0-1.704 0l-5.296 5.296a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l5.296-5.296a1.205 1.205 0 0 0 0-1.704z"/></svg>';
+const GEAR_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
 
 // Warning glyph for the error toast (self-contained so it survives the bundle;
 // coloured via currentColor). A rounded warning triangle — reads as "can't do
@@ -146,19 +147,25 @@ export class UI {
         + `<span class="res p">${RES_ICON.phos}<span class="rv" id="hud-phosphorus">0</span><span class="rd" id="hud-phosphorus-inc"></span></span>`
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
+    // The resource pill holds ONLY resources now; a Settings gear sits to its right and
+    // opens a menu with Event log · Music · Sensing-range lighting · Replay tutorial.
     hud.innerHTML =
-      `<div class="resrow">${resRow}`
-      + `<button class="mutebtn" id="mutebtn" aria-label="Toggle music"></button>`
-      + `<button class="logbtn" id="logbtn" aria-label="Event log">Log <span class="lchev">▾</span></button>`
+      `<div class="hudtop">`
+      + `<div class="resrow">${resRow}</div>`
+      + `<button class="gearbtn" id="gearbtn" type="button" aria-label="Settings" title="Settings" aria-expanded="false">${GEAR_SVG}</button>`
+      + `</div>`
+      + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
+      +   `<button class="setitem" id="set-log" type="button" role="menuitem">Event log<span class="setchev">▾</span></button>`
+      +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
+      +   `<button class="setitem" id="set-lighting" type="button" role="menuitemcheckbox">Sensing-range lighting<span class="settoggle" id="set-lighting-state"></span></button>`
+      +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
       + `</div>`
       + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
     root.appendChild(hud);
     this.el.logdrop = hud.querySelector('#logdrop');
     this.el.loglist = hud.querySelector('#loglist');
-    hud.querySelector('#logbtn').onclick = () => this.toggleLog();
-    const mb = hud.querySelector('#mutebtn');
-    mb.textContent = isMusicMuted() ? '🔇' : '🔊';
-    mb.onclick = () => { mb.textContent = toggleMusic() ? '🔇' : '🔊'; };
+    this.el.settingsmenu = hud.querySelector('#settingsmenu');
+    this._wireSettings(hud);
 
     // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
     // and the ACTIONS menu (top-right). Both only exist with the card layer on.
@@ -171,12 +178,9 @@ export class UI {
       led.id = 'engledger';
       hud.appendChild(led);
       this.el.engledger = led;
-      // Clicking the resource pill (anywhere but the Log button) collapses/expands
-      // the income ledger — on every screen size now.
-      hud.querySelector('.resrow').addEventListener('click', (e) => {
-        if (e.target.closest('#logbtn') || e.target.closest('#mutebtn')) return;
-        this.toggleLedger();
-      });
+      // Clicking the resource pill collapses/expands the income ledger — on every
+      // screen size now. (The gear sits OUTSIDE the pill, so it never triggers this.)
+      hud.querySelector('.resrow').addEventListener('click', () => this.toggleLedger());
 
       const dock = div('actionsdock hidden');
       // Just the (red) pickaxe + ready-count badge + chevron — no "Actions" label, so
@@ -428,9 +432,44 @@ export class UI {
   // the current hand harmlessly falls back to 'all' inside _renderHandFilter.
   setHandFilter(key) { this.handFilter = key || 'all'; this._renderHand(); }
 
-  // Event-log drop-down (top HUD). Opened/closed only by the player tapping the
-  // Log button now — errors surface as a transient toast (see toast()), not by
-  // yanking the whole log open.
+  // Settings menu (gear button, top HUD): Event log · Music · Sensing-range lighting ·
+  // Replay tutorial. Mute + lighting are in-place toggles (menu stays open, state chip
+  // updates); log + replay close the menu and act. A capture-phase click-away closes it.
+  _wireSettings(hud) {
+    const menu = this.el.settingsmenu, gear = hud.querySelector('#gearbtn');
+    if (!menu || !gear) return;
+    const refresh = () => {
+      const ms = hud.querySelector('#set-mute-state');
+      if (ms) { const on = !isMusicMuted(); ms.textContent = on ? 'On' : 'Off'; ms.classList.toggle('off', !on); }
+      const ls = hud.querySelector('#set-lighting-state');
+      const lon = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
+      if (ls) { ls.textContent = lon ? 'On' : 'Off'; ls.classList.toggle('off', !lon); }
+    };
+    const close = () => { menu.classList.add('hidden'); gear.setAttribute('aria-expanded', 'false'); };
+    const open = () => { refresh(); menu.classList.remove('hidden'); gear.setAttribute('aria-expanded', 'true'); };
+    gear.onclick = (e) => { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); };
+    hud.querySelector('#set-log').onclick = (e) => { e.stopPropagation(); close(); this.toggleLog(); };
+    hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
+    hud.querySelector('#set-lighting').onclick = (e) => {
+      e.stopPropagation();
+      const on = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
+      if (this.handlers.setLightingOn) this.handlers.setLightingOn(!on);
+      refresh();
+    };
+    hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
+    // click-away (capture, all widths) — close unless the click is inside the menu or gear.
+    if (this._onSettingsAway) document.removeEventListener('pointerdown', this._onSettingsAway, true);
+    this._onSettingsAway = (e) => {
+      if (menu.classList.contains('hidden')) return;
+      const t = e.target;
+      if (t && t.closest && (t.closest('#settingsmenu') || t.closest('#gearbtn'))) return;
+      close();
+    };
+    document.addEventListener('pointerdown', this._onSettingsAway, true);
+  }
+
+  // Event-log drop-down (top HUD). Opened/closed via the Settings menu now — errors
+  // surface as a transient toast (see toast()), not by yanking the whole log open.
   toggleLog() { this.setLogOpen(this.el.logdrop ? this.el.logdrop.classList.contains('hidden') : false); }
   setLogOpen(open) {
     if (!this.el.logdrop) return;
@@ -441,7 +480,7 @@ export class UI {
       this._renderEngines(); this._renderActions();
     }
     this.el.logdrop.classList.toggle('hidden', !open);
-    const chev = document.querySelector('.logbtn .lchev');
+    const chev = document.querySelector('#set-log .setchev');
     if (chev) chev.textContent = open ? '▴' : '▾';
     if (open) this._renderLog();
   }
