@@ -101,7 +101,7 @@ export function startTutorial(deps) {
       place: 'bottom',
     },
     {
-      text: 'Trichoderma is drawn to substrate — and even more drawn to <b>you</b>.<br><b>Run or hide.</b>',
+      text: 'Trichoderma is drawn to substrate — and even more drawn to <b>you</b>.<br><b>Not good.</b>',
       focus: (s) => world(deps.threats().trich, 1.3),
       target: (s) => worldTarget(deps.threats().trich),
       image: threatImg('trichoderma'),
