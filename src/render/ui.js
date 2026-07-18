@@ -228,6 +228,8 @@ export class UI {
         + `</div>`
         // Text-only preview — shown ONLY when a draw-engine (+5) card is selected.
         + `<div class="handpreview hidden" id="handpreview"></div>`
+        // Guidance shown when no card in hand can be played (hand empty OR all unaffordable).
+        + `<div class="handhint hidden" id="handhint"></div>`
         // Always-visible control row at the BOTTOM: [▾ show/hide arrow] · filter chips ·
         // [» Skip chip]. The arrow collapses/expands the carousel above; the row stays put.
         + `<div class="handrow">`
@@ -241,6 +243,7 @@ export class UI {
       this.el.handfilter = hand.querySelector('#handfilter');
       this.el.handsel = hand.querySelector('#handsel');
       this.el.handpreview = hand.querySelector('#handpreview');
+      this.el.handhint = hand.querySelector('#handhint');
       this.el.handprev = hand.querySelector('#handprev');
       this.el.handnext = hand.querySelector('#handnext');
       this.el.handtoggle = hand.querySelector('#handtoggle');
@@ -690,6 +693,9 @@ export class UI {
     } else if (died && result.cause === 'water') {
       title = 'You ran out of water';
       body = 'Your mycelium colony shrivelled up and died.';
+    } else if (died && result.cause === 'stall') {
+      title = 'Colony died';
+      body = 'Ran out of cards and resources.';
     } else if (died) {
       title = 'The colony has died';
       body = puzzle
@@ -709,7 +715,7 @@ export class UI {
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
     o.innerHTML = `
-      <div class="card">
+      <div class="card${died ? ' death' : ''}">
         <h1>${title}</h1>
         <p>${body}</p>
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
@@ -799,8 +805,27 @@ export class UI {
     this._renderHandFilter(all);
     const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroups(g.card).some((x) => x.key === this.handFilter));
 
+    // A card is PLAYABLE if it's affordable to play right now (matches cardBlockedReason:
+    // Energy buy price, plus W/P for non-actions). Used both to grey cards and to show
+    // the "no playable cards" guidance when nothing in hand can be played.
+    const isPlayable = (c) => {
+      const isAction = c.type === 'action';
+      return net.energy >= c.buyCostEnergy
+        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
+        && !s.runOver && net.alive;
+    };
+    // Guidance banner: hand empty OR nothing affordable → tell the player their outs.
+    const anyPlayable = all.some((g) => isPlayable(g.card));
+    if (this.el.handhint) {
+      // Non-empty hand with nothing affordable (the empty-hand case shows the same
+      // message inside the carousel below, so don't double it up here).
+      const showHint = net.alive && !s.runOver && s.cards.hand.length > 0 && !anyPlayable;
+      this.el.handhint.textContent = showHint ? 'No playable cards, skip turn or use actions.' : '';
+      this.el.handhint.classList.toggle('hidden', !showHint);
+    }
+
     const prevScroll = list.scrollLeft;
-    if (!s.cards.hand.length) { list.innerHTML = '<div class="handempty">Hand empty — Draw a card (⚡) or Skip.</div>'; return; }
+    if (!s.cards.hand.length) { list.innerHTML = '<div class="handempty">No playable cards, skip turn or use actions.</div>'; return; }
     list.innerHTML = '';
     if (!filtered.length) { list.innerHTML = '<div class="handempty">No cards in this filter.</div>'; return; }
 
@@ -808,10 +833,7 @@ export class UI {
       const c = g.card;
       // Action cards install for Energy only (their W/P is a per-activation cost),
       // so don't grey them for W/P you don't need to play them — matches cardBlockedReason.
-      const isAction = c.type === 'action';
-      const affordable = net.energy >= c.buyCostEnergy
-        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
-        && !s.runOver && net.alive;
+      const affordable = isPlayable(c);
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn ' + catClass(c) + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');

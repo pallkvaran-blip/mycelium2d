@@ -25,7 +25,7 @@ export const SPECIES = [
     id: 'armillaria', vibe: 'warm', unlock: null,
     name: 'Honey Fungus', latin: 'Armillaria ostoyae', img: 'armillaria-ostoyae',
     blurb: 'The <b>largest living organism on Earth</b> — a single Armillaria in Oregon sprawls across nearly ten square kilometres of forest. It travels on <b>rhizomorphs</b>: bootlace-like cords that shoot far ahead through the soil to strike distant roots. A committed long-range predator, not a gentle forager — it banks energy, drives its cords along a chosen line, and lances across open ground toward the goal.',
-    res: { energy: 0, water: 25, phosphorus: 0 },
+    res: { energy: 10, water: 25, phosphorus: 0 },   // opener Rhizomorph Lance costs 1⚡ to play → start with Energy
     hand: [
       { name: 'Apical Drive', count: 10 },
       { name: 'Rhizomorph Lance', count: 5 },
@@ -48,7 +48,7 @@ export const SPECIES = [
     id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
-    res: { energy: 0, water: 20, phosphorus: 0 },
+    res: { energy: 10, water: 20, phosphorus: 0 },   // opener Aquaporin Channels costs 10⚡ to install → start with Energy
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Hyphal Extension', count: 5 },

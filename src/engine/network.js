@@ -255,7 +255,7 @@ export class Network {
   // `startTip` when given (aimed plays pass the tip nearest the aim point, so growth
   // originates from the strand you aimed from); otherwise it starts from the frontier
   // tip furthest along (dx,dy). straight=true ignores jitter; returns nodes created.
-  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null) {
+  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null, noDodge = false) {
     const g = this.config.growth;
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
@@ -270,9 +270,15 @@ export class Network {
     // (out to ~65° for a lance, ~80° for a jittery grow, in fine steps) so a strand
     // reliably rounds a corner or threads a real gap instead of hard-stopping. It
     // only ever finds routes through genuine open soil — it never grows into rock.
-    const DODGE = straight
-      ? [0, 0.2, -0.2, 0.4, -0.4, 0.62, -0.62, 0.85, -0.85, 1.1, -1.1]
-      : [0, 0.26, -0.26, 0.52, -0.52, 0.8, -0.8, 1.08, -1.08, 1.4, -1.4];
+    // noDodge = a PURE straight runner (only off=0): it advances dead-on-aim and
+    // STOPS the instant rock is in the way, instead of curving up to ~65–80° around
+    // it. Tropic Lunge uses this so it reads as a straight lunge that halts at rock,
+    // never threading/hugging rock edges (which looked like "growing over rock").
+    const DODGE = noDodge
+      ? [0]
+      : straight
+        ? [0, 0.2, -0.2, 0.4, -0.4, 0.62, -0.62, 0.85, -0.85, 1.1, -1.1]
+        : [0, 0.26, -0.26, 0.52, -0.52, 0.8, -0.8, 1.08, -1.08, 1.4, -1.4];
     // First clear step from node `n` toward the aim (trying each dodge in turn);
     // returns the new point, or null if walled in on every dodge.
     const stepFrom = (n, jitter) => {
@@ -297,7 +303,7 @@ export class Network {
     let created = 0;
     for (let i = 0; i < steps; i++) {
       if (this.nodes.length >= g.maxNodes) break;
-      const jitter = straight ? 0 : rng.range(-g.branchJitter, g.branchJitter);
+      const jitter = (straight || noDodge) ? 0 : rng.range(-g.branchJitter, g.branchJitter);
       const nxt = stepFrom(parent, jitter);
       if (!nxt) break;   // walled in on every dodge — stop
       parent = this.addNode(nxt.nx, nxt.ny, parent);
@@ -501,6 +507,9 @@ export class Network {
     // different tip, or a different pile). Only if NOTHING is viable do we fall back
     // to the furthest partial advance, so a genuinely half-walled path still lunges
     // as far as it can rather than erroring.
+    // The lunge is a STRAIGHT shot toward food that STOPS at rock (noDodge) — it
+    // never curves around/threads rock, so it can't read as growing over it. Grow
+    // exactly the clear straight run toward the chosen food.
     let best = null, bestReach = 0;
     for (const c of cand) {
       const dx = c.nt.x - c.n.x, dy = c.nt.y - c.n.y;
@@ -508,11 +517,11 @@ export class Network {
       if (reach <= 0) continue;   // walled in immediately toward this food
       const need = Math.ceil(Math.sqrt(c.nd) / g.segmentLength);
       if (reach >= Math.min(need, steps)) {   // reaches the food, or a full clear lunge
-        return this.growDirected(substrate, rng, dx, dy, steps, false, c.n);
+        return this.growDirected(substrate, rng, dx, dy, Math.min(reach, steps), false, c.n, true);
       }
       if (reach > bestReach) { bestReach = reach; best = c; }   // remember the best partial
     }
-    if (best) return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, steps, false, best.n);
+    if (best) return this.growDirected(substrate, rng, best.nt.x - best.n.x, best.nt.y - best.n.y, Math.min(bestReach, steps), false, best.n, true);
     return 0;   // unreached food exists but every approach to it is walled off
   }
 

@@ -65,11 +65,13 @@
     .res .ri { width: 16px; height: 16px; align-self: center; }
     /* Settings: a gear button sits to the RIGHT of the resource pill (log + mute now
        live in its menu, alongside Replay tutorial + the Sensing-range lighting toggle). */
-    .hudtop { display: flex; align-items: flex-start; gap: 8px; }
+    .hudtop { display: flex; align-items: center; gap: 8px; }
+    /* Gear circle is smaller than the resource pill (which is 40px tall) and vertically
+       centred against it — the icon inside keeps its 18px size, just a tighter ring. */
     .gearbtn { color: var(--ink); background: rgba(127,230,163,0.12);
       border: 1px solid rgba(130,230,166,0.4); border-radius: 999px; cursor: pointer;
-      width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(6px); transition: background .12s, border-color .12s, transform .3s ease; }
+      width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+      flex: 0 0 auto; backdrop-filter: blur(6px); transition: background .12s, border-color .12s, transform .3s ease; }
     .gearbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
     .gearbtn[aria-expanded="true"] { transform: rotate(55deg); border-color: rgba(170,255,205,0.7); }
     .gearbtn svg { display: block; }
@@ -368,6 +370,14 @@
     .overlay p.small { font-size: 12px; }
     .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(127,230,163,0.16);
       border-color: var(--accent); }
+    /* Death prompts: flat black & white — no gradients, no colour accents. */
+    .overlay:has(.card.death) { background: rgba(0,0,0,0.82); backdrop-filter: blur(3px); }
+    .overlay .card.death { background: #0b0b0b; border: 1px solid #e9e9e9; box-shadow: none; }
+    .overlay .card.death h1 { color: #ffffff; }
+    .overlay .card.death p { color: #dcdcdc; }
+    .overlay .card.death p.dim { color: #9a9a9a; }
+    .overlay .card.death .btn.big { background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
+    .overlay .card.death .btn.big:hover { background: #2b2b2b; border-color: #ffffff; }
 
     /* mobile-ish */
     @media (max-width: 720px) {
@@ -430,7 +440,7 @@
     .handtoggle .htchev { font-size: 9px; line-height: 1; color: var(--accent); }
     /* » Skip chip — a small green-glass pill at the row's right edge: "»<cost>⚡".
        All three parts are vertically centred; the number + ⚡ are sized down. */
-    .skipchip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px; font-family: inherit;
+    .skipchip { flex: 0 0 auto; margin-left: auto; display: inline-flex; align-items: center; gap: 1px; font-family: inherit;
       font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; line-height: 1;
       padding: 3px 7px; border-radius: 999px; background: rgba(40,54,48,0.9);
       border: 1px solid rgba(130,230,166,0.4); }
@@ -895,7 +905,16 @@
     .ss-d-art { position:relative; background:#04060a; min-height:220px; }
     .ss-d-art img { width:100%; height:100%; object-fit:cover; display:block; }
     .ss-d-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(7,11,10,0.7)), linear-gradient(90deg, transparent 72%, rgba(7,11,10,0.9)); }
-    .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:14px; }
+    .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:14px;
+      scrollbar-width:thin; scrollbar-color:rgba(150,185,168,0.5) transparent; }
+    /* Thin, rounded scrollbar whose THUMB is inset from the panel's rounded corners
+       (transparent border) and kept clear of the top-right ✕ (track top margin), so it
+       no longer clips at the corners or collides with the close button. */
+    .ss-d-body::-webkit-scrollbar { width:10px; }
+    .ss-d-body::-webkit-scrollbar-track { background:transparent; margin:54px 0 18px 0; }
+    .ss-d-body::-webkit-scrollbar-thumb { background:rgba(150,185,168,0.5); border-radius:999px;
+      border:3px solid transparent; background-clip:padding-box; }
+    .ss-d-body::-webkit-scrollbar-thumb:hover { background:rgba(185,215,200,0.7); background-clip:padding-box; }
     .ss-d-name { font-family:var(--ss-serif); font-size:clamp(24px,3.4vw,32px); font-weight:600; line-height:1.04; color:#eef7f1; }
     .ss-d-latin { font-family:var(--ss-serif); font-style:italic; font-size:13.5px; color:var(--ss-mint); margin-top:2px; }
     .ss-detail.warm .ss-d-latin { color:var(--ss-gold); }

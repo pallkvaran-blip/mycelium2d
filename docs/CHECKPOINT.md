@@ -454,6 +454,29 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Water-survival polish + HUD/UX fixes** (many files). Follow-up pass on the water
+  overhaul:
+  - **Tropic Lunge no longer reads as growing over rock** (`network.js`): the lunge is
+    now a STRAIGHT no-dodge shot (`growDirected(..., noDodge=true)`, capped at the clear
+    reachable run) that stops at the rock face instead of curving ±80° around/along it.
+  - **Skip now costs 3⚡** (`config.skipCostEnergy`, was 1).
+  - **Stall = death, action-aware** (`cards.js checkGoalReached`): if you can't draw,
+    skip, play a card, OR use an action (and no draft is pending) the colony dies with
+    `cause:'stall'` → overlay *"Colony died / Ran out of cards and resources."* The
+    hand carousel also shows *"No playable cards, skip turn or use actions."* whenever
+    nothing in hand is affordable (empty carousel message + a `.handhint` banner).
+  - **Card play-costs now include Energy in the species picker** (`species_select.js
+    costPips`): was showing only W/P, so e.g. Rhizomorph Lance hid its 1⚡. Species whose
+    opener costs Energy now start with 10⚡ (Armillaria, Hydnellum in `species.js`).
+  - **HUD/CSS** (`index.html`): the Skip chip stays right-aligned when the filter row
+    hides (empty hand) via `margin-left:auto`; the settings gear is a smaller 32px circle
+    vertically centred against the 40px pill; the species-detail scrollbar is thin with an
+    inset thumb clear of the rounded corners + the ✕; **all death overlays render flat
+    black-&-white** (`.card.death`, no gradients/colour accents).
+  - **Water-deposit art** re-generated as flat-2D side-cut all-water pockets with
+    bioluminescent creatures (`gen_reservoir.py` reprompt); current pick matted to
+    `assets/reservoir.png`.
+
 - **Water-survival overhaul** (`src/species.js`, `src/config.js`, `src/main.js`, `src/render/ui.js`,
   `src/engine/cards.js`, `src/engine/substrate.js`, `assets/`, `src/render/tutorial.js`). Water is now the
   colony's survival clock:

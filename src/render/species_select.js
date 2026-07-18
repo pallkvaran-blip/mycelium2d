@@ -36,8 +36,15 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 function costPips(c) {
   let out = '';
-  if (c && c.costW) out += '<span class="ss-cpip">' + RI.water + c.costW + '</span>';
-  if (c && c.costP) out += '<span class="ss-cpip p">' + RI.phos + c.costP + '</span>';
+  // Energy to PLAY/install the card (buyCostEnergy) — was missing, so cards like
+  // Rhizomorph Lance (1⚡ + 2💧) showed only the Water cost.
+  if (c && c.buyCostEnergy) out += '<span class="ss-cpip e">' + RI.energy + c.buyCostEnergy + '</span>';
+  // Action cards install for Energy only; their W/P is a per-activation cost, not an
+  // install gate — so match the in-game face and don't show W/P for actions.
+  if (c && c.type !== 'action') {
+    if (c.costW) out += '<span class="ss-cpip">' + RI.water + c.costW + '</span>';
+    if (c.costP) out += '<span class="ss-cpip p">' + RI.phos + c.costP + '</span>';
+  }
   return out ? '<span class="ss-cost">' + out + '</span>' : '';
 }
 

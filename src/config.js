@@ -139,7 +139,7 @@ export const CONFIG = {
     drawCount: 3,                // cards pulled per Draw
     draftBasicCopies: 3,         // drafting an (infinite) BASIC card grants this many copies; event/engine give 1
     draftBasicWeight: 0.6,       // in a NORMAL (basic/event) draft, chance each slot is a Basic vs an Event (~60/40)
-    skipCostEnergy: 1,          // energy to SKIP a round (advance the world, draw nothing)
+    skipCostEnergy: 3,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
     startWater: 10,              // starting Water (covers grow AND substrate; ~10 grows before you must harvest)
     startPhosphorus: 0,          // starting Phosphorus (earn it from rocks via Phosphate Tap; gates digest/defense)

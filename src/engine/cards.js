@@ -478,20 +478,21 @@ export function checkGoalReached(state) {
       }
     }
   }
-  // Stall death: the world can no longer be advanced. You can't afford to DRAW
-  // (deck empty OR too little Energy), can't SKIP, have no playable card, and no
-  // free draft is pending. (Gating on deck-emptiness alone missed the freeze where
-  // the deck still has cards but Energy is below the draw cost — Draw costs 16 > skip 12.)
+  // Stall death: the world can no longer be advanced AND nothing can recover it.
+  // You can't afford to DRAW (deck empty OR too little Energy), can't SKIP, have no
+  // playable card, no usable ACTION (an action might mint the resource you need), and
+  // no free draft pending. If ALL of those are false the colony is out of moves.
   const C = state.cards;
   const cc = state.config.cards;
   const canDraw = C.drawDeck.length > 0 && net.energy >= drawCost(state);
   const canSkip = net.energy >= cc.skipCostEnergy;
   const canPlay = C.hand.some((h) => !cardBlockedReason(state, h.name) && EFFECTS[h.name]);
+  const canAct = (C.actions || []).some((a) => actionUsable(state, a));
   const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
-  if (!canDraw && !canSkip && !canPlay && !hasDraft) {
+  if (!canDraw && !canSkip && !canPlay && !canAct && !hasDraft) {
     net.alive = false; state.runOver = true;
-    state.runResult = { won: false, died: true, turns: state.turn };
-    state.log('Out of Energy with no playable move — the colony stalls. Run over.', 'warn');
+    state.runResult = { won: false, died: true, cause: 'stall', turns: state.turn };
+    state.log('Colony died: ran out of cards and resources.', 'warn');
   }
 }
 

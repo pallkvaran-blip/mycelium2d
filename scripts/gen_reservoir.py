@@ -18,23 +18,25 @@ if not TOKEN:
 LOG = os.environ.get("RESLOG", "/tmp/reservoir.log")
 MODEL = "black-forest-labs/flux-1.1-pro"
 
-BASE = ("FLAT 2D side-scroller game sprite, hand-painted, simple flat shading, "
-        "side-on cross-section view of an UNDERGROUND WATER POCKET: {v}. A small "
-        "rounded pocket of calm muted teal water enclosed in dark flat-shaded earth "
-        "and simple rounded rocks, a flat still waterline, soft aqua glow, a couple of "
-        "small flat pebbles, muted dark-teal and deep-green palette like a 2D "
-        "platformer cave. Storybook vector-painting look, clean flat colours, minimal "
-        "detail, NOT 3D, not a 3D render, no isometric view, no dramatic volumetric "
-        "lighting, no photorealism. Centered single object on a plain solid black "
-        "background, no text, no watermark, not a photo")
+BASE = ("FLAT 2D platformer game sprite, hand-painted, simple flat shading, a SIDE "
+        "CROSS-SECTION CUT of an UNDERGROUND WATER DEPOSIT: {v}. The whole shape is "
+        "FILLED entirely with dark teal-and-blue water (an underwater pocket seen from "
+        "the side, like an aquarium cut into the earth — NO air gap, NO waterline, "
+        "water edge to edge), swimming inside are strange BIOLUMINESCENT DEEP-SEA "
+        "FISH glowing softly, their light rippling through the water. Muted dark-teal, "
+        "deep-blue and midnight palette, clean flat colours, minimal detail, storybook "
+        "vector look like a 2D side-scroller. NOT 3D, not a 3D render, no isometric "
+        "view, no dramatic volumetric lighting, no photorealism, no dry cave, no "
+        "waterline. Centered single blob shape on a plain solid black background, no "
+        "text, no watermark, not a photo")
 
 VARIANTS = [
-    "a rounded pocket of still teal water in dark earth with a flat waterline",
-    "a small oval water pocket rimmed by a few simple flat rocks",
-    "a shallow wide underground puddle between smooth dark stones",
-    "a deep round water pocket glowing faintly from below",
-    "a teardrop water pocket with a couple of tiny glowing plants",
-    "a small hidden pool nestled in soft flat-shaded cavern rock",
+    "a rounded blob of water with a glowing anglerfish, its lit lure dangling over its head",
+    "an oval water pocket with two little round lantern-fish trailing soft light",
+    "a wide water deposit with a long bioluminescent eel curling through it",
+    "a deep teardrop pocket lit from within by a single glowing anglerfish",
+    "a water pocket with a small school of tiny glowing blue fish",
+    "a bulbous water deposit with a translucent glowing jellyfish drifting inside",
 ]
 
 def log(m):
