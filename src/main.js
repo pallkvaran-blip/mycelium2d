@@ -945,8 +945,16 @@ function setupInput() {
   window.addEventListener('resize', resize);
 }
 
+// Device-pixel ratio for the game canvas, CAPPED at 2. Per-frame fill work (the
+// full-canvas lighting composites, big fills, blurs) scales with device-pixel COUNT,
+// so a 3× phone rendering at 3× does ~2.25× the pixel work of 2× for no visible gain.
+// Capping at 2 nearly halves per-frame fill cost on high-DPR phones (biggest win when
+// zoomed out, where the whole canvas is filled); desktops (DPR 1–2) are unaffected.
+const RENDER_DPR_CAP = 2;
+function renderDpr() { return Math.min(RENDER_DPR_CAP, window.devicePixelRatio || 1); }
+
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = renderDpr();
   canvas.width = window.innerWidth * dpr;
   canvas.height = window.innerHeight * dpr;
   canvas.style.width = window.innerWidth + 'px';
@@ -1617,7 +1625,7 @@ function floodFoodCells(sub, col0, row0) {
 function drawFloaters(time) {
   if (!floaters.length) return;
   ctx.save();
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = renderDpr();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
   ctx.textBaseline = 'middle';

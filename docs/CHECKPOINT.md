@@ -1636,8 +1636,10 @@ Both menus are dark, on-theme, with glowing green borders.
   that slow. So DON'T chase live game-canvas screenshots here: verify via (a) headless DOM/state assertions,
   (b) static-HTML renders of just the CSS/markup (no game canvas = fast), and (c) `node` unit tests; leave
   the final visual sign-off to on-device. (Perf note: the same lighting/composite cost that's slow here is a
-  much smaller — but real — cost on a phone GPU. Biggest real-device lever = **cap `devicePixelRatio`** in
-  `resizeCanvas` (main.js) to ~2 instead of 3, roughly halving all per-frame pixel work; not yet done.)
+  much smaller — but real — cost on a phone GPU. Biggest real-device lever = **capping `devicePixelRatio`**:
+  `main.js renderDpr()` now caps it at **2** (`RENDER_DPR_CAP`) for the game canvas, so a 3× phone backs at
+  2× — ~44% of the pixels, nearly halving per-frame fill work (worst-case zoomed-out); desktops at DPR 1–2
+  are unaffected. If it reads too soft, bump the cap or make it a "High resolution" setting.)
 - **Card NAMES are load-bearing — renaming a card is a multi-file operation.** A card's `name` is its
   primary key. The engine only plays a card if `EFFECTS[name]` exists (`playable()` in `engine/cards.js`
   gates on it), so a name that no longer matches its `EFFECTS` key silently becomes **unplayable** — no
