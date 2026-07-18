@@ -79,8 +79,10 @@ export class Lighting {
 
     // Sensing range — the area the colony can sense reads as faintly more lit
     // than out-of-range earth (a soft aura at the frontier, not per-tip rings).
+    // Toggled by the settings menu (`senseAura`); everything ELSE (ambient darkening,
+    // hazard glow, the colony's own glow below) is unaffected, so the look holds.
     const senseR = this.config.growth.sensingRadius * camera.zoom;
-    for (const net of state.networks) {
+    if (this.senseAura !== false) for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
       const rend = networkRenderers && networkRenderers.get(net.id);
       const tips = rend && rend.frontierTips;

@@ -1148,8 +1148,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1k4r13g";
-globalThis.__BUILD__ = "local 07-18 13:58";
+window.__ASSET_VER = "dja3pe";
+globalThis.__BUILD__ = "local 07-18 14:19";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8430,8 +8430,10 @@ class Lighting {
 
     // Sensing range — the area the colony can sense reads as faintly more lit
     // than out-of-range earth (a soft aura at the frontier, not per-tip rings).
+    // Toggled by the settings menu (`senseAura`); everything ELSE (ambient darkening,
+    // hazard glow, the colony's own glow below) is unaffected, so the look holds.
     const senseR = this.config.growth.sensingRadius * camera.zoom;
-    for (const net of state.networks) {
+    if (this.senseAura !== false) for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
       const rend = networkRenderers && networkRenderers.get(net.id);
       const tips = rend && rend.frontierTips;
@@ -12408,9 +12410,12 @@ function renderFrame(time) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
-  // Dynamic lighting: dim the earth, then add the colony's glow back in. Skippable
-  // via the settings toggle (biggest per-frame cost; off = flat, un-dimmed scene).
-  if (sensingLightOn) lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  // Dynamic lighting: dim the earth, then add the colony's glow back in. The settings
+  // toggle controls ONLY the sensing-range aura (the soft glow at the colony's sensing
+  // frontier) — the ambient darkening, colony glow and hazard glow always stay, so the
+  // overall look is unchanged when it's off.
+  lighting.senseAura = sensingLightOn;
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
 
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);

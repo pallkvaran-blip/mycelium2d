@@ -458,10 +458,13 @@ Both menus are dark, on-theme, with glowing green borders.
   The top-left resource pill now holds ONLY resources; a **gear button** to its right (`.gearbtn` in a
   `.hudtop` flex row) opens a settings menu (`_wireSettings`) with **Event log · Music · Sensing-range
   lighting · Replay tutorial** — Log + Mute moved out of the pill into here. The **Sensing-range lighting**
-  toggle gates the single `lighting.compose` call in the render loop (`main.js sensingLightOn`, persisted in
-  `localStorage 'mycelium.settings.v1'`, via handlers `isLightingOn`/`setLightingOn`); OFF = a flat, un-dimmed
-  scene that SKIPS the two full-canvas composite blits + the per-node/per-tip glow draws — the biggest
-  per-frame GPU cost and a real perf lever on phones. **Replay tutorial** → `handlers.onReplayTutorial`
+  toggle sets `lighting.senseAura` each frame (`main.js sensingLightOn`, persisted in
+  `localStorage 'mycelium.settings.v1'`, via handlers `isLightingOn`/`setLightingOn`); it gates ONLY the
+  sense-aura loop in `lighting.compose` (the soft glow at the colony's sensing frontier) — ambient darkening,
+  the colony's own mint glow, and hazard glow ALWAYS run, so the overall look is unchanged when it's off
+  (an earlier version wrongly skipped the whole compose, flattening the scene). It's a modest perf lever
+  (drops the per-frontier-tip glow draws); the bigger per-frame cost is the two full-canvas composite blits,
+  which stay — see §10 for a real phone perf lever (DPR cap). **Replay tutorial** → `handlers.onReplayTutorial`
   = `beginTutorial()`. Mute/lighting are in-place toggles (menu stays open, On/Off chip updates); log/replay
   close the menu; a capture-phase pointerdown click-away closes it.
 
@@ -1625,6 +1628,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **This headless env has NO GPU — canvas rendering runs in slow software (SwiftShader).** The game LOGIC
+  is fine (boots in ~450ms, `node --test` fast, DOM/state readable via `page.evaluate`), but every PIXEL op
+  is ~1000× slower than a real device: a single `canvas.toDataURL()` readback measured **~70 s**, and
+  `page.screenshot()` reliably TIMES OUT (the continuous `requestAnimationFrame` render loop saturates the
+  renderer thread so no stable paint lands in time). Freezing the loop doesn't help — the readback itself is
+  that slow. So DON'T chase live game-canvas screenshots here: verify via (a) headless DOM/state assertions,
+  (b) static-HTML renders of just the CSS/markup (no game canvas = fast), and (c) `node` unit tests; leave
+  the final visual sign-off to on-device. (Perf note: the same lighting/composite cost that's slow here is a
+  much smaller — but real — cost on a phone GPU. Biggest real-device lever = **cap `devicePixelRatio`** in
+  `resizeCanvas` (main.js) to ~2 instead of 3, roughly halving all per-frame pixel work; not yet done.)
 - **Card NAMES are load-bearing — renaming a card is a multi-file operation.** A card's `name` is its
   primary key. The engine only plays a card if `EFFECTS[name]` exists (`playable()` in `engine/cards.js`
   gates on it), so a name that no longer matches its `EFFECTS` key silently becomes **unplayable** — no

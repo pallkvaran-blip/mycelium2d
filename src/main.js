@@ -1012,9 +1012,12 @@ function renderFrame(time) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
-  // Dynamic lighting: dim the earth, then add the colony's glow back in. Skippable
-  // via the settings toggle (biggest per-frame cost; off = flat, un-dimmed scene).
-  if (sensingLightOn) lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  // Dynamic lighting: dim the earth, then add the colony's glow back in. The settings
+  // toggle controls ONLY the sensing-range aura (the soft glow at the colony's sensing
+  // frontier) — the ambient darkening, colony glow and hazard glow always stay, so the
+  // overall look is unchanged when it's off.
+  lighting.senseAura = sensingLightOn;
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
 
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);
