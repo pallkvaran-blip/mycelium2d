@@ -2845,10 +2845,11 @@ function drawAimLine(time) {
     return;
   }
 
-  // Origin ring + dot — where growth will start.
-  ctx.strokeStyle = `rgba(${GREEN},${0.7 + 0.25 * glow})`; ctx.lineWidth = 1.6;
+  // Origin ring + dot — where growth will start. (Kept translucent so the aimer
+  // reads as a soft overlay, not a bold graphic stuck over the scene.)
+  ctx.strokeStyle = `rgba(${GREEN},${0.42 + 0.18 * glow})`; ctx.lineWidth = 1.6;
   ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = `rgba(${GREEN},0.95)`;
+  ctx.fillStyle = `rgba(${GREEN},0.6)`;
   ctx.beginPath(); ctx.arc(o.x, o.y, 2.6, 0, Math.PI * 2); ctx.fill();
 
   if (aim.dragged) {
@@ -2862,12 +2863,12 @@ function drawAimLine(time) {
     ctx.strokeStyle = `rgba(${GREEN},0.28)`; ctx.setLineDash([4, 5]); ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(end.x, end.y); ctx.stroke();
     ctx.setLineDash([]);
-    // Solid growth path, origin → tip.
-    ctx.strokeStyle = `rgba(${GREEN},${0.8 + 0.15 * glow})`; ctx.lineWidth = 3;
+    // Solid growth path, origin → tip — translucent so it doesn't stick out.
+    ctx.strokeStyle = `rgba(${GREEN},${0.4 + 0.12 * glow})`; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
     // Arrowhead at the tip, pointing along the aim.
     const ang = Math.atan2(tip.y - o.y, tip.x - o.x), ah = 10;
-    ctx.fillStyle = `rgba(${GREEN},${0.85 + 0.15 * glow})`;
+    ctx.fillStyle = `rgba(${GREEN},${0.46 + 0.12 * glow})`;
     ctx.beginPath();
     ctx.moveTo(tip.x, tip.y);
     ctx.lineTo(tip.x - ah * Math.cos(ang - 0.4), tip.y - ah * Math.sin(ang - 0.4));
