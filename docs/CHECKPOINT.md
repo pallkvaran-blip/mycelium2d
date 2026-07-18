@@ -1,12 +1,18 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-18 (**first-run tutorial:** a scripted 10-step B&W
-popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run — zooms the
-camera to each subject, FORCES the first grow (double-click Apical Drive → drag), and shows FLUX-generated
-threat portraits (ant D / nematode B / a relatable moldy-bread trichoderma). Now with **portrait-phone**
-support (minimise carousel, zoom out ~50%, frame the subject in the top half), a **TEMP dev launcher**
-button on the title, and **no map-dimming** during the tutorial. `#tutorial` hash or
-`window.__game.startTutorial()` replays it — see §9. — earlier: **energy + threat tune:** leaf Energy trimmed
+_Living status + knowledge doc. Last updated: 2026-07-18 (**card-name mycology pass:** 7 owner-approved
+renames for fungal accuracy — Nutrient Transmutation→**Metabolic Reroute**, Suberin Wall→**Melanized Wall**,
+Mycorrhizal Mat→**Humic Mat**, Symbiont Weave→**Cord Weave**, Phosphatase Cushion→**Phosphatase Reserve**,
+Tap-Root Rhizomorph→**Sinker Rhizomorph**, Hyphal Imbibition→**Hyphal Osmosis** — plus Mineralizing Saprobe
+reflavored to phosphate. Names are load-bearing: each moved in lockstep across cards.json, the
+`EFFECTS`/`DRAW_ENGINES`/`ARCHIVED` maps in `engine/cards.js`, tests, art slugs, `cards-data.js` + `dist/`;
+61/61 tests + a 20-check per-card engine pass green — see §9. — earlier: **first-run tutorial:** a scripted
+10-step B&W popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run —
+zooms the camera to each subject, FORCES the first grow (double-click Apical Drive → drag), and shows
+FLUX-generated threat portraits (ant D / nematode B / a relatable moldy-bread trichoderma). Now with
+**portrait-phone** support (minimise carousel, zoom out ~50%, frame the subject in the top half), a **TEMP
+dev launcher** button on the title, and **no map-dimming** during the tutorial. `#tutorial` hash or
+`window.__game.startTutorial()` replays it. — earlier: **energy + threat tune:** leaf Energy trimmed
 another step to 🟡 duff **1–2** / 🟠 orange **2–3** / 🔴 red **3–4** (per-map counts unchanged: 5–7 / 5–7 /
 1–3); **new enemy curve** (`species.js LEVEL_THREATS`, ants/nematodes/mould): L1 1/1/1 → L11 6/11/11, ants
 ramp slowest (cap 6) — see §9. — earlier: **punch aimer + yellow duff leaves:** the
@@ -1604,6 +1610,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **Card NAMES are load-bearing — renaming a card is a multi-file operation.** A card's `name` is its
+  primary key. The engine only plays a card if `EFFECTS[name]` exists (`playable()` in `engine/cards.js`
+  gates on it), so a name that no longer matches its `EFFECTS` key silently becomes **unplayable** — no
+  crash, no error, the card just vanishes from the deck. To rename a card, change ALL of, in lockstep:
+  (1) `docs/cards.json` — the `name` field **and every cross-reference** (a draw-engine's effect text
+  "Shuffle 5 copies of X", `produces`, design `notes`); (2) `src/engine/cards.js` — the `EFFECTS` key, and
+  if it's a draw-engine the `DRAW_ENGINES` **key AND value**, and the `ARCHIVED` set membership; (3)
+  `test/cards.test.js` `ARCHIVED_TEST` (mirrors ARCHIVED); (4) the art slug `assets/cards/<cardSlug(name)>.jpg`
+  (`git mv` old→new; `cardSlug` = lowercase, non-alphanumeric→dash — art loads by DERIVED slug, no manifest);
+  (5) regenerate `src/cards-data.js` (`node scripts/gen-carddata.mjs`) and rebuild `dist/` (prune orphaned
+  old dist slugs); (6) `species.js` starting hands look cards up **by name**; (7) docs (`cards-design.md`,
+  `cards-review.md`). A global full-phrase find/replace of the exact multi-word name is safe (names are
+  distinctive) — but do NOT rename internal identifiers that merely allude to a card (e.g. the config key
+  `suberinRadius` stays even though the card is now "Melanized Wall"). Verify by playing each renamed active
+  card through the engine, not just by a passing build (a broken binding still builds).
 - **Food Energy is decoupled from nutrient — keep it that way.** Map piles pay a fixed 1–4 Energy via
   per-cell `cell.energyPerNutrient` (by kind: yellow duff 1–2, orange 2–3, red engine 3–4); `nutrient`
   (50/cell) exists ONLY for attraction / threat-eating /
