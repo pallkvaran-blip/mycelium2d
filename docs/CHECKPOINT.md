@@ -461,8 +461,10 @@ Both menus are dark, on-theme, with glowing green borders.
     playable). To play it you **spend Spores**. `species.js` split the old `isUnlocked` into
     `isRevealed` (cleared enough — same k-th/(k+1)-clear stagger) and `isPlayable`
     (`isRevealed && isPurchased`); `newlyUnlockedByClear` → `newlyRevealedByClear`. Purchases persist
-    in `progress.purchased` (`purchaseSpecies` deducts + records; `unlockCost` reads species `cost`,
-    default 100×level — Common Earthball 100, Bleeding Tooth 250).
+    in `progress.purchased` (`purchaseSpecies` deducts + records; `unlockCost` DOUBLES per unlock
+    tier from `UNLOCK_TIER_BASE` (1000) — after lvl 1 → 1000, lvl 3 → 2000, lvl 5 → 4000, lvl 7 →
+    8000, lvl 10 → 16000; rank = the unlock level's index in `tierLevels()`; explicit `sp.cost`
+    still overrides. Earn rate for context: `sporesForLevel` = 100×level → ~6600 per full 11-level run).
   - **Spores = a persistent wallet** in `mycelium.progress.v2` (added `spores`, `purchased`;
     back-compat defaults for old saves). Earned by finishing levels — `sporesForLevel` = **100 × level**
     (`main.js onLevelWon` → `addSpores`, also tallied into a per-run `runSpores`). Picker header shows a
