@@ -687,6 +687,9 @@ export class UI {
       body = this.cardsOn && !puzzle
         ? `The colony crossed the map and fruited at the summer goal in <b>${result.turns}</b> steps.`
         : `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+    } else if (died && result.cause === 'water') {
+      title = 'You ran out of water';
+      body = 'Your mycelium colony shrivelled up and died.';
     } else if (died) {
       title = 'The colony has died';
       body = puzzle

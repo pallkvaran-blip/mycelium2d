@@ -302,6 +302,20 @@ function tutorialDeps() {
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,
+    // Nearest underground reservoir to the colony (for the "touch water" step).
+    reservoir: () => {
+      const sub = state.substrate; const list = sub && sub.reservoirs;
+      if (!list || !list.length) return null;
+      const root = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]);
+      const rx = root ? root.x : 0;
+      let best = null, bd = Infinity;
+      for (const r of list) {
+        const c = sub.cellCenter(r.cx, r.cy);
+        const d = Math.abs(c.x - rx);
+        if (d < bd) { bd = d; best = { x: c.x, y: c.y }; }
+      }
+      return best;
+    },
     threats: () => ({
       ant: (state.ants && state.ants[0]) ? { x: state.ants[0].x, y: surf() + 40 } : null,
       nematode: (state.nematodes && state.nematodes[0]) ? { x: state.nematodes[0].x, y: state.nematodes[0].y } : null,
@@ -660,8 +674,27 @@ function afterAction(name, res) {
   rendererFor(state.active).markStructureDirty();
   if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
+  checkWater();                           // an action can spend Water to the death threshold
   if (state.runOver) presentRunOver();
   uiDirty = true;
+}
+
+// Water is the survival resource: the colony DIES at 0 water ("shrivelled up"),
+// and warns ONCE per map when it drops to 5 or below. Run after every op (a card,
+// an action, or a world tick that applies water income) so it catches every change.
+function checkWater() {
+  if (!state || !state.active || state.runOver) return;
+  const w = state.active.water || 0;
+  if (w <= 0) {
+    state.active.alive = false;
+    state.runOver = true; state.won = false;
+    state.runResult = { won: false, died: true, cause: 'water', turns: state.turn };
+    return;
+  }
+  if (w <= 5 && !state._waterWarned) {
+    state._waterWarned = true;
+    if (ui) ui.toast('Warning! 5 water left. Your colony will die without water.', 'warn');
+  }
 }
 
 // Resolve a card op (draw/skip/play): advance the world, refresh renderers.
@@ -670,6 +703,7 @@ function resolveCardOp(res) {
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
+    checkWater();                         // water warning / dehydration death
     if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
@@ -1005,6 +1039,7 @@ function renderFrame(time) {
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawRockColumns();            // path-blocking vertical rock columns (gated) — barriers from the surface down
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
+  drawReservoirs();             // underground water pockets (matted) — small water sources along the route
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
@@ -2484,6 +2519,30 @@ function drawLakes() {
     const sw = (run.c1 - run.c0 + 1) * cs * z;
     const sh = run.maxD * cs * z;
     if (tl.x > camera.viewW || tl.x + sw < 0) continue;
+    ctx.drawImage(img, tl.x, tl.y, sw, sh);
+  }
+}
+
+// Underground water reservoirs: small impassable water pockets tucked above the
+// winnable corridor (see substrate.js 2c-iv). Each is drawn as the chosen reservoir
+// sprite over its cell footprint (a touch of margin so the sprite's soft edges blend
+// into the earth). The procedural water fill (render/substrate.js) is the fallback
+// when the art is absent. Touching one grants Water income (cards.js).
+function drawReservoirs() {
+  if (!hasAsset('reservoir')) return;
+  const sub = state.substrate;
+  const list = sub.reservoirs;
+  if (!list || !list.length) return;
+  const img = asset('reservoir');
+  if (!img) return;
+  const z = camera.zoom, cs = sub.cellSize;
+  const M = 0.6;   // overdraw margin (cells) so feathered art edges bleed into soil
+  for (const r of list) {
+    const wx = (r.c0 - M) * cs, wy = (r.r0 - M) * cs + sub.surfaceY;
+    const tl = camera.worldToScreen(wx, wy);
+    const sw = (r.c1 - r.c0 + 1 + 2 * M) * cs * z;
+    const sh = (r.r1 - r.r0 + 1 + 2 * M) * cs * z;
+    if (tl.x > camera.viewW || tl.x + sw < 0 || tl.y > camera.viewH || tl.y + sh < 0) continue;
     ctx.drawImage(img, tl.x, tl.y, sw, sh);
   }
 }

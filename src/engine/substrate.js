@@ -28,7 +28,7 @@ export class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, reservoir: 0, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -519,6 +519,51 @@ export function generateSubstrate(config, rng) {
   };
   clearChannel(0, startCols + 1);
   clearChannel(goalStart - 1, sub.cols);
+
+  // 2c-iv) UNDERGROUND WATER RESERVOIRS — small IMPASSABLE water pockets tucked
+  //   just ABOVE the winnable corridor, so a colony threading the route grows up
+  //   against one and taps it for a trickle of Water income (see the water-source
+  //   engine in cards.js). Placed AFTER the corridor + channels so we can sit each
+  //   pocket exactly one row above the cleared path (guaranteed reachable) without
+  //   ever overlapping the corridor, an existing lake, or a rock mass.
+  sub.reservoirs = [];
+  {
+    const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
+    const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
+    const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
+    const placedRes = [];
+    let rAttempts = 0;
+    while (sub.reservoirs.length < rCount && rAttempts++ < 400 && resHi - resLo > 2 * rrMax) {
+      const rad = rng.int(rrMin, rrMax);
+      const cx = rng.int(resLo + rad, resHi - rad);
+      const cy = pathRow[cx] - 1 - rad;                  // bottom edge one row above the corridor top
+      if (cy - rad < 0) continue;                        // no room above the corridor here
+      let ok = true;
+      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + 5) { ok = false; break; }
+      // Clearance: the disc must not touch the corridor, an existing lake, or rock.
+      for (let dr = -rad; dr <= rad && ok; dr++)
+        for (let dc = -rad; dc <= rad && ok; dc++) {
+          if (dc * dc + dr * dr > rad * rad) continue;
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (!cell || cell.pathClear || cell.water || cell.rock) ok = false;
+        }
+      if (!ok) continue;
+      const id = sub.reservoirs.length + 1;
+      let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+      for (let dr = -rad; dr <= rad; dr++)
+        for (let dc = -rad; dc <= rad; dc++) {
+          if (dc * dc + dr * dr > rad * rad) continue;
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (!cell) continue;
+          cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket
+          cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+          c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
+          r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
+        }
+      placedRes.push({ cx, rad });
+      sub.reservoirs.push({ id, cx, cy, rad, c0, c1, r0, r1 });
+    }
+  }
 
   // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
   //    can't just grow freely) and steering with Add-Substrate matters. A reward

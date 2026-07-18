@@ -94,6 +94,13 @@ export const CONFIG = {
     lakeAspect: 2.8,             // basin width:depth — matches the lake art so it draws undistorted
     lakeDepthMinRows: 3,         // clamp: bowl depth at the centre (rows)
     lakeDepthMaxRows: 8,
+    // Underground water reservoirs: small IMPASSABLE water pockets tucked just
+    // above the winnable corridor. Touching one (like touching the lake) grants a
+    // trickle of Water income — a survival lifeline scattered along the route.
+    reservoirCountMin: 1,        // 1–3 reservoirs per map
+    reservoirCountMax: 3,
+    reservoirRadiusMin: 2,       // blob radius in cells (small pockets)
+    reservoirRadiusMax: 3,
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
@@ -132,7 +139,7 @@ export const CONFIG = {
     drawCount: 3,                // cards pulled per Draw
     draftBasicCopies: 3,         // drafting an (infinite) BASIC card grants this many copies; event/engine give 1
     draftBasicWeight: 0.6,       // in a NORMAL (basic/event) draft, chance each slot is a Basic vs an Event (~60/40)
-    skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
+    skipCostEnergy: 1,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
     startWater: 10,              // starting Water (covers grow AND substrate; ~10 grows before you must harvest)
     startPhosphorus: 0,          // starting Phosphorus (earn it from rocks via Phosphate Tap; gates digest/defense)

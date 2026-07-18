@@ -387,6 +387,7 @@ export function produceCardEngines(state) {
   const C = state.cards; if (!C) return;
   const net = state.active; if (!net || !net.alive) return;
   const cc = state.config.cards;
+  updateWaterSourceEngine(state);        // sync the lake/reservoir water trickle before producing
   let energySum = 0;
   for (const e of C.engines) {
     // Cadence: an engine with `every > 1` produces only every N rounds (ticks).
@@ -570,8 +571,42 @@ function nodeTouches(state, pred) {
   }
   return false;
 }
-const touchesLake = (state) => nodeTouches(state, (c) => c.water);
+// Water contact. A "lake" is open lake water; a "reservoir" is an underground
+// pocket (cell.reservoir = its id). Both are impassable water, but they're counted
+// SEPARATELY for the water-source income (max +1 per lake, +1 per distinct reservoir).
+const nodeTouchesWater = (state) => nodeTouches(state, (c) => c.water);              // lake OR reservoir
+const touchesLake = (state) => nodeTouches(state, (c) => c.water && !c.reservoir);   // open lake only
 const touchesMineral = (state) => nodeTouches(state, (c) => c.rock && !c.water);
+
+// --- water-source income ----------------------------------------------------
+// Touching open lake water OR an underground reservoir gives the colony a Water
+// trickle: +1 Water every 3 rounds PER source (at most +1 for the lake, +1 per
+// distinct reservoir). Implemented as a synthetic engine kept in C.engines so the
+// income pill + ledger display it automatically — added while a source is in
+// contact, removed the moment none is.
+export const WATER_SOURCE_NAME = 'Aquifer Tap';
+const WATER_SOURCE_EVERY = 3;
+function distinctReservoirsTouched(state) {
+  const sub = state.substrate, seen = new Set();
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const cell = sub.cellAt(col + dc, row + dr);
+      if (cell && cell.reservoir) seen.add(cell.reservoir);
+    }
+  }
+  return seen.size;
+}
+const waterSourcesTouched = (state) => (touchesLake(state) ? 1 : 0) + distinctReservoirsTouched(state);
+function updateWaterSourceEngine(state) {
+  const C = state.cards; if (!C || !C.engines) return;
+  const sources = (state.active && state.active.alive) ? waterSourcesTouched(state) : 0;
+  const i = C.engines.findIndex((e) => e._waterSource);
+  if (sources <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
+  if (i >= 0) C.engines[i].water = sources;                 // keep cadence, refresh amount
+  else C.engines.push({ name: WATER_SOURCE_NAME, water: sources, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
+}
 function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
   return state.active.digThrough(state.substrate, fp.x, fp.y, classes);
@@ -766,7 +801,7 @@ export const EFFECTS = {
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
   'Hyphal Osmosis': grow((s) => {
-    const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
+    const cc = s.config.cards; const amt = nodeTouchesWater(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
     const before = s.active.water;
     s.active.water = gain(s.active.water, amt, cc.softCapWater);
     const got = s.active.water - before;

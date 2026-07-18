@@ -95,6 +95,13 @@ export function startTutorial(deps) {
       place: 'bottom',
     },
     {
+      text: 'Touch <b>water</b> to get Water income.<br>Your colony will <b>die</b> if you run out of water.',
+      focus: (s) => world(deps.reservoir() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.reservoir()),
+      skip: (s) => !(deps.reservoir && deps.reservoir()),   // no reservoir on this map → skip cleanly
+      place: 'bottom',
+    },
+    {
       text: 'Ants will eat your substrate.',
       focus: (s) => world(deps.threats().ant, 1.1),
       target: (s) => worldTarget(deps.threats().ant),
@@ -184,6 +191,13 @@ export function startTutorial(deps) {
   }
 
   function enter(i) {
+    // A step can opt OUT on maps where its subject is absent (e.g. no reservoir) —
+    // jump straight past it so the walkthrough never frames an empty spot.
+    const cand = steps[i];
+    if (cand && cand.skip && cand.skip(deps.getState())) {
+      if (i >= steps.length - 1) { finish(); return; }
+      return enter(i + 1);
+    }
     idx = i;
     mem = {};
     const step = steps[i];

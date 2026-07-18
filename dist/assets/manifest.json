@@ -290,6 +290,11 @@
    "key": "moon",
    "file": "moon.png",
    "kind": "sprite"
+  },
+  {
+   "key": "reservoir",
+   "file": "reservoir.png",
+   "kind": "sprite"
   }
  ]
 }

@@ -1142,8 +1142,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "xqocoj";
-globalThis.__BUILD__ = "local 07-18 15:34";
+window.__ASSET_VER = "sfq7n7";
+globalThis.__BUILD__ = "local 07-18 16:27";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1243,6 +1243,13 @@ const CONFIG = {
     lakeAspect: 2.8,             // basin width:depth — matches the lake art so it draws undistorted
     lakeDepthMinRows: 3,         // clamp: bowl depth at the centre (rows)
     lakeDepthMaxRows: 8,
+    // Underground water reservoirs: small IMPASSABLE water pockets tucked just
+    // above the winnable corridor. Touching one (like touching the lake) grants a
+    // trickle of Water income — a survival lifeline scattered along the route.
+    reservoirCountMin: 1,        // 1–3 reservoirs per map
+    reservoirCountMax: 3,
+    reservoirRadiusMin: 2,       // blob radius in cells (small pockets)
+    reservoirRadiusMax: 3,
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,
@@ -1281,7 +1288,7 @@ const CONFIG = {
     drawCount: 3,                // cards pulled per Draw
     draftBasicCopies: 3,         // drafting an (infinite) BASIC card grants this many copies; event/engine give 1
     draftBasicWeight: 0.6,       // in a NORMAL (basic/event) draft, chance each slot is a Basic vs an Event (~60/40)
-    skipCostEnergy: 12,          // energy to SKIP a round (advance the world, draw nothing)
+    skipCostEnergy: 1,          // energy to SKIP a round (advance the world, draw nothing)
     handStartMax: 12,            // cap on the opening premium hand (tutorial uses fewer)
     startWater: 10,              // starting Water (covers grow AND substrate; ~10 grows before you must harvest)
     startPhosphorus: 0,          // starting Phosphorus (earn it from rocks via Phosphate Tap; gates digest/defense)
@@ -2636,7 +2643,7 @@ const SPECIES = [
     id: 'marasmius', vibe: 'cool', unlock: null,
     name: 'Fairy Ring Champignon', latin: 'Marasmius oreades', img: 'marasmius-oreades',
     blurb: 'A grassland saprotroph that grows outward in an ever-widening <b>fairy ring</b> pattern — the colony pushes evenly in every direction from its heart, decomposing the turf as it goes. It is marcescent: it shrivels in a drought and springs back to life once the rain returns, so it banks water and simply waits the dry spells out. Slow, broad and hard to kill — a forgiving way to learn the colony.',
-    res: { energy: 30, water: 30, phosphorus: 0 },
+    res: { energy: 0, water: 30, phosphorus: 0 },
     hand: [
       { name: 'Foraging Fan', count: 8 },
       { name: 'Hyphal Extension', count: 6 },
@@ -2647,7 +2654,7 @@ const SPECIES = [
     id: 'armillaria', vibe: 'warm', unlock: null,
     name: 'Honey Fungus', latin: 'Armillaria ostoyae', img: 'armillaria-ostoyae',
     blurb: 'The <b>largest living organism on Earth</b> — a single Armillaria in Oregon sprawls across nearly ten square kilometres of forest. It travels on <b>rhizomorphs</b>: bootlace-like cords that shoot far ahead through the soil to strike distant roots. A committed long-range predator, not a gentle forager — it banks energy, drives its cords along a chosen line, and lances across open ground toward the goal.',
-    res: { energy: 100, water: 25, phosphorus: 0 },
+    res: { energy: 0, water: 25, phosphorus: 0 },
     hand: [
       { name: 'Apical Drive', count: 10 },
       { name: 'Rhizomorph Lance', count: 5 },
@@ -2657,7 +2664,7 @@ const SPECIES = [
     id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
     name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
     blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
-    res: { energy: 50, water: 30, phosphorus: 5 },
+    res: { energy: 0, water: 30, phosphorus: 5 },
     hand: [
       { name: 'Sclerotial Crust', count: 2 },
       { name: 'Amputate', count: 2 },
@@ -2670,7 +2677,7 @@ const SPECIES = [
     id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
-    res: { energy: 50, water: 20, phosphorus: 0 },
+    res: { energy: 0, water: 20, phosphorus: 0 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Hyphal Extension', count: 5 },
@@ -2835,7 +2842,7 @@ class Substrate {
     // Flat cell array, indexed [row * cols + col].
     this.cells = new Array(this.cols * this.rows);
     for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
+      this.cells[i] = { nutrient: 0, maxNutrient: 0, hazard: false, rock: false, water: false, reservoir: 0, formation: false, column: false, antTrail: false, trich: 0, held: 0, colonized: 0, antProof: 0, mouldProof: 0, hardened: 0, reinfectGrace: 0, bored: false, pathClear: false, rockFill: false, foodKind: '', energyPerNutrient: null };
     }
     // Surface descriptor per column.
     //   soil    : fruitable ground (only the start/goal zones)
@@ -3326,6 +3333,51 @@ function generateSubstrate(config, rng) {
   };
   clearChannel(0, startCols + 1);
   clearChannel(goalStart - 1, sub.cols);
+
+  // 2c-iv) UNDERGROUND WATER RESERVOIRS — small IMPASSABLE water pockets tucked
+  //   just ABOVE the winnable corridor, so a colony threading the route grows up
+  //   against one and taps it for a trickle of Water income (see the water-source
+  //   engine in cards.js). Placed AFTER the corridor + channels so we can sit each
+  //   pocket exactly one row above the cleared path (guaranteed reachable) without
+  //   ever overlapping the corridor, an existing lake, or a rock mass.
+  sub.reservoirs = [];
+  {
+    const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
+    const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
+    const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
+    const placedRes = [];
+    let rAttempts = 0;
+    while (sub.reservoirs.length < rCount && rAttempts++ < 400 && resHi - resLo > 2 * rrMax) {
+      const rad = rng.int(rrMin, rrMax);
+      const cx = rng.int(resLo + rad, resHi - rad);
+      const cy = pathRow[cx] - 1 - rad;                  // bottom edge one row above the corridor top
+      if (cy - rad < 0) continue;                        // no room above the corridor here
+      let ok = true;
+      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + 5) { ok = false; break; }
+      // Clearance: the disc must not touch the corridor, an existing lake, or rock.
+      for (let dr = -rad; dr <= rad && ok; dr++)
+        for (let dc = -rad; dc <= rad && ok; dc++) {
+          if (dc * dc + dr * dr > rad * rad) continue;
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (!cell || cell.pathClear || cell.water || cell.rock) ok = false;
+        }
+      if (!ok) continue;
+      const id = sub.reservoirs.length + 1;
+      let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+      for (let dr = -rad; dr <= rad; dr++)
+        for (let dc = -rad; dc <= rad; dc++) {
+          if (dc * dc + dr * dr > rad * rad) continue;
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (!cell) continue;
+          cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket
+          cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+          c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
+          r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
+        }
+      placedRes.push({ cx, rad });
+      sub.reservoirs.push({ id, cx, cy, rad, c0, c1, r0, r1 });
+    }
+  }
 
   // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
   //    can't just grow freely) and steering with Add-Substrate matters. A reward
@@ -5820,6 +5872,7 @@ function produceCardEngines(state) {
   const C = state.cards; if (!C) return;
   const net = state.active; if (!net || !net.alive) return;
   const cc = state.config.cards;
+  updateWaterSourceEngine(state);        // sync the lake/reservoir water trickle before producing
   let energySum = 0;
   for (const e of C.engines) {
     // Cadence: an engine with `every > 1` produces only every N rounds (ticks).
@@ -6003,8 +6056,42 @@ function nodeTouches(state, pred) {
   }
   return false;
 }
-const touchesLake = (state) => nodeTouches(state, (c) => c.water);
+// Water contact. A "lake" is open lake water; a "reservoir" is an underground
+// pocket (cell.reservoir = its id). Both are impassable water, but they're counted
+// SEPARATELY for the water-source income (max +1 per lake, +1 per distinct reservoir).
+const nodeTouchesWater = (state) => nodeTouches(state, (c) => c.water);              // lake OR reservoir
+const touchesLake = (state) => nodeTouches(state, (c) => c.water && !c.reservoir);   // open lake only
 const touchesMineral = (state) => nodeTouches(state, (c) => c.rock && !c.water);
+
+// --- water-source income ----------------------------------------------------
+// Touching open lake water OR an underground reservoir gives the colony a Water
+// trickle: +1 Water every 3 rounds PER source (at most +1 for the lake, +1 per
+// distinct reservoir). Implemented as a synthetic engine kept in C.engines so the
+// income pill + ledger display it automatically — added while a source is in
+// contact, removed the moment none is.
+const WATER_SOURCE_NAME = 'Aquifer Tap';
+const WATER_SOURCE_EVERY = 3;
+function distinctReservoirsTouched(state) {
+  const sub = state.substrate, seen = new Set();
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const cell = sub.cellAt(col + dc, row + dr);
+      if (cell && cell.reservoir) seen.add(cell.reservoir);
+    }
+  }
+  return seen.size;
+}
+const waterSourcesTouched = (state) => (touchesLake(state) ? 1 : 0) + distinctReservoirsTouched(state);
+function updateWaterSourceEngine(state) {
+  const C = state.cards; if (!C || !C.engines) return;
+  const sources = (state.active && state.active.alive) ? waterSourcesTouched(state) : 0;
+  const i = C.engines.findIndex((e) => e._waterSource);
+  if (sources <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
+  if (i >= 0) C.engines[i].water = sources;                 // keep cadence, refresh amount
+  else C.engines.push({ name: WATER_SOURCE_NAME, water: sources, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
+}
 function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
   return state.active.digThrough(state.substrate, fp.x, fp.y, classes);
@@ -6199,7 +6286,7 @@ const EFFECTS = {
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
   'Hyphal Osmosis': grow((s) => {
-    const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
+    const cc = s.config.cards; const amt = nodeTouchesWater(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
     const before = s.active.water;
     s.active.water = gain(s.active.water, amt, cc.softCapWater);
     const got = s.active.water - before;
@@ -6472,7 +6559,7 @@ EFFECTS['Cordyceps Bloom'] = grow((s) => eruptNearestNest(s));
 // 3b. Cordyceps Stroma — installed ACTION (engine): destroy a sensed ant nest every 10 rounds.
 EFFECTS['Cordyceps Stroma'] = action({ effect: 'destroy a sensed ant nest', every: 10 }, (s) => eruptNearestNest(s));
 
-  return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, cardUsesDragAim, dragAimReach, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, EFFECTS };
+  return { cardDeckAdditions, initCards, checkPileRewards, chooseOffer, drawCost, cardBlockedReason, cardNeedsTarget, cardUsesDragAim, dragAimReach, drawCard, skipRound, playCard, cardAbilityInfo, produceCardEngines, actionUsable, activateAction, checkGoalReached, WATER_SOURCE_NAME, EFFECTS };
 })();
 
 // ===================== src/engine/turn.js =====================
@@ -9304,6 +9391,9 @@ class UI {
       body = this.cardsOn && !puzzle
         ? `The colony crossed the map and fruited at the summer goal in <b>${result.turns}</b> steps.`
         : `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+    } else if (died && result.cause === 'water') {
+      title = 'You ran out of water';
+      body = 'Your mycelium colony shrivelled up and died.';
     } else if (died) {
       title = 'The colony has died';
       body = puzzle
@@ -11189,6 +11279,13 @@ function startTutorial(deps) {
       place: 'bottom',
     },
     {
+      text: 'Touch <b>water</b> to get Water income.<br>Your colony will <b>die</b> if you run out of water.',
+      focus: (s) => world(deps.reservoir() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.reservoir()),
+      skip: (s) => !(deps.reservoir && deps.reservoir()),   // no reservoir on this map → skip cleanly
+      place: 'bottom',
+    },
+    {
       text: 'Ants will eat your substrate.',
       focus: (s) => world(deps.threats().ant, 1.1),
       target: (s) => worldTarget(deps.threats().ant),
@@ -11278,6 +11375,13 @@ function startTutorial(deps) {
   }
 
   function enter(i) {
+    // A step can opt OUT on maps where its subject is absent (e.g. no reservoir) —
+    // jump straight past it so the walkthrough never frames an empty spot.
+    const cand = steps[i];
+    if (cand && cand.skip && cand.skip(deps.getState())) {
+      if (i >= steps.length - 1) { finish(); return; }
+      return enter(i + 1);
+    }
     idx = i;
     mem = {};
     const step = steps[i];
@@ -11696,6 +11800,20 @@ function tutorialDeps() {
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,
+    // Nearest underground reservoir to the colony (for the "touch water" step).
+    reservoir: () => {
+      const sub = state.substrate; const list = sub && sub.reservoirs;
+      if (!list || !list.length) return null;
+      const root = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]);
+      const rx = root ? root.x : 0;
+      let best = null, bd = Infinity;
+      for (const r of list) {
+        const c = sub.cellCenter(r.cx, r.cy);
+        const d = Math.abs(c.x - rx);
+        if (d < bd) { bd = d; best = { x: c.x, y: c.y }; }
+      }
+      return best;
+    },
     threats: () => ({
       ant: (state.ants && state.ants[0]) ? { x: state.ants[0].x, y: surf() + 40 } : null,
       nematode: (state.nematodes && state.nematodes[0]) ? { x: state.nematodes[0].x, y: state.nematodes[0].y } : null,
@@ -12054,8 +12172,27 @@ function afterAction(name, res) {
   rendererFor(state.active).markStructureDirty();
   if (name === 'excrete') excreteFlashStart = lastTime;   // trigger the sticky pulse
   if (name === 'fruit') state.active.computeFruitPoints(state.substrate);
+  checkWater();                           // an action can spend Water to the death threshold
   if (state.runOver) presentRunOver();
   uiDirty = true;
+}
+
+// Water is the survival resource: the colony DIES at 0 water ("shrivelled up"),
+// and warns ONCE per map when it drops to 5 or below. Run after every op (a card,
+// an action, or a world tick that applies water income) so it catches every change.
+function checkWater() {
+  if (!state || !state.active || state.runOver) return;
+  const w = state.active.water || 0;
+  if (w <= 0) {
+    state.active.alive = false;
+    state.runOver = true; state.won = false;
+    state.runResult = { won: false, died: true, cause: 'water', turns: state.turn };
+    return;
+  }
+  if (w <= 5 && !state._waterWarned) {
+    state._waterWarned = true;
+    if (ui) ui.toast('Warning! 5 water left. Your colony will die without water.', 'warn');
+  }
 }
 
 // Resolve a card op (draw/skip/play): advance the world, refresh renderers.
@@ -12064,6 +12201,7 @@ function resolveCardOp(res) {
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
+    checkWater();                         // water warning / dehydration death
     if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
@@ -12399,6 +12537,7 @@ function renderFrame(time) {
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawRockColumns();            // path-blocking vertical rock columns (gated) — barriers from the surface down
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
+  drawReservoirs();             // underground water pockets (matted) — small water sources along the route
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
@@ -13878,6 +14017,30 @@ function drawLakes() {
     const sw = (run.c1 - run.c0 + 1) * cs * z;
     const sh = run.maxD * cs * z;
     if (tl.x > camera.viewW || tl.x + sw < 0) continue;
+    ctx.drawImage(img, tl.x, tl.y, sw, sh);
+  }
+}
+
+// Underground water reservoirs: small impassable water pockets tucked above the
+// winnable corridor (see substrate.js 2c-iv). Each is drawn as the chosen reservoir
+// sprite over its cell footprint (a touch of margin so the sprite's soft edges blend
+// into the earth). The procedural water fill (render/substrate.js) is the fallback
+// when the art is absent. Touching one grants Water income (cards.js).
+function drawReservoirs() {
+  if (!hasAsset('reservoir')) return;
+  const sub = state.substrate;
+  const list = sub.reservoirs;
+  if (!list || !list.length) return;
+  const img = asset('reservoir');
+  if (!img) return;
+  const z = camera.zoom, cs = sub.cellSize;
+  const M = 0.6;   // overdraw margin (cells) so feathered art edges bleed into soil
+  for (const r of list) {
+    const wx = (r.c0 - M) * cs, wy = (r.r0 - M) * cs + sub.surfaceY;
+    const tl = camera.worldToScreen(wx, wy);
+    const sw = (r.c1 - r.c0 + 1 + 2 * M) * cs * z;
+    const sh = (r.r1 - r.r0 + 1 + 2 * M) * cs * z;
+    if (tl.x > camera.viewW || tl.x + sw < 0 || tl.y > camera.viewH || tl.y + sh < 0) continue;
     ctx.drawImage(img, tl.x, tl.y, sw, sh);
   }
 }

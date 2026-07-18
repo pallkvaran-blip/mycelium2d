@@ -454,6 +454,33 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Water-survival overhaul** (`src/species.js`, `src/config.js`, `src/main.js`, `src/render/ui.js`,
+  `src/engine/cards.js`, `src/engine/substrate.js`, `assets/`, `src/render/tutorial.js`). Water is now the
+  colony's survival clock:
+  - **Starting Energy → 0 for every species** (`species.js res.energy`); **Skip now costs 1 Energy**
+    (`config.skipCostEnergy`, was 12). You bootstrap by playing the water-funded grow cards in the opening
+    hand (every species has ≥1 `buyE=0` opener playable at 0 Energy — verified) to reach food and earn Energy.
+    The stall-detection test premise updated (Skip 12→1, so the "no affordable move" stall now needs Energy 0).
+  - **Water warning + dehydration death** (`main.js checkWater()`, called after every card op / action /
+    world tick). At **≤5 Water** it toasts once per map (`state._waterWarned`): *"Warning! 5 water left…"*.
+    At **≤0 Water** the colony dies with `runResult.cause:'water'`; `ui.js showOverlay` renders that as
+    *"You ran out of water — Your mycelium colony shrivelled up and died."*
+  - **Lake/reservoir Water income** (`cards.js`): touching open lake water OR an underground reservoir grants
+    **+1 Water every 3 rounds PER source** (max +1 for the lake, +1 per distinct reservoir). Implemented as a
+    synthetic engine (`_waterSource:true`, `WATER_SOURCE_NAME` = **"Aquifer Tap"**) that `updateWaterSourceEngine()`
+    adds/updates/removes at the top of `produceCardEngines` — so it shows in the income pill + ledger
+    automatically and vanishes when nothing is touched. `touchesLake` now excludes reservoir cells;
+    `nodeTouchesWater` (lake OR reservoir) drives Hyphal Osmosis's lake-tier harvest.
+  - **Underground reservoirs** (`substrate.js` §2c-iv + `cell.reservoir` flag): 1–3 small impassable water
+    pockets (`config.reservoirCount/Radius*`) placed one row ABOVE the winnable corridor (guaranteed
+    reachable, never blocking the path). Marked `rock+water+reservoir` so they're solid + baked into the
+    growth mask like lakes. Rendered by `main.js drawReservoirs()` from the matted `assets/reservoir.png`
+    (chosen art; `scripts/gen_reservoir.py` generated the 6 options, `scripts/matte_reservoir.py` feathers
+    the pick into the sprite). Fallback: bare cells (no procedural bowl — reservoirs set no surface barrier).
+  - **Tutorial water step** (`tutorial.js`, after the "grow into substrate" step): frames the nearest
+    reservoir with *"Touch water to get Water income. Your colony will die if you run out of water."*
+    (`deps.reservoir()` in `main.js`; a `skip(s)` predicate drops the step on the rare map with no reservoir).
+
 - **Settings gear menu + sensing-range lighting toggle** (`src/render/ui.js`, `src/main.js`, `index.html`).
   The top-left resource pill now holds ONLY resources; a **gear button** to its right (`.gearbtn` in a
   `.hudtop` flex row) opens a settings menu (`_wireSettings`) with **Event log · Music · Sensing-range

@@ -117,12 +117,13 @@ console.log('# Card-dry + broke = death');
   ok(s.runOver === true && s.runResult && s.runResult.died, 'card-dry with no energy ends the run');
 }
 {
-  // Stall: deck NOT empty but Energy < draw cost, no Water, unplayable hand, no draft.
-  // Must end the run (not silently freeze) now that Draw (16) costs more than Skip (12).
+  // Stall: deck NOT empty but Energy below every affordable move, no Water,
+  // unplayable hand, no draft. Must end the run (not silently freeze). Energy 0 is
+  // below Draw (16) AND Skip (now 1), so nothing can be done.
   const s = createState(clone(), 222); isolate(s); initCards(s);
   s.cards.drawDeck = ['Hyphal Extension'];            // deck has cards…
   s.cards.hand = [{ id: s.cards.seq++, name: 'Hyphal Extension' }];  // …but only a 1-Water card
-  s.active.water = 0; s.active.phosphorus = 0; s.active.energy = 10;  // < draw 16 and < skip 12
+  s.active.water = 0; s.active.phosphorus = 0; s.active.energy = 0;  // < draw 16 and < skip 1
   tickWorld(s);
   ok(s.runOver === true && s.runResult && s.runResult.died, 'a no-affordable-move stall (deck left, Energy < draw cost) ends the run');
 }
