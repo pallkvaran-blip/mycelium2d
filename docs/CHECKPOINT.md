@@ -454,6 +454,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Archived Tropic Lunge + Questing Front; death button → "New run"** (`cards.js`
+  ARCHIVED set + `test/cards.test.js` ARCHIVED_TEST, `ui.js`). The auto-lunge-to-food
+  pair is pulled (player can't steer it → reads as the colony wandering off); both keep
+  their EFFECTS/data for a round-trip but are filtered from deck/drafts/hands. The
+  campaign-death overlay button now reads **"New run ↻"** (was "Back to species picker").
+
 - **Water-survival polish + HUD/UX fixes** (many files). Follow-up pass on the water
   overhaul:
   - **Tropic Lunge no longer reads as growing over rock** (`network.js`): the lunge is

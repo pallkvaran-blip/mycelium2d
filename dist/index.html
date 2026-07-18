@@ -1167,8 +1167,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "13ssnxv";
-globalThis.__BUILD__ = "local 07-18 17:27";
+window.__ASSET_VER = "1xfsoy7";
+globalThis.__BUILD__ = "local 07-18 17:36";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -5567,6 +5567,9 @@ const ARCHIVED = new Set([
   'Leaf Fall', 'Humus Cache', 'Cord Weave',
   // Digestion is fast enough now that an active digest card is redundant.
   'Saprotrophic Digest', 'Enzyme Priming',
+  // Auto-lunge-to-nearest-food: the player can't control WHERE it goes, which reads
+  // as the colony wandering off on its own. Pulled (card + its engine/action twin).
+  'Tropic Lunge', 'Questing Front',
 ]);
 const isArchived = (name) => ARCHIVED.has(name);
 
@@ -9450,7 +9453,7 @@ class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
-    const pickerBtn = `<button class="btn big" id="overlay-picker">Back to species picker ↻</button>`;
+    const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
     o.innerHTML = `

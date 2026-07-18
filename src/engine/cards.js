@@ -48,6 +48,9 @@ const ARCHIVED = new Set([
   'Leaf Fall', 'Humus Cache', 'Cord Weave',
   // Digestion is fast enough now that an active digest card is redundant.
   'Saprotrophic Digest', 'Enzyme Priming',
+  // Auto-lunge-to-nearest-food: the player can't control WHERE it goes, which reads
+  // as the colony wandering off on its own. Pulled (card + its engine/action twin).
+  'Tropic Lunge', 'Questing Front',
 ]);
 const isArchived = (name) => ARCHIVED.has(name);
 

@@ -711,7 +711,7 @@ export class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
-    const pickerBtn = `<button class="btn big" id="overlay-picker">Back to species picker ↻</button>`;
+    const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
     o.innerHTML = `
