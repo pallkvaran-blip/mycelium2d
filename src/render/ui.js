@@ -423,6 +423,10 @@ export class UI {
     if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
+  // Select a card-hand filter group by key ('all' | 'grow' | 'basic' | …) and re-render
+  // the hand. Used by the tutorial to showcase a specific card group; a key absent from
+  // the current hand harmlessly falls back to 'all' inside _renderHandFilter.
+  setHandFilter(key) { this.handFilter = key || 'all'; this._renderHand(); }
 
   // Event-log drop-down (top HUD). Opened/closed only by the player tapping the
   // Log button now — errors surface as a transient toast (see toast()), not by

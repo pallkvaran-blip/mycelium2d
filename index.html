@@ -1031,8 +1031,10 @@
        game underneath stays usable on the forced steps. */
     #tutorial { position:fixed; inset:0; z-index:1200; pointer-events:none;
       font:400 15px/1.5 "Segoe UI", system-ui, sans-serif; color:#fff; }
+    /* Full-screen click catcher — TRANSPARENT (the map is never dimmed during the
+       tutorial); it only exists so a click anywhere advances an explanatory step. */
     .tut-catcher { position:absolute; inset:0; pointer-events:auto; cursor:pointer;
-      background:rgba(0,0,0,0.34); }
+      background:transparent; }
     .tut-pop { position:absolute; pointer-events:auto; left:50%; transform:translateX(-50%);
       width:min(460px, calc(100vw - 40px)); background:#000;
       border:1.5px solid rgba(255,255,255,0.72); border-radius:16px;
@@ -1057,16 +1059,11 @@
     .tut-next { background:#fff; border:1px solid #fff; color:#000; }
     .tut-next:hover { background:#e6e6e6; border-color:#e6e6e6; }
 
-    /* pulsing target ring + a bouncing arrow pointing in from the popup side */
+    /* pulsing target ring around whatever the step points at */
     .tut-ring { position:absolute; border-radius:50%; border:2px solid rgba(255,255,255,0.95);
       box-shadow:0 0 18px 2px rgba(255,255,255,0.55), inset 0 0 14px rgba(255,255,255,0.35);
       pointer-events:none; animation:tutPulse 1.4s ease-in-out infinite; }
     @keyframes tutPulse { 0%,100%{ opacity:0.95 } 50%{ opacity:0.5 } }
-    .tut-arrow { position:absolute; width:0; height:0; pointer-events:none;
-      border-left:11px solid transparent; border-right:11px solid transparent;
-      border-top:16px solid #fff; filter:drop-shadow(0 0 6px rgba(255,255,255,0.85));
-      animation:tutBounce 1.1s ease-in-out infinite; }
-    @keyframes tutBounce { 0%,100%{ opacity:0.7 } 50%{ opacity:1 } }
 
     /* strong white glow on the card the player is being forced to play */
     .cardbtn.tut-glow { outline:2px solid #fff; outline-offset:2px;
@@ -1075,7 +1072,8 @@
       0%,100%{ box-shadow:0 0 18px 2px rgba(255,255,255,0.55), 0 0 40px 8px rgba(255,255,255,0.22) }
       50%{ box-shadow:0 0 30px 6px rgba(255,255,255,0.95), 0 0 60px 14px rgba(255,255,255,0.4) } }
 
-    /* drag-to-grow demo: a finger dot that repeatedly pulls outward from the colony */
+    /* drag-to-grow demo: a finger dot that repeatedly pulls DOWN-and-out from the colony,
+       INTO the soil (never up toward the sky) — matches the "pull into the soil" copy. */
     .tut-demo { position:absolute; pointer-events:none; }
     .tut-demo-dot { position:absolute; width:20px; height:20px; margin:-10px; border-radius:50%;
       background:#fff; box-shadow:0 0 16px 4px rgba(255,255,255,0.8);
@@ -1083,8 +1081,8 @@
     @keyframes tutDrag {
       0% { transform:translate(0,0); opacity:0 }
       14% { opacity:1 }
-      68% { transform:translate(94px,-58px); opacity:1 }
-      100% { transform:translate(94px,-58px); opacity:0 } }
+      68% { transform:translate(80px,64px); opacity:1 }
+      100% { transform:translate(80px,64px); opacity:0 } }
 
     @media (max-width:720px) {
       .tut-pop { width:min(440px, calc(100vw - 26px)); padding:16px 16px 12px; }

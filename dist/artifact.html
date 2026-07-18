@@ -1026,8 +1026,10 @@
        game underneath stays usable on the forced steps. */
     #tutorial { position:fixed; inset:0; z-index:1200; pointer-events:none;
       font:400 15px/1.5 "Segoe UI", system-ui, sans-serif; color:#fff; }
+    /* Full-screen click catcher — TRANSPARENT (the map is never dimmed during the
+       tutorial); it only exists so a click anywhere advances an explanatory step. */
     .tut-catcher { position:absolute; inset:0; pointer-events:auto; cursor:pointer;
-      background:rgba(0,0,0,0.34); }
+      background:transparent; }
     .tut-pop { position:absolute; pointer-events:auto; left:50%; transform:translateX(-50%);
       width:min(460px, calc(100vw - 40px)); background:#000;
       border:1.5px solid rgba(255,255,255,0.72); border-radius:16px;
@@ -1052,16 +1054,11 @@
     .tut-next { background:#fff; border:1px solid #fff; color:#000; }
     .tut-next:hover { background:#e6e6e6; border-color:#e6e6e6; }
 
-    /* pulsing target ring + a bouncing arrow pointing in from the popup side */
+    /* pulsing target ring around whatever the step points at */
     .tut-ring { position:absolute; border-radius:50%; border:2px solid rgba(255,255,255,0.95);
       box-shadow:0 0 18px 2px rgba(255,255,255,0.55), inset 0 0 14px rgba(255,255,255,0.35);
       pointer-events:none; animation:tutPulse 1.4s ease-in-out infinite; }
     @keyframes tutPulse { 0%,100%{ opacity:0.95 } 50%{ opacity:0.5 } }
-    .tut-arrow { position:absolute; width:0; height:0; pointer-events:none;
-      border-left:11px solid transparent; border-right:11px solid transparent;
-      border-top:16px solid #fff; filter:drop-shadow(0 0 6px rgba(255,255,255,0.85));
-      animation:tutBounce 1.1s ease-in-out infinite; }
-    @keyframes tutBounce { 0%,100%{ opacity:0.7 } 50%{ opacity:1 } }
 
     /* strong white glow on the card the player is being forced to play */
     .cardbtn.tut-glow { outline:2px solid #fff; outline-offset:2px;
@@ -1070,7 +1067,8 @@
       0%,100%{ box-shadow:0 0 18px 2px rgba(255,255,255,0.55), 0 0 40px 8px rgba(255,255,255,0.22) }
       50%{ box-shadow:0 0 30px 6px rgba(255,255,255,0.95), 0 0 60px 14px rgba(255,255,255,0.4) } }
 
-    /* drag-to-grow demo: a finger dot that repeatedly pulls outward from the colony */
+    /* drag-to-grow demo: a finger dot that repeatedly pulls DOWN-and-out from the colony,
+       INTO the soil (never up toward the sky) — matches the "pull into the soil" copy. */
     .tut-demo { position:absolute; pointer-events:none; }
     .tut-demo-dot { position:absolute; width:20px; height:20px; margin:-10px; border-radius:50%;
       background:#fff; box-shadow:0 0 16px 4px rgba(255,255,255,0.8);
@@ -1078,8 +1076,8 @@
     @keyframes tutDrag {
       0% { transform:translate(0,0); opacity:0 }
       14% { opacity:1 }
-      68% { transform:translate(94px,-58px); opacity:1 }
-      100% { transform:translate(94px,-58px); opacity:0 } }
+      68% { transform:translate(80px,64px); opacity:1 }
+      100% { transform:translate(80px,64px); opacity:0 } }
 
     @media (max-width:720px) {
       .tut-pop { width:min(440px, calc(100vw - 26px)); padding:16px 16px 12px; }
@@ -1123,8 +1121,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "15tm8ta";
-globalThis.__BUILD__ = "local 07-17 20:11";
+window.__ASSET_VER = "13xflpk";
+globalThis.__BUILD__ = "local 07-18 05:55";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9017,6 +9015,10 @@ class UI {
     if (chev) chev.textContent = open ? '▾' : '▴';
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
+  // Select a card-hand filter group by key ('all' | 'grow' | 'basic' | …) and re-render
+  // the hand. Used by the tutorial to showcase a specific card group; a key absent from
+  // the current hand harmlessly falls back to 'all' inside _renderHandFilter.
+  setHandFilter(key) { this.handFilter = key || 'all'; this._renderHand(); }
 
   // Event-log drop-down (top HUD). Opened/closed only by the player tapping the
   // Log button now — errors surface as a transient toast (see toast()), not by
@@ -11091,12 +11093,13 @@ function startTutorial(deps) {
       target: () => cardTarget(APICAL),
       glowCard: APICAL,
       hand: 'open',          // needs the carousel visible (points at Apical Drive)
+      filter: 'grow',        // showcase the GROWTH cards (Apical Drive lives here)
       place: 'top',
       // Forced: advance once Apical Drive is armed for aiming (double-clicked).
       gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
     },
     {
-      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull in the direction you want it to reach.',
+      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull down into the soil you want to reach.',
       focus: (s) => world(deps.colonyRoot(), 1.1),
       target: (s) => worldTarget(deps.colonyRoot()),
       glowCard: APICAL,
@@ -11159,7 +11162,6 @@ function startTutorial(deps) {
   const root = el('div'); root.id = 'tutorial';
   const catcher = el('div', 'tut-catcher');
   const ring = el('div', 'tut-ring');
-  const arrow = el('div', 'tut-arrow');
   const demo = el('div', 'tut-demo', '<div class="tut-demo-dot"></div>');
   const pop = el('div', 'tut-pop');
   pop.innerHTML =
@@ -11171,7 +11173,6 @@ function startTutorial(deps) {
     '</div>';
   root.appendChild(catcher);
   root.appendChild(ring);
-  root.appendChild(arrow);
   root.appendChild(demo);
   root.appendChild(pop);
   document.body.appendChild(root);
@@ -11220,6 +11221,8 @@ function startTutorial(deps) {
     // keep the hand as-is. The hand is maximized again when the tutorial ends.
     if (step.hand === 'open') deps.setHandOpen(true);
     else if (phonePortrait()) deps.setHandOpen(false);
+    // select a card FILTER for this step (e.g. the card-play showcase highlights Grow)
+    if (step.filter && deps.setHandFilter) deps.setHandFilter(step.filter);
     // forced (gated) → no Next, no catcher; interactive → Next but no catcher;
     // explanatory → Next + full-screen click catcher.
     const forced = !!step.gate;
@@ -11253,12 +11256,13 @@ function startTutorial(deps) {
     alive = false;
     clearGlow();
     deps.setHandOpen(true);   // always leave the hand carousel maximized afterward
+    if (deps.setHandFilter) deps.setHandFilter('all');   // ...and back to the full hand
     document.removeEventListener('keydown', onKey);
     root.remove();
     try { deps.onDone && deps.onDone(); } catch (_) {}
   }
 
-  // Position the ring + arrow (+ demo) over the current step's target each frame.
+  // Position the ring (+ demo) over the current step's target each frame.
   function layout() {
     if (!alive) return;
     const step = steps[idx]; if (!step) return;
@@ -11266,19 +11270,11 @@ function startTutorial(deps) {
     let tx = null, ty = null, r = 46;
     if (t && t.world) { const s = deps.worldToScreen(t.world.x, t.world.y); tx = s.x; ty = s.y; r = 52; }
     else if (t && t.el) { const b = t.el.getBoundingClientRect(); if (b.width) { tx = b.left + b.width / 2; ty = b.top + b.height / 2; r = Math.max(b.width, b.height) / 2 + 12; } }
-    if (tx == null) { ring.style.display = 'none'; arrow.style.display = 'none'; }
+    if (tx == null) { ring.style.display = 'none'; }
     else {
       ring.style.display = '';
       ring.style.left = (tx - r) + 'px'; ring.style.top = (ty - r) + 'px';
       ring.style.width = ring.style.height = (r * 2) + 'px';
-      // arrow: sit just off the ring on the side facing the popup, pointing IN
-      const pr = pop.getBoundingClientRect();
-      const px = pr.left + pr.width / 2, py = pr.top + pr.height / 2;
-      const ang = Math.atan2(ty - py, tx - px);         // popup → target
-      const ax = tx - Math.cos(ang) * (r + 20), ay = ty - Math.sin(ang) * (r + 20);
-      arrow.style.display = '';
-      arrow.style.left = ax + 'px'; arrow.style.top = ay + 'px';
-      arrow.style.transform = 'translate(-50%,-50%) rotate(' + (ang * 180 / Math.PI + 90) + 'deg)';
     }
     // demo drag gesture anchored at the colony
     if (step.demo) {
@@ -11588,6 +11584,7 @@ function tutorialDeps() {
     handCardEl: (name) => document.querySelector('#handlist .cardbtn[data-name="' + name + '"]'),
     pendingCard: () => (ui && ui.pendingCard) || null,
     setHandOpen: (open) => { if (ui && ui.setHandOpen) ui.setHandOpen(open); },
+    setHandFilter: (key) => { if (ui && ui.setHandFilter) ui.setHandFilter(key); },
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,

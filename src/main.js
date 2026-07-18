@@ -278,6 +278,7 @@ function tutorialDeps() {
     handCardEl: (name) => document.querySelector('#handlist .cardbtn[data-name="' + name + '"]'),
     pendingCard: () => (ui && ui.pendingCard) || null,
     setHandOpen: (open) => { if (ui && ui.setHandOpen) ui.setHandOpen(open); },
+    setHandFilter: (key) => { if (ui && ui.setHandFilter) ui.setHandFilter(key); },
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,

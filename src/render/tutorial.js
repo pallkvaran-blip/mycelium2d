@@ -63,12 +63,13 @@ export function startTutorial(deps) {
       target: () => cardTarget(APICAL),
       glowCard: APICAL,
       hand: 'open',          // needs the carousel visible (points at Apical Drive)
+      filter: 'grow',        // showcase the GROWTH cards (Apical Drive lives here)
       place: 'top',
       // Forced: advance once Apical Drive is armed for aiming (double-clicked).
       gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
     },
     {
-      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull in the direction you want it to reach.',
+      text: '<b>Drag and release to grow.</b><br>Press on your colony and pull down into the soil you want to reach.',
       focus: (s) => world(deps.colonyRoot(), 1.1),
       target: (s) => worldTarget(deps.colonyRoot()),
       glowCard: APICAL,
@@ -131,7 +132,6 @@ export function startTutorial(deps) {
   const root = el('div'); root.id = 'tutorial';
   const catcher = el('div', 'tut-catcher');
   const ring = el('div', 'tut-ring');
-  const arrow = el('div', 'tut-arrow');
   const demo = el('div', 'tut-demo', '<div class="tut-demo-dot"></div>');
   const pop = el('div', 'tut-pop');
   pop.innerHTML =
@@ -143,7 +143,6 @@ export function startTutorial(deps) {
     '</div>';
   root.appendChild(catcher);
   root.appendChild(ring);
-  root.appendChild(arrow);
   root.appendChild(demo);
   root.appendChild(pop);
   document.body.appendChild(root);
@@ -192,6 +191,8 @@ export function startTutorial(deps) {
     // keep the hand as-is. The hand is maximized again when the tutorial ends.
     if (step.hand === 'open') deps.setHandOpen(true);
     else if (phonePortrait()) deps.setHandOpen(false);
+    // select a card FILTER for this step (e.g. the card-play showcase highlights Grow)
+    if (step.filter && deps.setHandFilter) deps.setHandFilter(step.filter);
     // forced (gated) → no Next, no catcher; interactive → Next but no catcher;
     // explanatory → Next + full-screen click catcher.
     const forced = !!step.gate;
@@ -225,12 +226,13 @@ export function startTutorial(deps) {
     alive = false;
     clearGlow();
     deps.setHandOpen(true);   // always leave the hand carousel maximized afterward
+    if (deps.setHandFilter) deps.setHandFilter('all');   // ...and back to the full hand
     document.removeEventListener('keydown', onKey);
     root.remove();
     try { deps.onDone && deps.onDone(); } catch (_) {}
   }
 
-  // Position the ring + arrow (+ demo) over the current step's target each frame.
+  // Position the ring (+ demo) over the current step's target each frame.
   function layout() {
     if (!alive) return;
     const step = steps[idx]; if (!step) return;
@@ -238,19 +240,11 @@ export function startTutorial(deps) {
     let tx = null, ty = null, r = 46;
     if (t && t.world) { const s = deps.worldToScreen(t.world.x, t.world.y); tx = s.x; ty = s.y; r = 52; }
     else if (t && t.el) { const b = t.el.getBoundingClientRect(); if (b.width) { tx = b.left + b.width / 2; ty = b.top + b.height / 2; r = Math.max(b.width, b.height) / 2 + 12; } }
-    if (tx == null) { ring.style.display = 'none'; arrow.style.display = 'none'; }
+    if (tx == null) { ring.style.display = 'none'; }
     else {
       ring.style.display = '';
       ring.style.left = (tx - r) + 'px'; ring.style.top = (ty - r) + 'px';
       ring.style.width = ring.style.height = (r * 2) + 'px';
-      // arrow: sit just off the ring on the side facing the popup, pointing IN
-      const pr = pop.getBoundingClientRect();
-      const px = pr.left + pr.width / 2, py = pr.top + pr.height / 2;
-      const ang = Math.atan2(ty - py, tx - px);         // popup → target
-      const ax = tx - Math.cos(ang) * (r + 20), ay = ty - Math.sin(ang) * (r + 20);
-      arrow.style.display = '';
-      arrow.style.left = ax + 'px'; arrow.style.top = ay + 'px';
-      arrow.style.transform = 'translate(-50%,-50%) rotate(' + (ang * 180 / Math.PI + 90) + 'deg)';
     }
     // demo drag gesture anchored at the colony
     if (step.demo) {

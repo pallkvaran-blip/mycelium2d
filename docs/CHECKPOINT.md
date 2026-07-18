@@ -468,7 +468,11 @@ Both menus are dark, on-theme, with glowing green borders.
   shrinks the pics (146px) + text (14px) and pushes the popup clear of the top resource pill / minimized
   carousel. On portrait the camera (`main.js focusWorld`, `isPortraitPhone()`) also **zooms out ~50%**
   (wider view) and **frames the subject in the TOP HALF** (anchor ~0.28 for bottom-popup steps, 0.5 for
-  top-popup steps — passed by `tutorial.js enter()` off `step.place`) so the bottom popup never covers it. **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
+  top-popup steps — passed by `tutorial.js enter()` off `step.place`) so the bottom popup never covers it.
+  The map is **never dimmed** (`.tut-catcher` is transparent — it only catches click-to-advance); there's
+  **no pointer arrow** (removed — just the pulsing ring); the card-play step selects the **Grow** hand
+  filter (`step.filter`→`ui.setHandFilter`, reset to 'all' on finish) to showcase the growth cards; and the
+  drag-to-grow demo pulls **down into the soil** (not up at the sky). Final step is still "Good luck." **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
   when `onDevTutorial` is passed): jumps straight into a level-1 tutorial run with a RANDOM `SPECIES`,
   via `tutorialDevForce` (fires the tutorial WITHOUT `markTutorialSeen`, so the real first-run flow is
   unaffected). Remove the button + flag when the tutorial ships.
