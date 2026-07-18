@@ -12,7 +12,7 @@ const CARDS_JSON = join(ROOT, 'docs', 'cards.json');
 const ARTDIR = join(ROOT, 'assets', 'cards');
 const target = process.argv[2] || join(ROOT, 'deck-review.html');
 
-const ARCHIVED = new Set(['Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat', 'Leaf Fall', 'Humus Cache', 'Symbiont Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
+const ARCHIVED = new Set(['Leaf Litter Cache', 'Humus Bed', 'Humic Mat', 'Leaf Fall', 'Humus Cache', 'Cord Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
 const GROUP = { basic: 'Basics', engine: 'Resource engines', action: 'Abilities', event: 'Events', extender: 'Draw engines' };
 const GROUP_ORDER = ['basic', 'engine', 'action', 'event', 'extender'];
 

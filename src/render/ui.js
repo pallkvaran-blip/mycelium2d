@@ -464,7 +464,7 @@ export class UI {
     this._renderActions(); this._renderEngines(); this._syncPanelHeights();
   }
 
-  // A targeted installed action (e.g. Suberin Wall) is armed and awaiting a map
+  // A targeted installed action (e.g. Melanized Wall) is armed and awaiting a map
   // tap. On a phone, drop the Actions menu so the map is tappable underneath.
   setPendingAction(i) {
     this.pendingAction = i;
@@ -478,7 +478,7 @@ export class UI {
     const C = this.state.cards; const engines = (C && C.engines) || [];
     const sum = summarizeEngines(engines);
     // The left ledger is only resource income + economy modifiers. Timed dig
-    // abilities (e.g. Tap-Root Rhizomorph) render in the Actions menu instead, so
+    // abilities (e.g. Sinker Rhizomorph) render in the Actions menu instead, so
     // the ledger hides when the only install is one of those.
     const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
@@ -519,7 +519,7 @@ export class UI {
     const dock = this.el.actdock, menu = this.el.actmenu, btn = this.el.actbtn, badge = this.el.actbadge;
     if (!dock) return;
     const C = this.state.cards; const actions = (C && C.actions) || [];
-    // Timed dig engines (e.g. Tap-Root Rhizomorph) are automatic abilities that act
+    // Timed dig engines (e.g. Sinker Rhizomorph) are automatic abilities that act
     // on the world, so they belong here (right) rather than the resource ledger.
     const timed = summarizeEngines((C && C.engines) || []).timed;
     const hasAny = actions.length > 0 || timed.length > 0;
@@ -1178,7 +1178,7 @@ export class UI {
     const el = this.el.pick;
     if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
   }
-  // Nutrient Transmutation: let the player pick WHICH resource to gain (spend 2 of
+  // Metabolic Reroute: let the player pick WHICH resource to gain (spend 2 of
   // the other for 1). Reuses the ability-picker overlay; disables a choice when the
   // source pool is under 2.
   showResourcePicker(index) {
@@ -1381,7 +1381,7 @@ function actionRowHTML(a, i, state) {
     + `</div>`
     + `<button class="use${usable ? '' : ' off'}" data-i="${i}">Use</button></div>`;   // clickable even when not usable, so it can explain WHY (e.g. "Need 2 more Water")
 }
-// An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
+// An AUTOMATIC ability (a timed dig engine like Sinker Rhizomorph): it fires on
 // its own cadence, so it shows the same countdown lights + an "auto" tag instead
 // of a Use button.
 function autoActionRowHTML(t) {

@@ -10,7 +10,7 @@ button on the title, and **no map-dimming** during the tutorial. `#tutorial` has
 another step to 🟡 duff **1–2** / 🟠 orange **2–3** / 🔴 red **3–4** (per-map counts unchanged: 5–7 / 5–7 /
 1–3); **new enemy curve** (`species.js LEVEL_THREATS`, ants/nematodes/mould): L1 1/1/1 → L11 6/11/11, ants
 ramp slowest (cap 6) — see §9. — earlier: **punch aimer + yellow duff leaves:** the
-rock-punch cards/actions (Appressorial Punch, Tap-Root Rhizomorph) now use the SAME press-and-drag aimer
+rock-punch cards/actions (Appressorial Punch, Sinker Rhizomorph) now use the SAME press-and-drag aimer
 as the grow cards — `punchThrough` takes a separate aim point (press seeds the rock search along the aim
 ray, drag sets the bore direction); single-tap still works. Low-value **duff** leaf piles are now
 ALL YELLOW (5 `leafYellow*` sprites — Hophornbeam/Sassafras/Mulberry/Redbud/Sycamore; the earlier
@@ -178,7 +178,7 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
 - **Traps & wards:** Constricting Ring lays a snare into `state.traps[]` (`{x,y,r,reward}`);
   `resolveTraps` (turn.js, each tick after `stepNematodes`) digests a worm whose **swept
   path** (prev→current) crosses a trap for +Phosphorus, then spends the trap; `drawTraps`
-  (main.js) renders a pulsing ring. Suberin Wall sets `cell.mouldProof` (a per-cell ward
+  (main.js) renders a pulsing ring. Melanized Wall sets `cell.mouldProof` (a per-cell ward
   aged down each tick **after** infection resolves, so N = N rounds); `threats.js
   cellProofed` skips warded nodes in both infection vectors.
 - **Rock collision = FINE solid mask that matches the drawn art (FIRM):** `Network._segmentClear`
@@ -448,6 +448,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Card-name mycology pass — 7 renames + 1 reflavor.** A mushroom-accuracy review flagged names that
+  weren't true to fungal biology; owner-approved changes: **Nutrient Transmutation → Metabolic Reroute**,
+  **Suberin Wall → Melanized Wall**, **Mycorrhizal Mat → Humic Mat** (archived), **Symbiont Weave → Cord
+  Weave** (archived), **Phosphatase Cushion → Phosphatase Reserve**, **Tap-Root Rhizomorph → Sinker
+  Rhizomorph**, **Hyphal Imbibition → Hyphal Osmosis**; plus **Mineralizing Saprobe** reflavored from
+  ammonium/nitrogen → phosphate (no rename). **Card names are load-bearing** — a rename must move in lockstep
+  across: `docs/cards.json` (name + any cross-refs, e.g. Cord Weave's "Shuffle 5 copies of Humic Mat"),
+  the `EFFECTS` keys + `DRAW_ENGINES` key&value + `ARCHIVED` set in `src/engine/cards.js` (a name with no
+  matching `EFFECTS` key silently becomes **unplayable** — `playable()` gates on it), `test/cards.test.js`
+  `ARCHIVED_TEST`, the art slug `assets/cards/<slug>.jpg` (git-mv'd), and regenerated `src/cards-data.js`
+  (`scripts/gen-carddata.mjs`) + `dist/`. Internal identifiers were left alone (e.g. the `suberinRadius`
+  config key). Verified: 61/61 card tests + a targeted 20-check pass playing every renamed active card
+  through the engine. Review tool that drove the picks: `scratchpad/card-name-review.html` (Artifact).
+  (Kept as-is per owner: the metaphor-heavy tempo names, Acorn Cache/Fall, Cordyceps text, the set-wide
+  "Cache" abstraction.)
+
 - **First-run TUTORIAL** (`src/render/tutorial.js` NEW, `src/main.js`, `src/engine/substrate.js`,
   `index.html` CSS, `assets/tutorial/`, `scripts/gen_tutorial_threats.py`). A scripted 10-step B&W
   popup walkthrough that fires **ONCE**, the first time NEW is pressed on a real species run (guarded by
@@ -512,7 +528,7 @@ Both menus are dark, on-theme, with glowing green borders.
 - **Drag-aimer on the rock-punch cards + YELLOW duff leaves** (`src/engine/network.js punchThrough`,
   `src/engine/cards.js`, `src/main.js _leafSets/_drawLeafHeap`, `assets/`, `scripts/gen_leaf_yellow.py`).
   - **Rock-punch cards/actions now use the SAME press-and-drag aimer as the grow cards.** Appressorial
-    Punch (card) and Tap-Root Rhizomorph (action) were single-tap targets; they're now `directional` /
+    Punch (card) and Sinker Rhizomorph (action) were single-tap targets; they're now `directional` /
     `aim:'drag'` (Punch via the `directional` helper; Tap-Root gains `aim:'drag'` + `reachFn` in its
     `action` spec), so the player presses on a strand and drags to point the bore, with the identical
     green aim arrow (`main.js armedDragTarget`/`beginAim`/`drawAimLine` are all shared, unchanged).
@@ -982,7 +998,7 @@ Both menus are dark, on-theme, with glowing green borders.
 
 - **Follow-up polish: tinier start, unified resource icons** (branch same).
   - `growth.startDepth` 58→**20** — an even smaller opening sprout (~3 nodes).
-  - The left income ledger and the Nutrient Transmutation picker now use the SAME
+  - The left income ledger and the Metabolic Reroute picker now use the SAME
     resource marks as the top pill (the `RES_ICON` SVGs — gold bolt / blue drop /
     purple spark) instead of mismatched emoji, at a uniform, slightly-smaller size,
     vertically centred so the icons line up. `.erow .eval.lead` is now an
@@ -992,7 +1008,7 @@ Both menus are dark, on-theme, with glowing green borders.
 - **Card + HUD fixes: transmute choice, ledger layout/size, warded blue, smaller start, seal text** (branch same).
   - **Warded strands now a DEEP BLUE** (`config.js` `render.warded` `#5cd9e6`→`#2f5fe6`) — the cyan read too
     close to the mint colony; deep blue separates cleanly.
-  - **Nutrient Transmutation now lets you CHOOSE the resource to gain** (`cards.js`, `render/ui.js`,
+  - **Metabolic Reroute now lets you CHOOSE the resource to gain** (`cards.js`, `render/ui.js`,
     `main.js`). Was auto (bigger pool → smaller). Now `resourcePick:true` on the action → `activateAction`
     returns `needResourcePick` (like `needTarget`) → `ui.showResourcePicker(i)` (reuses the ability-picker
     overlay: "Gain 1 Water −2 Phosphorus" / "Gain 1 Phosphorus −2 Water", disabled when the source pool < 2)
@@ -1032,7 +1048,7 @@ Both menus are dark, on-theme, with glowing green borders.
     in `turn.js` after threats act, check-then-age); worm/ant eat checks read `hardened > 0`. New shared
     `hardenPatch(state, ctx, r, rounds, eat)` sets `mouldProof` (+ `hardened` when `eat`) to
     `cards.immuneRounds` (10). Applies to Sclerotial Crust, Sclerotial Rind, Crust Reserve (infection
-    only), Suberin Wall (infection only). Card `effect` text updated in `cards-data.js` **and**
+    only), Melanized Wall (infection only). Card `effect` text updated in `cards-data.js` **and**
     `docs/cards.json` (e.g. Crust Reserve → "…immune to infection for 10 rounds").
   - **Protected part of the colony is recoloured** (`render/network.js`, `config.js`, `main.js`). Renderer
     now takes the substrate; on each structure rebuild (fires after every play/tick) it tags nodes on a
@@ -1430,7 +1446,7 @@ Both menus are dark, on-theme, with glowing green borders.
     or graze a rock cell (ends in adjacent free cells, line clips the rock between). New
     `Network._segmentClear` samples the whole segment (~⅓-cell steps) and is used by
     `growDirected` + `_reachableSteps`, so only a punch/dig (`bored` cells) may cross rock.
-  - From an adversarial review of the 4-card change: **Suberin Wall ward off-by-one** — the
+  - From an adversarial review of the 4-card change: **Melanized Wall ward off-by-one** — the
     `mouldProof` decrement ran *before* `infectNetwork`, so a "2 round" ward protected only 1;
     moved the decrement to *after* infection resolves (check-then-age, like `antProof`).
     **Constricting Ring**: trap now rejects placement on rock/out-of-bounds, and `resolveTraps`
@@ -1446,14 +1462,14 @@ Both menus are dark, on-theme, with glowing green borders.
     longest card doesn't clip). Shape takes priority over how many cards fit (desktop now ~6).
   - **4 cards' text shortened + mechanics realigned to the new text** (src/engine/cards.js,
     src/cards-data.js, docs/cards.json):
-    - **Tap-Root Rhizomorph** — was an *auto* dig-engine; now an installed **action** (type
+    - **Sinker Rhizomorph** — was an *auto* dig-engine; now an installed **action** (type
       engine→action): once per 5 rounds, pay **2 P**, tap an in-range rock → bore through it
       (`punchThrough`). Shows a Use button (no longer an AUTO row).
     - **Constricting Ring** — now a **trap** (free, once per 6): tap empty ground → lay a snare;
       the first nematode to enter is digested for **+2 P** (`state.traps` + `resolveTraps` in
       turn.js, rendered as a pulsing ring by `drawTraps`).
     - **Sclerotial Seal** — cooldown 3→**4**; 1 P; seal a food pile from ants.
-    - **Suberin Wall** — once per 3: clear all infection in radius 80 **and ward the cells
+    - **Melanized Wall** — once per 3: clear all infection in radius 80 **and ward the cells
       against reinfection for 2 rounds** (`cell.mouldProof`; `threats.js` `cellProofed` skips
       warded nodes in both infection vectors; turn.js decrements the ward each tick). This
       implements the previously-deferred reinfection clause.
@@ -1474,7 +1490,7 @@ Both menus are dark, on-theme, with glowing green borders.
 - **Action cards route to the Actions menu as installed abilities** (branch `claude/mycelium-phase-1-build-urvq5e`).
   Wired the two HUD corners to the real card taxonomy (cards-design §14 types):
   - **`engine` → left ledger** = resource income (energy/water/phosphorus ranges) +
-    economy modifiers (draw discount). Its **timed dig abilities** (Tap-Root Rhizomorph)
+    economy modifiers (draw discount). Its **timed dig abilities** (Sinker Rhizomorph)
     render in the **Actions menu** instead — they act on the world, so they read as an
     ability, shown as an **auto** row (amber `AUTO` tag + `every N · in M` countdown, no
     Use button since they fire on their own cadence).
@@ -1482,8 +1498,8 @@ Both menus are dark, on-theme, with glowing green borders.
     wrongly one-shot). A new `action(spec, run)` helper in `cards.js` returns
     `{installAction}`; `playCard` pushes it into `state.cards.actions[]`. Gating per the
     card's effect text: **Constricting Ring** (1✦, every 6, tap a nematode → +2✦),
-    **Nutrient Transmutation** (once/round, convert 2→1, instant), **Sclerotial Seal**
-    (1✦, every 3, tap a pile → ant-proof 3 rds), **Suberin Wall** (every 3, tap → cure mould).
+    **Metabolic Reroute** (once/round, convert 2→1, instant), **Sclerotial Seal**
+    (1✦, every 3, tap a pile → ant-proof 3 rds), **Melanized Wall** (every 3, tap → cure mould).
   - **`event`/`basic`/`extender` → one-shot** (play → discard/shuffle) — unchanged.
   - **Activation-time targeting:** `activateAction(state, i, ctx)` returns `{needTarget}`
     on the first call (Use button) so `main.js` arms a map-aim (`ui.pendingAction`); the
@@ -1634,7 +1650,7 @@ Both menus are dark, on-theme, with glowing green borders.
   what you see in a species/dev run. **For real balancing, seed via a species (or wire the picker's
   Start to a proper opening).** (The old `seedDemoActions` demo-abilities scaffold was removed — the
   Actions menu is populated by playing real `action`-type cards.)
-- **Suberin Wall's "block reinfection for 2 rounds"** is now implemented via `cell.mouldProof`
+- **Melanized Wall's "block reinfection for 2 rounds"** is now implemented via `cell.mouldProof`
   (set in radius 80, decremented each tick; `threats.js cellProofed` skips warded nodes in both
   the contact and the along-filament spread vectors). Note it wards the AREA's nodes against
   fresh infection — the rot can still creep in from an adjacent *unwarded* node, so it's

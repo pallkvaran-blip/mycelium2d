@@ -34,7 +34,7 @@ const gain = (cur, amt, cap) => Math.max(cur, Math.min(cap, cur + amt));
 // here (kept for the round-trip if ever un-archived).
 const DRAW_ENGINES = {
   'Humus Cache': 'Humus Bed',
-  'Symbiont Weave': 'Mycorrhizal Mat',
+  'Cord Weave': 'Humic Mat',
   'Enzyme Priming': 'Saprotrophic Digest',
   'Leaf Fall': 'Leaf Litter Cache',
 };
@@ -44,8 +44,8 @@ const DRAW_ENGINES = {
 // hands, so they never enter play. To un-archive a card, remove it from this set.
 const ARCHIVED = new Set([
   // Non-Acorn substrate placement (Acorn Cache stays) + their draw-engine extenders.
-  'Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat',
-  'Leaf Fall', 'Humus Cache', 'Symbiont Weave',
+  'Leaf Litter Cache', 'Humus Bed', 'Humic Mat',
+  'Leaf Fall', 'Humus Cache', 'Cord Weave',
   // Digestion is fast enough now that an active digest card is redundant.
   'Saprotrophic Digest', 'Enzyme Priming',
 ]);
@@ -445,7 +445,7 @@ export function activateAction(state, i, ctx) {
   // no ctx → ask the caller to aim; the second call (map tap) carries {x,y}. Cost
   // and cooldown are only spent once the effect actually resolves, below.
   if (a.target && (!ctx || ctx.x == null)) return { ok: false, needTarget: true, index: i, message: `Tap a target for ${a.name}.` };
-  // Resource-pick abilities (Nutrient Transmutation) ask WHICH resource to gain
+  // Resource-pick abilities (Metabolic Reroute) ask WHICH resource to gain
   // before resolving — like a target, the choice arrives on the second call (ctx.res).
   if (a.resourcePick && (!ctx || !ctx.res)) return { ok: false, needResourcePick: true, index: i, message: `Choose which resource to gain from ${a.name}.` };
   const res = a.apply ? a.apply(state, ctx) : { ok: true, message: `${a.name}.` };
@@ -600,7 +600,7 @@ function cureRadius(state, ctx, r) {
   state.active.recomputeVitality();
   return healed;
 }
-// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall): clear
+// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall): clear
 // mould in radius `r`, then grant TIMED immunity for `rounds` rounds — infection
 // (cell.mouldProof, checked in threats.js) always, plus eating (cell.hardened,
 // checked in nematodes.js/ants.js) when `eat`. Aged down each round in turn.js, so
@@ -743,7 +743,7 @@ export const EFFECTS = {
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
   'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Buried a small nut cache at the sensing edge.' }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
-  'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
+  'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
   // --- digest (Phosphorus) ---
   'Saprotrophic Digest': grow((s) => {
@@ -765,7 +765,7 @@ export const EFFECTS = {
     const got = s.active.water - before;
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
-  'Hyphal Imbibition': grow((s) => {
+  'Hyphal Osmosis': grow((s) => {
     const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
     const before = s.active.water;
     s.active.water = gain(s.active.water, amt, cc.softCapWater);
@@ -786,12 +786,12 @@ export const EFFECTS = {
 
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
-  'Phosphatase Cushion': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
+  'Phosphatase Reserve': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
+  'Sinker Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
     const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
@@ -802,7 +802,7 @@ export const EFFECTS = {
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
   // The PLAYER chooses which resource to GAIN (ctx.res); we spend 2 of the other.
   // `resourcePick` makes activateAction ask for the choice first (like `target`).
-  'Nutrient Transmutation': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
+  'Metabolic Reroute': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
     const net = s.active;
     const want = (ctx && ctx.res) || 'water';           // resource to gain
     const from = want === 'water' ? 'phosphorus' : 'water';
@@ -830,9 +830,9 @@ export const EFFECTS = {
     return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' };
   }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 8 rounds, tap a point → cure all infection in radius AND
+  // Melanized Wall: every 8 rounds, tap a point → cure all infection in radius AND
   // ward the cells there against reinfection for immuneRounds rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Melanized Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const R = s.config.cards;
     const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
     return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };

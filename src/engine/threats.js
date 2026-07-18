@@ -289,7 +289,7 @@ export function infectNetwork(net, state) {
 }
 
 // A node sitting on a warded cell is immune to fresh infection for the ward's
-// duration. `mouldProof` is the visible harden/immune ward (Suberin Wall, Crust
+// duration. `mouldProof` is the visible harden/immune ward (Melanized Wall, Crust
 // Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden
 // one-round grace so a heal isn't re-taken by the mould on the very next tick.
 function cellProofed(sub, n) {

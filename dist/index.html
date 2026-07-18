@@ -1127,8 +1127,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1iw5w5p";
-globalThis.__BUILD__ = "local 07-18 06:26";
+window.__ASSET_VER = "1g916x4";
+globalThis.__BUILD__ = "local 07-18 07:16";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1275,7 +1275,7 @@ const CONFIG = {
 
     engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
     // resource harvest amounts (used by harvest-card effects)
-    harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
+    harvestWaterLake: 9,         // Hyphal Osmosis at a lake edge
     harvestWaterSoil: 3,         // …off a lake
     harvestPhosphorus: 5,        // Phosphate Tap on mineral/boulder contact
     // substrate patch sizes (nutrient) placed at the sensing-range edge
@@ -1291,11 +1291,11 @@ const CONFIG = {
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
     // defense durations / radii
-    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall)
+    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall)
                                  //   grant infection/eating immunity for this many rounds (was permanent)
     crustRadius: 60,             // Sclerotial Crust / Rind: harden radius
     reserveRadius: 40,           // Crust Reserve: harden radius
-    suberinRadius: 80,           // Suberin Wall: clear + ward radius
+    suberinRadius: 80,           // Melanized Wall: clear + ward radius
     rehydrateRadius: 90,         // Rehydration Pulse: heal radius (was 60 → +50%)
     sealReach: 8,                // Sclerotial Seal: seal the whole nearest food pile within this many cells (forgiving)
   },
@@ -1696,7 +1696,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Mycorrhizal Mat",
+  "name": "Humic Mat",
   "type": "basic",
   "category": "substrate",
   "displayCategory": "basic",
@@ -1764,7 +1764,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Hyphal Imbibition",
+  "name": "Hyphal Osmosis",
   "type": "basic",
   "category": "water-harvest",
   "displayCategory": "event",
@@ -1866,7 +1866,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Phosphatase Cushion",
+  "name": "Phosphatase Reserve",
   "type": "engine",
   "category": "phosphorus-producer",
   "displayCategory": "engine",
@@ -1900,7 +1900,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Tap-Root Rhizomorph",
+  "name": "Sinker Rhizomorph",
   "type": "action",
   "category": "routing",
   "displayCategory": "engine",
@@ -1951,7 +1951,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Nutrient Transmutation",
+  "name": "Metabolic Reroute",
   "type": "action",
   "category": "resource converter",
   "displayCategory": "engine",
@@ -2070,7 +2070,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Symbiont Weave",
+  "name": "Cord Weave",
   "type": "extender",
   "category": "draw-engine",
   "displayCategory": "extender",
@@ -2080,8 +2080,8 @@ const CARD_DATA = [
   "timing": "any",
   "repay": 0,
   "threat": "none",
-  "produces": "Mycorrhizal Mat basics",
-  "effect": "Shuffle 5 copies of Mycorrhizal Mat into your draw deck.",
+  "produces": "Humic Mat basics",
+  "effect": "Shuffle 5 copies of Humic Mat into your draw deck.",
   "family": "extenders",
   "tutorial": false,
   "startCopies": 0
@@ -2240,7 +2240,7 @@ const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Suberin Wall",
+  "name": "Melanized Wall",
   "type": "action",
   "category": "anti-mould",
   "displayCategory": "engine",
@@ -4995,7 +4995,7 @@ function infectNetwork(net, state) {
 }
 
 // A node sitting on a warded cell is immune to fresh infection for the ward's
-// duration. `mouldProof` is the visible harden/immune ward (Suberin Wall, Crust
+// duration. `mouldProof` is the visible harden/immune ward (Melanized Wall, Crust
 // Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden
 // one-round grace so a heal isn't re-taken by the mould on the very next tick.
 function cellProofed(sub, n) {
@@ -5452,7 +5452,7 @@ const gain = (cur, amt, cap) => Math.max(cur, Math.min(cap, cur + amt));
 // here (kept for the round-trip if ever un-archived).
 const DRAW_ENGINES = {
   'Humus Cache': 'Humus Bed',
-  'Symbiont Weave': 'Mycorrhizal Mat',
+  'Cord Weave': 'Humic Mat',
   'Enzyme Priming': 'Saprotrophic Digest',
   'Leaf Fall': 'Leaf Litter Cache',
 };
@@ -5462,8 +5462,8 @@ const DRAW_ENGINES = {
 // hands, so they never enter play. To un-archive a card, remove it from this set.
 const ARCHIVED = new Set([
   // Non-Acorn substrate placement (Acorn Cache stays) + their draw-engine extenders.
-  'Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat',
-  'Leaf Fall', 'Humus Cache', 'Symbiont Weave',
+  'Leaf Litter Cache', 'Humus Bed', 'Humic Mat',
+  'Leaf Fall', 'Humus Cache', 'Cord Weave',
   // Digestion is fast enough now that an active digest card is redundant.
   'Saprotrophic Digest', 'Enzyme Priming',
 ]);
@@ -5863,7 +5863,7 @@ function activateAction(state, i, ctx) {
   // no ctx → ask the caller to aim; the second call (map tap) carries {x,y}. Cost
   // and cooldown are only spent once the effect actually resolves, below.
   if (a.target && (!ctx || ctx.x == null)) return { ok: false, needTarget: true, index: i, message: `Tap a target for ${a.name}.` };
-  // Resource-pick abilities (Nutrient Transmutation) ask WHICH resource to gain
+  // Resource-pick abilities (Metabolic Reroute) ask WHICH resource to gain
   // before resolving — like a target, the choice arrives on the second call (ctx.res).
   if (a.resourcePick && (!ctx || !ctx.res)) return { ok: false, needResourcePick: true, index: i, message: `Choose which resource to gain from ${a.name}.` };
   const res = a.apply ? a.apply(state, ctx) : { ok: true, message: `${a.name}.` };
@@ -6018,7 +6018,7 @@ function cureRadius(state, ctx, r) {
   state.active.recomputeVitality();
   return healed;
 }
-// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall): clear
+// Harden/immune plays (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall): clear
 // mould in radius `r`, then grant TIMED immunity for `rounds` rounds — infection
 // (cell.mouldProof, checked in threats.js) always, plus eating (cell.hardened,
 // checked in nematodes.js/ants.js) when `eat`. Aged down each round in turn.js, so
@@ -6161,7 +6161,7 @@ const EFFECTS = {
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
   'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Buried a small nut cache at the sensing edge.' }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
-  'Mycorrhizal Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
+  'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
   // --- digest (Phosphorus) ---
   'Saprotrophic Digest': grow((s) => {
@@ -6183,7 +6183,7 @@ const EFFECTS = {
     const got = s.active.water - before;
     return got > 0 ? { ok: true, message: `+${got} Water.` } : { ok: false, message: 'Water is already full.' };
   }),
-  'Hyphal Imbibition': grow((s) => {
+  'Hyphal Osmosis': grow((s) => {
     const cc = s.config.cards; const amt = touchesLake(s) ? cc.harvestWaterLake : cc.harvestWaterSoil;
     const before = s.active.water;
     s.active.water = gain(s.active.water, amt, cc.softCapWater);
@@ -6204,12 +6204,12 @@ const EFFECTS = {
 
   // --- resource engines ---
   'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
-  'Phosphatase Cushion': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
+  'Phosphatase Reserve': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
   // --- installed ACTION: bore through an in-range rock on a cooldown ---
   // (Was an auto dig-engine; now a player-triggered ability per the card text.)
-  'Tap-Root Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
+  'Sinker Rhizomorph': action({ effect: 'grow through an in-range rock', every: 10, cost: 2, res: 'phosphorus', target: true, aim: 'drag', reachFn: (s) => s.config.cards.reachSegments }, (s, ctx) => {
     const n = punchAt(s, ctx);
     if (n > 0) return { ok: true, message: `Bored through the rock — threaded ${n} hyphae.` };
     if (n < 0) return { ok: false, message: 'That rock is out of range — grow closer first.' };
@@ -6220,7 +6220,7 @@ const EFFECTS = {
   // Once per round, spend 2 of your larger resource pool to gain 1 of the other.
   // The PLAYER chooses which resource to GAIN (ctx.res); we spend 2 of the other.
   // `resourcePick` makes activateAction ask for the choice first (like `target`).
-  'Nutrient Transmutation': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
+  'Metabolic Reroute': action({ effect: 'convert 2 of a resource → 1 of the other (you choose)', per: 1, resourcePick: true }, (s, ctx) => {
     const net = s.active;
     const want = (ctx && ctx.res) || 'water';           // resource to gain
     const from = want === 'water' ? 'phosphorus' : 'water';
@@ -6248,9 +6248,9 @@ const EFFECTS = {
     return { ok: true, message: h ? `Rehydrated ${h} strands.` : 'Rehydrated the area.' };
   }),
   // --- installed ACTIONS (→ Actions menu, right) ---
-  // Suberin Wall: every 8 rounds, tap a point → cure all infection in radius AND
+  // Melanized Wall: every 8 rounds, tap a point → cure all infection in radius AND
   // ward the cells there against reinfection for immuneRounds rounds (cell.mouldProof).
-  'Suberin Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
+  'Melanized Wall': action({ effect: 'clear mould + ward (immune)', every: 8, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const R = s.config.cards;
     const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
     return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };
@@ -6542,7 +6542,7 @@ function tickWorld(state) {
 
   // Age the timed defense wards AFTER the threats have acted this tick, so a ward
   // set to N protects for N full rounds (check-then-age):
-  //   • mouldProof   — infection immunity (Suberin Wall, Crust Reserve, Sclerotial Crust/Rind)
+  //   • mouldProof   — infection immunity (Melanized Wall, Crust Reserve, Sclerotial Crust/Rind)
   //   • hardened     — eating immunity vs worms/ants (Sclerotial Crust/Rind)
   //   • reinfectGrace — Rehydration Pulse's hidden 1-round anti-reinfection window
   for (const cell of substrate.cells) {
@@ -7932,7 +7932,7 @@ class NetworkRenderer {
     const infectedPath = new Path2D();
     const protectedPath = new Path2D();
     // A node is "warded" when it sits on a cell hardened/immune by a defense card
-    // (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall). Recomputed here on every
+    // (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall). Recomputed here on every
     // structure rebuild — which is triggered after each card play / world tick — so
     // the colour follows the ward as it's applied and as it lapses. Rehydration's
     // hidden reinfectGrace is deliberately NOT counted, so its heal shows no tint.
@@ -9062,7 +9062,7 @@ class UI {
     this._renderActions(); this._renderEngines(); this._syncPanelHeights();
   }
 
-  // A targeted installed action (e.g. Suberin Wall) is armed and awaiting a map
+  // A targeted installed action (e.g. Melanized Wall) is armed and awaiting a map
   // tap. On a phone, drop the Actions menu so the map is tappable underneath.
   setPendingAction(i) {
     this.pendingAction = i;
@@ -9076,7 +9076,7 @@ class UI {
     const C = this.state.cards; const engines = (C && C.engines) || [];
     const sum = summarizeEngines(engines);
     // The left ledger is only resource income + economy modifiers. Timed dig
-    // abilities (e.g. Tap-Root Rhizomorph) render in the Actions menu instead, so
+    // abilities (e.g. Sinker Rhizomorph) render in the Actions menu instead, so
     // the ledger hides when the only install is one of those.
     const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
@@ -9117,7 +9117,7 @@ class UI {
     const dock = this.el.actdock, menu = this.el.actmenu, btn = this.el.actbtn, badge = this.el.actbadge;
     if (!dock) return;
     const C = this.state.cards; const actions = (C && C.actions) || [];
-    // Timed dig engines (e.g. Tap-Root Rhizomorph) are automatic abilities that act
+    // Timed dig engines (e.g. Sinker Rhizomorph) are automatic abilities that act
     // on the world, so they belong here (right) rather than the resource ledger.
     const timed = summarizeEngines((C && C.engines) || []).timed;
     const hasAny = actions.length > 0 || timed.length > 0;
@@ -9776,7 +9776,7 @@ class UI {
     const el = this.el.pick;
     if (el) { el.classList.add('hidden'); el.innerHTML = ''; el.onclick = null; }
   }
-  // Nutrient Transmutation: let the player pick WHICH resource to gain (spend 2 of
+  // Metabolic Reroute: let the player pick WHICH resource to gain (spend 2 of
   // the other for 1). Reuses the ability-picker overlay; disables a choice when the
   // source pool is under 2.
   showResourcePicker(index) {
@@ -9979,7 +9979,7 @@ function actionRowHTML(a, i, state) {
     + `</div>`
     + `<button class="use${usable ? '' : ' off'}" data-i="${i}">Use</button></div>`;   // clickable even when not usable, so it can explain WHY (e.g. "Need 2 more Water")
 }
-// An AUTOMATIC ability (a timed dig engine like Tap-Root Rhizomorph): it fires on
+// An AUTOMATIC ability (a timed dig engine like Sinker Rhizomorph): it fires on
 // its own cadence, so it shows the same countdown lights + an "auto" tag instead
 // of a Use button.
 function autoActionRowHTML(t) {
@@ -11842,7 +11842,7 @@ const handlers = {
     ui.hideAbilityPicker();
     uiDirty = true;
   },
-  // The player picked which resource Nutrient Transmutation should GAIN. Re-run the
+  // The player picked which resource Metabolic Reroute should GAIN. Re-run the
   // action with ctx.res so it spends 2 of the other → 1 of this one.
   onPickResource(index, resName) {
     ui.hideResourcePicker();
@@ -11875,7 +11875,7 @@ const handlers = {
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
     if (res && res.needTarget) {
-      // Targeted ability (e.g. Suberin Wall) — arm it for a map tap, like a card.
+      // Targeted ability (e.g. Melanized Wall) — arm it for a map tap, like a card.
       ui.clearPendingCard();
       ui.setSelectedAction(null);
       ui.setPendingAction(i);
@@ -11887,7 +11887,7 @@ const handlers = {
       return;
     }
     if (res && res.needResourcePick) {
-      // Nutrient Transmutation — pick which resource to gain, then re-activate.
+      // Metabolic Reroute — pick which resource to gain, then re-activate.
       ui.showResourcePicker(i);
       uiDirty = true;
       return;

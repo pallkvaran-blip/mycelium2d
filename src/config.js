@@ -141,7 +141,7 @@ export const CONFIG = {
 
     engineEnergyClamp: 11,       // total installed energy-engine output/round is clamped below skip
     // resource harvest amounts (used by harvest-card effects)
-    harvestWaterLake: 9,         // Hyphal Imbibition at a lake edge
+    harvestWaterLake: 9,         // Hyphal Osmosis at a lake edge
     harvestWaterSoil: 3,         // …off a lake
     harvestPhosphorus: 5,        // Phosphate Tap on mineral/boulder contact
     // substrate patch sizes (nutrient) placed at the sensing-range edge
@@ -157,11 +157,11 @@ export const CONFIG = {
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
     // defense durations / radii
-    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall)
+    immuneRounds: 10,            // harden/immune cards (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall)
                                  //   grant infection/eating immunity for this many rounds (was permanent)
     crustRadius: 60,             // Sclerotial Crust / Rind: harden radius
     reserveRadius: 40,           // Crust Reserve: harden radius
-    suberinRadius: 80,           // Suberin Wall: clear + ward radius
+    suberinRadius: 80,           // Melanized Wall: clear + ward radius
     rehydrateRadius: 90,         // Rehydration Pulse: heal radius (was 60 → +50%)
     sealReach: 8,                // Sclerotial Seal: seal the whole nearest food pile within this many cells (forgiving)
   },

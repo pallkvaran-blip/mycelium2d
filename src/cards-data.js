@@ -124,7 +124,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Mycorrhizal Mat",
+  "name": "Humic Mat",
   "type": "basic",
   "category": "substrate",
   "displayCategory": "basic",
@@ -192,7 +192,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Hyphal Imbibition",
+  "name": "Hyphal Osmosis",
   "type": "basic",
   "category": "water-harvest",
   "displayCategory": "event",
@@ -294,7 +294,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Phosphatase Cushion",
+  "name": "Phosphatase Reserve",
   "type": "engine",
   "category": "phosphorus-producer",
   "displayCategory": "engine",
@@ -328,7 +328,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Tap-Root Rhizomorph",
+  "name": "Sinker Rhizomorph",
   "type": "action",
   "category": "routing",
   "displayCategory": "engine",
@@ -379,7 +379,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Nutrient Transmutation",
+  "name": "Metabolic Reroute",
   "type": "action",
   "category": "resource converter",
   "displayCategory": "engine",
@@ -498,7 +498,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Symbiont Weave",
+  "name": "Cord Weave",
   "type": "extender",
   "category": "draw-engine",
   "displayCategory": "extender",
@@ -508,8 +508,8 @@ export const CARD_DATA = [
   "timing": "any",
   "repay": 0,
   "threat": "none",
-  "produces": "Mycorrhizal Mat basics",
-  "effect": "Shuffle 5 copies of Mycorrhizal Mat into your draw deck.",
+  "produces": "Humic Mat basics",
+  "effect": "Shuffle 5 copies of Humic Mat into your draw deck.",
   "family": "extenders",
   "tutorial": false,
   "startCopies": 0
@@ -668,7 +668,7 @@ export const CARD_DATA = [
   "startCopies": 0
  },
  {
-  "name": "Suberin Wall",
+  "name": "Melanized Wall",
   "type": "action",
   "category": "anti-mould",
   "displayCategory": "engine",

@@ -530,7 +530,7 @@ const handlers = {
     ui.hideAbilityPicker();
     uiDirty = true;
   },
-  // The player picked which resource Nutrient Transmutation should GAIN. Re-run the
+  // The player picked which resource Metabolic Reroute should GAIN. Re-run the
   // action with ctx.res so it spends 2 of the other → 1 of this one.
   onPickResource(index, resName) {
     ui.hideResourcePicker();
@@ -563,7 +563,7 @@ const handlers = {
     // round); it may reshape the colony, so refresh the renderers on success.
     const res = activateAction(state, i);
     if (res && res.needTarget) {
-      // Targeted ability (e.g. Suberin Wall) — arm it for a map tap, like a card.
+      // Targeted ability (e.g. Melanized Wall) — arm it for a map tap, like a card.
       ui.clearPendingCard();
       ui.setSelectedAction(null);
       ui.setPendingAction(i);
@@ -575,7 +575,7 @@ const handlers = {
       return;
     }
     if (res && res.needResourcePick) {
-      // Nutrient Transmutation — pick which resource to gain, then re-activate.
+      // Metabolic Reroute — pick which resource to gain, then re-activate.
       ui.showResourcePicker(i);
       uiDirty = true;
       return;

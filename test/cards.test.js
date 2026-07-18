@@ -6,7 +6,7 @@ import { createState } from '../src/engine/state.js';
 import { tickWorld } from '../src/engine/turn.js';
 import { initCards, drawCard, skipRound, playCard, produceCardEngines, cardBlockedReason, chooseOffer, activateAction } from '../src/engine/cards.js';
 import { CARD_BY_NAME, CARD_DATA } from '../src/cards-data.js';
-const ARCHIVED_TEST = new Set(['Leaf Litter Cache', 'Humus Bed', 'Mycorrhizal Mat', 'Leaf Fall', 'Humus Cache', 'Symbiont Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
+const ARCHIVED_TEST = new Set(['Leaf Litter Cache', 'Humus Bed', 'Humic Mat', 'Leaf Fall', 'Humus Cache', 'Cord Weave', 'Saprotrophic Digest', 'Enzyme Priming']);
 const BUILT_DECK = CARD_DATA.filter((c) => !ARCHIVED_TEST.has(c.name)).reduce((n, c) => n + (c.startCopies || 0), 0);
 
 let passed = 0, failed = 0;

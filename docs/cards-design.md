@@ -190,7 +190,7 @@ Resource-gated plays: 57 (≈ W 16 · P 14 · N 16)
 2. **Water Turgor Dig** — stack water producers to bore straight through/under the big barrier.
    (Aquaporin Channels, Riparian Mycelium, Hydraulic Boring, Monsoon Bloom)
 3. **Phosphorus Structure & Barrier-Break** — mine rock, detonate columns to open wide lanes.
-   (Phosphatase Cushion, Apatite Hyphae, Apatite Detonation, Boring Front)
+   (Phosphatase Reserve, Apatite Hyphae, Apatite Detonation, Boring Front)
 4. **Nematode Predator / Nitrogen Aggro** — farm worm swarms as a nitrogen engine for big N plays.
    (Adhesive Web, Arthrobotrys Snare, Nematophagous Mat, GS-GOGAT Surge)
 5. **Tempo Sprint** — skip the engine layer; chain cheap grow/dig bursts and cashouts, fruit near-empty.
@@ -225,12 +225,12 @@ From the adversarial review. **Do these first in the balance pass.**
   (~3–4 ev for a passive +1/round resource) and recompute every resource engine's `repayRounds`.
 - **Stop double-taxing:** engines that just produce energy/defense shouldn't *also* be W/P/N-gated.
   Reserve resource gates for events/payoffs.
-- **Frictionless ramp engines are auto-includes** (Aquaporin Channels, Phosphatase Cushion, Cord
+- **Frictionless ramp engines are auto-includes** (Aquaporin Channels, Phosphatase Reserve, Cord
   Formation, Saprotrophic Mat). Give each a real opportunity cost: install-time W/P/N gate
   (route-to-feature-first, reinforces the spatial theme) or a ramp-down (early-only identity).
 - Over-costed near-duds to buff/re-tier: Fruiting Primordium, Sclerotial Bunker, Protein Synthesis
   Cascade (un-castable in N-light runs). Under-costed: Septal Reinforcement, Shade-or-Sun Cap.
-- Conditional cards that can be 100% blank need a guaranteed floor: Hyphal Imbibition, Turgor Pulse,
+- Conditional cards that can be 100% blank need a guaranteed floor: Hyphal Osmosis, Turgor Pulse,
   Adhesive Network.
 
 **P1 — coverage gaps (add these cards):**
@@ -386,7 +386,7 @@ fruiting 12 · extenders 9 · events 7.
   (= Decay Forage Front, the N runway extender).
 - **W/P engine glut** — **Aquifer Tap** (dominated Aquaporin Channels; durable uncond W faucet is now
   Osmotic Lure), **Aquaporin Conduit** (= Riparian Mycelium niche), **Apatite Vein Engine** (dominated
-  Phosphatase Cushion; durable uncond P faucet is Mineral Foraging Hyphae), **Mycorrhizal Bridge**
+  Phosphatase Reserve; durable uncond P faucet is Mineral Foraging Hyphae), **Mycorrhizal Bridge**
   (P-engine glut). Each lane keeps a clean curve: capped-early → conditional → rare-ceiling.
 - **Energy income / storage glut** — **Trickle Mat** (+1/round strictly dominated by Trunkline's +4 at
   the same flat buy = a dud), **Saprotrophic Quicksprout** (= Trunkline tagged "late"),
@@ -403,7 +403,7 @@ fruiting 12 · extenders 9 · events 7.
   (= Rehydration Pulse, r60/1W all-threat repair), **Mycoparasitic Coil** (= Mycoparasitic Reversal),
   **Laccase Curtain** (= Melanized Sheath).
 - **Converter glut** — **Translocation Cord** & **Nutrient Shunt** (the design always intended ONE
-  generic W↔P↔N converter; kept **Nutrient Transmutation**).
+  generic W↔P↔N converter; kept **Metabolic Reroute**).
 - **Substrate / water-burst glut** — **Spore Speck Patch** (= Leaf Litter Cache), **Humus Apron**
   (size-glut between Litter Drift and Forest-Floor Mantle), **Tide Surge** (W-burst+grow covered by
   Imbibition Surge + the grow events).
@@ -471,7 +471,7 @@ engines/bursts/finishers. Basics stay **0**.
   per gate point). Energy-positive bursts are priced near their payout (e.g. Osmotic Cashout +22 → buy 17,
   net ≈ +5). Anchor: Rhizomorph Trunkline (+4/round, ungated) = 18.
 - An adversarial **cost-curve critic** removed strict dominance: e.g. Septal Pore Gating (a weaker
-  draw-discount than Septal Pore Flux) dropped to **6**; Phosphatase Cushion re-priced to **8** to match
+  draw-discount than Septal Pore Flux) dropped to **6**; Phosphatase Reserve re-priced to **8** to match
   the capped-resource-engine pattern (Aquaporin Channels 7).
 - `buyCostEnergy` now carries this per card in `cards.json`/`cards.csv`. `CONFIG.economy.buyCostFlat` is
   retired.
@@ -510,19 +510,19 @@ enough to review properly. Stronger cards and variations on these core mechanics
 
 ### 14.2 The core types kept (one each)
 - **Basics (13):** grow-to-food (Hyphal Extension), grow-aimed (Apical Drive), grow-radial (Foraging
-  Fan), grow-reach (Tropic Lunge), substrate S/M/L (Leaf Litter Cache / Humus Bed / Mycorrhizal Mat),
+  Fan), grow-reach (Tropic Lunge), substrate S/M/L (Leaf Litter Cache / Humus Bed / Humic Mat),
   digest (Saprotrophic Digest), boulder-dig (Appressorial Punch), protect (Sclerotial Crust), water
-  harvest (Hyphal Imbibition), phosphorus harvest (Phosphate Tap), water floor (Condense).
+  harvest (Hyphal Osmosis), phosphorus harvest (Phosphate Tap), water floor (Condense).
 - **Draw engines (11):** one per non-starting basic (Leading Cord, Forager Bloom, Questing Front,
-  Humus Cache, Symbiont Weave, Enzyme Priming, Boring Corps, Crust Reserve, Capillary Runners,
+  Humus Cache, Cord Weave, Enzyme Priming, Boring Corps, Crust Reserve, Capillary Runners,
   Prospecting Cords, Dew Traps).
 - **Energy (3):** income engine (Rhizomorph Trunkline +4/rd), burst (Osmotic Cashout), draw-discount
   (Septal Pore Flux).
-- **Resource production (3):** Aquaporin Channels (W), Phosphatase Cushion (P), Mineralizing Saprobe (N).
-- **Dig (1):** Tap-Root Rhizomorph (formation/column, P-gated).
+- **Resource production (3):** Aquaporin Channels (W), Phosphatase Reserve (P), Mineralizing Saprobe (N).
+- **Dig (1):** Sinker Rhizomorph (formation/column, P-gated).
 - **Defense (3):** anti-ant engine (Fungus-Garden Mat), anti-mould engine (Melanized Sheath),
   anti-worm action (Constricting Ring).
-- **Utility (5):** radius heal (Rehydration Pulse), converter (Nutrient Transmutation), reach
+- **Utility (5):** radius heal (Rehydration Pulse), converter (Metabolic Reroute), reach
   (Rhizomorph Lance), scout (Foxfire Glow), finisher (Fruiting Vigil).
 
 ### 14.3 Schema changes
@@ -553,11 +553,11 @@ each map resource **required for a core recurring activity**, so producing W/P/N
 - **WATER → GROWTH** (turgor). Every grow action costs Water. Single-step grows (Hyphal Extension,
   Apical Drive, Foraging Fan) = **1 W**; multi-step grows are discounted below 1 W/step so they stay
   worth it (Tropic Lunge 3 steps = 2 W, Rhizomorph Lance 6 = 2 W, Fruiting Vigil = 2 W). **Substrate
-  placement** (Leaf Litter / Humus Bed / Mycorrhizal Mat) is NOT growth and stays free.
+  placement** (Leaf Litter / Humus Bed / Humic Mat) is NOT growth and stays free.
 - **NITROGEN → DIGESTION**. Saprotrophic Digest = **1 N** (enzymes need N).
 - **PHOSPHORUS → repeatable ACTIONS** (ATP). Every activation of an action-type card = **1 P**
-  (Constricting Ring, Sclerotial Seal). Tap-Root Rhizomorph pays **2 P at install** (engine).
-  The resource **converter** (Nutrient Transmutation) is exempt (it's the relief valve) and
+  (Constricting Ring, Sclerotial Seal). Sinker Rhizomorph pays **2 P at install** (engine).
+  The resource **converter** (Metabolic Reroute) is exempt (it's the relief valve) and
   resource-*producing* engines are never P-gated.
 - Other cards keep sensible thematic gates (Osmotic Cashout 1 W = water→energy; Rehydration Pulse 1 W;
   Fruiting Vigil 2 W + 2 N).
@@ -568,7 +568,7 @@ so it has no built-in water source — yet grow now costs water. Safeguards so a
 - **`startResources = { water: 5, nitrogen: 2, phosphorus: 2 }`** — lets you grow from turn 1 and pay
   Fruiting Vigil's 2 N from the buffer alone.
 - Early water is reachable: **Aquaporin Channels** (+1 W/round, in the tutorial hand), **Condense** /
-  **Hyphal Imbibition** (via draw engines), and **lake taps**.
+  **Hyphal Osmosis** (via draw engines), and **lake taps**.
 - ~~Proposed baseline +1 W/2 rounds safety net~~ → **RESOLVED in v7 (§16):** the designer instead seeds
   **5× Condense (+3 W each)** into the starting draw deck, so water is guaranteed from the deck itself.
 Soft cap ~6 per resource. Every W/P/N-gated card must remain recoverable from a zero stock (no gate is
@@ -578,7 +578,7 @@ ever a permanent dead end).
 - **Fungus-Garden Mat** removed (ants steal from *piles*, not your network) → replaced by **Sclerotial
   Seal** (action, 1 P, once/3 rounds): *tap a food pile; ants can't harvest it for 3 rounds* — protects
   what ants actually attack.
-- **Melanized Sheath** removed ("3 nearest strands" was untargetable) → replaced by **Suberin Wall**
+- **Melanized Sheath** removed ("3 nearest strands" was untargetable) → replaced by **Melanized Wall**
   (engine, buy 16): *network-wide — cure 1 infected strand/round and block new mould infection* (global,
   no per-strand targeting).
 - **Foxfire Glow** removed, no replacement (the map is fully visible — scouting is pointless).
@@ -617,13 +617,13 @@ to match "grow costs water."
   starting draw deck is now **5× Hyphal Extension + 5× Leaf Litter Cache + 5× Condense** — water is
   guaranteed from the deck, so the earlier soft-lock worry is resolved without a passive trickle.
 - **Aquaporin Channels → +2 Water/round.**
-- **Hyphal Imbibition → +9 Water** at a lake edge / **+3 Water** from soil.
+- **Hyphal Osmosis → +9 Water** at a lake edge / **+3 Water** from soil.
 - Consequently the **Water soft cap rises to ~20** (a lake tap alone gives +9); **Nitrogen and
   Phosphorus keep the ~6 soft cap**. (Per-resource caps — update `CONFIG.resources` accordingly.)
 - `startResources` stays 5 W / 2 N / 2 P for turn-1 action before Condense is drawn.
 
 ### 16.3 Card wording / redesign
-- **Suberin Wall** → now a **radius cure on tap** (was a network-wide passive engine; "we never pick
+- **Melanized Wall** → now a **radius cure on tap** (was a network-wide passive engine; "we never pick
   strands"): *Action (once per 3 rounds, 1 P): tap a point; cure all mould infection within radius 80
   and block reinfection there for 2 rounds.* (action → P-gated, radius targeting.)
 - **Rhizomorph Lance / Fruiting Vigil** reworded to "grow up to 6 steps" (Vigil keeps 2 W + 2 N).
@@ -690,7 +690,7 @@ wired, in a simplified free-draft form.
 - **Finishing (fully digesting) a MAP food pile drafts a card.** When a map-placed pile you have
   colonised is drained to zero, you pick **1 of 3 random cards from the tutorial set**. The card joins
   your hand **for free** — you still pay its ⚡ + W/P/N to *play* it later.
-- **Only map piles count.** Piles you place yourself (Leaf Litter Cache / Humus Bed / Mycorrhizal Mat)
+- **Only map piles count.** Piles you place yourself (Leaf Litter Cache / Humus Bed / Humic Mat)
   are not tracked and grant nothing — no farming your own substrate for cards.
 - The tutorial map has **+50% food piles** (`foodClusterCount` 9 → 14) so the draft loop has room to
   breathe and the level is a touch easier.
@@ -720,13 +720,13 @@ wired, in a simplified free-draft form.
 ### 19.1 Two resources (Nitrogen retired)
 The three-resource model (Water/Nitrogen/Phosphorus) collapses to **two**:
 - **WATER** — growth **and** substrate placement (the expansion resource). Harvested by Condense /
-  Hyphal Imbibition; +1 / 2 rounds from Aquaporin Channels.
+  Hyphal Osmosis; +1 / 2 rounds from Aquaporin Channels.
 - **PHOSPHORUS** — digest-burst, defense, utility, and repeatable actions (the "work"/mineral
   resource). **Harvested from rocks** (Phosphate Tap on mineral contact; +1 / round from Mineralizing
-  Saprobe or Phosphatase Cushion; Nutrient Transmutation converts W↔P).
+  Saprobe or Phosphatase Reserve; Metabolic Reroute converts W↔P).
 
 Per-card reassignment of the old Nitrogen cost (my call): substrate (Leaf Litter Cache / Humus Bed /
-Mycorrhizal Mat) → **Water**; Saprotrophic Digest, Fruiting Vigil → **Phosphorus**; N production/gains
+Humic Mat) → **Water**; Saprotrophic Digest, Fruiting Vigil → **Phosphorus**; N production/gains
 (Mineralizing Saprobe, Constricting Ring) → **Phosphorus**. Config: `startWater 7`, `startPhosphorus 3`,
 `softCapWater 999`, `softCapPhosphorus 999` (no more `*Nitrogen`). **Caps raised from 20/10 → 999** so
 harvest/income always pays off and you can bank for big plays (see §20.4).
@@ -752,7 +752,7 @@ Deck-underflow safe (pulls what's left). `drawDiscount` (Septal Pore Flux) still
   self-play win in 31 steps / 139 nodes).
 
 ### 19.5 Revisit later
-- **Phosphatase Cushion now duplicates Mineralizing Saprobe** (both +1 P/round). Only Mineralizing is
+- **Phosphatase Reserve now duplicates Mineralizing Saprobe** (both +1 P/round). Only Mineralizing is
   in the tutorial draft pool, so the dup is invisible for now — differentiate or cut when the pool widens.
 - Balance: Water now carries grow **and** substrate; Phosphorus is rock-gated. Watch early-game Water
   pressure and whether P is reachable before the first rock contact; tune start buffers / harvest if needed.
@@ -803,7 +803,7 @@ cards report "The colony has reached its maximum size." at the cap.
 
 ### 20.4 Resource harvest / income never drops a pool
 - `gain(cur, amt, cap) = max(cur, min(cap, cur+amt))` in `cards.js` — adds up to the soft cap but **never
-  reduces** a pool already above it. Used by Condense, Hyphal Imbibition, Phosphate Tap, Constricting Ring,
+  reduces** a pool already above it. Used by Condense, Hyphal Osmosis, Phosphate Tap, Constricting Ring,
   and per-round engine income. (Old bug: `min(cap, cur+amt)` slashed Water/P down to the cap.)
 - Soft caps raised to **999** (§19.1) so harvest keeps paying off; harvest cards report the actual gain and
   refuse ("… is already full") at the cap so the card isn't wasted.
@@ -871,9 +871,9 @@ are blocked. `engine`-type cards still install to the left ledger; `event`/`basi
 | Card | Cooldown | Activation cost | Effect |
 | --- | --- | --- | --- |
 | **Constricting Ring** | every 6 | free | Tap empty ground → lay a **trap**; the first nematode to enter its radius is digested for **+2 P** (resolved in the sim, swept-path). |
-| **Tap-Root Rhizomorph** | every 5 | **2 P** | Tap an in-range rock → **bore through it** (was an auto dig-engine; now a player-triggered action, type engine→action). |
+| **Sinker Rhizomorph** | every 5 | **2 P** | Tap an in-range rock → **bore through it** (was an auto dig-engine; now a player-triggered action, type engine→action). |
 | **Sclerotial Seal** | every 4 | **1 P** | Tap a food pile → **ant-proof** it for 3 rounds. |
-| **Suberin Wall** | every 3 | free | Tap a point → **clear all mould infection** in radius 80 **and ward** those cells against reinfection for **2 full rounds** (`cell.mouldProof`). |
+| **Melanized Wall** | every 3 | free | Tap a point → **clear all mould infection** in radius 80 **and ward** those cells against reinfection for **2 full rounds** (`cell.mouldProof`). |
 
 Note: this diverges from §15.1's earlier "every action activation = 1 P" line — only
 Tap-Root (2 P) and Sclerotial Seal (1 P) charge per use now; Constricting Ring and Suberin

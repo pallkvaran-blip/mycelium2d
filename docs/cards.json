@@ -134,13 +134,13 @@
   "threat": "none",
   "produces": "",
   "flavor": "A built-up bed of rotted humus offers a fat, slow-burning meal for the advancing front.",
-  "notes": "DIRECTIONAL targeting; patchSize=medium (R3: sensing-range edge in chosen direction, direction only). The MIDDLE member of the substrate size family, sitting between Leaf Litter Cache (small) and Mycorrhizal Mat (large). A bigger attractor and a bigger later Digest yield than the small patch, but no reach difference — pure size differentiation per R3. Not auto-include: same routing-dependence as the small patch, just a heavier commit. familyKey:basics.",
+  "notes": "DIRECTIONAL targeting; patchSize=medium (R3: sensing-range edge in chosen direction, direction only). The MIDDLE member of the substrate size family, sitting between Leaf Litter Cache (small) and Humic Mat (large). A bigger attractor and a bigger later Digest yield than the small patch, but no reach difference — pure size differentiation per R3. Not auto-include: same routing-dependence as the small patch, just a heavier commit. familyKey:basics.",
   "familyKey": "basics",
   "tutorial": false,
   "startCopies": 0
  },
  {
-  "name": "Mycorrhizal Mat",
+  "name": "Humic Mat",
   "type": "basic",
   "category": "substrate",
   "buyCostEnergy": 0,
@@ -222,7 +222,7 @@
   "displayCategory": "event"
  },
  {
-  "name": "Hyphal Imbibition",
+  "name": "Hyphal Osmosis",
   "type": "basic",
   "category": "water-harvest",
   "buyCostEnergy": 3,
@@ -345,7 +345,7 @@
   "startCopies": 0
  },
  {
-  "name": "Phosphatase Cushion",
+  "name": "Phosphatase Reserve",
   "type": "engine",
   "category": "phosphorus-producer",
   "buyCostEnergy": 12,
@@ -378,14 +378,14 @@
   "threat": "none",
   "produces": "+1 Phosphorus / 5 rounds",
   "repayRounds": 4,
-  "flavor": "Saprobes break down dead matter into ammonium, the colony's steady nitrogen baseline.",
+  "flavor": "Saprobes break down dead matter, mineralising it into phosphate — the colony's steady phosphorus baseline.",
   "notes": "The unconditional common +1 N/round producer so N-gated cards are never dead on worm-light levels. GLOBAL (whole network), no targeting tap. Resource engine = exempt from energy ceiling, produces NO energy. +1 N ~3.5 ev -> repay 4 (standard band). The reliable N spine; the ONLY pure-unconditional N engine in the family (Ammonifying Worm Bloom is worm-conditional, Nematophagous Mat has a worm-defense rider) so no duplicate non-decision at a pile. Not flashy, never auto-include because it competes with the conditional traps for the same N role.",
   "familyKey": "phosphorus",
   "tutorial": true,
   "startCopies": 0
  },
  {
-  "name": "Tap-Root Rhizomorph",
+  "name": "Sinker Rhizomorph",
   "type": "action",
   "category": "routing",
   "buyCostEnergy": 12,
@@ -447,7 +447,7 @@
   "startCopies": 0
  },
  {
-  "name": "Nutrient Transmutation",
+  "name": "Metabolic Reroute",
   "type": "action",
   "category": "resource converter",
   "buyCostEnergy": 8,
@@ -596,7 +596,7 @@
   "startCopies": 0
  },
  {
-  "name": "Symbiont Weave",
+  "name": "Cord Weave",
   "type": "extender",
   "category": "draw-engine",
   "buyCostEnergy": 9,
@@ -607,8 +607,8 @@
   "repayRounds": 0,
   "axis": "utility",
   "threat": "none",
-  "produces": "Mycorrhizal Mat basics",
-  "effect": "Shuffle 5 copies of Mycorrhizal Mat into your draw deck.",
+  "produces": "Humic Mat basics",
+  "effect": "Shuffle 5 copies of Humic Mat into your draw deck.",
   "flavor": "The colony commits cords toward a repeated task, pre-loading the draw deck.",
   "notes": "Draw-engine: adds NEW basics to the draw deck (extends the depletion clock), then goes to the graveyard (not recycled). One per non-starting basic — this is how every basic beyond the two starters enters your deck.",
   "familyKey": "extenders",
@@ -800,7 +800,7 @@
   "displayCategory": "engine"
  },
  {
-  "name": "Suberin Wall",
+  "name": "Melanized Wall",
   "type": "action",
   "category": "anti-mould",
   "buyCostEnergy": 10,

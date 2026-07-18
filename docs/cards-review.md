@@ -64,8 +64,8 @@ clears one whole rock toward goal; Hydraulic Boring = whole-rock no distance cou
 were **not re-applied** (they were already done) to avoid churn/confusion.
 
 **👍 LIKE (27):** Hyphal Extension · Apical Drive · Foraging Fan · Tropic Lunge · Leaf Litter Cache ·
-Humus Bed · Mycorrhizal Mat · Saprotrophic Digest · Appressorial Punch · Sclerotial Crust · Brown-Rot
-Mat · Septal Pore Flux · Oxalate Exudate Network · Cellulase Bloom · Hyphal Imbibition · Hydraulic
+Humus Bed · Humic Mat · Saprotrophic Digest · Appressorial Punch · Sclerotial Crust · Brown-Rot
+Mat · Septal Pore Flux · Oxalate Exudate Network · Cellulase Bloom · Hyphal Osmosis · Hydraulic
 Boring · Rehydration Pulse · Mineralize · Phosphate Tap · Saprotrophic Lattice · Septal Reinforcement ·
 Sclerotial Vault · Constricting Ring · Anastomosis Salvage · Trophallaxis Hijack · Condense · Ammonify.
 
@@ -81,8 +81,8 @@ Sclerotial Vault · Constricting Ring · Anastomosis Salvage · Trophallaxis Hij
 
 Verdicts kept; comment text not retained (see `cards-design.md` §14 for the full v5 write-up).
 - **👍 (14):** all approved basics, kept with the human's shorter descriptions (Hyphal Extension,
-  Apical Drive, Foraging Fan, Tropic Lunge, Leaf Litter Cache, Humus Bed, Mycorrhizal Mat,
-  Saprotrophic Digest, Appressorial Punch, Sclerotial Crust, Hyphal Imbibition, Phosphate Tap,
+  Apical Drive, Foraging Fan, Tropic Lunge, Leaf Litter Cache, Humus Bed, Humic Mat,
+  Saprotrophic Digest, Appressorial Punch, Sclerotial Crust, Hyphal Osmosis, Phosphate Tap,
   Constricting Ring, Condense).
 - **👎 (2):** Mineralize (felt like an engine, not a basic) & Ammonify (unclear harvest source) — removed.
 
@@ -98,7 +98,7 @@ Verdicts kept; comment text not retained (see `cards-design.md` §14 for the ful
 
 Verdicts kept; comment text not retained (full write-up in `cards-design.md` §15).
 - **👍 (36):** the whole core set approved; the human's shorter descriptions applied verbatim
-  (Tropic Lunge, Saprotrophic Digest, Appressorial Punch, Hyphal Imbibition +3 W, Septal Pore Flux,
+  (Tropic Lunge, Saprotrophic Digest, Appressorial Punch, Hyphal Osmosis +3 W, Septal Pore Flux,
   Tap-Root "every 5 rounds", Constricting Ring "once/6 + tap where no worm in range", Fruiting Vigil
   "extend 6").
 - **👎 (3):** Fungus-Garden Mat (ants don't touch the network — no effect), Melanized Sheath
@@ -109,18 +109,18 @@ Verdicts kept; comment text not retained (full write-up in `cards-design.md` §1
   W/P/N play-costs, so producing W/P/N is finally necessary. `startResources 5 W / 2 N / 2 P`;
   soft-lock safeguards proposed (§15.2). Buy costs rebalanced down for gated cards.
 - **Fixes:** Fungus-Garden Mat → **Sclerotial Seal** (seal a food pile vs ants); Melanized Sheath →
-  **Suberin Wall** (network-wide mould cure/block); Foxfire Glow removed.
+  **Melanized Wall** (network-wide mould cure/block); Foxfire Glow removed.
 
 ## Round 5 — 38/38 rated (👍 38 / 👎 0) → v7 cost tuning
 
 Whole set approved; the round was cost tweaks (full write-up: `cards-design.md` §16):
-- **Substrate now costs Nitrogen** (Leaf Litter 1, Humus Bed 1, Mycorrhizal Mat 2) — clean three-pillar
+- **Substrate now costs Nitrogen** (Leaf Litter 1, Humus Bed 1, Humic Mat 2) — clean three-pillar
   model: Water=growth, Nitrogen=food (substrate+digest), Phosphorus=work (actions+digs).
 - **Foraging Fan → 2 W**; **Appressorial Punch → 1 W** (turgor).
 - **Water economy scaled up:** Condense **+3 W** and **5 copies seeded into the starting deck** (solves
   the water soft-lock — starting deck = 5 HE + 5 LLC + 5 Condense); Aquaporin **+2 W/round**; Hyphal
   Imbibition **+9 / +3 W**. Water soft cap raised to ~20 (N/P stay ~6).
-- **Suberin Wall** → radius cure-on-tap action (1 P) ("we never pick specific strands").
+- **Melanized Wall** → radius cure-on-tap action (1 P) ("we never pick specific strands").
 - Rhizomorph Lance / Fruiting Vigil reworded to "grow up to 6 steps".
 
 → Open watch-item: does *every* grow needing water feel right, or should the basic 1-step grow stay

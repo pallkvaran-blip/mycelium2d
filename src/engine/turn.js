@@ -78,7 +78,7 @@ export function tickWorld(state) {
 
   // Age the timed defense wards AFTER the threats have acted this tick, so a ward
   // set to N protects for N full rounds (check-then-age):
-  //   • mouldProof   — infection immunity (Suberin Wall, Crust Reserve, Sclerotial Crust/Rind)
+  //   • mouldProof   — infection immunity (Melanized Wall, Crust Reserve, Sclerotial Crust/Rind)
   //   • hardened     — eating immunity vs worms/ants (Sclerotial Crust/Rind)
   //   • reinfectGrace — Rehydration Pulse's hidden 1-round anti-reinfection window
   for (const cell of substrate.cells) {

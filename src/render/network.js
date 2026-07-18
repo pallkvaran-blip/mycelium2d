@@ -66,7 +66,7 @@ export class NetworkRenderer {
     const infectedPath = new Path2D();
     const protectedPath = new Path2D();
     // A node is "warded" when it sits on a cell hardened/immune by a defense card
-    // (Sclerotial Crust/Rind, Crust Reserve, Suberin Wall). Recomputed here on every
+    // (Sclerotial Crust/Rind, Crust Reserve, Melanized Wall). Recomputed here on every
     // structure rebuild — which is triggered after each card play / world tick — so
     // the colour follows the ward as it's applied and as it lapses. Rehydration's
     // hidden reinfectGrace is deliberately NOT counted, so its heal shows no tint.
