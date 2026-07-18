@@ -56,10 +56,15 @@ node --test test/               # smoke + card tests
   data/images) — the in-game picker is the living version.
 - **Campaign (CHECKPOINT §9):** a run is 11 procedural levels; only threat counts scale per level
   (`species.js LEVEL_THREATS`, applied by `main.js configForLevel`). Winning carries deck+resources
-  to the next level (`snapshotCarry`/`applyCarry`); death → picker. Unlocks STAGGER per clear-count
-  (localStorage `mycelium.progress.v2` = `{clears:{level:n}}`): the k-th species in a tier unlocks on
-  the (k+1)-th clear of that level. Test with the top-right **"Dev: win level"** button (=
-  `window.__game.winLevel()`); `killColony()` forces death.
+  to the next level (`snapshotCarry`/`applyCarry`); death → picker. Finishing a level pays **Spores**
+  (`sporesForLevel` = 100 × level) into a persistent wallet (localStorage `mycelium.progress.v2` =
+  `{clears:{level:n}, spores:N, purchased:{id:true}}`). Species unlock in **two steps**:
+  clearing the required level **REVEALS** a species (`isRevealed`, staggered — the k-th species in a
+  tier reveals on the (k+1)-th clear; its "?" tile flips to a viewable **Locked** card), then spending
+  Spores **UNLOCKS** it for play (`isPlayable = isRevealed && isPurchased`; `purchaseSpecies`,
+  cost = `unlockCost` / species `cost`). Spore icon = inline `SPORE_ICON` (ui.js); a few standalone
+  variants live in `assets/spores/`. Test with the top-right **"Dev: win level"** button (=
+  `window.__game.winLevel()`); `killColony()` forces death (its overlay shows the run's Spore total).
 
 ## Working agreement
 

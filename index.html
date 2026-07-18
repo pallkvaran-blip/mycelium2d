@@ -378,6 +378,13 @@
     .overlay .card.death p.dim { color: #9a9a9a; }
     .overlay .card.death .btn.big { background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
     .overlay .card.death .btn.big:hover { background: #2b2b2b; border-color: #ffffff; }
+    /* Spores-earned line on the death card — kept flat white (spore icon desaturated
+       to a white shine) so it stays true to the black-&-white death prompt. */
+    .overlay .card.death .death-spores { display:flex; align-items:center; justify-content:center; gap:8px;
+      font-size:15px; color:#f2f2f2; margin:10px 0 2px; font-weight:600; }
+    .overlay .card.death .death-spores b { color:#ffffff; font-weight:700; }
+    .overlay .card.death .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto;
+      filter:grayscale(1) brightness(1.6); }
 
     /* mobile-ish */
     @media (max-width: 720px) {
@@ -878,6 +885,40 @@
       font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ss-mint);
       background:rgba(5,9,8,0.72); border:1px solid rgba(127,230,163,0.4); border-radius:999px; padding:3px 9px 3px 8px; backdrop-filter:blur(3px); }
 
+    /* ---- Spores (unlock currency): wallet counter, cost badges, buy sheet ---- */
+    .spore-ic { width:16px; height:16px; flex:0 0 auto; display:inline-block; vertical-align:-0.18em;
+      filter:drop-shadow(0 0 4px rgba(150,220,255,0.55)); }
+    .ss-headrow { display:flex; align-items:center; justify-content:space-between; gap:14px 20px; flex-wrap:wrap; }
+    .ss-spores { display:inline-flex; align-items:center; gap:7px; padding:6px 14px 6px 10px; border-radius:999px;
+      background:linear-gradient(150deg, rgba(20,34,46,0.92), rgba(8,16,22,0.94)); border:1.5px solid rgba(150,210,240,0.5);
+      font-variant-numeric:tabular-nums; box-shadow:0 0 16px -6px rgba(120,200,255,0.6), inset 0 0 16px -9px rgba(150,220,255,0.6); }
+    .ss-spores .spore-ic { width:18px; height:18px; }
+    .ss-sp-n { font-weight:700; font-size:16px; color:#dff2ff; }
+    .ss-sp-lbl { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#8fb8cc; font-weight:600; }
+    .ss-spores.inline { padding:2px 9px 2px 7px; gap:5px; border-width:1px; box-shadow:none; }
+    .ss-spores.inline .spore-ic { width:14px; height:14px; }
+    .ss-spores.inline .ss-sp-n { font-size:13px; }
+    .ss-spores.inline .ss-sp-lbl { display:none; }
+    /* Cost badge on a revealed-but-unbought species tile (blue, overrides the mint lockbadge). */
+    .ss-lockbadge.ss-buybadge { color:#dff2ff; border-color:rgba(150,210,240,0.6); background:rgba(6,12,16,0.78); gap:4px; }
+    .ss-buybadge .spore-ic { width:12px; height:12px; }
+    .ss-buybadge .ss-sp-n { font-size:10.5px; font-weight:700; color:#dff2ff; }
+    .ss-card.ss-locked .ss-choose { color:#bfe0f2; border-color:rgba(150,210,240,0.45); }
+    /* Buy sheet (species detail, purchase mode). */
+    .ss-buyhint { flex:0 0 100%; order:-1; font-size:12.5px; color:var(--ss-ink-dim); line-height:1.5;
+      display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .ss-buyhint b { color:#dff2ff; font-weight:700; }
+    .ss-btn.ss-buybtn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+    .ss-btn.ss-buybtn .spore-ic { width:17px; height:17px; filter:drop-shadow(0 0 4px rgba(90,140,180,0.5)); }
+    .ss-buyn { font-weight:700; }
+    /* Spores line on the win / run-complete banners. */
+    .ss-win-spores { display:inline-flex; align-items:center; gap:8px; font-family:var(--ss-serif);
+      font-size:clamp(15px,2.2vw,20px); color:#dff2ff; text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 18px rgba(130,200,255,0.35); }
+    .ss-win-spores .spore-ic { width:1.15em; height:1.15em; }
+    .ss-win-spores b { color:#eaf7ff; font-weight:700; }
+    .ss-win-bal { font-family:var(--ss-sans); font-size:0.66em; color:#9fc4d8; font-weight:600; }
+    .ss-lc-spores { justify-content:center; margin:4px auto 0; }
+
     /* no display:flex on the box — Safari lets a flex child's min-height override
        aspect-ratio (→ "?" cards taller than the available cards). Match .ss-card's
        box model: aspect-ratio only, with the ? absolutely centred. */
@@ -964,7 +1005,7 @@
     .ss-cpip.p { color:#dcc4f2; border-color:rgba(199,155,230,0.5); box-shadow:0 0 8px -3px rgba(199,155,230,0.45); }
     .ss-cost .ss-ri { width:12px; height:12px; }
 
-    .ss-actions { display:flex; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
+    .ss-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
     /* Plain black-and-white buttons (no gradients): Cancel = black outline, Start = white fill. */
     .ss-btn { flex:1; font:inherit; cursor:pointer; border-radius:13px; padding:13px 16px; font-size:14px; font-weight:600; letter-spacing:.01em;
       transition:background .16s, border-color .16s, color .16s, transform .06s; }

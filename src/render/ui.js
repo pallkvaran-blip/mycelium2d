@@ -34,6 +34,22 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// The Spores currency mark — a shiny blue/white spore cluster (a big spore with a
+// specular highlight plus two satellites). Fixed fills (not currentColor) so it
+// reads the same on the picker, the win banner and the death overlay. Layered
+// circles only — no url()-referenced gradients, which break when the same inline
+// SVG appears many times in the single-file bundle.
+export const SPORE_ICON = '<svg class="spore-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<circle cx="9.4" cy="13.6" r="5.8" fill="#bfe9ff"/>' +
+  '<circle cx="9.4" cy="13.6" r="5.8" fill="none" stroke="#eaf7ff" stroke-width="0.7" opacity="0.7"/>' +
+  '<circle cx="7.7" cy="11.6" r="2.4" fill="#ffffff" opacity="0.85"/>' +
+  '<circle cx="7.05" cy="11.0" r="1.05" fill="#ffffff"/>' +
+  '<circle cx="17.7" cy="7.9" r="3.0" fill="#9ad4ff"/>' +
+  '<circle cx="16.8" cy="7.0" r="0.95" fill="#ffffff" opacity="0.95"/>' +
+  '<circle cx="17.4" cy="16.7" r="2.2" fill="#9ad4ff"/>' +
+  '<circle cx="16.8" cy="16.0" r="0.72" fill="#ffffff" opacity="0.92"/>' +
+  '</svg>';
+
 // Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
 // the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
 // many devices (Android) and ignores `color`, so it could never be reliably red.
@@ -714,10 +730,16 @@ export class UI {
     const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
+    // Total Spores earned across this run — shown on the death card so the loss still
+    // banks progress the player can spend to unlock species at the picker.
+    const sporeLine = (result && result.runSpores != null)
+      ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
+      : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
         <h1>${title}</h1>
         <p>${body}</p>
+        ${sporeLine}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
           : campaignDeath ? pickerBtn
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}

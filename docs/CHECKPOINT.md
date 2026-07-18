@@ -454,6 +454,32 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Spores unlock economy + higher enemy spawns** (`src/species.js`, `src/render/species_select.js`,
+  `src/render/ui.js`, `src/main.js`, `index.html`, `src/engine/substrate.js`, `assets/spores/`).
+  - **Two-step species unlock (reveal → buy).** Clearing the required level now only **REVEALS** a
+    gated species — its "?" tile flips to a viewable-but-unplayable **Locked** card (was: directly
+    playable). To play it you **spend Spores**. `species.js` split the old `isUnlocked` into
+    `isRevealed` (cleared enough — same k-th/(k+1)-clear stagger) and `isPlayable`
+    (`isRevealed && isPurchased`); `newlyUnlockedByClear` → `newlyRevealedByClear`. Purchases persist
+    in `progress.purchased` (`purchaseSpecies` deducts + records; `unlockCost` reads species `cost`,
+    default 100×level — Common Earthball 100, Bleeding Tooth 250).
+  - **Spores = a persistent wallet** in `mycelium.progress.v2` (added `spores`, `purchased`;
+    back-compat defaults for old saves). Earned by finishing levels — `sporesForLevel` = **100 × level**
+    (`main.js onLevelWon` → `addSpores`, also tallied into a per-run `runSpores`). Picker header shows a
+    **Spores counter**; a revealed-locked tile shows a blue Spore **cost badge** and opens a **buy sheet**
+    (`openSpeciesDetail` mode `'purchase'`) that spends Spores and re-renders in place.
+  - **Messages.** Level-complete now reads **"New species available for purchase!"** and shows
+    **"+N Spores · N banked"**; the death overlay shows **"N Spores earned this run"** (via
+    `presentRunOver` → `result.runSpores`; kept flat B&W — spore icon desaturated).
+  - **Spore icon** = inline `SPORE_ICON` (ui.js, exported → species_select) — a layered blue/white shiny
+    spore cluster (no url() gradients so it survives the single-file bundle). Standalone variants for
+    picking: `assets/spores/spore-{cluster,single,sparkle,puff}.svg` (cluster is wired in).
+  - **Enemies spawn higher** (`substrate.js findSpawnSpot`): shallow band tightened 0.6→**0.45** of depth
+    and the vertical pick biased to the top (`pow(rng(),1.8)`), so nematodes/mould seed in the upper soil
+    instead of piling against the deep floor. Verified: worms/clouds now land at depth-fraction ~0.05–0.25.
+  - Verified with Playwright: fresh wallet "0 Spores"; seeded reveal→buy (300→200, marked purchased);
+    win banner + death line render; spawn heights. 101 smoke + 61 card tests green.
+
 - **Reservoir matte/placement, Metabolic Reroute text, trich vanish-after-infect.**
   - **Reservoirs**: matte is now AGGRESSIVE (`matte_reservoir.py` keys on max colour
     channel → the near-black background AND the dark rock ring drop out, leaving only the

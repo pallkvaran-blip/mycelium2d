@@ -373,6 +373,13 @@
     .overlay .card.death p.dim { color: #9a9a9a; }
     .overlay .card.death .btn.big { background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
     .overlay .card.death .btn.big:hover { background: #2b2b2b; border-color: #ffffff; }
+    /* Spores-earned line on the death card — kept flat white (spore icon desaturated
+       to a white shine) so it stays true to the black-&-white death prompt. */
+    .overlay .card.death .death-spores { display:flex; align-items:center; justify-content:center; gap:8px;
+      font-size:15px; color:#f2f2f2; margin:10px 0 2px; font-weight:600; }
+    .overlay .card.death .death-spores b { color:#ffffff; font-weight:700; }
+    .overlay .card.death .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto;
+      filter:grayscale(1) brightness(1.6); }
 
     /* mobile-ish */
     @media (max-width: 720px) {
@@ -873,6 +880,40 @@
       font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ss-mint);
       background:rgba(5,9,8,0.72); border:1px solid rgba(127,230,163,0.4); border-radius:999px; padding:3px 9px 3px 8px; backdrop-filter:blur(3px); }
 
+    /* ---- Spores (unlock currency): wallet counter, cost badges, buy sheet ---- */
+    .spore-ic { width:16px; height:16px; flex:0 0 auto; display:inline-block; vertical-align:-0.18em;
+      filter:drop-shadow(0 0 4px rgba(150,220,255,0.55)); }
+    .ss-headrow { display:flex; align-items:center; justify-content:space-between; gap:14px 20px; flex-wrap:wrap; }
+    .ss-spores { display:inline-flex; align-items:center; gap:7px; padding:6px 14px 6px 10px; border-radius:999px;
+      background:linear-gradient(150deg, rgba(20,34,46,0.92), rgba(8,16,22,0.94)); border:1.5px solid rgba(150,210,240,0.5);
+      font-variant-numeric:tabular-nums; box-shadow:0 0 16px -6px rgba(120,200,255,0.6), inset 0 0 16px -9px rgba(150,220,255,0.6); }
+    .ss-spores .spore-ic { width:18px; height:18px; }
+    .ss-sp-n { font-weight:700; font-size:16px; color:#dff2ff; }
+    .ss-sp-lbl { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#8fb8cc; font-weight:600; }
+    .ss-spores.inline { padding:2px 9px 2px 7px; gap:5px; border-width:1px; box-shadow:none; }
+    .ss-spores.inline .spore-ic { width:14px; height:14px; }
+    .ss-spores.inline .ss-sp-n { font-size:13px; }
+    .ss-spores.inline .ss-sp-lbl { display:none; }
+    /* Cost badge on a revealed-but-unbought species tile (blue, overrides the mint lockbadge). */
+    .ss-lockbadge.ss-buybadge { color:#dff2ff; border-color:rgba(150,210,240,0.6); background:rgba(6,12,16,0.78); gap:4px; }
+    .ss-buybadge .spore-ic { width:12px; height:12px; }
+    .ss-buybadge .ss-sp-n { font-size:10.5px; font-weight:700; color:#dff2ff; }
+    .ss-card.ss-locked .ss-choose { color:#bfe0f2; border-color:rgba(150,210,240,0.45); }
+    /* Buy sheet (species detail, purchase mode). */
+    .ss-buyhint { flex:0 0 100%; order:-1; font-size:12.5px; color:var(--ss-ink-dim); line-height:1.5;
+      display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .ss-buyhint b { color:#dff2ff; font-weight:700; }
+    .ss-btn.ss-buybtn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+    .ss-btn.ss-buybtn .spore-ic { width:17px; height:17px; filter:drop-shadow(0 0 4px rgba(90,140,180,0.5)); }
+    .ss-buyn { font-weight:700; }
+    /* Spores line on the win / run-complete banners. */
+    .ss-win-spores { display:inline-flex; align-items:center; gap:8px; font-family:var(--ss-serif);
+      font-size:clamp(15px,2.2vw,20px); color:#dff2ff; text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 18px rgba(130,200,255,0.35); }
+    .ss-win-spores .spore-ic { width:1.15em; height:1.15em; }
+    .ss-win-spores b { color:#eaf7ff; font-weight:700; }
+    .ss-win-bal { font-family:var(--ss-sans); font-size:0.66em; color:#9fc4d8; font-weight:600; }
+    .ss-lc-spores { justify-content:center; margin:4px auto 0; }
+
     /* no display:flex on the box — Safari lets a flex child's min-height override
        aspect-ratio (→ "?" cards taller than the available cards). Match .ss-card's
        box model: aspect-ratio only, with the ? absolutely centred. */
@@ -959,7 +1000,7 @@
     .ss-cpip.p { color:#dcc4f2; border-color:rgba(199,155,230,0.5); box-shadow:0 0 8px -3px rgba(199,155,230,0.45); }
     .ss-cost .ss-ri { width:12px; height:12px; }
 
-    .ss-actions { display:flex; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
+    .ss-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; padding-top:14px; border-top:1px solid rgba(120,160,140,0.16); }
     /* Plain black-and-white buttons (no gradients): Cancel = black outline, Start = white fill. */
     .ss-btn { flex:1; font:inherit; cursor:pointer; border-radius:13px; padding:13px 16px; font-size:14px; font-weight:600; letter-spacing:.01em;
       transition:background .16s, border-color .16s, color .16s, transform .06s; }
@@ -1161,8 +1202,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1nur67c";
-globalThis.__BUILD__ = "local 07-18 18:17";
+window.__ASSET_VER = "yxe0c2";
+globalThis.__BUILD__ = "local 07-18 19:01";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2655,7 +2696,12 @@ const __m_species = (function () {
 // effects and play-costs are looked up from CARD_DATA by name — here we only list
 // each species' identity, its starting resources, and its starting hand as
 // {name, count}. `unlock: null` = playable from the start; a tier label = shown as
-// a locked preview under that unlock row.
+// a locked preview under that unlock row. `cost` = Spores to buy it once revealed.
+//
+// Progression is two-step: clearing the required level REVEALS a gated species
+// (its "?" tile flips to a viewable but unplayable "Locked" card), then paying
+// Spores (earned by finishing levels) UNLOCKS it for play. See the progress
+// helpers at the bottom of this file.
 // =============================================================================
 
 const SPECIES = [
@@ -2681,7 +2727,7 @@ const SPECIES = [
     ],
   },
   {
-    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1', cost: 100,
     name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
     blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
     res: { energy: 0, water: 30, phosphorus: 5 },
@@ -2694,7 +2740,7 @@ const SPECIES = [
     ],
   },
   {
-    id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
+    id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1', cost: 250,
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
     res: { energy: 10, water: 20, phosphorus: 0 },   // opener Aquaporin Channels costs 10⚡ to install → start with Energy
@@ -2746,10 +2792,24 @@ function threatsForLevel(level) {
   return LEVEL_THREATS[level] || LEVEL_THREATS[LEVEL_THREATS.length - 1];
 }
 
+// Spores earned for finishing a level: 100 for level 1, 200 for level 2, and so on.
+function sporesForLevel(level) {
+  return Math.max(0, (level | 0)) * 100;
+}
+
 // The level a species unlocks at, parsed from its `unlock` label ("Complete level N").
 function levelFromUnlock(label) {
   const m = /(\d+)/.exec(label || '');
   return m ? +m[1] : null;
+}
+
+// Spore price to buy a revealed species. Explicit `cost` wins; otherwise scales
+// with the level it's gated behind (100 per level).
+function unlockCost(sp) {
+  if (!sp) return 0;
+  if (sp.cost != null) return sp.cost;
+  const lvl = levelFromUnlock(sp.unlock);
+  return lvl ? lvl * 100 : 0;
 }
 
 // Species pinned to a tier level, in roster (unlock) order. Order matters: the
@@ -2763,13 +2823,19 @@ function tierIndexOf(sp) {
 }
 
 // --- unlock progress (persisted in localStorage) ---------------------------
-// Tracks how many times each level has been cleared: { clears: { "1": 2, ... } }.
-// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.)
+// Tracks per-level clears, the Spores wallet, and which species have been bought:
+//   { clears: { "1": 2, ... }, spores: 350, purchased: { "scleroderma": true } }
+// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.
+// `spores` / `purchased` are additive and default safely for older v2 saves.)
 const PROGRESS_KEY = 'mycelium.progress.v2';
 
 function loadProgress() {
-  try { const p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; if (!p.clears) p.clears = {}; return p; }
-  catch (_) { return { clears: {} }; }
+  let p;
+  try { p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (_) { p = {}; }
+  if (!p.clears) p.clears = {};
+  if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
+  if (!p.purchased) p.purchased = {};
+  return p;
 }
 function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
@@ -2788,22 +2854,60 @@ function recordLevelCleared(level) {
   saveProgress(p);
   return p;
 }
-// A species is available if it has no unlock gate, or its tier has been cleared
-// enough times to reach its slot (k-th species needs k+1 clears of that level).
-function isUnlocked(sp, progress) {
-  if (!sp.unlock) return true;
+
+// --- Spores wallet ---------------------------------------------------------
+function sporesBalance(progress) {
+  const p = progress || loadProgress();
+  return (typeof p.spores === 'number' && isFinite(p.spores)) ? p.spores : 0;
+}
+// Credit the wallet (e.g. for clearing a level); persists and returns new balance.
+function addSpores(amount) {
+  const p = loadProgress();
+  p.spores = sporesBalance(p) + Math.max(0, amount | 0);
+  saveProgress(p);
+  return p.spores;
+}
+function isPurchased(sp, progress) {
+  const p = progress || loadProgress();
+  return !!(sp && p.purchased && p.purchased[sp.id]);
+}
+// Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
+// be bought (not revealed, already owned, or too few Spores).
+function purchaseSpecies(sp, progress) {
+  const p = progress || loadProgress();
+  if (!sp || !sp.unlock) return { ok: true, spores: sporesBalance(p) };   // ungated: nothing to buy
+  if (isPurchased(sp, p)) return { ok: true, spores: sporesBalance(p) };
+  if (!isRevealed(sp, p)) return { ok: false, spores: sporesBalance(p) };
+  const cost = unlockCost(sp);
+  if (sporesBalance(p) < cost) return { ok: false, spores: sporesBalance(p) };
+  p.spores = sporesBalance(p) - cost;
+  p.purchased[sp.id] = true;
+  saveProgress(p);
+  return { ok: true, spores: p.spores };
+}
+
+// --- reveal / playable state ------------------------------------------------
+// REVEALED: the tier has been cleared enough times to expose this species — its "?"
+// tile flips to a viewable "Locked" card (k-th species needs k+1 clears of the level).
+function isRevealed(sp, progress) {
+  if (!sp || !sp.unlock) return true;
   const lvl = levelFromUnlock(sp.unlock);
   return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
 }
-// The species newly unlocked by clearing `level`, given progress BEFORE this clear.
+// PLAYABLE: revealed AND bought with Spores (ungated species are always playable).
+function isPlayable(sp, progress) {
+  if (!sp || !sp.unlock) return true;
+  return isRevealed(sp, progress) && isPurchased(sp, progress);
+}
+// The species newly REVEALED by clearing `level`, given progress BEFORE this clear.
 // One per clear, in tier order; [] once the tier is exhausted.
-function newlyUnlockedByClear(level, progressBefore) {
+function newlyRevealedByClear(level, progressBefore) {
   const tier = tierSpecies(level);
   const prior = clearsFor(progressBefore, level);
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, levelFromUnlock, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, isUnlocked, newlyUnlockedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -2972,7 +3076,11 @@ class Substrate {
       const bw = span / opts.count;
       bLo = loX + opts.i * bw; bHi = loX + (opts.i + 1) * bw;
     }
-    const shallow = (this.rows - 1) * cs * 0.6, deep = (this.rows - 1) * cs;
+    // Threats seed in the UPPER soil: a tighter shallow band (top ~45%) and a
+    // vertical pick biased toward the surface (rng()**1.8 skews the sample up), so
+    // worms/mould come in near the top instead of piling up against the deep floor.
+    const shallow = (this.rows - 1) * cs * 0.45, deep = (this.rows - 1) * cs;
+    const pickY = (yMax) => this.surfaceY + cs + Math.max(0, yMax - cs) * Math.pow(rng(), 1.8);
     const clear = (x, y) => {
       const c = this.cellAtWorld(x, y);
       if (!c || c.rock || (avoidFood && c.maxNutrient > 0)) return null;
@@ -2984,7 +3092,7 @@ class Substrate {
     let ground = null, soft = null;   // fallbacks: raw open ground / open ground with a small (1.6-cell) rock gap
     const scan = (x0, x1, yMax, tries) => {
       for (let t = 0; t < tries; t++) {
-        const x = rng.range(x0, x1), y = this.surfaceY + rng.range(cs, yMax);
+        const x = rng.range(x0, x1), y = pickY(yMax);
         const s = clear(x, y);
         if (s) return s;
         const c = this.cellAtWorld(x, y);
@@ -8807,6 +8915,22 @@ const RES_ICON = {
   phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="currentColor"/></svg>',
 };
 
+// The Spores currency mark — a shiny blue/white spore cluster (a big spore with a
+// specular highlight plus two satellites). Fixed fills (not currentColor) so it
+// reads the same on the picker, the win banner and the death overlay. Layered
+// circles only — no url()-referenced gradients, which break when the same inline
+// SVG appears many times in the single-file bundle.
+const SPORE_ICON = '<svg class="spore-ic" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<circle cx="9.4" cy="13.6" r="5.8" fill="#bfe9ff"/>' +
+  '<circle cx="9.4" cy="13.6" r="5.8" fill="none" stroke="#eaf7ff" stroke-width="0.7" opacity="0.7"/>' +
+  '<circle cx="7.7" cy="11.6" r="2.4" fill="#ffffff" opacity="0.85"/>' +
+  '<circle cx="7.05" cy="11.0" r="1.05" fill="#ffffff"/>' +
+  '<circle cx="17.7" cy="7.9" r="3.0" fill="#9ad4ff"/>' +
+  '<circle cx="16.8" cy="7.0" r="0.95" fill="#ffffff" opacity="0.95"/>' +
+  '<circle cx="17.4" cy="16.7" r="2.2" fill="#9ad4ff"/>' +
+  '<circle cx="16.8" cy="16.0" r="0.72" fill="#ffffff" opacity="0.92"/>' +
+  '</svg>';
+
 // Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
 // the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
 // many devices (Android) and ignores `color`, so it could never be reliably red.
@@ -9487,10 +9611,16 @@ class UI {
     const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
+    // Total Spores earned across this run — shown on the death card so the loss still
+    // banks progress the player can spend to unlock species at the picker.
+    const sporeLine = (result && result.runSpores != null)
+      ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
+      : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
         <h1>${title}</h1>
         <p>${body}</p>
+        ${sporeLine}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
           : campaignDeath ? pickerBtn
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
@@ -10296,7 +10426,7 @@ function vitalityColor(v) {
   return `rgb(${r},${g},${b})`;
 }
 
-  return { UI, cardSlug };
+  return { SPORE_ICON, UI, cardSlug };
 })();
 
 // ===================== src/render/mycelium_title.js =====================
@@ -10489,9 +10619,9 @@ function growMyceliumTitle(container, opts = {}) {
 
 // ===================== src/render/species_select.js =====================
 const __m_render_species_select = (function () {
-  const { SPECIES, LOCKED_TIERS, isUnlocked, loadProgress } = __m_species;
+  const { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress } = __m_species;
   const { CARD_DATA } = __m_cards_data;
-  const { cardSlug } = __m_render_ui;
+  const { cardSlug, SPORE_ICON } = __m_render_ui;
   const { growMyceliumTitle } = __m_render_mycelium_title;
 // =============================================================================
 // Start-of-run species picker + between-level campaign overlays (in-game).
@@ -10524,6 +10654,10 @@ const RI = {
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// The shiny-spore currency chip (wallet balance / cost badges).
+const sporeChip = (n, cls) => '<span class="ss-spores' + (cls ? ' ' + cls : '') + '">' + SPORE_ICON +
+  '<span class="ss-sp-n">' + n + '</span><span class="ss-sp-lbl">Spores</span></span>';
 
 function costPips(c) {
   let out = '';
@@ -10610,6 +10744,25 @@ function openSpeciesDetail(species, opts = {}) {
   } else if (opts.mode === 'locked') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Close</button><button class="ss-btn primary is-locked" disabled>Locked · ' + esc(species.unlock) + '</button>';
     actions.querySelector('#ssICancel').onclick = ins.close;
+  } else if (opts.mode === 'purchase') {
+    // Revealed but not yet bought: offer to spend Spores to unlock it for play.
+    const cost = unlockCost(species);
+    const bal = sporesBalance();
+    const afford = bal >= cost;
+    actions.innerHTML =
+      '<div class="ss-buyhint">' + (afford
+        ? 'Unlock <b>' + esc(species.name) + '</b> for play.'
+        : 'You need <b>' + (cost - bal) + '</b> more.') +
+        ' You have ' + sporeChip(bal, 'inline') + '</div>' +
+      '<button class="ss-btn ghost" id="ssICancel">Close</button>' +
+      '<button class="ss-btn primary ss-buybtn' + (afford ? '' : ' is-locked') + '" id="ssIBuy"' + (afford ? '' : ' disabled') + '>' +
+        'Unlock · ' + SPORE_ICON + '<span class="ss-buyn">' + cost + '</span></button>';
+    actions.querySelector('#ssICancel').onclick = ins.close;
+    const buy = actions.querySelector('#ssIBuy');
+    if (afford && buy) buy.onclick = () => {
+      const r = purchaseSpecies(species);
+      if (r.ok) { ins.close(); opts.onBuy && opts.onBuy(); }
+    };
   } else {
     actions.innerHTML = '<button class="ss-btn primary" id="ssIOk">Continue</button>';
     actions.querySelector('#ssIOk').onclick = ins.close;
@@ -10617,30 +10770,46 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.classList.add('open');
 }
 
-// --- a species card tile (available / locked preview) -------------------------
-function speciesCard(s, { locked, onClick }) {
+// --- a species card tile ------------------------------------------------------
+// Three visual states: playable (bright, "Inspect"), revealed-but-unbought
+// (greyed, a Spore-cost badge + "Unlock"), and — via mysteryCard() below — the
+// not-yet-revealed "?" placeholder.
+function speciesCard(s, { locked, cost, onClick }) {
   const card = el('button', 'ss-card ' + s.vibe + (locked ? ' ss-locked' : ''));
   card.type = 'button';
-  card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
+  const buyable = cost != null;
+  card.setAttribute('aria-label', (buyable ? 'Unlock ' : locked ? 'Preview ' : 'Inspect ') + s.name);
+  const badge = buyable
+    ? '<span class="ss-lockbadge ss-buybadge">' + SPORE_ICON + '<span class="ss-sp-n">' + cost + '</span></span>'
+    : (locked ? '<span class="ss-lockbadge">Locked</span>' : '');
+  const choose = buyable ? 'Unlock ▸' : (locked ? 'Preview ▸' : 'Inspect ▸');
   card.innerHTML =
     '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
-    (locked ? '<span class="ss-lockbadge">Locked</span>' : '') +
-    '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
+    badge +
+    '<span class="ss-choose">' + choose + '</span>' +
     '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
   card.addEventListener('click', onClick);
   return card;
 }
 
+// The "?" placeholder for a species that hasn't been revealed yet.
+function mysteryCard() {
+  const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
+  lc.innerHTML = '<span class="ss-q">?</span>';
+  return lc;
+}
+
 // ============================ boot picker ====================================
 function showSpeciesSelect({ onPick, onDev }) {
-  const progress = loadProgress();
+  let progress = loadProgress();
   const root = el('div'); root.id = 'speciesSelect';
   root.innerHTML =
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
-        '<h1>Select your species</h1>' +
+        '<div class="ss-headrow"><h1>Select your species</h1>' +
+          '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
       '</header>' +
       '<div class="ss-body">' +
         '<section class="ss-section">' +
@@ -10655,6 +10824,11 @@ function showSpeciesSelect({ onPick, onDev }) {
   const title = growMyceliumTitle(root.querySelector('.ss-title'));
   function hide() { title.destroy(); root.remove(); }
 
+  const wallet = root.querySelector('#ssWallet');
+  function updateWallet() {
+    wallet.innerHTML = SPORE_ICON + '<span class="ss-sp-n">' + sporesBalance(progress) + '</span><span class="ss-sp-lbl">Spores</span>';
+  }
+
   const availGrid = root.querySelector('#ssAvail');
   for (const s of SPECIES) {
     if (s.unlock) continue;   // gated species stay in their tier row below, even once unlocked
@@ -10663,32 +10837,35 @@ function showSpeciesSelect({ onPick, onDev }) {
   }
 
   const lockedRows = root.querySelector('#ssLocked');
-  for (const row of LOCKED_TIERS) {
-    const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
-    const label = el('div', 'ss-rowlabel ss-locked-label');
-    label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
-    const grid = el('div', 'ss-grid');
-    // Species pinned to this tier STAY in this row whether locked or unlocked — an
-    // unlocked one becomes playable in place (never promoted to "Available now").
-    const tier = SPECIES.filter((s) => s.unlock === row.label);
-    for (const s of tier) {
-      const unlocked = isUnlocked(s, progress);
-      grid.appendChild(speciesCard(s, {
-        locked: !unlocked,
-        onClick: unlocked
-          ? () => openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } })
-          : () => openSpeciesDetail(s, { mode: 'locked' }),
-      }));
+  function renderLocked() {
+    lockedRows.innerHTML = '';
+    for (const row of LOCKED_TIERS) {
+      const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
+      const label = el('div', 'ss-rowlabel ss-locked-label');
+      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
+      const grid = el('div', 'ss-grid');
+      const tier = SPECIES.filter((s) => s.unlock === row.label);
+      for (const s of tier) {
+        // Not yet revealed → stays a "?"; revealed+bought → playable; revealed but
+        // unbought → a viewable Locked card with a Spore price (opens the buy sheet).
+        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard()); continue; }
+        if (isPlayable(s, progress)) {
+          grid.appendChild(speciesCard(s, { locked: false, onClick: () =>
+            openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
+        } else {
+          grid.appendChild(speciesCard(s, { locked: true, cost: unlockCost(s), onClick: () =>
+            openSpeciesDetail(s, { mode: 'purchase', onBuy: refresh }) }));
+        }
+      }
+      for (let k = tier.length; k < row.n; k++) grid.appendChild(mysteryCard());
+      sec.appendChild(label); sec.appendChild(grid);
+      lockedRows.appendChild(sec);
     }
-    for (let k = tier.length; k < row.n; k++) {
-      const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
-      lc.innerHTML = '<span class="ss-q">?</span>';
-      grid.appendChild(lc);
-    }
-    sec.appendChild(label); sec.appendChild(grid);
-    lockedRows.appendChild(sec);
   }
+  function refresh() { progress = loadProgress(); updateWallet(); renderLocked(); }
 
+  updateWallet();
+  renderLocked();
   root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
   return { hide, root };
 }
@@ -10696,17 +10873,19 @@ function showSpeciesSelect({ onPick, onDev }) {
 // ===================== between-level: level complete =========================
 const WIN_WORDS = ['Success', 'You made it'];
 
-function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
+function showLevelComplete({ level, maxLevel, unlocked, earned, balance, onNext }) {
   const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
   const word = WIN_WORDS[(Math.random() * WIN_WORDS.length) | 0];
   // No container — the win headline is grown in mycelium (with lighting behind), then a
-  // plain line + either the new-species card(s) or just a Proceed button.
+  // plain line + the spores earned + either the new-species card(s) or just Proceed.
   root.innerHTML =
     '<div class="ss-win-title" role="img" aria-label="' + esc(word) + '"></div>' +
     '<p class="ss-win-sub">You fruited and spored</p>' +
+    (earned ? '<div class="ss-win-spores">' + SPORE_ICON + '<b>+' + earned + '</b>&nbsp;Spores' +
+        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
     (hasUnlock
-      ? '<div class="ss-win-unlock">New species available next run!</div>' +
+      ? '<div class="ss-win-unlock">New species available for purchase!</div>' +
         '<div class="ss-win-cards" id="ssWinCards"></div>'
       : '') +
     '<button class="ss-win-btn" id="ssWinProceed" type="button">Proceed</button>';
@@ -10722,13 +10901,15 @@ function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
 }
 
 // =========================== game won (final) ================================
-function showGameWon({ onNewRun }) {
+function showGameWon({ spores, balance, onNewRun }) {
   const root = el('div', 'ss-detailwrap open'); root.id = 'ssGameWon';
   root.innerHTML =
     '<div class="ss-lc">' +
       '<div class="ss-lc-badge">Run complete</div>' +
       '<h2 class="ss-lc-title">You carried the colony to the surface — all the way. 🍄✦</h2>' +
       '<p class="ss-lc-sub">Every level cleared. The mycelium has conquered the deep. Start a fresh run with any species you\'ve unlocked.</p>' +
+      (spores ? '<div class="ss-win-spores ss-lc-spores">' + SPORE_ICON + '<b>+' + spores + '</b>&nbsp;Spores' +
+        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
       '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssGwNew">Begin a new run ↻</button></div>' +
     '</div>';
   document.body.appendChild(root);
@@ -11608,7 +11789,7 @@ const __m_main = (function () {
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -11641,6 +11822,7 @@ let noTrich = false;                  // testing aid: spawn sandbox maps with no
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
 let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
+let runSpores = 0;                      // Spores earned across the current run (levels finished) — shown on death
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
 
@@ -11723,8 +11905,8 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
   showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; startRun(); },
-    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; startRun(); },
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
+    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }
 
@@ -11752,24 +11934,31 @@ function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   _runOverPresented = true;
   if (state.won && cardsCampaign()) { onLevelWon(); return; }
-  const r = state.runResult; ui.showOverlay(r);
+  const r = state.runResult || {};
+  if (cardsCampaign()) r.runSpores = runSpores;   // banked-this-run total, shown on the death card
+  ui.showOverlay(r);
 }
 
 function onLevelWon() {
   const cleared = currentLevel;
   const prev = loadProgress();
-  const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
+  const newlyRevealed = newlyRevealedByClear(cleared, prev);   // one species revealed per clear, in tier order
   recordLevelCleared(cleared);
+  // Finishing a level pays Spores (100 × level) into the persistent wallet; also
+  // tallied into this run's total for the death card.
+  const earned = sporesForLevel(cleared);
+  const balance = addSpores(earned);
+  runSpores += earned;
   ui.hideOverlay();
   // Collapse the hand carousel so the (containerless) win banner has clear room
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
-    showGameWon({ onNewRun: backToPicker });
+    showGameWon({ spores: runSpores, balance, onNewRun: backToPicker });
   } else {
     const snap = snapshotCarry();
     showLevelComplete({
-      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyUnlocked,
+      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyRevealed, earned, balance,
       onNext: () => { currentLevel = cleared + 1; carryOver = snap; startRun(); },
     });
   }
@@ -11777,7 +11966,7 @@ function onLevelWon() {
 
 function backToPicker() {
   ui.hideOverlay();
-  currentLevel = 1; carryOver = null; chosenSpecies = null;
+  currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
   showPicker();
 }
 

@@ -6,7 +6,12 @@
 // effects and play-costs are looked up from CARD_DATA by name — here we only list
 // each species' identity, its starting resources, and its starting hand as
 // {name, count}. `unlock: null` = playable from the start; a tier label = shown as
-// a locked preview under that unlock row.
+// a locked preview under that unlock row. `cost` = Spores to buy it once revealed.
+//
+// Progression is two-step: clearing the required level REVEALS a gated species
+// (its "?" tile flips to a viewable but unplayable "Locked" card), then paying
+// Spores (earned by finishing levels) UNLOCKS it for play. See the progress
+// helpers at the bottom of this file.
 // =============================================================================
 
 export const SPECIES = [
@@ -32,7 +37,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1', cost: 100,
     name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
     blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
     res: { energy: 0, water: 30, phosphorus: 5 },
@@ -45,7 +50,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
+    id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1', cost: 250,
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
     res: { energy: 10, water: 20, phosphorus: 0 },   // opener Aquaporin Channels costs 10⚡ to install → start with Energy
@@ -97,10 +102,24 @@ export function threatsForLevel(level) {
   return LEVEL_THREATS[level] || LEVEL_THREATS[LEVEL_THREATS.length - 1];
 }
 
+// Spores earned for finishing a level: 100 for level 1, 200 for level 2, and so on.
+export function sporesForLevel(level) {
+  return Math.max(0, (level | 0)) * 100;
+}
+
 // The level a species unlocks at, parsed from its `unlock` label ("Complete level N").
 export function levelFromUnlock(label) {
   const m = /(\d+)/.exec(label || '');
   return m ? +m[1] : null;
+}
+
+// Spore price to buy a revealed species. Explicit `cost` wins; otherwise scales
+// with the level it's gated behind (100 per level).
+export function unlockCost(sp) {
+  if (!sp) return 0;
+  if (sp.cost != null) return sp.cost;
+  const lvl = levelFromUnlock(sp.unlock);
+  return lvl ? lvl * 100 : 0;
 }
 
 // Species pinned to a tier level, in roster (unlock) order. Order matters: the
@@ -114,13 +133,19 @@ function tierIndexOf(sp) {
 }
 
 // --- unlock progress (persisted in localStorage) ---------------------------
-// Tracks how many times each level has been cleared: { clears: { "1": 2, ... } }.
-// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.)
+// Tracks per-level clears, the Spores wallet, and which species have been bought:
+//   { clears: { "1": 2, ... }, spores: 350, purchased: { "scleroderma": true } }
+// (v2 — the v1 model was "max level cleared"; a clean key avoids a migration.
+// `spores` / `purchased` are additive and default safely for older v2 saves.)
 const PROGRESS_KEY = 'mycelium.progress.v2';
 
 export function loadProgress() {
-  try { const p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; if (!p.clears) p.clears = {}; return p; }
-  catch (_) { return { clears: {} }; }
+  let p;
+  try { p = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch (_) { p = {}; }
+  if (!p.clears) p.clears = {};
+  if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
+  if (!p.purchased) p.purchased = {};
+  return p;
 }
 export function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
@@ -139,16 +164,54 @@ export function recordLevelCleared(level) {
   saveProgress(p);
   return p;
 }
-// A species is available if it has no unlock gate, or its tier has been cleared
-// enough times to reach its slot (k-th species needs k+1 clears of that level).
-export function isUnlocked(sp, progress) {
-  if (!sp.unlock) return true;
+
+// --- Spores wallet ---------------------------------------------------------
+export function sporesBalance(progress) {
+  const p = progress || loadProgress();
+  return (typeof p.spores === 'number' && isFinite(p.spores)) ? p.spores : 0;
+}
+// Credit the wallet (e.g. for clearing a level); persists and returns new balance.
+export function addSpores(amount) {
+  const p = loadProgress();
+  p.spores = sporesBalance(p) + Math.max(0, amount | 0);
+  saveProgress(p);
+  return p.spores;
+}
+export function isPurchased(sp, progress) {
+  const p = progress || loadProgress();
+  return !!(sp && p.purchased && p.purchased[sp.id]);
+}
+// Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
+// be bought (not revealed, already owned, or too few Spores).
+export function purchaseSpecies(sp, progress) {
+  const p = progress || loadProgress();
+  if (!sp || !sp.unlock) return { ok: true, spores: sporesBalance(p) };   // ungated: nothing to buy
+  if (isPurchased(sp, p)) return { ok: true, spores: sporesBalance(p) };
+  if (!isRevealed(sp, p)) return { ok: false, spores: sporesBalance(p) };
+  const cost = unlockCost(sp);
+  if (sporesBalance(p) < cost) return { ok: false, spores: sporesBalance(p) };
+  p.spores = sporesBalance(p) - cost;
+  p.purchased[sp.id] = true;
+  saveProgress(p);
+  return { ok: true, spores: p.spores };
+}
+
+// --- reveal / playable state ------------------------------------------------
+// REVEALED: the tier has been cleared enough times to expose this species — its "?"
+// tile flips to a viewable "Locked" card (k-th species needs k+1 clears of the level).
+export function isRevealed(sp, progress) {
+  if (!sp || !sp.unlock) return true;
   const lvl = levelFromUnlock(sp.unlock);
   return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
 }
-// The species newly unlocked by clearing `level`, given progress BEFORE this clear.
+// PLAYABLE: revealed AND bought with Spores (ungated species are always playable).
+export function isPlayable(sp, progress) {
+  if (!sp || !sp.unlock) return true;
+  return isRevealed(sp, progress) && isPurchased(sp, progress);
+}
+// The species newly REVEALED by clearing `level`, given progress BEFORE this clear.
 // One per clear, in tier order; [] once the tier is exhausted.
-export function newlyUnlockedByClear(level, progressBefore) {
+export function newlyRevealedByClear(level, progressBefore) {
   const tier = tierSpecies(level);
   const prior = clearsFor(progressBefore, level);
   return prior < tier.length ? [tier[prior]] : [];

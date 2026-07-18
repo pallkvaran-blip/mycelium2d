@@ -138,7 +138,11 @@ export class Substrate {
       const bw = span / opts.count;
       bLo = loX + opts.i * bw; bHi = loX + (opts.i + 1) * bw;
     }
-    const shallow = (this.rows - 1) * cs * 0.6, deep = (this.rows - 1) * cs;
+    // Threats seed in the UPPER soil: a tighter shallow band (top ~45%) and a
+    // vertical pick biased toward the surface (rng()**1.8 skews the sample up), so
+    // worms/mould come in near the top instead of piling up against the deep floor.
+    const shallow = (this.rows - 1) * cs * 0.45, deep = (this.rows - 1) * cs;
+    const pickY = (yMax) => this.surfaceY + cs + Math.max(0, yMax - cs) * Math.pow(rng(), 1.8);
     const clear = (x, y) => {
       const c = this.cellAtWorld(x, y);
       if (!c || c.rock || (avoidFood && c.maxNutrient > 0)) return null;
@@ -150,7 +154,7 @@ export class Substrate {
     let ground = null, soft = null;   // fallbacks: raw open ground / open ground with a small (1.6-cell) rock gap
     const scan = (x0, x1, yMax, tries) => {
       for (let t = 0; t < tries; t++) {
-        const x = rng.range(x0, x1), y = this.surfaceY + rng.range(cs, yMax);
+        const x = rng.range(x0, x1), y = pickY(yMax);
         const s = clear(x, y);
         if (s) return s;
         const c = this.cellAtWorld(x, y);

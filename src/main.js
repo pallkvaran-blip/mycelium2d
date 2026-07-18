@@ -21,7 +21,7 @@ import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyUnlockedByClear, loadProgress, resetProgress } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -45,6 +45,7 @@ let noTrich = false;                  // testing aid: spawn sandbox maps with no
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
 let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
+let runSpores = 0;                      // Spores earned across the current run (levels finished) — shown on death
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 const networkRenderers = new Map();
 
@@ -127,8 +128,8 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
   showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; startRun(); },
-    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; startRun(); },
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
+    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }
 
@@ -156,24 +157,31 @@ function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   _runOverPresented = true;
   if (state.won && cardsCampaign()) { onLevelWon(); return; }
-  const r = state.runResult; ui.showOverlay(r);
+  const r = state.runResult || {};
+  if (cardsCampaign()) r.runSpores = runSpores;   // banked-this-run total, shown on the death card
+  ui.showOverlay(r);
 }
 
 function onLevelWon() {
   const cleared = currentLevel;
   const prev = loadProgress();
-  const newlyUnlocked = newlyUnlockedByClear(cleared, prev);   // one species per clear, in tier order
+  const newlyRevealed = newlyRevealedByClear(cleared, prev);   // one species revealed per clear, in tier order
   recordLevelCleared(cleared);
+  // Finishing a level pays Spores (100 × level) into the persistent wallet; also
+  // tallied into this run's total for the death card.
+  const earned = sporesForLevel(cleared);
+  const balance = addSpores(earned);
+  runSpores += earned;
   ui.hideOverlay();
   // Collapse the hand carousel so the (containerless) win banner has clear room
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
-    showGameWon({ onNewRun: backToPicker });
+    showGameWon({ spores: runSpores, balance, onNewRun: backToPicker });
   } else {
     const snap = snapshotCarry();
     showLevelComplete({
-      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyUnlocked,
+      level: cleared, maxLevel: MAX_LEVEL, unlocked: newlyRevealed, earned, balance,
       onNext: () => { currentLevel = cleared + 1; carryOver = snap; startRun(); },
     });
   }
@@ -181,7 +189,7 @@ function onLevelWon() {
 
 function backToPicker() {
   ui.hideOverlay();
-  currentLevel = 1; carryOver = null; chosenSpecies = null;
+  currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
   showPicker();
 }
 

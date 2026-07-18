@@ -13,9 +13,9 @@
 // in-game .card/.overlay UI.
 // =============================================================================
 
-import { SPECIES, LOCKED_TIERS, isUnlocked, loadProgress } from '../species.js';
+import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
-import { cardSlug } from './ui.js';
+import { cardSlug, SPORE_ICON } from './ui.js';
 import { growMyceliumTitle } from './mycelium_title.js';
 
 const CARD_BY_NAME = {};
@@ -33,6 +33,10 @@ const RI = {
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// The shiny-spore currency chip (wallet balance / cost badges).
+const sporeChip = (n, cls) => '<span class="ss-spores' + (cls ? ' ' + cls : '') + '">' + SPORE_ICON +
+  '<span class="ss-sp-n">' + n + '</span><span class="ss-sp-lbl">Spores</span></span>';
 
 function costPips(c) {
   let out = '';
@@ -119,6 +123,25 @@ function openSpeciesDetail(species, opts = {}) {
   } else if (opts.mode === 'locked') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Close</button><button class="ss-btn primary is-locked" disabled>Locked · ' + esc(species.unlock) + '</button>';
     actions.querySelector('#ssICancel').onclick = ins.close;
+  } else if (opts.mode === 'purchase') {
+    // Revealed but not yet bought: offer to spend Spores to unlock it for play.
+    const cost = unlockCost(species);
+    const bal = sporesBalance();
+    const afford = bal >= cost;
+    actions.innerHTML =
+      '<div class="ss-buyhint">' + (afford
+        ? 'Unlock <b>' + esc(species.name) + '</b> for play.'
+        : 'You need <b>' + (cost - bal) + '</b> more.') +
+        ' You have ' + sporeChip(bal, 'inline') + '</div>' +
+      '<button class="ss-btn ghost" id="ssICancel">Close</button>' +
+      '<button class="ss-btn primary ss-buybtn' + (afford ? '' : ' is-locked') + '" id="ssIBuy"' + (afford ? '' : ' disabled') + '>' +
+        'Unlock · ' + SPORE_ICON + '<span class="ss-buyn">' + cost + '</span></button>';
+    actions.querySelector('#ssICancel').onclick = ins.close;
+    const buy = actions.querySelector('#ssIBuy');
+    if (afford && buy) buy.onclick = () => {
+      const r = purchaseSpecies(species);
+      if (r.ok) { ins.close(); opts.onBuy && opts.onBuy(); }
+    };
   } else {
     actions.innerHTML = '<button class="ss-btn primary" id="ssIOk">Continue</button>';
     actions.querySelector('#ssIOk').onclick = ins.close;
@@ -126,30 +149,46 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.classList.add('open');
 }
 
-// --- a species card tile (available / locked preview) -------------------------
-function speciesCard(s, { locked, onClick }) {
+// --- a species card tile ------------------------------------------------------
+// Three visual states: playable (bright, "Inspect"), revealed-but-unbought
+// (greyed, a Spore-cost badge + "Unlock"), and — via mysteryCard() below — the
+// not-yet-revealed "?" placeholder.
+function speciesCard(s, { locked, cost, onClick }) {
   const card = el('button', 'ss-card ' + s.vibe + (locked ? ' ss-locked' : ''));
   card.type = 'button';
-  card.setAttribute('aria-label', (locked ? 'Preview ' : 'Inspect ') + s.name);
+  const buyable = cost != null;
+  card.setAttribute('aria-label', (buyable ? 'Unlock ' : locked ? 'Preview ' : 'Inspect ') + s.name);
+  const badge = buyable
+    ? '<span class="ss-lockbadge ss-buybadge">' + SPORE_ICON + '<span class="ss-sp-n">' + cost + '</span></span>'
+    : (locked ? '<span class="ss-lockbadge">Locked</span>' : '');
+  const choose = buyable ? 'Unlock ▸' : (locked ? 'Preview ▸' : 'Inspect ▸');
   card.innerHTML =
     '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
-    (locked ? '<span class="ss-lockbadge">Locked</span>' : '') +
-    '<span class="ss-choose">' + (locked ? 'Preview ▸' : 'Inspect ▸') + '</span>' +
+    badge +
+    '<span class="ss-choose">' + choose + '</span>' +
     '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
   card.addEventListener('click', onClick);
   return card;
 }
 
+// The "?" placeholder for a species that hasn't been revealed yet.
+function mysteryCard() {
+  const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
+  lc.innerHTML = '<span class="ss-q">?</span>';
+  return lc;
+}
+
 // ============================ boot picker ====================================
 export function showSpeciesSelect({ onPick, onDev }) {
-  const progress = loadProgress();
+  let progress = loadProgress();
   const root = el('div'); root.id = 'speciesSelect';
   root.innerHTML =
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
       '<header class="ss-head">' +
-        '<h1>Select your species</h1>' +
+        '<div class="ss-headrow"><h1>Select your species</h1>' +
+          '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
       '</header>' +
       '<div class="ss-body">' +
         '<section class="ss-section">' +
@@ -164,6 +203,11 @@ export function showSpeciesSelect({ onPick, onDev }) {
   const title = growMyceliumTitle(root.querySelector('.ss-title'));
   function hide() { title.destroy(); root.remove(); }
 
+  const wallet = root.querySelector('#ssWallet');
+  function updateWallet() {
+    wallet.innerHTML = SPORE_ICON + '<span class="ss-sp-n">' + sporesBalance(progress) + '</span><span class="ss-sp-lbl">Spores</span>';
+  }
+
   const availGrid = root.querySelector('#ssAvail');
   for (const s of SPECIES) {
     if (s.unlock) continue;   // gated species stay in their tier row below, even once unlocked
@@ -172,32 +216,35 @@ export function showSpeciesSelect({ onPick, onDev }) {
   }
 
   const lockedRows = root.querySelector('#ssLocked');
-  for (const row of LOCKED_TIERS) {
-    const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
-    const label = el('div', 'ss-rowlabel ss-locked-label');
-    label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
-    const grid = el('div', 'ss-grid');
-    // Species pinned to this tier STAY in this row whether locked or unlocked — an
-    // unlocked one becomes playable in place (never promoted to "Available now").
-    const tier = SPECIES.filter((s) => s.unlock === row.label);
-    for (const s of tier) {
-      const unlocked = isUnlocked(s, progress);
-      grid.appendChild(speciesCard(s, {
-        locked: !unlocked,
-        onClick: unlocked
-          ? () => openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } })
-          : () => openSpeciesDetail(s, { mode: 'locked' }),
-      }));
+  function renderLocked() {
+    lockedRows.innerHTML = '';
+    for (const row of LOCKED_TIERS) {
+      const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
+      const label = el('div', 'ss-rowlabel ss-locked-label');
+      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
+      const grid = el('div', 'ss-grid');
+      const tier = SPECIES.filter((s) => s.unlock === row.label);
+      for (const s of tier) {
+        // Not yet revealed → stays a "?"; revealed+bought → playable; revealed but
+        // unbought → a viewable Locked card with a Spore price (opens the buy sheet).
+        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard()); continue; }
+        if (isPlayable(s, progress)) {
+          grid.appendChild(speciesCard(s, { locked: false, onClick: () =>
+            openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
+        } else {
+          grid.appendChild(speciesCard(s, { locked: true, cost: unlockCost(s), onClick: () =>
+            openSpeciesDetail(s, { mode: 'purchase', onBuy: refresh }) }));
+        }
+      }
+      for (let k = tier.length; k < row.n; k++) grid.appendChild(mysteryCard());
+      sec.appendChild(label); sec.appendChild(grid);
+      lockedRows.appendChild(sec);
     }
-    for (let k = tier.length; k < row.n; k++) {
-      const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
-      lc.innerHTML = '<span class="ss-q">?</span>';
-      grid.appendChild(lc);
-    }
-    sec.appendChild(label); sec.appendChild(grid);
-    lockedRows.appendChild(sec);
   }
+  function refresh() { progress = loadProgress(); updateWallet(); renderLocked(); }
 
+  updateWallet();
+  renderLocked();
   root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
   return { hide, root };
 }
@@ -205,17 +252,19 @@ export function showSpeciesSelect({ onPick, onDev }) {
 // ===================== between-level: level complete =========================
 const WIN_WORDS = ['Success', 'You made it'];
 
-export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
+export function showLevelComplete({ level, maxLevel, unlocked, earned, balance, onNext }) {
   const root = el('div', 'ss-win'); root.id = 'ssLevelComplete';
   const hasUnlock = unlocked && unlocked.length;
   const word = WIN_WORDS[(Math.random() * WIN_WORDS.length) | 0];
   // No container — the win headline is grown in mycelium (with lighting behind), then a
-  // plain line + either the new-species card(s) or just a Proceed button.
+  // plain line + the spores earned + either the new-species card(s) or just Proceed.
   root.innerHTML =
     '<div class="ss-win-title" role="img" aria-label="' + esc(word) + '"></div>' +
     '<p class="ss-win-sub">You fruited and spored</p>' +
+    (earned ? '<div class="ss-win-spores">' + SPORE_ICON + '<b>+' + earned + '</b>&nbsp;Spores' +
+        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
     (hasUnlock
-      ? '<div class="ss-win-unlock">New species available next run!</div>' +
+      ? '<div class="ss-win-unlock">New species available for purchase!</div>' +
         '<div class="ss-win-cards" id="ssWinCards"></div>'
       : '') +
     '<button class="ss-win-btn" id="ssWinProceed" type="button">Proceed</button>';
@@ -231,13 +280,15 @@ export function showLevelComplete({ level, maxLevel, unlocked, onNext }) {
 }
 
 // =========================== game won (final) ================================
-export function showGameWon({ onNewRun }) {
+export function showGameWon({ spores, balance, onNewRun }) {
   const root = el('div', 'ss-detailwrap open'); root.id = 'ssGameWon';
   root.innerHTML =
     '<div class="ss-lc">' +
       '<div class="ss-lc-badge">Run complete</div>' +
       '<h2 class="ss-lc-title">You carried the colony to the surface — all the way. 🍄✦</h2>' +
       '<p class="ss-lc-sub">Every level cleared. The mycelium has conquered the deep. Start a fresh run with any species you\'ve unlocked.</p>' +
+      (spores ? '<div class="ss-win-spores ss-lc-spores">' + SPORE_ICON + '<b>+' + spores + '</b>&nbsp;Spores' +
+        (balance != null ? '<span class="ss-win-bal"> · ' + balance + ' banked</span>' : '') + '</div>' : '') +
       '<div class="ss-lc-actions"><button class="ss-btn primary" id="ssGwNew">Begin a new run ↻</button></div>' +
     '</div>';
   document.body.appendChild(root);
