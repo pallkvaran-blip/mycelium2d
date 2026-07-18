@@ -1,9 +1,11 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-17 (**first-run tutorial:** a scripted 10-step B&W
+_Living status + knowledge doc. Last updated: 2026-07-18 (**first-run tutorial:** a scripted 10-step B&W
 popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run — zooms the
 camera to each subject, FORCES the first grow (double-click Apical Drive → drag), and shows FLUX-generated
-threat portraits (owner-picked ant D / nematode B / trichoderma D); `#tutorial` hash or
+threat portraits (ant D / nematode B / a relatable moldy-bread trichoderma). Now with **portrait-phone**
+support (minimise carousel, zoom out ~50%, frame the subject in the top half), a **TEMP dev launcher**
+button on the title, and **no map-dimming** during the tutorial. `#tutorial` hash or
 `window.__game.startTutorial()` replays it — see §9. — earlier: **energy + threat tune:** leaf Energy trimmed
 another step to 🟡 duff **1–2** / 🟠 orange **2–3** / 🔴 red **3–4** (per-map counts unchanged: 5–7 / 5–7 /
 1–3); **new enemy curve** (`species.js LEVEL_THREATS`, ants/nematodes/mould): L1 1/1/1 → L11 6/11/11, ants
@@ -459,8 +461,12 @@ Both menus are dark, on-theme, with glowing green borders.
   **yellow duff pile** in clear soil near the root (`substrate.injectDuffPile`). Overlay root is
   `pointer-events:none` so the game stays live on forced steps; a `.tut-catcher` handles click-anywhere
   on explanatory steps. Threat portraits (`assets/tutorial/{ant,nematode,trichoderma}.jpg`) are FLUX-
-  generated — 4 options each in `assets/tutorial_options/` (contact sheets `_sheet_*`), owner-picked
-  **ant D / nematode B / trichoderma D**; regenerate/re-pick via `scripts/gen_tutorial_threats.py`.
+  generated into `assets/tutorial_options/` (contact sheets `_sheet_*`), owner-picked: **ant D / nematode B**
+  (from `scripts/gen_tutorial_threats.py`, flux-dev, 4 options each). **Trichoderma** was re-picked to a
+  RELATABLE flat green-mould look (petri-dish/bread, not nature-macro): the live `trichoderma.jpg` is
+  `trichoderma_dish_4` (**option E**, moldy bread) from `scripts/gen_trych_relatable.py` (**FLUX 1.1 Pro**);
+  `scripts/gen_trych_pro.py` holds an earlier realistic-macro set (`trichoderma_pro_*`) that was rejected.
+  To re-pick: process an option to 680×529 JPG into `assets/tutorial/<slug>.jpg`, rebuild.
   Test/replay hooks: `#tutorial` hash forces it; `window.__game.startTutorial()` / `.resetTutorial()`.
   **Portrait phone:** `tutorial.js phonePortrait()` MINIMIZES the hand carousel on every step that
   doesn't need it (steps carrying `hand:'open'` — the hand + drag steps — keep it open) and maximizes
@@ -472,7 +478,9 @@ Both menus are dark, on-theme, with glowing green borders.
   The map is **never dimmed** (`.tut-catcher` is transparent — it only catches click-to-advance); there's
   **no pointer arrow** (removed — just the pulsing ring); the card-play step selects the **Grow** hand
   filter (`step.filter`→`ui.setHandFilter`, reset to 'all' on finish) to showcase the growth cards; and the
-  drag-to-grow demo pulls **down into the soil** (not up at the sky). Final step is still "Good luck." **TEMP dev title button** ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
+  drag-to-grow demo pulls **down into the soil** (not up at the sky). The Trichoderma step ends "**Not
+  good.**" (was "Run or hide."); the final step is still "Good luck." **TEMP dev title button**
+  ("Dev: tutorial ▸", bottom-right of `title_screen.js`, only shown
   when `onDevTutorial` is passed): jumps straight into a level-1 tutorial run with a RANDOM `SPECIES`,
   via `tutorialDevForce` (fires the tutorial WITHOUT `markTutorialSeen`, so the real first-run flow is
   unaffected). Remove the button + flag when the tutorial ships.
