@@ -454,6 +454,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Win celebration — fruiting + spore drift before the banner** (`src/main.js`, render-only).
+  On a card-mode win, `presentRunOver` now runs `startWinCelebration(finish)` before the success
+  banner: `focusWorld` frames the green goal meadow, ~9 little mushrooms (`CELE_CAPS` palette,
+  glow halo + tapered stalk + spotted cap) pop up with an `easeOutBack` bounce (staggered), mature,
+  then puff **spores** (cached `sporeSprite()` glow, additive) that drift right + rise + sway on the
+  wind and fade off the right edge. `drawWinCelebration(time)` runs each frame from `renderFrame`
+  (after floaters); the banner fires at `CELE_BANNER_AT` (5s) and its soft vignette lets the last
+  spores sail on behind it; `winCele` cleared in `begin()`. Puzzle wins skip it. (Dev "win level"
+  button triggers it too.) Timeline: mushrooms 0.15–2.6s, spores 1.5–4.4s, banner 5s.
+
+- **Spore-print currency icon** (`src/render/ui.js`, `assets/spores/spore-print.png`). `SPORE_ICON`
+  is now an `<img>` of a matted mushroom spore-print (Replicate; `scripts/gen_spore.py`,
+  `assets/spore_options/`) instead of the layered-circle SVG. See §5's spore-icon note.
+
+- **Species unlock costs double per tier** (`species.js unlockCost`): `UNLOCK_TIER_BASE` 1000 →
+  after lvl 1 = 1000, lvl 3 = 2000, lvl 5 = 4000, lvl 7 = 8000, lvl 10 = 16000 (rank = the unlock
+  level's index in `tierLevels()`; explicit `sp.cost` still overrides). Dropped the per-species
+  100/250 overrides.
+
 - **Spores unlock economy + higher enemy spawns** (`src/species.js`, `src/render/species_select.js`,
   `src/render/ui.js`, `src/main.js`, `index.html`, `src/engine/substrate.js`, `assets/spores/`).
   - **Two-step species unlock (reveal → buy).** Clearing the required level now only **REVEALS** a
