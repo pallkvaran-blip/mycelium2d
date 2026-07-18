@@ -454,7 +454,7 @@
   "playCostEnergy": 0,
   "playCostWater": 0,
   "playCostPhosphorus": 0,
-  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of it.",
+  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of the other.",
   "timing": "any",
   "axis": "utility",
   "threat": "none",

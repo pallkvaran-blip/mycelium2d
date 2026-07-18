@@ -1167,8 +1167,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1xfsoy7";
-globalThis.__BUILD__ = "local 07-18 17:36";
+window.__ASSET_VER = "1n3mwoh";
+globalThis.__BUILD__ = "local 07-18 18:00";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -2009,7 +2009,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of it.",
+  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of the other.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -3359,50 +3359,8 @@ function generateSubstrate(config, rng) {
   clearChannel(0, startCols + 1);
   clearChannel(goalStart - 1, sub.cols);
 
-  // 2c-iv) UNDERGROUND WATER RESERVOIRS — small IMPASSABLE water pockets tucked
-  //   just ABOVE the winnable corridor, so a colony threading the route grows up
-  //   against one and taps it for a trickle of Water income (see the water-source
-  //   engine in cards.js). Placed AFTER the corridor + channels so we can sit each
-  //   pocket exactly one row above the cleared path (guaranteed reachable) without
-  //   ever overlapping the corridor, an existing lake, or a rock mass.
-  sub.reservoirs = [];
-  {
-    const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
-    const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
-    const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
-    const placedRes = [];
-    let rAttempts = 0;
-    while (sub.reservoirs.length < rCount && rAttempts++ < 400 && resHi - resLo > 2 * rrMax) {
-      const rad = rng.int(rrMin, rrMax);
-      const cx = rng.int(resLo + rad, resHi - rad);
-      const cy = pathRow[cx] - 1 - rad;                  // bottom edge one row above the corridor top
-      if (cy - rad < 0) continue;                        // no room above the corridor here
-      let ok = true;
-      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + 5) { ok = false; break; }
-      // Clearance: the disc must not touch the corridor, an existing lake, or rock.
-      for (let dr = -rad; dr <= rad && ok; dr++)
-        for (let dc = -rad; dc <= rad && ok; dc++) {
-          if (dc * dc + dr * dr > rad * rad) continue;
-          const cell = sub.cellAt(cx + dc, cy + dr);
-          if (!cell || cell.pathClear || cell.water || cell.rock) ok = false;
-        }
-      if (!ok) continue;
-      const id = sub.reservoirs.length + 1;
-      let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
-      for (let dr = -rad; dr <= rad; dr++)
-        for (let dc = -rad; dc <= rad; dc++) {
-          if (dc * dc + dr * dr > rad * rad) continue;
-          const cell = sub.cellAt(cx + dc, cy + dr);
-          if (!cell) continue;
-          cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket
-          cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
-          c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
-          r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
-        }
-      placedRes.push({ cx, rad });
-      sub.reservoirs.push({ id, cx, cy, rad, c0, c1, r0, r1 });
-    }
-  }
+  // (Underground water reservoirs are placed LAST — after food — so they can be kept
+  //  clear of food piles as well as rock/lakes. See "2c-iv" near the end of generate().)
 
   // 3) Food — SPARSE caches along the route, so energy is a real constraint (you
   //    can't just grow freely) and steering with Add-Substrate matters. A reward
@@ -3568,6 +3526,74 @@ function generateSubstrate(config, rng) {
     const before = engineCount();
     drop(cc, cr, engRadius, 'engine');
     if (engineCount() > before) placed++;
+  }
+
+  // 2c-iv) UNDERGROUND WATER RESERVOIRS — small IMPASSABLE water pockets (rock+water,
+  //   like a lake) tucked just BELOW the winnable corridor, so a colony threading the
+  //   route grows down against one and taps it for a Water trickle (cards.js). Below
+  //   (not above) the corridor because the corridor runs near the surface — the deep
+  //   soil beneath it is where there's actually room. Placed LAST so each pocket — AND
+  //   a 1-cell buffer around it — is kept clear of rock, lakes and FOOD, so it never
+  //   visually overlaps anything. The buffer may touch the corridor above it (that
+  //   contact is how the colony reaches it), just nothing solid.
+  sub.reservoirs = [];
+  {
+    const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
+    const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
+    const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
+    // A disc centred (cx,cy) is clear iff:
+    //  · every DISC cell is real, off the corridor, and NOT rock/lake/food — so the
+    //    pocket never OVERLAPS rock, a lake, or a food pile; and
+    //  · the 1-cell RING holds no lake or food (food piles render past their cells, so
+    //    keep them out) — but rock is allowed to sit AGAINST the pocket (a water pocket
+    //    nestled in rock is natural, and the shallow zone is too rocky to demand a full
+    //    rock-free halo). The ring may include corridor cells: that's the reach contact.
+    const discClear = (cx, cy, rad) => {
+      for (let dr = -rad - 1; dr <= rad + 1; dr++)
+        for (let dc = -rad - 1; dc <= rad + 1; dc++) {
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (dc * dc + dr * dr <= rad * rad) {
+            if (!cell || cell.pathClear || cell.rock || cell.water || cell.maxNutrient > 0) return false;   // disc: no overlap
+          } else if (cell && (cell.water || cell.maxNutrient > 0)) {
+            return false;   // ring: no lake / food adjacency
+          }
+        }
+      return true;
+    };
+    const placedRes = [];
+    let rAttempts = 0;
+    while (sub.reservoirs.length < rCount && rAttempts++ < 600 && resHi - resLo > 2 * rrMax) {
+      const rad = rng.int(rrMin, rrMax);
+      const cx = rng.int(resLo + rad, resHi - rad);
+      let ok = true;
+      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + 6) { ok = false; break; }
+      if (!ok) continue;
+      // Take the first clear pocket in the FEW rows just under the corridor (its top
+      // ≤3 rows below the corridor floor) — close enough that the colony threading the
+      // route grows down and touches it. If those rows are rocky here, skip this column
+      // and try another (over the whole band, plenty of columns have a clear shallow
+      // spot), rather than dropping the pocket deep where nothing would ever reach it.
+      const top0 = pathRow[cx] + pathH + rad;
+      let cy = -1;
+      for (let y = top0; y <= top0 + 3 && y + rad <= sub.rows - 2; y++) {
+        if (discClear(cx, y, rad)) { cy = y; break; }
+      }
+      if (cy < 0) continue;
+      const id = sub.reservoirs.length + 1;
+      let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+      for (let dr = -rad; dr <= rad; dr++)
+        for (let dc = -rad; dc <= rad; dc++) {
+          if (dc * dc + dr * dr > rad * rad) continue;
+          const cell = sub.cellAt(cx + dc, cy + dr);
+          if (!cell) continue;
+          cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket (like a lake)
+          cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+          c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
+          r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
+        }
+      placedRes.push({ cx, rad });
+      sub.reservoirs.push({ id, cx, cy, rad, c0, c1, r0, r1 });
+    }
   }
 
   return sub;
@@ -4911,6 +4937,9 @@ function spreadTrichoderma(state) {
 
   const survivors = [];
   for (const cloud of state.clouds) {
+    // A cloud that spent itself ON YOU last round is gone THIS round (the next play/
+    // skip) — it doesn't linger fading on top of the colony it just infected.
+    if (cloud.vanishNext) continue;
     // A spent cloud fades to nothing over fadeTurns, then is dropped.
     if (cloud.dying) {
       cloud.strength -= 1 / Math.max(1, t.fadeTurns);
@@ -5086,7 +5115,7 @@ function infectNetwork(net, state) {
       hit.infected = true;
       infectAround(net, hit, t.contactChunk, 1, rng, sub);
     }
-    if (touched) cloud.dying = true;           // reached you — now it fades out, infected or not
+    if (touched) { cloud.dying = true; cloud.vanishNext = true; }   // reached you — now it's spent; gone next round (infected or not)
   }
 
   // 2) Internal spread — the rot races along the filaments from the whole front.

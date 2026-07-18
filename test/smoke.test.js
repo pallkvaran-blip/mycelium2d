@@ -183,7 +183,8 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   ok(actions >= Math.floor(start / per), `finishing is slow + scales with size: ${actions} rounds for ${start} leaves (>= ${Math.floor(start / per)})`);
 }
 
-// Fade: once a cloud infects you it spends itself and vanishes over ~2 turns.
+// Fade: once a cloud infects you it spends itself and is GONE the very next round
+// (the next play/skip) — it doesn't linger fading on top of the colony it just rotted.
 {
   const s = createState(JSON.parse(JSON.stringify(CONFIG)), 55);
   s.clouds = [];
@@ -192,11 +193,11 @@ ok(totalTrichoderma(state.substrate) >= 0, 'Trichoderma field stays finite');
   const cloud = spawnTrichodermaAt(s, node.x, node.y);
   infectNetwork(s.active, s);
   ok(cloud.dying === true, 'cloud spends itself (dying) the moment it infects you');
+  ok(cloud.vanishNext === true, 'the cloud is flagged to vanish on the next round');
   ok(s.active.nodes.some((n) => n.infected), 'contact infected the network');
-  const fade = s.config.trichoderma.fadeTurns;
-  for (let i = 0; i < fade - 1; i++) { spreadTrichoderma(s); ok(s.clouds.includes(cloud), `cloud still fading (step ${i + 1}/${fade})`); }
+  ok(s.clouds.includes(cloud), 'the spent cloud is still visible the round it infected you');
   spreadTrichoderma(s);
-  ok(!s.clouds.includes(cloud), `the spent cloud dies off over ~${fade} steps (infect each cloud ~once)`);
+  ok(!s.clouds.includes(cloud), 'the spent cloud is gone the NEXT round (one play/skip later)');
 }
 
 console.log('# Trichoderma infects on contact (chunk), races inward; Amputate cures');

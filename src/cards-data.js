@@ -390,7 +390,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of it.",
+  "effect": "Once per round: choose Water or Phosphorus — spend 2 of the other to gain 1 of the other.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0

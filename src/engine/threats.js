@@ -104,6 +104,9 @@ export function spreadTrichoderma(state) {
 
   const survivors = [];
   for (const cloud of state.clouds) {
+    // A cloud that spent itself ON YOU last round is gone THIS round (the next play/
+    // skip) — it doesn't linger fading on top of the colony it just infected.
+    if (cloud.vanishNext) continue;
     // A spent cloud fades to nothing over fadeTurns, then is dropped.
     if (cloud.dying) {
       cloud.strength -= 1 / Math.max(1, t.fadeTurns);
@@ -279,7 +282,7 @@ export function infectNetwork(net, state) {
       hit.infected = true;
       infectAround(net, hit, t.contactChunk, 1, rng, sub);
     }
-    if (touched) cloud.dying = true;           // reached you — now it fades out, infected or not
+    if (touched) { cloud.dying = true; cloud.vanishNext = true; }   // reached you — now it's spent; gone next round (infected or not)
   }
 
   // 2) Internal spread — the rot races along the filaments from the whole front.

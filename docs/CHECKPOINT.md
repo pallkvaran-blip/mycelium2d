@@ -454,6 +454,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Reservoir matte/placement, Metabolic Reroute text, trich vanish-after-infect.**
+  - **Reservoirs**: matte is now AGGRESSIVE (`matte_reservoir.py` keys on max colour
+    channel → the near-black background AND the dark rock ring drop out, leaving only the
+    glowing water feathered into soil — no dark box). Placement moved to run LAST (after
+    food) and now sits each pocket in a clear soil spot just BELOW the corridor (the
+    shallow zone above it has no room): a downward scan of the few rows under the corridor
+    finds a disc whose cells are clear of rock/lake/food/corridor and whose 1-cell ring is
+    clear of lake/food (rock may sit against it). Result: 1–3 per map on every map, all
+    impassable (rock+water, like a lake), 0 food/rock OVERLAP, 1–4 rows below the corridor
+    (reachable). `drawReservoirs` overdraw stays for the feathered edges.
+  - **Metabolic Reroute** effect text: "…gain 1 of it." → "…gain 1 of the other." (edit
+    `docs/cards.json`, regen `cards-data.js`).
+  - **Trichoderma** now VANISHES the round after it infects you (`threats.js`): a cloud
+    that touches the colony sets `vanishNext`, and the next `spreadTrichoderma` drops it
+    entirely instead of lingering a `fadeTurns` fade on top of the colony it just rotted.
+
 - **Archived Tropic Lunge + Questing Front; death button → "New run"** (`cards.js`
   ARCHIVED set + `test/cards.test.js` ARCHIVED_TEST, `ui.js`). The auto-lunge-to-food
   pair is pulled (player can't steer it → reads as the colony wandering off); both keep
