@@ -471,9 +471,12 @@ Both menus are dark, on-theme, with glowing green borders.
   - **Messages.** Level-complete now reads **"New species available for purchase!"** and shows
     **"+N Spores · N banked"**; the death overlay shows **"N Spores earned this run"** (via
     `presentRunOver` → `result.runSpores`; kept flat B&W — spore icon desaturated).
-  - **Spore icon** = inline `SPORE_ICON` (ui.js, exported → species_select) — a layered blue/white shiny
-    spore cluster (no url() gradients so it survives the single-file bundle). Standalone variants for
-    picking: `assets/spores/spore-{cluster,single,sparkle,puff}.svg` (cluster is wired in).
+  - **Spore icon** = `SPORE_ICON` (ui.js, exported → species_select) — now an `<img class="spore-ic"
+    src="assets/spores/spore-print.png">` of a real mushroom SPORE PRINT (Replicate FLUX, matted to glow
+    on transparency; `scripts/gen_spore.py`, options in `assets/spore_options/`). Referenced by relative
+    `assets/` path like the picker's card/species images (copied to `dist/` by the build). `.spore-ic`
+    (index.html) sizes it 16–18px with a blue drop-shadow glow; the death card grayscales it to stay B&W.
+    (Was an inline layered-circle SVG cluster; the old `assets/spores/spore-*.svg` variants are unused.)
   - **Enemies spawn higher** (`substrate.js findSpawnSpot`): shallow band tightened 0.6→**0.45** of depth
     and the vertical pick biased to the top (`pow(rng(),1.8)`), so nematodes/mould seed in the upper soil
     instead of piling against the deep floor. Verified: worms/clouds now land at depth-fraction ~0.05–0.25.

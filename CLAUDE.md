@@ -62,8 +62,8 @@ node --test test/               # smoke + card tests
   clearing the required level **REVEALS** a species (`isRevealed`, staggered — the k-th species in a
   tier reveals on the (k+1)-th clear; its "?" tile flips to a viewable **Locked** card), then spending
   Spores **UNLOCKS** it for play (`isPlayable = isRevealed && isPurchased`; `purchaseSpecies`,
-  cost = `unlockCost` / species `cost`). Spore icon = inline `SPORE_ICON` (ui.js); a few standalone
-  variants live in `assets/spores/`. Test with the top-right **"Dev: win level"** button (=
+  cost = `unlockCost` / species `cost`). Spore icon = `SPORE_ICON` (ui.js) — an `<img>` of the matted
+  spore-print art `assets/spores/spore-print.png` (Replicate; options in `assets/spore_options/`). Test with the top-right **"Dev: win level"** button (=
   `window.__game.winLevel()`); `killColony()` forces death (its overlay shows the run's Spore total).
 
 ## Working agreement
