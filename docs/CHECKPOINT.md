@@ -1796,9 +1796,16 @@ Both menus are dark, on-theme, with glowing green borders.
   income pill/ledger as **"Aquifer Tap"**, `WATER_SOURCE_NAME`; removed when nothing is
   touched). Reservoirs are small **impassable** pockets (`cell.reservoir = id`, plus
   `rock+water` so the fine mask treats them exactly like a lake — see the WYSIWYG-solid note).
-  `substrate.js` §2c-iv generates them **LAST** (after food) and scans a few rows **below the
-  corridor** for a disc clear of rock/lake/food/corridor (ring clear of lake/food; rock may sit
-  against it) → 1–3 per map, no food/rock OVERLAP, 1–4 rows below the path (reachable).
+  `substrate.js` §2c-iv generates them **LAST** (after food) and scans down from just under the
+  **corridor** for the shallowest spot free of the *unmovable* stuff — a lake, a path COLUMN
+  (drawn from `sub.rockColumns`, not cells), or a food pile — then **CARVES a clean hollow**: the
+  disc cells turn to water, and every scattered BOULDER or rock FORMATION in a `reservoirClearCells`
+  (=2) halo is erased to soil (`rock/formation/rockFill=false` — both render from per-cell flags
+  that skip water, so clearing removes their sprite; boulder sprites spill ~1.5 cells, hence the
+  2-cell halo). The shallow zone is formation-DENSE, so carving (not avoiding) is what keeps the
+  pocket near the path: 1–3 per map every map, **no rock/formation within 2 cells**, gap ≈1–4
+  rows below the corridor (reachable). Note: the corridor carve leaves some cells `formation:true`
+  but `rock:false`, so the clear gates on `rock || formation`.
   Three matted art variants `assets/reservoir1..3.png` (from `gen_reservoir.py` options +
   `matte_reservoir.py <LETTER> <name>` — an aggressive max-channel key that drops the black
   background/rock-ring); `main.js drawReservoirs` seeded-shuffles them so a map never repeats

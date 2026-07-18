@@ -101,6 +101,7 @@ export const CONFIG = {
     reservoirCountMax: 3,
     reservoirRadiusMin: 2,       // blob radius in cells (small pockets)
     reservoirRadiusMax: 3,
+    reservoirClearCells: 2,      // rock/lake/food-free halo (cells) around a pocket — rock SPRITES spill ~1.5 cells past their cell, so keep them this far off
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,

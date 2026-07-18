@@ -690,67 +690,74 @@ export function generateSubstrate(config, rng) {
   }
 
   // 2c-iv) UNDERGROUND WATER RESERVOIRS — small IMPASSABLE water pockets (rock+water,
-  //   like a lake) tucked just BELOW the winnable corridor, so a colony threading the
-  //   route grows down against one and taps it for a Water trickle (cards.js). Below
-  //   (not above) the corridor because the corridor runs near the surface — the deep
-  //   soil beneath it is where there's actually room. Placed LAST so each pocket — AND
-  //   a 1-cell buffer around it — is kept clear of rock, lakes and FOOD, so it never
-  //   visually overlaps anything. The buffer may touch the corridor above it (that
-  //   contact is how the colony reaches it), just nothing solid.
+  //   like a lake) tucked BELOW the winnable corridor, so a colony threading the route
+  //   grows down against one and taps it for a Water trickle (cards.js). Below (not
+  //   above) the corridor because the corridor runs near the surface — the deep soil
+  //   beneath it is where there's room. Placed LAST so each pocket, AND a rock/lake/food-
+  //   free HALO around it, stays clear of everything. The halo is wide because rock
+  //   SPRITES render ~1.5 cells past their cell footprint — a rock cell merely adjacent
+  //   to the pocket would still spill its boulder over the water. Scan the whole depth
+  //   under the corridor for the SHALLOWEST genuinely-clean spot (shallow = reachable).
   sub.reservoirs = [];
   {
     const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
     const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
+    const BUF = Math.max(1, s.reservoirClearCells != null ? s.reservoirClearCells : 2);   // rock-free halo (cells)
     const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
-    // A disc centred (cx,cy) is clear iff:
-    //  · every DISC cell is real, off the corridor, and NOT rock/lake/food — so the
-    //    pocket never OVERLAPS rock, a lake, or a food pile; and
-    //  · the 1-cell RING holds no lake or food (food piles render past their cells, so
-    //    keep them out) — but rock is allowed to sit AGAINST the pocket (a water pocket
-    //    nestled in rock is natural, and the shallow zone is too rocky to demand a full
-    //    rock-free halo). The ring may include corridor cells: that's the reach contact.
-    const discClear = (cx, cy, rad) => {
-      for (let dr = -rad - 1; dr <= rad + 1; dr++)
-        for (let dc = -rad - 1; dc <= rad + 1; dc++) {
+    // Only a LAKE, a path-blocking COLUMN (drawn from `sub.rockColumns`, not per-cell), or
+    // a FOOD pile can't be moved out of the way — so the disc+halo must avoid those. But
+    // scattered BOULDERS and rock FORMATIONS both render from per-cell flags (`rockGroups`
+    // / `formationGroups`, which skip `water` cells), so a boulder/formation under the DISC
+    // vanishes once the cell turns to water, and any in the HALO are CLEARED to soil after
+    // placing. That's what lets the pocket sit in the (formation-dense) shallow zone just
+    // under the corridor — the water carves itself a clean hollow — instead of dropping
+    // deep (below all the formations) where the colony would never reach it.
+    const unmovable = (cell) => cell && (cell.water || cell.column || cell.maxNutrient > 0);
+    const spotClear = (cx, cy, rad) => {
+      const R = rad + BUF;
+      for (let dr = -R; dr <= R; dr++)
+        for (let dc = -R; dc <= R; dc++) {
+          const d2 = dc * dc + dr * dr;
+          if (d2 > R * R) continue;
           const cell = sub.cellAt(cx + dc, cy + dr);
-          if (dc * dc + dr * dr <= rad * rad) {
-            if (!cell || cell.pathClear || cell.rock || cell.water || cell.maxNutrient > 0) return false;   // disc: no overlap
-          } else if (cell && (cell.water || cell.maxNutrient > 0)) {
-            return false;   // ring: no lake / food adjacency
-          }
+          if (d2 <= rad * rad && (!cell || cell.pathClear)) return false;   // disc: real + off the corridor
+          if (unmovable(cell)) return false;                               // disc OR halo: no lake/column/food
         }
       return true;
     };
     const placedRes = [];
     let rAttempts = 0;
-    while (sub.reservoirs.length < rCount && rAttempts++ < 600 && resHi - resLo > 2 * rrMax) {
+    while (sub.reservoirs.length < rCount && rAttempts++ < 800 && resHi - resLo > 2 * rrMax) {
       const rad = rng.int(rrMin, rrMax);
       const cx = rng.int(resLo + rad, resHi - rad);
       let ok = true;
-      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + 6) { ok = false; break; }
+      for (const p of placedRes) if (Math.abs(p.cx - cx) < rad + p.rad + BUF + 4) { ok = false; break; }
       if (!ok) continue;
-      // Take the first clear pocket in the FEW rows just under the corridor (its top
-      // ≤3 rows below the corridor floor) — close enough that the colony threading the
-      // route grows down and touches it. If those rows are rocky here, skip this column
-      // and try another (over the whole band, plenty of columns have a clear shallow
-      // spot), rather than dropping the pocket deep where nothing would ever reach it.
-      const top0 = pathRow[cx] + pathH + rad;
+      // Scan down from just under the corridor; take the SHALLOWEST spot free of
+      // lakes/columns/food (boulders + formations are fine — they get carved out below).
       let cy = -1;
-      for (let y = top0; y <= top0 + 3 && y + rad <= sub.rows - 2; y++) {
-        if (discClear(cx, y, rad)) { cy = y; break; }
+      for (let y = pathRow[cx] + pathH + rad; y + rad <= sub.rows - 2; y++) {
+        if (spotClear(cx, y, rad)) { cy = y; break; }
       }
       if (cy < 0) continue;
       const id = sub.reservoirs.length + 1;
       let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
-      for (let dr = -rad; dr <= rad; dr++)
-        for (let dc = -rad; dc <= rad; dc++) {
-          if (dc * dc + dr * dr > rad * rad) continue;
+      const R = rad + BUF;
+      for (let dr = -R; dr <= R; dr++)
+        for (let dc = -R; dc <= R; dc++) {
+          const d2 = dc * dc + dr * dr;
+          if (d2 > R * R) continue;
           const cell = sub.cellAt(cx + dc, cy + dr);
           if (!cell) continue;
-          cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket (like a lake)
-          cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
-          c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
-          r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
+          if (d2 <= rad * rad) {
+            cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket (like a lake)
+            cell.formation = false; cell.rockFill = false;
+            cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
+            c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
+            r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
+          } else if ((cell.rock || cell.formation) && !cell.water && !cell.reservoir && !cell.column) {
+            cell.rock = false; cell.formation = false; cell.rockFill = false;   // carve out a boulder/formation (incl. one the corridor carved but left flagged) that would spill onto the pocket
+          }
         }
       placedRes.push({ cx, rad });
       sub.reservoirs.push({ id, cx, cy, rad, c0, c1, r0, r1 });
