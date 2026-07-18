@@ -1786,6 +1786,36 @@ Both menus are dark, on-theme, with glowing green borders.
   maps under the "all rocks solid" assumption were never unbeatable). The `cell.pathClear` flag
   is still set at gen (documents the intended corridor) but is **no longer read** by solidify —
   re-honour it there if auto-winnability ever needs restoring.
+- **Water survival + underground reservoirs (the water economy).** Water is the survival
+  clock: species start with **0 Energy** (except those whose opening hand has an Energy-cost
+  card — Armillaria/Hydnellum start with 10), **Skip costs 3⚡**, and the colony **dies at 0
+  Water** (`main.js checkWater`, `runResult.cause:'water'`; one-shot warning at ≤5). Two
+  water sources refill it via a **synthetic engine** kept in `state.cards.engines` by
+  `updateWaterSourceEngine` (called at the top of `produceCardEngines`): touching the **lake**
+  or an **underground reservoir** grants **+1 Water / 3 rounds per source** (shown in the
+  income pill/ledger as **"Aquifer Tap"**, `WATER_SOURCE_NAME`; removed when nothing is
+  touched). Reservoirs are small **impassable** pockets (`cell.reservoir = id`, plus
+  `rock+water` so the fine mask treats them exactly like a lake — see the WYSIWYG-solid note).
+  `substrate.js` §2c-iv generates them **LAST** (after food) and scans a few rows **below the
+  corridor** for a disc clear of rock/lake/food/corridor (ring clear of lake/food; rock may sit
+  against it) → 1–3 per map, no food/rock OVERLAP, 1–4 rows below the path (reachable).
+  Three matted art variants `assets/reservoir1..3.png` (from `gen_reservoir.py` options +
+  `matte_reservoir.py <LETTER> <name>` — an aggressive max-channel key that drops the black
+  background/rock-ring); `main.js drawReservoirs` seeded-shuffles them so a map never repeats
+  one. `touchesLake` excludes reservoir cells; `nodeTouchesWater` (lake OR reservoir) drives
+  Hyphal Osmosis's lake-tier harvest. **Follow-up:** reservoirs can land up to 4 rows below the
+  corridor with rock beside them (colony must fan down/around) — tighten the scan if flush-to-path is wanted.
+- **Trichoderma vanishes the round AFTER it infects you** (`threats.js`). A cloud that touches
+  the colony sets `cloud.vanishNext` (alongside `dying`) in `infectNetwork`; the next
+  `spreadTrichoderma` drops it entirely at the top of the loop — it no longer lingers a
+  `fadeTurns` fade on top of the colony it just rotted. (`dying` is still set for the
+  "no-grow-while-spent" logic; the gradual-fade path is now only a fallback.)
+- **Stall = death, action-aware** (`cards.js checkGoalReached`). If you can't Draw, Skip, play
+  a card, OR use an installed action (and no draft is pending), the colony dies with
+  `cause:'stall'` → overlay *"Colony died / Ran out of cards and resources."* The hand also
+  shows *"No playable cards, skip turn or use actions."* whenever nothing in hand is affordable.
+  **All death overlays** now render flat black-&-white (`.card.death` in `index.html`, no
+  gradients/colour accents); the death button reads **"New run ↻"**.
 - **README.md is stale** on the "no cards" claim (Phase-1 pre-card text).
 - On phone, a targeted-card **aim** cannot currently be verified via a synthetic
   Playwright canvas tap (harness quirk, not a code bug) — inject/splice state to
