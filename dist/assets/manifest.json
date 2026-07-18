@@ -292,8 +292,18 @@
    "kind": "sprite"
   },
   {
-   "key": "reservoir",
-   "file": "reservoir.png",
+   "key": "reservoir1",
+   "file": "reservoir1.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "reservoir2",
+   "file": "reservoir2.png",
+   "kind": "sprite"
+  },
+  {
+   "key": "reservoir3",
+   "file": "reservoir3.png",
    "kind": "sprite"
   }
  ]

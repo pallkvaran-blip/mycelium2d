@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # Turn one chosen reservoir OPTION (assets/reservoir_options/reservoir_opt_N.png)
-# into the in-game sprite assets/reservoir.png: an elliptical alpha feather so the
-# dark rectangular background fades to transparent and the water pocket blends into
-# the surrounding soil (same idea as the matted lake art). Usage:
-#     python3 scripts/matte_reservoir.py E      # letter A..F  (default F)
+# into an in-game sprite: an elliptical alpha feather so the dark rectangular
+# background fades to transparent and the water pocket blends into the surrounding
+# soil (same idea as the matted lake art). Usage:
+#     python3 scripts/matte_reservoir.py E              # -> assets/reservoir.png
+#     python3 scripts/matte_reservoir.py D reservoir1   # -> assets/reservoir1.png
 import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 OPTS = ROOT / "assets" / "reservoir_options"
-DEST = ROOT / "assets" / "reservoir.png"
 
 def main():
     letter = (sys.argv[1] if len(sys.argv) > 1 else "F").strip().upper()
+    name = (sys.argv[2] if len(sys.argv) > 2 else "reservoir").strip()
+    DEST = ROOT / "assets" / f"{name}.png"
     idx = ord(letter) - 65
     src = OPTS / f"reservoir_opt_{idx}.png"
     if not src.exists():

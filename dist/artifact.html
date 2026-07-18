@@ -1161,8 +1161,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "krcmrh";
-globalThis.__BUILD__ = "local 07-18 17:14";
+window.__ASSET_VER = "13ssnxv";
+globalThis.__BUILD__ = "local 07-18 17:27";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -14080,27 +14080,34 @@ function drawLakes() {
 }
 
 // Underground water reservoirs: small impassable water pockets tucked above the
-// winnable corridor (see substrate.js 2c-iv). Each is drawn as the chosen reservoir
+// winnable corridor (see substrate.js 2c-iv). Each is drawn as a matted reservoir
 // sprite over its cell footprint (a touch of margin so the sprite's soft edges blend
-// into the earth). The procedural water fill (render/substrate.js) is the fallback
-// when the art is absent. Touching one grants Water income (cards.js).
+// into the earth). Three art variants exist; a seeded shuffle assigns a DISTINCT one
+// to each reservoir so a map never repeats the same art (there are ≤3 reservoirs).
+// Touching one grants Water income (cards.js).
+const RESERVOIR_KEYS = ['reservoir1', 'reservoir2', 'reservoir3'];
 function drawReservoirs() {
-  if (!hasAsset('reservoir')) return;
+  const keys = RESERVOIR_KEYS.filter(hasAsset);
+  if (!keys.length) return;
   const sub = state.substrate;
   const list = sub.reservoirs;
   if (!list || !list.length) return;
-  const img = asset('reservoir');
-  if (!img) return;
   const z = camera.zoom, cs = sub.cellSize;
+  const seed = (state.seed || 1) >>> 0;
+  // Seeded shuffle of the available arts → distinct art per reservoir, no repeats
+  // (until the pool is exhausted, which needs >3 reservoirs — the count caps at 3).
+  const order = keys.map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.037) })).sort((a, b) => a.r - b.r).map((o) => o.k);
   const M = 0.6;   // overdraw margin (cells) so feathered art edges bleed into soil
-  for (const r of list) {
+  list.forEach((r, i) => {
+    const img = asset(order[i % order.length]);
+    if (!img) return;
     const wx = (r.c0 - M) * cs, wy = (r.r0 - M) * cs + sub.surfaceY;
     const tl = camera.worldToScreen(wx, wy);
     const sw = (r.c1 - r.c0 + 1 + 2 * M) * cs * z;
     const sh = (r.r1 - r.r0 + 1 + 2 * M) * cs * z;
-    if (tl.x > camera.viewW || tl.x + sw < 0 || tl.y > camera.viewH || tl.y + sh < 0) continue;
+    if (tl.x > camera.viewW || tl.x + sw < 0 || tl.y > camera.viewH || tl.y + sh < 0) return;
     ctx.drawImage(img, tl.x, tl.y, sw, sh);
-  }
+  });
 }
 
 // City skylines sit on the CONCRETE barrier (the man-made middle). Each concrete

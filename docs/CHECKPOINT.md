@@ -474,8 +474,9 @@ Both menus are dark, on-theme, with glowing green borders.
     inset thumb clear of the rounded corners + the ✕; **all death overlays render flat
     black-&-white** (`.card.death`, no gradients/colour accents).
   - **Water-deposit art** re-generated as flat-2D side-cut all-water pockets with
-    bioluminescent creatures (`gen_reservoir.py` reprompt); current pick matted to
-    `assets/reservoir.png`.
+    bioluminescent creatures (`gen_reservoir.py` reprompt). THREE picks (D/E/F) matted to
+    `assets/reservoir1..3.png`; `drawReservoirs` seeded-shuffles them so each of a map's
+    1–3 reservoirs gets a DISTINCT art (no repeat within a map).
 
 - **Water-survival overhaul** (`src/species.js`, `src/config.js`, `src/main.js`, `src/render/ui.js`,
   `src/engine/cards.js`, `src/engine/substrate.js`, `assets/`, `src/render/tutorial.js`). Water is now the
