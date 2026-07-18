@@ -212,22 +212,34 @@ function isPortraitPhone() {
   try { return !!(window.matchMedia && window.matchMedia('(max-width:720px) and (orientation:portrait)').matches); }
   catch (_) { return false; }
 }
-// anchorY = where the SUBJECT should sit vertically, as a fraction of viewport height
-// (0 = top, 0.5 = centre). On a portrait phone the tutorial passes ~0.28 for steps whose
-// popup is at the BOTTOM (so the subject stays in the top half, clear of the popup) and
-// 0.5 for top-popup steps; it also zooms out ~50% there for a wider view. Wider screens
-// ignore anchorY and use the given zoom (there's room for a centred subject + popup).
-function focusWorld(x, y, zoom, anchorY) {
+function isDesktopWide() {
+  try { return window.innerWidth >= 900 && !isPortraitPhone(); }
+  catch (_) { return false; }
+}
+// anchorX / anchorY = where the SUBJECT should sit in the viewport, as fractions
+// (0 = left/top, 0.5 = centre, 1 = right/bottom). The tutorial frames the subject off to
+// one side/edge so its popup can sit clear of it:
+//   • Portrait phone — zoom out ~50%, offset the subject VERTICALLY (anchorY ~0.28) so the
+//     bottom popup never covers it.
+//   • Desktop (wide) — frame the subject in a top quadrant (anchorX ~0.25/0.75, anchorY
+//     ~0.25) so the top-half side popup sits opposite it.
+//   • In-between widths — centred subject, given zoom (unchanged).
+function focusWorld(x, y, zoom, anchorY, anchorX) {
   if (x == null || y == null) return;
   let z = zoom != null ? zoom : camera.zoom;
-  let ty = y;
+  let tx = x, ty = y;
   if (isPortraitPhone()) {
     z *= 0.5;                                              // wider view
-    const f = (anchorY != null) ? anchorY : 0.5;
-    ty = y + (0.5 - f) * camera.viewH / z;                // centre the camera BELOW the subject → it lands at fraction f
+    const fy = (anchorY != null) ? anchorY : 0.5;
+    ty = y + (0.5 - fy) * camera.viewH / z;               // centre the camera so the subject lands at fraction fy
+  } else if (isDesktopWide()) {
+    const fx = (anchorX != null) ? anchorX : 0.5;
+    const fy = (anchorY != null) ? anchorY : 0.5;
+    tx = x + (0.5 - fx) * camera.viewW / z;               // …at horizontal fraction fx
+    ty = y + (0.5 - fy) * camera.viewH / z;               // …and vertical fraction fy
   }
   camFocus = { fromX: camera.x, fromY: camera.y, fromZoom: camera.zoom,
-    toX: x, toY: ty, toZoom: z, t0: performance.now(), dur: 640 };
+    toX: tx, toY: ty, toZoom: z, t0: performance.now(), dur: 640 };
 }
 function focusBounds(b, pad = 80) {
   if (!b) return;

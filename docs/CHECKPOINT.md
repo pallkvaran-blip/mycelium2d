@@ -497,6 +497,10 @@ Both menus are dark, on-theme, with glowing green borders.
   carousel. On portrait the camera (`main.js focusWorld`, `isPortraitPhone()`) also **zooms out ~50%**
   (wider view) and **frames the subject in the TOP HALF** (anchor ~0.28 for bottom-popup steps, 0.5 for
   top-popup steps — passed by `tutorial.js enter()` off `step.place`) so the bottom popup never covers it.
+  **Desktop (wide, ≥900px):** the popup goes to the TOP HALF on the LEFT or RIGHT (`.tut-pop--side`),
+  OPPOSITE the subject — `focusWorld` frames the subject in the opposite top quadrant (`anchorX` 0.25/0.75
+  + `anchorY` 0.25, side chosen by the subject's world-x vs map centre) so popup + subject each own a top
+  quadrant, clear of the top pill and the bottom carousel.
   The map is **never dimmed** (`.tut-catcher` is transparent — it only catches click-to-advance); there's
   **no pointer arrow** (removed — just the pulsing ring); the card-play step selects the **Grow** hand
   filter (`step.filter`→`ui.setHandFilter`, reset to 'all' on finish) to showcase the growth cards; and the

@@ -37,6 +37,14 @@ const phonePortrait = () => {
   catch (_) { return false; }
 };
 
+// On a wide DESKTOP screen the popup goes to the TOP HALF, on the LEFT or RIGHT
+// OPPOSITE the framed subject (main.js offsets the camera so the subject sits on its
+// own side) — so it never covers the subject, the top pill, or the bottom carousel.
+const desktopWide = () => {
+  try { return window.innerWidth >= 900 && !phonePortrait(); }
+  catch (_) { return false; }
+};
+
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 
 export function startTutorial(deps) {
@@ -179,16 +187,35 @@ export function startTutorial(deps) {
     idx = i;
     mem = {};
     const step = steps[i];
+    const s = deps.getState();
+    const f = step.focus && step.focus(s);
     // popup content
     body.innerHTML = step.text;
     if (step.image) { img.src = step.image; img.onerror = () => { fig.style.display = 'none'; }; fig.style.display = ''; }
     else { fig.style.display = 'none'; img.removeAttribute('src'); }
-    // placement
-    pop.classList.remove('tut-pop--top', 'tut-pop--bottom', 'tut-pop--center');
-    pop.classList.add('tut-pop--' + (step.place || 'bottom'));
+    // ---- placement ----------------------------------------------------------
+    // Portrait phone: popup at step.place (top/bottom/centre), subject framed in the
+    //   top half vertically (anchorY), carousel minimised, view zoomed out.
+    // Desktop (wide): popup in the TOP HALF on the LEFT or RIGHT; the subject is centred
+    //   in the OPPOSITE top quadrant (anchor ~0.25,0.25 or ~0.75,0.25) so popup + subject
+    //   each own a top quadrant, clear of each other, the top pill, and the bottom carousel.
+    // Otherwise: popup at step.place (top/bottom/centre).
+    const desktop = desktopWide();
+    pop.classList.remove('tut-pop--top', 'tut-pop--bottom', 'tut-pop--center', 'tut-pop--side', 'tut-pop--left', 'tut-pop--right');
+    let anchorY = step.place === 'top' ? 0.5 : 0.28;   // portrait vertical framing
+    let anchorX;                                        // desktop horizontal framing (undef elsewhere)
+    if (desktop) {
+      const midX = (s && s.substrate) ? s.substrate.worldWidth / 2 : 0;
+      const subjLeft = (f && f.x != null) ? (f.x < midX) : true;
+      anchorX = subjLeft ? 0.25 : 0.75;                // centre of the top-left / top-right quadrant…
+      anchorY = 0.25;                                   // …centre of the top half
+      pop.classList.add('tut-pop--side', subjLeft ? 'tut-pop--right' : 'tut-pop--left');   // …popup in the OTHER top quadrant
+    } else {
+      pop.classList.add('tut-pop--' + (step.place || 'bottom'));
+    }
     // hand carousel: open it for the steps that need it; on a portrait phone,
     // MINIMIZE it on every other step so the popup + pics have room. Wider screens
-    // keep the hand as-is. The hand is maximized again when the tutorial ends.
+    // keep the hand as-is (the top-half popup never reaches the carousel).
     if (step.hand === 'open') deps.setHandOpen(true);
     else if (phonePortrait()) deps.setHandOpen(false);
     // select a card FILTER for this step (e.g. the card-play showcase highlights Grow)
@@ -200,12 +227,9 @@ export function startTutorial(deps) {
     btnNext.style.display = forced ? 'none' : '';
     btnNext.textContent = step.last ? 'Begin ▸' : 'Next ▸';
     catcher.style.display = (forced || interactive) ? 'none' : '';
-    // camera focus. On a portrait phone the popup sits at the BOTTOM for most steps, so
-    // frame the subject in the top half (anchor ~0.28); top-popup steps centre it (0.5)
-    // so it isn't pushed under their popup. focusWorld ignores the anchor on wider screens.
-    const anchorY = step.place === 'top' ? 0.5 : 0.28;
-    const f = step.focus && step.focus(deps.getState());
-    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom, anchorY);
+    // camera focus: frame the subject at (anchorX, anchorY). focusWorld applies the
+    // offsets only on the matching form factor (portrait → anchorY; desktop → both).
+    if (f && f.zoom != null) deps.focusWorld(f.x, f.y, f.zoom, anchorY, anchorX);
     else if (f && f.bounds) deps.focusBounds(f.bounds, f.pad || 80);
     // card glow
     applyGlow(step.glowCard);

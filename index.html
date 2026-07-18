@@ -1044,6 +1044,14 @@
     .tut-pop--bottom { bottom:120px; }
     .tut-pop--top { top:26px; }
     .tut-pop--center { top:50%; transform:translate(-50%,-50%); }
+    /* Desktop: popup in the TOP HALF, on the LEFT or RIGHT (opposite the framed subject),
+       clear of the top-left resource pill (top offset) and the bottom card carousel (top
+       half). Applied by tutorial.js only on wide screens. */
+    .tut-pop--side { top:clamp(72px, 11vh, 150px); bottom:auto; left:auto; right:auto;
+      transform:none; width:min(440px, 40vw); }
+    .tut-pop--side.tut-pop--left  { left:clamp(20px, 4vw, 72px); }
+    .tut-pop--side.tut-pop--right { right:clamp(20px, 4vw, 72px); }
+    .tut-pop--side .tut-fig img { max-height:200px; }
     .tut-body { font-size:17px; line-height:1.5; letter-spacing:.004em; text-wrap:balance; }
     .tut-body b { font-weight:700; }
     .tut-body i { font-style:italic; color:#dcdcdc; }
