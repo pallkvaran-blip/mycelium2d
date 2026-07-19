@@ -1210,8 +1210,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1sasnqo";
-globalThis.__BUILD__ = "local 07-19 08:12";
+window.__ASSET_VER = "zi75sd";
+globalThis.__BUILD__ = "local 07-19 08:21";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8349,16 +8349,35 @@ class NetworkRenderer {
     ctx.save();
     ctx.translate(tl.x, tl.y); ctx.scale(zoom, zoom);
     ctx.lineCap = 'round';
-    if (detailAmt <= 0.02) this._strokeBatched(ctx, brightness);
+    const simplify = detailAmt <= 0.02;
+    if (simplify) this._strokeBatched(ctx, brightness);
     else this._strokeStructure(ctx, brightness, cull, detailAmt);
-    // Subtle mint SHEEN to echo the lit colony's glow: additive, stroked ALONG the strands
-    // (a touch wider for a soft edge) so it brightens the colony toward mint-white without a
-    // radial halo bleeding into the earth.
-    const featherW = 1.4 / Math.max(0.001, zoom);   // ~0.7px each side — hugs the strand
+    // Mint SHEEN to echo the lit colony's glow: additive, stroked ALONG the strands (a touch
+    // wider for a soft edge) so it brightens the colony toward mint-white without a radial
+    // halo bleeding into the earth. It must animate WITH growth, so — like the base structure
+    // — it's stroked per-node reveal-aware (only the batched-LOD path, used when zoomed out,
+    // draws the static skeleton, matching that LOD's own non-animated strands).
+    const featherW = 2.2 / Math.max(0.001, zoom);   // ~1.1px each side — hugs the strand
+    const SHEEN_A = 0.24;
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = this.config.render.networkLight;   // mint (rgba(150,255,190,1))
-    ctx.globalAlpha = 0.16;
-    for (const b of this.batches.cream) { ctx.lineWidth = b.w + featherW; ctx.stroke(b.path); }
+    if (simplify) {
+      ctx.globalAlpha = SHEEN_A;
+      for (const b of this.batches.cream) { ctx.lineWidth = b.w + featherW; ctx.stroke(b.path); }
+    } else {
+      const net = this.network;
+      for (const n of net.nodes) {
+        if (n.parentId == null || n.infected) continue;
+        const p = net.byId.get(n.parentId); if (!p) continue;
+        const rev = this.revealFactor(n, time);
+        if (rev <= 0) continue;                            // not grown-in here yet — no sheen
+        const ex = rev < 1 ? p.x + (n.x - p.x) * rev : n.x;
+        const ey = rev < 1 ? p.y + (n.y - p.y) * rev : n.y;
+        ctx.lineWidth = 1.0 + Math.min(0.55, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.13) + featherW;
+        ctx.globalAlpha = SHEEN_A * (rev < 1 ? rev : 1);   // fade the sheen in with the strand
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+      }
+    }
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
   }
