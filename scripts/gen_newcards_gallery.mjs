@@ -16,7 +16,7 @@ const PICKS = [
   ['Translocation Cord', 'white — option 4'],
   ['Explorer Cord', 'Translocation Cord white — option 2'],
   ['Turgor Line', 'single line — option 2'],
-  ['Vesicle Supply Line', 'option 1'],
+  ['Vesicle Supply Line', 'Turgor Line option 3 — single line'],
   ['Bulk-Flow Cord', 'option 1'],
   ['Rhizomorph Cable', 'option 1'],
 ];
