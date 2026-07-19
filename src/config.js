@@ -156,6 +156,7 @@ export const CONFIG = {
     substrateSmall: 40,
     substrateMedium: 70,
     substrateLarge: 110,
+    acornCacheEnergy: 2,         // Acorn Cache pile digests to exactly this much Energy total (not the default per-nutrient rate)
     // Growth distances follow one convention: 1 "step" ≈ 3 cells.
     reachSegments: 18,           // Rhizomorph Lance / Fruiting Vigil: "6 steps" forward (6 × 3)
     directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)

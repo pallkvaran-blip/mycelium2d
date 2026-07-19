@@ -1204,8 +1204,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "11opbzq";
-globalThis.__BUILD__ = "local 07-19 06:33";
+window.__ASSET_VER = "1a0rnr3";
+globalThis.__BUILD__ = "local 07-19 06:50";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1367,6 +1367,7 @@ const CONFIG = {
     substrateSmall: 40,
     substrateMedium: 70,
     substrateLarge: 110,
+    acornCacheEnergy: 2,         // Acorn Cache pile digests to exactly this much Energy total (not the default per-nutrient rate)
     // Growth distances follow one convention: 1 "step" ≈ 3 cells.
     reachSegments: 18,           // Rhizomorph Lance / Fruiting Vigil: "6 steps" forward (6 × 3)
     directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)
@@ -1707,7 +1708,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Pick a direction; drop a SMALL nut cache at the edge of sensing range.",
+  "effect": "Pick a direction; drop a SMALL 2⚡ nut cache at the edge of sensing range.",
   "family": "basics",
   "tutorial": true,
   "startCopies": 5
@@ -3197,8 +3198,12 @@ class Substrate {
   }
 
   // Deposit nutrient in a radius (Add Substrate action). Falls off to the edge.
-  deposit(x, y, amount, radiusCells) {
+  // `energyTotal` (optional): make the whole nut pile digest to EXACTLY this much
+  // Energy (spread as a per-nutrient rate over the cells it wrote), instead of the
+  // default global incomeEfficiency — e.g. Acorn Cache = 2⚡ total.
+  deposit(x, y, amount, radiusCells, energyTotal) {
     const c0 = this.colAtX(x), r0 = this.rowAtY(y);
+    const written = [];
     for (let row = r0 - radiusCells; row <= r0 + radiusCells; row++) {
       for (let col = c0 - radiusCells; col <= c0 + radiusCells; col++) {
         if (!this.inBounds(col, row)) continue;
@@ -3211,8 +3216,13 @@ class Substrate {
         cell.hazard = false;
         // Player-placed food = a humble NUT cache (energy only, no card). Never
         // downgrade a MAP cache cell (orange draft / red engine / brown duff).
-        if (!cell.foodKind || cell.foodKind === 'nut') cell.foodKind = 'nut';
+        if (!cell.foodKind || cell.foodKind === 'nut') { cell.foodKind = 'nut'; written.push(cell); }
       }
+    }
+    if (energyTotal != null && written.length) {
+      let tot = 0; for (const c of written) tot += c.maxNutrient;
+      const per = tot > 0 ? energyTotal / tot : 0;
+      for (const c of written) c.energyPerNutrient = per;   // whole pile digests to exactly energyTotal
     }
   }
 
@@ -6206,7 +6216,7 @@ function punchAt(state, ctx) {
   const py = ctx.srcY != null ? ctx.srcY : ctx.y;
   return state.active.punchThrough(state.substrate, state.rng, px, py, ctx.x, ctx.y);
 }
-function depositAtSensingEdge(state, ctx, amount, radiusCells) {
+function depositAtSensingEdge(state, ctx, amount, radiusCells, energyTotal) {
   const sub = state.substrate;
   const g = state.config.growth;
   const { fp, dx, dy } = dirFrom(state, ctx);
@@ -6237,7 +6247,7 @@ function depositAtSensingEdge(state, ctx, amount, radiusCells) {
     }
   }
   const at = best || target;   // fallback only if the colony is fully walled in
-  sub.deposit(at.x, at.y, amount, radiusCells);
+  sub.deposit(at.x, at.y, amount, radiusCells, energyTotal);
   return { px: at.x, py: at.y };
 }
 function nodeTouches(state, pred) {
@@ -6457,7 +6467,7 @@ const EFFECTS = {
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
-  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Buried a small nut cache at the sensing edge.' }; }),
+  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
@@ -8742,9 +8752,11 @@ class Lighting {
     }
 
     // The living network — mint glow following the filaments (the round lit halo
-    // around the colony). Part of the mycelium's "sensing-range lighting", so it's
-    // gated by the same toggle as the aura above; ambient + hazard glow stay.
-    if (this.senseAura !== false) for (const net of state.networks) {
+    // around the colony) that keeps the mycelium reading BRIGHT WHITE against the
+    // dimmed earth. This is ALWAYS on (not gated by the sensing-range toggle): with
+    // the toggle off you lose the wide sensing AURA above, but the colony itself must
+    // still glow bright — only the surrounding sensed-area light goes away.
+    for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
       const bright = breath; // glow independent of vitality
       const nodes = net.nodes;

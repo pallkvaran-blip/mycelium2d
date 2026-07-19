@@ -114,9 +114,11 @@ export class Lighting {
     }
 
     // The living network — mint glow following the filaments (the round lit halo
-    // around the colony). Part of the mycelium's "sensing-range lighting", so it's
-    // gated by the same toggle as the aura above; ambient + hazard glow stay.
-    if (this.senseAura !== false) for (const net of state.networks) {
+    // around the colony) that keeps the mycelium reading BRIGHT WHITE against the
+    // dimmed earth. This is ALWAYS on (not gated by the sensing-range toggle): with
+    // the toggle off you lose the wide sensing AURA above, but the colony itself must
+    // still glow bright — only the surrounding sensed-area light goes away.
+    for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
       const bright = breath; // glow independent of vitality
       const nodes = net.nodes;

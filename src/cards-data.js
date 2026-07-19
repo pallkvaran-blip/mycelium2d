@@ -50,7 +50,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Pick a direction; drop a SMALL nut cache at the edge of sensing range.",
+  "effect": "Pick a direction; drop a SMALL 2⚡ nut cache at the edge of sensing range.",
   "family": "basics",
   "tutorial": true,
   "startCopies": 5

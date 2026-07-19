@@ -244,8 +244,12 @@ export class Substrate {
   }
 
   // Deposit nutrient in a radius (Add Substrate action). Falls off to the edge.
-  deposit(x, y, amount, radiusCells) {
+  // `energyTotal` (optional): make the whole nut pile digest to EXACTLY this much
+  // Energy (spread as a per-nutrient rate over the cells it wrote), instead of the
+  // default global incomeEfficiency — e.g. Acorn Cache = 2⚡ total.
+  deposit(x, y, amount, radiusCells, energyTotal) {
     const c0 = this.colAtX(x), r0 = this.rowAtY(y);
+    const written = [];
     for (let row = r0 - radiusCells; row <= r0 + radiusCells; row++) {
       for (let col = c0 - radiusCells; col <= c0 + radiusCells; col++) {
         if (!this.inBounds(col, row)) continue;
@@ -258,8 +262,13 @@ export class Substrate {
         cell.hazard = false;
         // Player-placed food = a humble NUT cache (energy only, no card). Never
         // downgrade a MAP cache cell (orange draft / red engine / brown duff).
-        if (!cell.foodKind || cell.foodKind === 'nut') cell.foodKind = 'nut';
+        if (!cell.foodKind || cell.foodKind === 'nut') { cell.foodKind = 'nut'; written.push(cell); }
       }
+    }
+    if (energyTotal != null && written.length) {
+      let tot = 0; for (const c of written) tot += c.maxNutrient;
+      const per = tot > 0 ? energyTotal / tot : 0;
+      for (const c of written) c.energyPerNutrient = per;   // whole pile digests to exactly energyTotal
     }
   }
 

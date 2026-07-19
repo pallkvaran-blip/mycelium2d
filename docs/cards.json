@@ -47,7 +47,7 @@
   "playCostEnergy": 0,
   "playCostWater": 1,
   "playCostPhosphorus": 0,
-  "effect": "Pick a direction; drop a SMALL nut cache at the edge of sensing range.",
+  "effect": "Pick a direction; drop a SMALL 2⚡ nut cache at the edge of sensing range.",
   "timing": "early",
   "repayRounds": 0,
   "axis": "utility",

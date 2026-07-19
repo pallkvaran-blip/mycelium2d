@@ -529,7 +529,7 @@ function punchAt(state, ctx) {
   const py = ctx.srcY != null ? ctx.srcY : ctx.y;
   return state.active.punchThrough(state.substrate, state.rng, px, py, ctx.x, ctx.y);
 }
-function depositAtSensingEdge(state, ctx, amount, radiusCells) {
+function depositAtSensingEdge(state, ctx, amount, radiusCells, energyTotal) {
   const sub = state.substrate;
   const g = state.config.growth;
   const { fp, dx, dy } = dirFrom(state, ctx);
@@ -560,7 +560,7 @@ function depositAtSensingEdge(state, ctx, amount, radiusCells) {
     }
   }
   const at = best || target;   // fallback only if the colony is fully walled in
-  sub.deposit(at.x, at.y, amount, radiusCells);
+  sub.deposit(at.x, at.y, amount, radiusCells, energyTotal);
   return { px: at.x, py: at.y };
 }
 function nodeTouches(state, pred) {
@@ -780,7 +780,7 @@ export const EFFECTS = {
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
-  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Buried a small nut cache at the sensing edge.' }; }),
+  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 

@@ -454,6 +454,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Acorn Cache = fixed 2⚡ + sense-toggle keeps the colony bright.**
+  - **Acorn Cache now digests to exactly 2⚡** (was the default per-nutrient rate ≈ lots).
+    `substrate.deposit()` gained an optional `energyTotal` arg — it spreads a per-nutrient rate
+    over the cells it wrote so the whole nut pile yields exactly that total; `depositAtSensingEdge`
+    threads it; `EFFECTS['Acorn Cache']` passes `config.cards.acornCacheEnergy` (=2). Description
+    (cards.json → regen) now reads "…drop a SMALL **2⚡** nut cache…". Verified: pile totals 2.000
+    across seeds (4–5 cells). Other deposit callers pass no `energyTotal` → unchanged.
+  - **Sense-range lighting OFF now keeps the mycelium bright white.** In `render/lighting.js` the
+    colony's own mint glow (the light that keeps filaments bright against the dimmed earth) was
+    gated by the sensing toggle, so turning it off dimmed the whole colony. That glow is now
+    ALWAYS on; only the wide sensing AURA (the sensed-area frontier glow) is toggled. Verified:
+    colony p99 luminance 252 (off) ≈ 255 (on), while surrounding earth dims (53 vs 82) — bright
+    colony, no surrounding aura.
+
 - **Left "home" hill + death fruiting + reworded death card + half-Spores on death.**
   - **Home hill (LEFT):** `drawHomeBackdrop()` + `drawHomeProps()` (main.js) draw half a green
     mound hugging the left frame over the colony start — the goal-hill art flipped, its peak
