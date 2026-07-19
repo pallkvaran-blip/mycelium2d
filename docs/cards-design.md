@@ -11,7 +11,8 @@ open issues to resolve before implementation.
 > to look fully colonised at once, and a pile digests in ~2 steps. **v9: pile drafting** — empty starting
 > hand; draft new cards by finishing map food piles. No `rarity`; variable buy costs (cap ~40).
 > CURRENT rules: §17 (v8) → §18 (v9 drafting) → **§19 (v10 two-resource — authoritative)** →
-> §20 (grow-card tuning) → **§22 (installed ACTIONS menu — authoritative for the 4 action cards)**.
+> §20 (grow-card tuning) → **§22 (installed ACTIONS menu)** → **§23 (v11 — `buyCostPhosphorus`
+> install gate + rebalancing pass — authoritative for costs)**.
 > §21 is the (unbuilt) long-term vision.
 
 ---
@@ -879,3 +880,45 @@ Note: this diverges from §15.1's earlier "every action activation = 1 P" line �
 Tap-Root (2 P) and Sclerotial Seal (1 P) charge per use now; Constricting Ring and Suberin
 Wall are free to activate (their card text has no "Pay"). The card **face** text and the
 Actions-menu row label are the source of truth for each card's gating.
+
+---
+
+## 23. v11 — `buyCostPhosphorus` install gate + rebalancing pass (CURRENT — authoritative for costs)
+
+Per-card costs now live in `docs/cards.json` (regen → build); this section records the
+**model change** and the intent behind the tuning. Numbers below are the *what changed*, not
+the running total — treat `cards.json` (and the card editor at `docs/card-editor.html`) as
+the live cost sheet.
+
+**New cost dimension — `buyCostPhosphorus` (→ `buyP` in `CARD_DATA`).** Supersedes §22's
+"install cost = the card's buy Energy only." A card can now gate its **install** on Phosphorus
+too, charged for **any** card type alongside `buyCostEnergy`:
+
+- The point is installed **actions**. Their play-W/P is a *per-activation* price, not an
+  install gate (§22), so before this there was no way to make an action "cost P to acquire."
+  `buyP` is that acquisition gate.
+- Wiring: `cardBlockedReason` blocks (`Not enough Phosphorus (need N)`); `playCard` charges
+  `net.phosphorus -= c.buyP` for all types; `ui.js gateChips` draws a P pip on **every** face
+  (right after the buy-⚡ pip — unlike play-W/P, which stays off action faces). The card editor
+  has a **Buy P** field + face pip.
+- Install-P set on: **Leading Cord 3 · Forager Bloom 1 · Crust Reserve 3 · Colonizing Front 1 ·
+  Acorn Fall 1 · Sclerotial Seal 1 · Melanized Wall 2 · Sclerotial Rind 2 · Toxocyst Array 3.**
+
+**Constricting Ring** — now **3 P per activation** (was free; §22 table's "free" is superseded).
+Interpretation call: its rebalance was expressed as `playCostPhosphorus 0→3` on an installed
+action, read as a per-use cost (the `action` spec's `cost/res`), not a `buyP` install gate.
+
+**Mechanic changes.**
+- **Acorn Cache** — placement is now **drag-aim (`directional`)** like grow cards (aim a
+  direction; the cache lands at the sensing edge in that direction) rather than a single tap.
+  Still a fixed **2⚡** nut cache (`config.cards.acornCacheEnergy`). Text uses the ⚡ glyph.
+- **Constricting Snap** — text/message dropped "throttled and" → "…digested for +3 P".
+- **Toxocyst Burst** — Phosphorus income **caps at 10** (`gain = Math.min(n, 10)`) while still
+  killing **every** nematode in radius; text "…digested (+1 P each, **max 10 P**)."
+
+**Cost retune (~30 cards).** Broad E/P buy & play retuning across the set — engines and
+utilities made pricier (e.g. Aquaporin Channels 10→25⚡ +7P play, Capillary Runners 9→30⚡ +7P,
+Dew Traps 11→22⚡ +8P), a few softened (Cordyceps Bloom 14→7⚡, Cord Capillary 6→4⚡). Not
+reproduced card-by-card here — see `cards.json`. Tests in `test/cards.test.js` assert the new
+numbers for Rhizomorph Trunkline (6P play), Aquaporin (7P play), Osmotic Cashout (5P play),
+and Toxocyst Array (3P buy-in).

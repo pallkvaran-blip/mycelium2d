@@ -34,7 +34,7 @@ authoritative. Where they overlap, defer to them.
 
 | Doc | Owns |
 | --- | --- |
-| **[`docs/cards-design.md`](cards-design.md)** | **Authoritative** card-system design: vision, core loop, §2 *Locked design decisions*, rules/balance framework, versioned rulings (current: **v10**, two-resource W/P). The source of truth for card behaviour & economy. |
+| **[`docs/cards-design.md`](cards-design.md)** | **Authoritative** card-system design: vision, core loop, §2 *Locked design decisions*, rules/balance framework, versioned rulings (current: **v11** — two-resource W/P + `buyCostPhosphorus` install gate, §23). The source of truth for card behaviour & economy. |
 | [`docs/cards-review.md`](cards-review.md) | Rolling per-card playtest verdicts (👍/👎) and the cross-cutting rulings (R1–R12) they generated. |
 | `docs/cards.json` / `docs/cards.csv` | Card **data** (source). `src/cards-data.js` is generated from `cards.json`. |
 | [`docs/STYLE_GUIDE.md`](STYLE_GUIDE.md) | Art direction (bioluminescent deep-earth): mood, palette, lighting, prompt prefix. |
@@ -176,10 +176,13 @@ Turn on via `CONFIG.cards.enabled` (currently `true`). When on, the card layer
     `ui.pendingAction`; the next map tap re-calls with `{x,y}`), then pays cost / starts
     `cd` / spends a use **only on a successful resolve**. `produceCardEngines` (each world
     tick) resets `used=0` and ages `cd` down.
-  - **Action install cost = Energy only** — `playCard` / `cardBlockedReason` skip W/P for
-    `type==='action'` cards (a card's W/P is its *per-activation* cost); the card face
-    hides its W/P pip and the hand never greys it for W/P. Duplicate `action` installs are
-    blocked ("Already installed").
+  - **Action install cost = Energy (+ optional `buyP` Phosphorus buy-in)** — `playCard` /
+    `cardBlockedReason` skip *play* W/P for `type==='action'` cards (a card's play W/P is its
+    *per-activation* cost); the card face hides its play-W/P pip and the hand never greys it for
+    W/P. **But `buyCostPhosphorus` (`buyP` in CARD_DATA) IS an install gate charged for every
+    card type** (added v11, cards-design §23) — it's how an action gates *acquisition* on P; it's
+    checked/charged next to `buyCostEnergy` and DOES draw a P pip on the face. Duplicate `action`
+    installs are blocked ("Already installed").
   - `event` / `basic` / `extender` → one-shot (play → discard / shuffle).
 - **Traps & wards:** Constricting Ring lays a snare into `state.traps[]` (`{x,y,r,reward}`);
   `resolveTraps` (turn.js, each tick after `stepNematodes`) digests a worm whose **swept
@@ -1768,9 +1771,11 @@ Both menus are dark, on-theme, with glowing green borders.
     on the first call (Use button) so `main.js` arms a map-aim (`ui.pendingAction`); the
     map tap resolves it. Cost/cooldown/per-round-use are spent **only on a successful
     resolve**. `produceCardEngines` resets `used=0` and ticks `cd` down each world tick.
-  - **Install cost model:** action cards pay **Energy only** to install; their W/P is a
-    **per-activation** cost (in the spec), not an install gate — so `playCard`/`cardBlockedReason`
-    skip W/P for `action`-type cards, and the card face hides W/P pips for them.
+  - **Install cost model:** action cards pay **Energy (+ optional `buyCostPhosphorus`)** to
+    install; their *play* W/P is a **per-activation** cost (in the spec), not an install gate — so
+    `playCard`/`cardBlockedReason` skip *play* W/P for `action`-type cards, and the card face hides
+    play-W/P pips for them. **`buyP` (v11, cards-design §23) is the exception:** a Phosphorus
+    buy-in charged at install for every type, and it DOES show a P pip on the face.
   - **Guards (from an adversarial review pass):** aim states are mutually exclusive and
     cleared on Draw/Skip/Play/restart + the card-resolve tap (no stranded action firing on a
     later tap); duplicate action installs are blocked (`Already installed`) so cooldowns
