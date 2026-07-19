@@ -509,6 +509,11 @@ Both menus are dark, on-theme, with glowing green borders.
     art inlined as data: URIs). The face updates LIVE as you edit — pips from the cost fields
     (mirrors `ui.js gateChips`: buy ⚡ gate + non-action play 💧/P), rules from the `effect` field.
     Lets you edit every card's costs (buy ⚡, play ⚡/💧/P) + description (`effect`) + `flavor`.
+    Shows only **in-game cards** (the `ARCHIVED` set is parsed from `engine/cards.js` and
+    filtered out — 50 of 60). The 2-column grid uses `repeat(2,minmax(0,1fr))` (+ `overflow-x`
+    guard) so it never forces a horizontal scrollbar on a laptop; each card also has a **Comment**
+    box (dashed, stored separately from edits, never written to cards.json) for change requests
+    beyond cost/text — it flows into the "Copy changes" export as `COMMENT:`.
     Edited fields glow amber, edits
     persist in `localStorage`, and there are two round-trips: **Download cards.json** (drop over
     `docs/cards.json`, then `node scripts/gen-carddata.mjs && node build.mjs`) or **Copy changes**

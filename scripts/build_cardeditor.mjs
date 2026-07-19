@@ -23,8 +23,20 @@ const SRC = join(ROOT, 'docs', 'cards.json');
 const ARTDIR = join(ROOT, 'assets', 'cards');
 const target = process.argv[2] || join(ROOT, 'docs', 'card-editor.html');
 
-const cards = JSON.parse(readFileSync(SRC, 'utf8'));
-if (!Array.isArray(cards)) throw new Error('cards.json is not an array');
+const allCards = JSON.parse(readFileSync(SRC, 'utf8'));
+if (!Array.isArray(allCards)) throw new Error('cards.json is not an array');
+
+// Exclude ARCHIVED cards (parsed from engine/cards.js so it stays in sync) — the
+// editor only shows cards that are actually in the game.
+const archived = new Set();
+{
+  const src = readFileSync(join(ROOT, 'src', 'engine', 'cards.js'), 'utf8');
+  const m = src.match(/const ARCHIVED = new Set\(\[([\s\S]*?)\]\)/);
+  // Strip // comments first — they contain apostrophes ("can't") that would otherwise
+  // be mistaken for string delimiters and corrupt the last entries.
+  if (m) for (const q of m[1].replace(/\/\/[^\n]*/g, '').matchAll(/'([^']+)'/g)) archived.add(q[1]);
+}
+const cards = allCards.filter((c) => !archived.has(c.name));
 
 // Match src/render/ui.js cardSlug(): name -> art file stem.
 const slugOf = (name) => String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -44,7 +56,7 @@ const css = `
 :root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
   --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --water:#6cc7ff; --phos:#c79bff; --edit:#ffd76a; }
 *{box-sizing:border-box}
-body{margin:0}
+html,body{margin:0;max-width:100%;overflow-x:hidden}
 .wrap{max-width:1240px;margin:0 auto;padding:24px 18px 150px;color:var(--ink);
   font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
   background:radial-gradient(1100px 460px at 26% -8%,rgba(126,240,192,.06),transparent 60%),
@@ -59,14 +71,16 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 .search::placeholder{color:var(--dim)} .search:focus{outline:none;border-color:var(--mint)}
 .sel{font:inherit;font-size:13px;border-radius:10px;padding:9px 10px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
 .chk{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-size:13px;cursor:pointer;user-select:none}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
-@media(max-width:980px){.grid{grid-template-columns:1fr}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px 15px;box-shadow:0 14px 40px -26px rgba(0,0,0,.7);position:relative}
+/* Two columns that ALWAYS fit the viewport: minmax(0,1fr) lets each column shrink
+   below its content's intrinsic width instead of forcing a horizontal scrollbar. */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:8px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px 15px;box-shadow:0 14px 40px -26px rgba(0,0,0,.7);position:relative;min-width:0}
 .card.changed{border-color:rgba(255,215,106,.55);box-shadow:0 0 0 1px rgba(255,215,106,.25),0 14px 40px -26px rgba(0,0,0,.7)}
 .card.hidden{display:none}
-.cardrow{display:flex;gap:15px;align-items:flex-start;flex-wrap:wrap}
+.cardrow{display:flex;gap:13px;align-items:flex-start;flex-wrap:wrap}
 .facewrap{flex:0 0 auto}
-.editwrap{flex:1 1 300px;min-width:250px}
+.editwrap{flex:1 1 220px;min-width:0}
 .chead{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin:0 0 10px}
 .cn2{font-size:16px;font-weight:800;letter-spacing:-.01em}
 .badge{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
@@ -77,7 +91,7 @@ h1{font-size:27px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing
 .costs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px}
 .cost{display:flex;flex-direction:column;gap:3px}
 .cost label{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--dim);text-transform:uppercase}
-.cost input{font:inherit;font-size:15px;font-weight:700;text-align:center;border-radius:8px;padding:7px 4px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.cost input{width:100%;min-width:0;font:inherit;font-size:15px;font-weight:700;text-align:center;border-radius:8px;padding:7px 4px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
 .cost input:focus{outline:none;border-color:var(--mint)}
 .cost input.diff{border-color:var(--edit);color:var(--edit)}
 .cost.e label{color:var(--mint)} .cost.w label{color:var(--water)} .cost.p label{color:var(--phos)}
@@ -87,6 +101,10 @@ textarea{width:100%;font:inherit;font-size:13px;line-height:1.4;border-radius:9p
 textarea:focus{outline:none;border-color:var(--mint)}
 textarea.diff{border-color:var(--edit)}
 textarea.eff{min-height:52px} textarea.flav{min-height:40px;color:var(--dim);font-style:italic}
+.fldim{font-weight:600;letter-spacing:0;text-transform:none;color:var(--dim);opacity:.8;font-size:9.5px}
+textarea.comment{min-height:44px;border-style:dashed;border-color:rgba(108,199,255,.4);color:#cfe6f5}
+textarea.comment:focus{border-style:solid;border-color:var(--water)}
+textarea.comment.hasnote{border-style:solid;border-color:var(--water);background:rgba(108,199,255,.07)}
 
 /* ---- REAL in-game card face (markup + CSS lifted from index.html) ---- */
 .facewrap{ --accent:#7fe6a3; --fink:#d7e6dc; --fdim:#8aa193;
@@ -136,7 +154,7 @@ textarea.eff{min-height:52px} textarea.flav{min-height:40px;color:var(--dim);fon
 const body = `<div class="wrap">
   <p class="eyebrow">Mycelium · card editor</p>
   <h1>Review &amp; edit card costs and descriptions</h1>
-  <p class="lede">Every card from <code>docs/cards.json</code>, shown on its <b>real in-game face</b>. Change any <b>buy / play cost</b> or the <b>description</b> &amp; <b>flavour</b> — the card face updates live, edited fields glow amber, and your work is saved in this browser. When done, either <b>Download cards.json</b> and drop it over <code>docs/cards.json</code> (then <code>node scripts/gen-carddata.mjs &amp;&amp; node build.mjs</code>), or <b>Copy changes</b> and paste them back to Claude.</p>
+  <p class="lede">Every <b>in-game</b> card (archived cards are hidden), shown on its <b>real face</b>. Change any <b>buy / play cost</b> or the <b>description</b> &amp; <b>flavour</b> — the face updates live and edited fields glow amber. Leave a <b>comment</b> on a card for anything beyond text/cost (a mechanic tweak, an art change). Everything saves in this browser. When done, either <b>Download cards.json</b> and drop it over <code>docs/cards.json</code> (then <code>node scripts/gen-carddata.mjs &amp;&amp; node build.mjs</code>), or <b>Copy changes</b> (costs, text, and comments) and paste them back to Claude.</p>
   <div class="tools">
     <input class="search" id="search" type="text" placeholder="Search name, type, or effect…">
     <select class="sel" id="typeSel"><option value="">All types</option></select>
@@ -145,7 +163,7 @@ const body = `<div class="wrap">
   <div class="grid" id="grid"></div>
 </div>
 <div class="bar"><div class="barwrap">
-  <span class="metric"><b id="mChanged">0</b> cards edited · <b id="mFields">0</b> fields</span>
+  <span class="metric"><b id="mChanged">0</b> cards edited · <b id="mFields">0</b> fields · <b id="mComments">0</b> comments</span>
   <span style="flex:1"></span>
   <button class="btn ghost" id="btnReset">Reset all</button>
   <button class="btn ghost" id="btnCopy">Copy changes</button>
@@ -169,6 +187,16 @@ const body = `<div class="wrap">
   var KEY = 'mycelium-card-editor-v1';
   var edits = {}; try{ edits = JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ edits = {}; }
   function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(edits)); }catch(e){} }
+  // Free-text comments (change requests beyond cost/text — mechanic, art, etc.). Kept
+  // separate from the edits map (never written into cards.json), sent to Claude via export.
+  var CKEY = 'mycelium-card-editor-comments-v1';
+  var comments = {}; try{ comments = JSON.parse(localStorage.getItem(CKEY)) || {}; }catch(e){ comments = {}; }
+  function persistC(){ try{ localStorage.setItem(CKEY, JSON.stringify(comments)); }catch(e){} }
+  function getComment(card){ return comments[card.name] || ''; }
+  function setComment(card, v){ if(v && v.trim()) comments[card.name]=v; else delete comments[card.name]; persistC(); }
+  function hasEdits(card){ return !!(edits[card.name] && Object.keys(edits[card.name]).length); }
+  function hasComment(card){ return !!(comments[card.name] && comments[card.name].trim()); }
+  function isChanged(card){ return hasEdits(card) || hasComment(card); }
   var esc = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
   var pip = function(n){ return (n|0); };
 
@@ -244,6 +272,8 @@ const body = `<div class="wrap">
           '<div class="hint">Card face shows the buy ⚡ gate'+(card.type==='action'?' (an action\\'s play W/P is a per-use cost, not shown on the face)':' + play 💧/P')+'.</div>'+
           '<label class="fl">Description (effect)</label><textarea class="eff" data-f="effect"></textarea>'+
           '<label class="fl">Flavour</label><textarea class="flav" data-f="flavor"></textarea>'+
+          '<label class="fl">Comment <span class="fldim">— change request beyond text/cost (mechanic, art…), sent to Claude</span></label>'+
+          '<textarea class="comment" data-comment="1" placeholder="e.g. this should also hit adjacent nests; or redraw the art brighter…"></textarea>'+
         '</div>'+
       '</div>';
     grid.appendChild(wrap);
@@ -260,15 +290,17 @@ const body = `<div class="wrap">
       var f = ta.dataset.f; ta.value = cur(card,f)||'';
       ta.addEventListener('input', function(){ setEdit(card,f,ta.value); refreshCard(card); metrics(); });
     });
+    var cta = wrap.querySelector('textarea[data-comment]');
+    if(cta){ cta.value = getComment(card); cta.addEventListener('input', function(){ setComment(card, cta.value); refreshCard(card); metrics(); }); }
     refreshCard(card);
   });
 
   function refreshCard(card){
     var wrap = nodes[card.name];
-    var changed = !!(edits[card.name] && Object.keys(edits[card.name]).length);
-    wrap.classList.toggle('changed', changed);
+    wrap.classList.toggle('changed', isChanged(card));
     wrap.querySelectorAll('input[data-f]').forEach(function(inp){ inp.classList.toggle('diff', isDiff(card,inp.dataset.f)); });
     wrap.querySelectorAll('textarea[data-f]').forEach(function(ta){ ta.classList.toggle('diff', isDiff(card,ta.dataset.f)); });
+    var cta = wrap.querySelector('textarea[data-comment]'); if(cta) cta.classList.toggle('hasnote', hasComment(card));
     // Live-update the real card face: pips (costs) + rules (effect).
     var pipsEl = wrap.querySelector('.facewrap .pips'); if(pipsEl) pipsEl.innerHTML = pipHTML(card);
     var rulesEl = wrap.querySelector('.facewrap .crules'); if(rulesEl) rulesEl.textContent = cur(card,'effect')||'';
@@ -280,7 +312,7 @@ const body = `<div class="wrap">
     var wrap = nodes[card.name];
     var q = search.value.trim().toLowerCase();
     var t = typeSel.value;
-    var changed = !!(edits[card.name] && Object.keys(edits[card.name]).length);
+    var changed = isChanged(card);
     var hay = (card.name+' '+(card.type||'')+' '+(card.category||'')+' '+(cur(card,'effect')||'')+' '+(cur(card,'flavor')||'')).toLowerCase();
     var show = (!q || hay.indexOf(q)>=0) && (!t || card.type===t) && (!onlyChanged.checked || changed);
     wrap.classList.toggle('hidden', !show);
@@ -294,8 +326,10 @@ const body = `<div class="wrap">
   function metrics(){
     var c=0, f=0;
     Object.keys(edits).forEach(function(n){ var k=Object.keys(edits[n]); if(k.length){ c++; f+=k.length; } });
+    var cm=0; Object.keys(comments).forEach(function(n){ if(comments[n]&&comments[n].trim()) cm++; });
     document.getElementById('mChanged').textContent = c;
     document.getElementById('mFields').textContent = f;
+    document.getElementById('mComments').textContent = cm;
   }
   metrics();
 
@@ -312,10 +346,14 @@ const body = `<div class="wrap">
     var L=['# Mycelium — card edits',''];
     var any=false;
     CARDS.forEach(function(c){
-      var e = edits[c.name]; if(!e || !Object.keys(e).length) return; any=true;
+      var e = edits[c.name]; var hasE = e && Object.keys(e).length; var cm = comments[c.name] && comments[c.name].trim();
+      if(!hasE && !cm) return; any=true;
       L.push('## '+c.name);
-      COST_FIELDS.forEach(function(f){ if(e[f]!==undefined) L.push('- '+f+': '+(c[f]|0)+' -> '+(e[f]|0)); });
-      TEXT_FIELDS.forEach(function(f){ if(e[f]!==undefined){ L.push('- '+f+':'); L.push('    FROM: '+String(c[f]==null?'':c[f])); L.push('    TO:   '+String(e[f]==null?'':e[f])); } });
+      if(hasE){
+        COST_FIELDS.forEach(function(f){ if(e[f]!==undefined) L.push('- '+f+': '+(c[f]|0)+' -> '+(e[f]|0)); });
+        TEXT_FIELDS.forEach(function(f){ if(e[f]!==undefined){ L.push('- '+f+':'); L.push('    FROM: '+String(c[f]==null?'':c[f])); L.push('    TO:   '+String(e[f]==null?'':e[f])); } });
+      }
+      if(cm) L.push('- COMMENT: '+comments[c.name].trim());
       L.push('');
     });
     if(!any) L.push('(no changes yet)');
@@ -343,12 +381,13 @@ const body = `<div class="wrap">
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.classList.remove('open'); });
   document.getElementById('btnMcopy').addEventListener('click', function(){ copy(document.getElementById('out').value, 'Changes copied'); });
   document.getElementById('btnReset').addEventListener('click', function(){
-    if(!confirm('Discard every edit and restore original costs/descriptions?')) return;
-    edits = {}; persist();
+    if(!confirm('Discard every edit, comment, and restore original costs/descriptions?')) return;
+    edits = {}; persist(); comments = {}; persistC();
     CARDS.forEach(function(card){
       var wrap = nodes[card.name];
       wrap.querySelectorAll('input[data-f]').forEach(function(inp){ inp.value = pip(card[inp.dataset.f]); });
       wrap.querySelectorAll('textarea[data-f]').forEach(function(ta){ ta.value = card[ta.dataset.f]||''; });
+      var cta = wrap.querySelector('textarea[data-comment]'); if(cta) cta.value='';
       refreshCard(card);
     });
     metrics(); ping('Reset');
