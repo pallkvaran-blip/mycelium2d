@@ -463,7 +463,8 @@ Both menus are dark, on-theme, with glowing green borders.
 
 - **Experimental side-strand branching (EVERY grow type sprouts extra fuzz).** New: as a strand grows,
   **each step has a 60% chance to sprout a small side-strand from a RANDOM point along the strand so
-  far, in a RANDOM direction** (owner-chosen params: per-step roll, 2–3 segments, non-recursive).
+  far, in a RANDOM direction** (owner-chosen params: per-step roll, 1–3 segments; a full-length
+  offshoot may fork ONE extra length-1 twig — otherwise non-recursive).
   Applies to **all** grow primitives — `growDirected` (Apical Drive / Rhizomorph Lance / Fruiting
   Vigil), `growRadial` (Foraging Fan), `growToNearestFood` (Tropic Lunge) and the undirected
   `grow`/`_growStep` (Hyphal Extension). Config knobs in `config.js growth`: `sideStrandChance` (0.6),
@@ -511,6 +512,12 @@ Both menus are dark, on-theme, with glowing green borders.
   - Tests updated for the new costs (Trunkline 6P play, Aquaporin 7P play, Osmotic Cashout 4→5P,
     Toxocyst Array 3P buy-in). `node --test test/*.test.js` green; headless-verified buyP gate +
     charge + Acorn Cache directional drop.
+  - **Follow-up — water-engine tier all fires every 6 rounds** (supersedes the Aquaporin/Capillary
+    numbers above): the three water engines now share a `+N Water every 6` cadence at a clean cost
+    ladder — **Aquaporin Channels** +1/6 (20⚡ · 6P play), **Dew Traps** +2/6 (25⚡ · 12P play),
+    **Capillary Runners** +3/6 (30⚡ · 16P play). Cadence lives in each `engine({water,every:6})`
+    spec (cards.js); P is the engine's `playCostPhosphorus` play gate. Aquaporin's engine-cadence
+    test now checks 5 silent off-rounds → +1 on the 6th. See cards-design §23.
 
 - **Acorn Cache = fixed 2⚡ + sense-toggle keeps the colony bright.**
   - **Acorn Cache now digests to exactly 2⚡** (was the default per-nutrient rate ≈ lots).
