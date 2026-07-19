@@ -454,6 +454,27 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Ant harvest 2× + one red engine cache + tutorial red-leaf step + card editor tool.**
+  - **Ants eat piles ~twice as fast:** `config.js ants.harvestRate` 20 → 40 (nutrient a nest
+    carries off its target cell per action). Halves the time to strip a pile.
+  - **Exactly one RED engine cache per map:** `config.js engineClusterMax` 3 → 1 (min already 1),
+    so `substrate.js` places a single engine cache. (Engine caches = the rare red maple/autumn
+    leaf piles that draft an ENGINE card; normal orange piles draft basics/events.)
+  - **Tutorial "orange vs red leaves" step** (`render/tutorial.js`, new step right after the
+    "grow into substrate" one): frames the map's red engine cache and reads *"Orange leaves let
+    you draft basic action cards and event cards. Red leaves give you engine cards — very rare."*
+    New `enginePile()` dep in `main.js` (centroid of the `foodPiles` pile with `kind==='engine'`);
+    the step `skip`s cleanly if a map somehow has no engine cache.
+  - **Card cost/description editor** (`scripts/build_cardeditor.mjs` → `docs/card-editor.html`).
+    A self-contained, directly-openable tool (full standalone HTML, unlike the Artifact-fragment
+    review tools) that inlines the live `docs/cards.json` and lets you edit every card's costs
+    (buy ⚡, play ⚡/💧/P) + description (`effect`) + `flavor`. Edited fields glow amber, edits
+    persist in `localStorage`, and there are two round-trips: **Download cards.json** (drop over
+    `docs/cards.json`, then `node scripts/gen-carddata.mjs && node build.mjs`) or **Copy changes**
+    (a per-card diff to paste back to a session). Regenerate with `node scripts/build_cardeditor.mjs`
+    after any `cards.json` change. (GOTCHA fixed during build: filter-control refs must be grabbed
+    BEFORE the render loop, since `refreshCard()`→`applyFilter()` runs during it.)
+
 - **Win celebration — fruiting + spore drift before the banner** (`src/main.js`, render-only).
   On a card-mode win, `presentRunOver` runs `startWinCelebration(finish)` before the success
   banner: `focusWorld` frames the green goal meadow, then **~46 small white mushrooms** pop up with

@@ -54,8 +54,8 @@ export const CONFIG = {
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
-    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
-    engineClusterMax: 3,
+    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max] — pinned to exactly 1
+    engineClusterMax: 1,
     engineEnergyMin: 3,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
     engineEnergyMax: 4,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
@@ -285,7 +285,7 @@ export const CONFIG = {
   ants: {
     nestCount: 2,                // nests seeded per (sandbox) map
     maxHp: 100,
-    harvestRate: 20,             // nutrient an active nest carries off its target food per action (SLIDER)
+    harvestRate: 40,             // nutrient an active nest carries off its target food per action (SLIDER) — eats a pile in ~half the time
   },
 
   // ---- Nematodes (A2, B6) — fungivorous worms that graze your frontier ----

@@ -1204,8 +1204,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "435nm1";
-globalThis.__BUILD__ = "local 07-18 21:11";
+window.__ASSET_VER = "910cab";
+globalThis.__BUILD__ = "local 07-19 05:36";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1265,8 +1265,8 @@ const CONFIG = {
     // (normal piles draft basic/event). Colonise + digest them like any cache; they just
     // render as red maple/autumn leaves. Placed mostly near the surface so the player must
     // climb UP (away from the goal) to reach these valuable piles.
-    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max]
-    engineClusterMax: 3,
+    engineClusterMin: 1,         // RED engine caches per map: a random count in [min,max] — pinned to exactly 1
+    engineClusterMax: 1,
     engineEnergyMin: 3,          // a RED engine pile's fixed Energy value is a roll in [min,max] — highest tier
     engineEnergyMax: 4,
     engineClusterRadius: 1,      // footprint radius (cells) — a small pocket like normal caches
@@ -1496,7 +1496,7 @@ const CONFIG = {
   ants: {
     nestCount: 2,                // nests seeded per (sandbox) map
     maxHp: 100,
-    harvestRate: 20,             // nutrient an active nest carries off its target food per action (SLIDER)
+    harvestRate: 40,             // nutrient an active nest carries off its target food per action (SLIDER) — eats a pile in ~half the time
   },
 
   // ---- Nematodes (A2, B6) — fungivorous worms that graze your frontier ----
@@ -11560,6 +11560,13 @@ function startTutorial(deps) {
       place: 'bottom',
     },
     {
+      text: '<b>Orange</b> leaves let you draft basic action cards and event cards.<br><b>Red</b> leaves give you engine cards — <b>very rare</b>.',
+      focus: (s) => world(deps.enginePile() || deps.duffPile() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.enginePile()),
+      skip: (s) => !(deps.enginePile && deps.enginePile()),   // no red pile on this map → skip cleanly
+      place: 'bottom',
+    },
+    {
       text: 'Touch <b>water</b> to get Water income.<br>Your colony will <b>die</b> if you run out of water.',
       focus: (s) => world(deps.reservoir() || deps.colonyRoot(), 1.5),
       target: (s) => worldTarget(deps.reservoir()),
@@ -12237,6 +12244,16 @@ function tutorialDeps() {
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,
+    // Centre of the map's RED engine cache (for the "orange vs red leaves" step).
+    enginePile: () => {
+      const sub = state.substrate; const piles = sub && sub.foodPiles;
+      if (!piles) return null;
+      const eng = piles.find((p) => p.kind === 'engine' && p.cells && p.cells.length);
+      if (!eng) return null;
+      let sx = 0, sy = 0;
+      for (const idx of eng.cells) { const c = sub.cellCenter(idx % sub.cols, (idx / sub.cols) | 0); sx += c.x; sy += c.y; }
+      return { x: sx / eng.cells.length, y: sy / eng.cells.length };
+    },
     // Nearest underground reservoir to the colony (for the "touch water" step).
     reservoir: () => {
       const sub = state.substrate; const list = sub && sub.reservoirs;

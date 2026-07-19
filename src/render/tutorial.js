@@ -95,6 +95,13 @@ export function startTutorial(deps) {
       place: 'bottom',
     },
     {
+      text: '<b>Orange</b> leaves let you draft basic action cards and event cards.<br><b>Red</b> leaves give you engine cards — <b>very rare</b>.',
+      focus: (s) => world(deps.enginePile() || deps.duffPile() || deps.colonyRoot(), 1.5),
+      target: (s) => worldTarget(deps.enginePile()),
+      skip: (s) => !(deps.enginePile && deps.enginePile()),   // no red pile on this map → skip cleanly
+      place: 'bottom',
+    },
+    {
       text: 'Touch <b>water</b> to get Water income.<br>Your colony will <b>die</b> if you run out of water.',
       focus: (s) => world(deps.reservoir() || deps.colonyRoot(), 1.5),
       target: (s) => worldTarget(deps.reservoir()),

@@ -458,6 +458,16 @@ function tutorialDeps() {
     colonyRoot: () => { const r = (state.active && state.active.root) || (state.networks[0] && state.networks[0].nodes[0]); return r ? { x: r.x, y: r.y } : null; },
     goalPoint: () => { const g = goalCol0(); if (g < 0) return null; return { x: (g + 3.5) * state.substrate.cellSize, y: surf() - 8 }; },
     duffPile: () => tutorialDuff,
+    // Centre of the map's RED engine cache (for the "orange vs red leaves" step).
+    enginePile: () => {
+      const sub = state.substrate; const piles = sub && sub.foodPiles;
+      if (!piles) return null;
+      const eng = piles.find((p) => p.kind === 'engine' && p.cells && p.cells.length);
+      if (!eng) return null;
+      let sx = 0, sy = 0;
+      for (const idx of eng.cells) { const c = sub.cellCenter(idx % sub.cols, (idx / sub.cols) | 0); sx += c.x; sy += c.y; }
+      return { x: sx / eng.cells.length, y: sy / eng.cells.length };
+    },
     // Nearest underground reservoir to the colony (for the "touch water" step).
     reservoir: () => {
       const sub = state.substrate; const list = sub && sub.reservoirs;
