@@ -36,15 +36,15 @@ console.log('# Card economy + effects');
   const dr = drawCard(s);
   ok(dr.ok && net.energy === e0 - cc.drawCostEnergy && s.cards.hand.length === h0 + cc.drawCount && s.cards.drawDeck.length === d0 - cc.drawCount, `draw spends energy, pulls ${cc.drawCount} basics to hand`);
 
-  // playing a premium card costs its Energy (buyCostEnergy); basics are free to play
-  net.energy = 100;
+  // playing a premium engine costs its Energy (buyCostEnergy) + any play Phosphorus; basics are free
+  net.energy = 100; net.phosphorus = 20;
   const ti = ensureHand(s, 'Rhizomorph Trunkline'); playCard(s, ti);
   ok(s.cards.engines.some((e) => e.name === 'Rhizomorph Trunkline'), 'Rhizomorph Trunkline installed as an engine');
-  ok(net.energy === 100 - 8, `playing a premium card spends its Energy cost (100 -> ${net.energy}, cost 8)`);
+  ok(net.energy === 100 - 8 && net.phosphorus === 20 - 6, `Trunkline spends 8⚡ buy + 6P play (energy ${net.energy}, phos ${net.phosphorus})`);
   net.energy = 100; produceCardEngines(s);
   ok(net.energy === 102, `energy engine produces +2/tick (got ${net.energy})`);
 
-  net.energy = 100;
+  net.energy = 100; net.phosphorus = 20;
   const wi = ensureHand(s, 'Aquaporin Channels'); playCard(s, wi);
   net.water = 0; produceCardEngines(s);
   ok(net.water === 0, 'water engine does not produce on the off-round (every 2 rounds)');
@@ -72,9 +72,9 @@ console.log('# Card economy + effects');
   net.water = 1; const ci = ensureHand(s, 'Condense'); playCard(s, ci);
   ok(net.water === 6, `Condense +5 Water (got ${net.water})`);
 
-  // energy burst: Osmotic Cashout now costs 4 Phosphorus (0⚡ buy), yields +22⚡
+  // energy burst: Osmotic Cashout now costs 5 Phosphorus (0⚡ buy), yields +22⚡
   net.energy = 50; net.phosphorus = 9; const oi = ensureHand(s, 'Osmotic Cashout'); playCard(s, oi);
-  ok(net.energy === 50 + 22 && net.phosphorus === 5, `Osmotic Cashout: +22⚡ effect, −4 Phosphorus (energy ${net.energy}, phos ${net.phosphorus})`);
+  ok(net.energy === 50 + 22 && net.phosphorus === 4, `Osmotic Cashout: +22⚡ effect, −5 Phosphorus (energy ${net.energy}, phos ${net.phosphorus})`);
 
   // energy gate: a premium card is unplayable without its Energy cost
   net.energy = 3; net.water = 9; net.phosphorus = 9;
@@ -345,14 +345,14 @@ console.log('# Anti-nematode & anti-ant cards');
     const r = playCard(s, ensureHand(s, 'Toxocyst Burst'), { x: nd.x, y: nd.y });
     ok(r.ok && s.nematodes.length === 1 && s.active.phosphorus === 3, 'Toxocyst Burst clears the swarm in radius for +1 P each');
   }
-  // Toxocyst Array — installs; firing clears worms with NO phosphorus reward.
+  // Toxocyst Array — installs (3P buy-in); firing clears worms with NO phosphorus reward.
   {
-    const s = createState(clone(), 5152); isolate(s); initCards(s); s.active.phosphorus = 0; s.active.energy = 500;
+    const s = createState(clone(), 5152); isolate(s); initCards(s); s.active.phosphorus = 3; s.active.energy = 500;
     playCard(s, ensureHand(s, 'Toxocyst Array'));
     const ai = s.cards.actions.findIndex((a) => a.name === 'Toxocyst Array');
     const nd = firstNode(s); s.nematodes = [{ x: nd.x + 10, y: nd.y }, { x: nd.x - 20, y: nd.y }];
     const fr = activateAction(s, ai, { x: nd.x, y: nd.y });
-    ok(ai >= 0 && fr.ok && s.nematodes.length === 0 && s.active.phosphorus === 0, 'Toxocyst Array installs and clears worms for no reward');
+    ok(ai >= 0 && fr.ok && s.nematodes.length === 0 && s.active.phosphorus === 0, 'Toxocyst Array installs (3P buy-in) and clears worms for no reward');
   }
   // Cordyceps Bloom — destroy the nearest nest in sensing range; leave the far one.
   {

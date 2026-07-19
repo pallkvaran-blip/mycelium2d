@@ -1204,8 +1204,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "7jfi9a";
-globalThis.__BUILD__ = "local 07-19 08:29";
+window.__ASSET_VER = "1bc5b1b";
+globalThis.__BUILD__ = "local 07-19 08:51";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1668,6 +1668,7 @@ const CARD_DATA = [
   "category": "growth",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -1685,6 +1686,7 @@ const CARD_DATA = [
   "category": "substrate",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "early",
@@ -1702,13 +1704,14 @@ const CARD_DATA = [
   "category": "substrate",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "early",
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Pick a direction; drop a SMALL 2⚡ nut cache at the edge of sensing range.",
+  "effect": "Pick a direction; drop a small (2⚡) nut cache at the edge of sensing range.",
   "family": "basics",
   "tutorial": true,
   "startCopies": 5
@@ -1719,6 +1722,7 @@ const CARD_DATA = [
   "category": "growth",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "early",
@@ -1736,6 +1740,7 @@ const CARD_DATA = [
   "category": "growth",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -1753,6 +1758,7 @@ const CARD_DATA = [
   "category": "growth",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 2,
   "costP": 0,
   "timing": "mid",
@@ -1770,6 +1776,7 @@ const CARD_DATA = [
   "category": "substrate",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 1,
   "costP": 0,
   "timing": "early",
@@ -1787,6 +1794,7 @@ const CARD_DATA = [
   "category": "substrate",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 2,
   "costP": 0,
   "timing": "mid",
@@ -1804,6 +1812,7 @@ const CARD_DATA = [
   "category": "economy",
   "displayCategory": "basic",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
   "costP": 1,
   "timing": "any",
@@ -1821,6 +1830,7 @@ const CARD_DATA = [
   "category": "utility",
   "displayCategory": "event",
   "buyCostEnergy": 1,
+  "buyP": 0,
   "costW": 1,
   "costP": 1,
   "timing": "any",
@@ -1837,9 +1847,10 @@ const CARD_DATA = [
   "type": "basic",
   "category": "defense",
   "displayCategory": "event",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 1,
+  "buyP": 0,
   "costW": 0,
-  "costP": 2,
+  "costP": 3,
   "timing": "mid",
   "repay": 0,
   "threat": "all",
@@ -1854,7 +1865,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "water-harvest",
   "displayCategory": "event",
-  "buyCostEnergy": 3,
+  "buyCostEnergy": 5,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1871,7 +1883,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "phosphorus-mining",
   "displayCategory": "event",
-  "buyCostEnergy": 3,
+  "buyCostEnergy": 4,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1888,7 +1901,8 @@ const CARD_DATA = [
   "type": "basic",
   "category": "water-harvest",
   "displayCategory": "event",
-  "buyCostEnergy": 2,
+  "buyCostEnergy": 3,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -1906,8 +1920,9 @@ const CARD_DATA = [
   "category": "energy income",
   "displayCategory": "engine",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 6,
   "timing": "mid",
   "repay": 3,
   "threat": "none",
@@ -1923,8 +1938,9 @@ const CARD_DATA = [
   "category": "energy burst",
   "displayCategory": "event",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
-  "costP": 4,
+  "costP": 5,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -1939,9 +1955,10 @@ const CARD_DATA = [
   "type": "engine",
   "category": "water-engine",
   "displayCategory": "engine",
-  "buyCostEnergy": 10,
+  "buyCostEnergy": 25,
+  "buyP": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 7,
   "timing": "early",
   "repay": 4,
   "threat": "none",
@@ -1957,6 +1974,7 @@ const CARD_DATA = [
   "category": "phosphorus-producer",
   "displayCategory": "engine",
   "buyCostEnergy": 12,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "early",
@@ -1974,6 +1992,7 @@ const CARD_DATA = [
   "category": "decay / unconditional P production",
   "displayCategory": "engine",
   "buyCostEnergy": 14,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "early",
@@ -1991,6 +2010,7 @@ const CARD_DATA = [
   "category": "routing",
   "displayCategory": "engine",
   "buyCostEnergy": 12,
+  "buyP": 0,
   "costW": 0,
   "costP": 2,
   "timing": "mid",
@@ -2007,9 +2027,10 @@ const CARD_DATA = [
   "type": "action",
   "category": "anti-worm",
   "displayCategory": "engine",
-  "buyCostEnergy": 12,
+  "buyCostEnergy": 16,
+  "buyP": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 3,
   "timing": "any",
   "repay": 0,
   "threat": "worm",
@@ -2024,9 +2045,10 @@ const CARD_DATA = [
   "type": "event",
   "category": "water-repair",
   "displayCategory": "event",
-  "buyCostEnergy": 7,
+  "buyCostEnergy": 15,
+  "buyP": 0,
   "costW": 3,
-  "costP": 0,
+  "costP": 3,
   "timing": "any",
   "repay": 0,
   "threat": "all",
@@ -2042,6 +2064,7 @@ const CARD_DATA = [
   "category": "resource converter",
   "displayCategory": "engine",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2059,6 +2082,7 @@ const CARD_DATA = [
   "category": "mobility",
   "displayCategory": "basic",
   "buyCostEnergy": 1,
+  "buyP": 0,
   "costW": 2,
   "costP": 0,
   "timing": "mid",
@@ -2076,6 +2100,7 @@ const CARD_DATA = [
   "category": "finisher",
   "displayCategory": "basic",
   "buyCostEnergy": 2,
+  "buyP": 0,
   "costW": 1,
   "costP": 2,
   "timing": "late",
@@ -2092,7 +2117,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "growth",
   "displayCategory": "engine",
-  "buyCostEnergy": 6,
+  "buyCostEnergy": 9,
+  "buyP": 3,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -2109,7 +2135,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "growth",
   "displayCategory": "engine",
-  "buyCostEnergy": 5,
+  "buyCostEnergy": 4,
+  "buyP": 1,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -2127,6 +2154,7 @@ const CARD_DATA = [
   "category": "growth",
   "displayCategory": "engine",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 2,
   "costP": 0,
   "timing": "any",
@@ -2144,6 +2172,7 @@ const CARD_DATA = [
   "category": "draw-engine",
   "displayCategory": "extender",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2161,6 +2190,7 @@ const CARD_DATA = [
   "category": "draw-engine",
   "displayCategory": "extender",
   "buyCostEnergy": 9,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2178,6 +2208,7 @@ const CARD_DATA = [
   "category": "draw-engine",
   "displayCategory": "extender",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2194,7 +2225,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "anti-mould",
   "displayCategory": "engine",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 16,
+  "buyP": 3,
   "costW": 0,
   "costP": 2,
   "timing": "any",
@@ -2211,9 +2243,10 @@ const CARD_DATA = [
   "type": "engine",
   "category": "water-engine",
   "displayCategory": "engine",
-  "buyCostEnergy": 9,
+  "buyCostEnergy": 30,
+  "buyP": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 7,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2228,7 +2261,8 @@ const CARD_DATA = [
   "type": "engine",
   "category": "phosphorus-producer",
   "displayCategory": "engine",
-  "buyCostEnergy": 6,
+  "buyCostEnergy": 12,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2245,9 +2279,10 @@ const CARD_DATA = [
   "type": "engine",
   "category": "water-engine",
   "displayCategory": "engine",
-  "buyCostEnergy": 11,
+  "buyCostEnergy": 22,
+  "buyP": 0,
   "costW": 0,
-  "costP": 0,
+  "costP": 8,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2262,7 +2297,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "growth",
   "displayCategory": "engine",
-  "buyCostEnergy": 5,
+  "buyCostEnergy": 7,
+  "buyP": 1,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -2280,6 +2316,7 @@ const CARD_DATA = [
   "category": "draw-engine",
   "displayCategory": "extender",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2296,7 +2333,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "substrate",
   "displayCategory": "engine",
-  "buyCostEnergy": 8,
+  "buyCostEnergy": 10,
+  "buyP": 1,
   "costW": 1,
   "costP": 0,
   "timing": "any",
@@ -2314,6 +2352,7 @@ const CARD_DATA = [
   "category": "anti-ant",
   "displayCategory": "engine",
   "buyCostEnergy": 8,
+  "buyP": 1,
   "costW": 0,
   "costP": 1,
   "timing": "any",
@@ -2330,7 +2369,8 @@ const CARD_DATA = [
   "type": "action",
   "category": "anti-mould",
   "displayCategory": "engine",
-  "buyCostEnergy": 10,
+  "buyCostEnergy": 13,
+  "buyP": 2,
   "costW": 0,
   "costP": 3,
   "timing": "any",
@@ -2348,6 +2388,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 10,
+  "buyP": 0,
   "costW": 2,
   "costP": 2,
   "timing": "any",
@@ -2365,6 +2406,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 18,
+  "buyP": 0,
   "costW": 4,
   "costP": 4,
   "timing": "any",
@@ -2382,6 +2424,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 28,
+  "buyP": 0,
   "costW": 6,
   "costP": 6,
   "timing": "any",
@@ -2399,6 +2442,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 10,
+  "buyP": 0,
   "costW": 2,
   "costP": 2,
   "timing": "any",
@@ -2416,6 +2460,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 18,
+  "buyP": 0,
   "costW": 4,
   "costP": 4,
   "timing": "any",
@@ -2433,6 +2478,7 @@ const CARD_DATA = [
   "category": "tempo",
   "displayCategory": "engine",
   "buyCostEnergy": 28,
+  "buyP": 0,
   "costW": 6,
   "costP": 6,
   "timing": "any",
@@ -2450,8 +2496,9 @@ const CARD_DATA = [
   "category": "energy burst",
   "displayCategory": "event",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
-  "costP": 2,
+  "costP": 3,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2467,8 +2514,9 @@ const CARD_DATA = [
   "category": "energy burst",
   "displayCategory": "event",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
-  "costP": 5,
+  "costP": 7,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2484,8 +2532,9 @@ const CARD_DATA = [
   "category": "energy burst",
   "displayCategory": "event",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
-  "costP": 8,
+  "costP": 10,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2501,8 +2550,9 @@ const CARD_DATA = [
   "category": "energy burst",
   "displayCategory": "event",
   "buyCostEnergy": 0,
+  "buyP": 0,
   "costW": 0,
-  "costP": 12,
+  "costP": 14,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2517,9 +2567,10 @@ const CARD_DATA = [
   "type": "engine",
   "category": "energy income",
   "displayCategory": "engine",
-  "buyCostEnergy": 6,
-  "costW": 0,
-  "costP": 0,
+  "buyCostEnergy": 4,
+  "buyP": 0,
+  "costW": 2,
+  "costP": 6,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2534,9 +2585,10 @@ const CARD_DATA = [
   "type": "engine",
   "category": "energy income",
   "displayCategory": "engine",
-  "buyCostEnergy": 15,
-  "costW": 0,
-  "costP": 0,
+  "buyCostEnergy": 9,
+  "buyP": 0,
+  "costW": 3,
+  "costP": 19,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2551,9 +2603,10 @@ const CARD_DATA = [
   "type": "basic",
   "category": "defense",
   "displayCategory": "event",
-  "buyCostEnergy": 0,
+  "buyCostEnergy": 3,
+  "buyP": 0,
   "costW": 0,
-  "costP": 2,
+  "costP": 3,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2569,6 +2622,7 @@ const CARD_DATA = [
   "category": "defense",
   "displayCategory": "engine",
   "buyCostEnergy": 8,
+  "buyP": 0,
   "costW": 0,
   "costP": 2,
   "timing": "any",
@@ -2586,6 +2640,7 @@ const CARD_DATA = [
   "category": "defense",
   "displayCategory": "engine",
   "buyCostEnergy": 10,
+  "buyP": 2,
   "costW": 0,
   "costP": 1,
   "timing": "any",
@@ -2603,13 +2658,14 @@ const CARD_DATA = [
   "category": "anti-worm",
   "displayCategory": "event",
   "buyCostEnergy": 5,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "worm",
   "produces": "",
-  "effect": "Tap a point: the nearest nematode within range is throttled and digested for +3 P.",
+  "effect": "Tap a point: the nearest nematode within range is digested for +3 P.",
   "family": "phosphorus",
   "tutorial": false,
   "startCopies": 0
@@ -2620,13 +2676,14 @@ const CARD_DATA = [
   "category": "anti-worm",
   "displayCategory": "event",
   "buyCostEnergy": 10,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
   "repay": 0,
   "threat": "worm",
   "produces": "",
-  "effect": "Tap a point: every nematode within a radius is paralysed and digested (+1 P each).",
+  "effect": "Tap a point: every nematode within a radius is digested (+1 P each, max 10 P).",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -2637,6 +2694,7 @@ const CARD_DATA = [
   "category": "anti-worm",
   "displayCategory": "engine",
   "buyCostEnergy": 13,
+  "buyP": 3,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2653,7 +2711,8 @@ const CARD_DATA = [
   "type": "event",
   "category": "anti-ant",
   "displayCategory": "event",
-  "buyCostEnergy": 14,
+  "buyCostEnergy": 7,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -2671,6 +2730,7 @@ const CARD_DATA = [
   "category": "anti-ant",
   "displayCategory": "engine",
   "buyCostEnergy": 18,
+  "buyP": 0,
   "costW": 0,
   "costP": 0,
   "timing": "any",
@@ -5966,7 +6026,10 @@ function cardBlockedReason(state, name) {
   const c = CARD_BY_NAME[name];
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
-  // Action cards pay only their Energy buy price to INSTALL; any W/P shown on the
+  // buyP: a Phosphorus buy-in charged at install for ANY card type (0 for most). Actions
+  // carry it as their acquisition P cost (their play-W/P is a per-activation cost, below).
+  if (c.buyP && net.phosphorus < c.buyP) return `Not enough Phosphorus (need ${c.buyP}).`;
+  // Action cards pay only their Energy (+ buyP) buy price to INSTALL; any W/P shown on the
   // card is the per-activation cost (spent on each Use from the menu), not a gate
   // on installing — so don't require it here.
   if (c.type === 'action') {
@@ -6045,6 +6108,7 @@ function playCard(state, handIndex, ctx = {}) {
   // Action cards pay only Energy to install; their W/P is a per-activation cost
   // (charged by activateAction on each Use), not an install gate.
   net.energy -= c.buyCostEnergy;
+  if (c.buyP) net.phosphorus -= c.buyP;   // Phosphorus buy-in (install gate), all card types
   if (!res.installAction) { net.water -= c.costW; net.phosphorus -= c.costP; }
   C.hand.splice(handIndex, 1);
   if (res.install) {
@@ -6467,7 +6531,9 @@ const EFFECTS = {
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
-  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
+  // Placed with the same PRESS-AND-DRAG aim tool as the grow cards (press on the colony,
+  // drag to pick the direction); the cache drops at the sensing edge along that heading.
+  'Acorn Cache': directional((s) => s.config.growth.sensingRadius / s.config.growth.segmentLength, (s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
@@ -6563,9 +6629,9 @@ const EFFECTS = {
     const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
     return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };
   }),
-  // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
+  // Constricting Ring: every 6 rounds, pay 3 P, tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
-  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const r = s.substrate.cellSize * 2.5;
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.rock) return { ok: false, message: 'Set the trap on open ground (not rock).' };
@@ -6742,15 +6808,16 @@ EFFECTS['Constricting Snap'] = targeted((s, c, ctx) => {
   if (wi < 0) return { ok: false, message: 'No nematode within reach of the ring.' };
   worms.splice(wi, 1);
   gainPhos(s.active, 3, s.config.cards.softCapPhosphorus);
-  return { ok: true, message: 'Throttled and digested a nematode: +3 Phosphorus.' };
+  return { ok: true, message: 'Digested a nematode: +3 Phosphorus.' };
 });
 
-// 2a. Toxocyst Burst — EVENT: paralyse & digest EVERY worm in a radius (+1 P each).
+// 2a. Toxocyst Burst — EVENT: digest EVERY worm in a radius (+1 P each, reward capped at 10 P).
 EFFECTS['Toxocyst Burst'] = targeted((s, c, ctx) => {
   const n = killWormsInRadius(s, ctx.x, ctx.y, s.config.cards.toxocystRadius);
   if (!n) return { ok: false, message: 'No nematodes in range.' };
-  gainPhos(s.active, n, s.config.cards.softCapPhosphorus);
-  return { ok: true, message: `Toxin paralysed ${n} nematode${n > 1 ? 's' : ''}: +${n} Phosphorus.` };
+  const gain = Math.min(n, 10);   // all in-range worms die; Phosphorus income caps at 10
+  gainPhos(s.active, gain, s.config.cards.softCapPhosphorus);
+  return { ok: true, message: `Digested ${n} nematode${n > 1 ? 's' : ''}: +${gain} Phosphorus.` };
 });
 
 // 2b. Toxocyst Array — installed ACTION (engine): clear a radius of worms every 8 rounds (no reward).
@@ -10478,8 +10545,11 @@ function cardGroups(c) {
 function gateChips(c) {
   const g = [];
   if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}${RES_ICON.energy}</span>`);
-  // Action cards install for Energy only; their W/P is a per-activation cost shown
-  // in the Actions menu (not an install gate), so don't imply it on the card face.
+  // buyP is a Phosphorus install gate charged at buy for ALL card types (including
+  // actions), so — unlike play-W/P — it belongs on every card's face.
+  if (c.buyP) g.push(`<span class="cc p">${c.buyP}${RES_ICON.phos}</span>`);
+  // Action cards install for Energy (+ any buyP) only; their play W/P is a per-activation
+  // cost shown in the Actions menu (not an install gate), so don't imply it on the face.
   if (c.type !== 'action') {
     if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
     if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);

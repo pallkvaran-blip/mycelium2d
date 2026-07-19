@@ -13,6 +13,9 @@ const slim = cards.map((c) => ({
   // (Basic/Engine/Event). PURELY cosmetic — `type` still drives all behavior.
   displayCategory: c.displayCategory || c.type,
   buyCostEnergy: c.buyCostEnergy || 0,
+  // buyP: Phosphorus paid at INSTALL/buy (a card's acquisition gate — mainly used to give
+  // installed ACTIONS a P buy-in, since their play-W/P is a per-activation cost, not a gate).
+  buyP: c.buyCostPhosphorus || 0,
   // Two-resource model: Water + Phosphorus. Any legacy Nitrogen cost folds into Phosphorus.
   costW: c.playCostWater || 0, costP: (c.playCostPhosphorus || 0) + (c.playCostNitrogen || 0),
   timing: c.timing || 'any', repay: c.repayRounds || 0, threat: c.threat || 'none',

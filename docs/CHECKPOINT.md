@@ -454,6 +454,34 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Card rebalancing pass + new `buyCostPhosphorus` install gate + Acorn Cache = drag-aim.**
+  - **New cost dimension `buyCostPhosphorus` (→ `buyP` in CARD_DATA).** Cards could gate install on
+    Energy only; several rebalance requests were "should ALSO cost N P to buy". Added a Phosphorus
+    buy-in charged at install for ANY card type (crucially, installed ACTIONS — whose play-W/P is a
+    per-activation cost, not an install gate). Wired end-to-end: `gen-carddata.mjs` emits `buyP`;
+    `cards.js cardBlockedReason` gates on it (`Not enough Phosphorus (need N)`) and `playCard`
+    charges `net.phosphorus -= c.buyP` alongside `buyCostEnergy` for all types; `ui.js gateChips`
+    draws it as a phosphorus pip on EVERY card face (right after the buy-⚡ pip, unlike play-W/P
+    which stays off action faces); the card editor (`build_cardeditor.mjs`) gained a **Buy P** field
+    + face pip (`COST_FIELDS` now includes `buyCostPhosphorus`). buyP set on: Leading Cord 3,
+    Forager Bloom 1, Crust Reserve 3, Colonizing Front 1, Acorn Fall 1, Sclerotial Seal 1,
+    Melanized Wall 2, Sclerotial Rind 2, Toxocyst Array 3.
+  - **~30 cost/text edits** applied via `docs/cards.json` (regen → build). Energy/Phosphorus buy &
+    play costs retuned across the set (e.g. Aquaporin Channels 10→25⚡ +7P play, Capillary Runners
+    9→30⚡ +7P, Rhizomorph Dynamo 15→9⚡ +3W +19P, Cordyceps Bloom 14→7⚡). Constricting Ring now
+    costs **3 P per activation** (`action({…cost:3,res:'phosphorus'})`, was free). Rhizomorph
+    Trunkline gained 6 P play cost.
+  - **Acorn Cache placement = drag-aim like grow cards** (was single-tap `targeted`). Now
+    `directional((s)=>sensingRadius/segmentLength, …)` so you aim a direction and it drops the
+    (still fixed-2⚡) nut cache at the sensing edge. Effect text uses the ⚡ glyph: "…drop a small
+    (2⚡) nut cache…".
+  - **Constricting Snap** text/msg dropped "throttled and" → "…digested for +3 P". **Toxocyst
+    Burst** now caps Phosphorus income at **10** while still killing every nematode in radius
+    (`gain = Math.min(n, 10)`); text "…digested (+1 P each, max 10 P)".
+  - Tests updated for the new costs (Trunkline 6P play, Aquaporin 7P play, Osmotic Cashout 4→5P,
+    Toxocyst Array 3P buy-in). `node --test test/*.test.js` green; headless-verified buyP gate +
+    charge + Acorn Cache directional drop.
+
 - **Acorn Cache = fixed 2⚡ + sense-toggle keeps the colony bright.**
   - **Acorn Cache now digests to exactly 2⚡** (was the default per-nutrient rate ≈ lots).
     `substrate.deposit()` gained an optional `energyTotal` arg — it spreads a per-nutrient rate

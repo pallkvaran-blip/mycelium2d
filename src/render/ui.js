@@ -1512,8 +1512,11 @@ function cardGroups(c) {
 function gateChips(c) {
   const g = [];
   if (c.buyCostEnergy) g.push(`<span class="cc e">${c.buyCostEnergy}${RES_ICON.energy}</span>`);
-  // Action cards install for Energy only; their W/P is a per-activation cost shown
-  // in the Actions menu (not an install gate), so don't imply it on the card face.
+  // buyP is a Phosphorus install gate charged at buy for ALL card types (including
+  // actions), so — unlike play-W/P — it belongs on every card's face.
+  if (c.buyP) g.push(`<span class="cc p">${c.buyP}${RES_ICON.phos}</span>`);
+  // Action cards install for Energy (+ any buyP) only; their play W/P is a per-activation
+  // cost shown in the Actions menu (not an install gate), so don't imply it on the face.
   if (c.type !== 'action') {
     if (c.costW) g.push(`<span class="cc w">${c.costW}${RES_ICON.water}</span>`);
     if (c.costP) g.push(`<span class="cc p">${c.costP}${RES_ICON.phos}</span>`);

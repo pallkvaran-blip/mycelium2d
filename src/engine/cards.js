@@ -279,7 +279,10 @@ export function cardBlockedReason(state, name) {
   const c = CARD_BY_NAME[name];
   if (!c) return 'Unknown card.';
   if (net.energy < c.buyCostEnergy) return `Not enough Energy (need ${c.buyCostEnergy}).`;
-  // Action cards pay only their Energy buy price to INSTALL; any W/P shown on the
+  // buyP: a Phosphorus buy-in charged at install for ANY card type (0 for most). Actions
+  // carry it as their acquisition P cost (their play-W/P is a per-activation cost, below).
+  if (c.buyP && net.phosphorus < c.buyP) return `Not enough Phosphorus (need ${c.buyP}).`;
+  // Action cards pay only their Energy (+ buyP) buy price to INSTALL; any W/P shown on the
   // card is the per-activation cost (spent on each Use from the menu), not a gate
   // on installing — so don't require it here.
   if (c.type === 'action') {
@@ -358,6 +361,7 @@ export function playCard(state, handIndex, ctx = {}) {
   // Action cards pay only Energy to install; their W/P is a per-activation cost
   // (charged by activateAction on each Use), not an install gate.
   net.energy -= c.buyCostEnergy;
+  if (c.buyP) net.phosphorus -= c.buyP;   // Phosphorus buy-in (install gate), all card types
   if (!res.installAction) { net.water -= c.costW; net.phosphorus -= c.costP; }
   C.hand.splice(handIndex, 1);
   if (res.install) {
@@ -780,7 +784,9 @@ export const EFFECTS = {
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
-  'Acorn Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
+  // Placed with the same PRESS-AND-DRAG aim tool as the grow cards (press on the colony,
+  // drag to pick the direction); the cache drops at the sensing edge along that heading.
+  'Acorn Cache': directional((s) => s.config.growth.sensingRadius / s.config.growth.segmentLength, (s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
 
@@ -876,9 +882,9 @@ export const EFFECTS = {
     const h = hardenPatch(s, ctx, R.suberinRadius, R.immuneRounds, false);
     return { ok: true, message: h ? `Cured ${h} strands; warded for ${R.immuneRounds} rounds.` : `Warded the area against mould for ${R.immuneRounds} rounds.` };
   }),
-  // Constricting Ring: every 6 rounds (free), tap empty ground → lay a trap; the first
+  // Constricting Ring: every 6 rounds, pay 3 P, tap empty ground → lay a trap; the first
   // nematode to enter its radius is digested for +2 Phosphorus (resolved in tickWorld).
-  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, target: true }, (s, ctx) => {
+  'Constricting Ring': action({ effect: 'trap a nematode → +2✦', every: 6, cost: 3, res: 'phosphorus', target: true }, (s, ctx) => {
     const r = s.substrate.cellSize * 2.5;
     const cell = s.substrate.cellAtWorld(ctx.x, ctx.y);
     if (!cell || cell.rock) return { ok: false, message: 'Set the trap on open ground (not rock).' };
@@ -1055,15 +1061,16 @@ EFFECTS['Constricting Snap'] = targeted((s, c, ctx) => {
   if (wi < 0) return { ok: false, message: 'No nematode within reach of the ring.' };
   worms.splice(wi, 1);
   gainPhos(s.active, 3, s.config.cards.softCapPhosphorus);
-  return { ok: true, message: 'Throttled and digested a nematode: +3 Phosphorus.' };
+  return { ok: true, message: 'Digested a nematode: +3 Phosphorus.' };
 });
 
-// 2a. Toxocyst Burst — EVENT: paralyse & digest EVERY worm in a radius (+1 P each).
+// 2a. Toxocyst Burst — EVENT: digest EVERY worm in a radius (+1 P each, reward capped at 10 P).
 EFFECTS['Toxocyst Burst'] = targeted((s, c, ctx) => {
   const n = killWormsInRadius(s, ctx.x, ctx.y, s.config.cards.toxocystRadius);
   if (!n) return { ok: false, message: 'No nematodes in range.' };
-  gainPhos(s.active, n, s.config.cards.softCapPhosphorus);
-  return { ok: true, message: `Toxin paralysed ${n} nematode${n > 1 ? 's' : ''}: +${n} Phosphorus.` };
+  const gain = Math.min(n, 10);   // all in-range worms die; Phosphorus income caps at 10
+  gainPhos(s.active, gain, s.config.cards.softCapPhosphorus);
+  return { ok: true, message: `Digested ${n} nematode${n > 1 ? 's' : ''}: +${gain} Phosphorus.` };
 });
 
 // 2b. Toxocyst Array — installed ACTION (engine): clear a radius of worms every 8 rounds (no reward).

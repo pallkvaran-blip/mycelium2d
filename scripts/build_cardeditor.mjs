@@ -182,7 +182,7 @@ const body = `<div class="wrap">
 (function(){
   var CARDS = JSON.parse(document.getElementById('cardData').textContent);
   var ART = JSON.parse(document.getElementById('cardArt').textContent);
-  var COST_FIELDS = ['buyCostEnergy','playCostEnergy','playCostWater','playCostPhosphorus'];
+  var COST_FIELDS = ['buyCostEnergy','buyCostPhosphorus','playCostEnergy','playCostWater','playCostPhosphorus'];
   var TEXT_FIELDS = ['effect','flavor'];
   var KEY = 'mycelium-card-editor-v1';
   var edits = {}; try{ edits = JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ edits = {}; }
@@ -223,10 +223,12 @@ const body = `<div class="wrap">
     phos: '<svg class="ri" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c1 6.2 4.3 9.5 10.5 10.5C16.3 13 13 16.3 12 22.5 11 16.3 7.7 13 1.5 12 7.7 11 11 7.7 12 1.5Z" fill="#c79be6"/></svg>',
   };
   function faceCat(card){ var dc = card.displayCategory || card.type || ''; return dc==='engine'?'cat-engine':dc==='event'?'cat-event':'cat-basic'; }
-  // Card-face pips = the gate the game draws: buy Energy, and (non-action) play Water/Phosphorus.
+  // Card-face pips = the gate the game draws: buy Energy + buy Phosphorus (all types),
+  // and (non-action) play Water/Phosphorus.
   function pipHTML(card){
     var g = [];
     var be = pip(cur(card,'buyCostEnergy')); if(be) g.push('<span class="cc e">'+be+RES_ICON.energy+'</span>');
+    var bp = pip(cur(card,'buyCostPhosphorus')); if(bp) g.push('<span class="cc p">'+bp+RES_ICON.phos+'</span>');
     if(card.type !== 'action'){
       var w = pip(cur(card,'playCostWater')); if(w) g.push('<span class="cc w">'+w+RES_ICON.water+'</span>');
       var p = pip(cur(card,'playCostPhosphorus')); if(p) g.push('<span class="cc p">'+p+RES_ICON.phos+'</span>');
@@ -265,6 +267,7 @@ const body = `<div class="wrap">
             '<span class="dot">● edited</span></div>'+
           '<div class="costs">'+
             '<div class="cost"><label>Buy ⚡</label><input type="number" min="0" step="1" data-f="buyCostEnergy"></div>'+
+            '<div class="cost p"><label>Buy P</label><input type="number" min="0" step="1" data-f="buyCostPhosphorus"></div>'+
             '<div class="cost e"><label>Play ⚡</label><input type="number" min="0" step="1" data-f="playCostEnergy"></div>'+
             '<div class="cost w"><label>Play 💧</label><input type="number" min="0" step="1" data-f="playCostWater"></div>'+
             '<div class="cost p"><label>Play P</label><input type="number" min="0" step="1" data-f="playCostPhosphorus"></div>'+
