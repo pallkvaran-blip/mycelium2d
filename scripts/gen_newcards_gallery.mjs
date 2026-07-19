@@ -15,7 +15,7 @@ const PICKS = [
   ['Vesicle Surge', 'option 1'],
   ['Translocation Cord', 'white — option 4'],
   ['Explorer Cord', 'Translocation Cord white — option 2'],
-  ['Turgor Line', 'option 1'],
+  ['Turgor Line', 'single line — option 2'],
   ['Vesicle Supply Line', 'option 1'],
   ['Bulk-Flow Cord', 'option 1'],
   ['Rhizomorph Cable', 'option 1'],
@@ -39,6 +39,12 @@ function pips(c) {
   }
   return g.join('') || '<span class="cc free">free</span>';
 }
+
+// Optional spare art to re-home: env SPARE_FILE (in assets/card_options) + SPARE_LABEL.
+const spareFile = process.env.SPARE_FILE || '';
+const sparePath = spareFile ? join(ROOT, 'assets', 'card_options', spareFile) : '';
+const spareUri = spareFile && existsSync(sparePath) ? 'data:image/jpeg;base64,' + readFileSync(sparePath).toString('base64') : '';
+const spareLabel = process.env.SPARE_LABEL || spareFile;
 
 const faces = PICKS.map(([name, pick]) => {
   const c = all.find((x) => x.name === name); if (!c) return '';
@@ -93,13 +99,25 @@ figcaption{font-size:11px;color:var(--dim);text-align:center;letter-spacing:.02e
 .facewrap .cc.p{color:#c79be6;background:rgba(179,128,224,.15)}
 .facewrap .cc.free{color:var(--fdim);background:rgba(255,255,255,.06)}
 .facewrap .ri{display:inline-block;width:1em;height:1em;flex:0 0 auto;vertical-align:-0.14em}
+.spare{display:flex;gap:14px;align-items:center;margin:16px 0 2px;padding:12px 14px;border:1px solid rgba(255,215,106,.4);
+  border-radius:14px;background:linear-gradient(180deg,rgba(255,215,106,.06),transparent)}
+.spareimg{width:120px;aspect-ratio:3/2;object-fit:cover;border-radius:9px;flex:0 0 auto;box-shadow:inset 0 0 0 1px var(--line)}
+.sparetxt p{margin:6px 0 0;font-size:13.5px;color:var(--ink)} .sparetxt b{color:#ffd76a}
+.sparetag{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#ffd76a}
 `;
+
+const spareBlock = spareUri ? `<div class="spare">
+    <img class="spareimg" src="${spareUri}" alt="spare art">
+    <div class="sparetxt"><span class="sparetag">Spare art to place</span>
+      <p>${esc(spareLabel)} — <b>which card should use this instead?</b> Reply with the card name.</p></div>
+  </div>` : '';
 
 const body = `<div class="wrap">
   <p class="eyebrow">Mycelium · new grow cards</p>
   <h1>Your final set — 9 grow cards</h1>
   <p class="lede">The art you chose across all rounds, each on its real in-game card face. Caption =
   which option won. All nine are applied to the game.</p>
+  ${spareBlock}
   <div class="grid">
 ${faces}
   </div>
