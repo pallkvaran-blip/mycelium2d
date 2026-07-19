@@ -158,24 +158,39 @@ export class NetworkRenderer {
     if (this._builtNodeCount !== this.network.nodes.length) this.structureDirty = true;
     if (this.structureDirty) { this._rebuildCaches(); this.structureDirty = false; }
     const net = this.network, zoom = camera.zoom, tl = camera.worldToScreen(0, 0);
+    const featherW = 2 / Math.max(0.001, zoom);   // ~1px each side of the strand, in screen space
     ctx.save();
     ctx.translate(tl.x, tl.y); ctx.scale(zoom, zoom);
     ctx.lineCap = 'round';
     ctx.strokeStyle = color;
+    // Very large colony → batched skeleton (cost), still with the soft feather underneath.
     if (net.nodes.length > 1600) {
-      for (const b of this.batches.cream) { ctx.lineWidth = b.w; ctx.stroke(b.path); }
-      ctx.restore(); return;
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.globalAlpha = pass === 0 ? 0.18 : 0.9;
+        for (const b of this.batches.cream) { ctx.lineWidth = b.w + (pass === 0 ? featherW : 0); ctx.stroke(b.path); }
+      }
+      ctx.globalAlpha = 1; ctx.restore(); return;
     }
-    for (const n of net.nodes) {
-      if (n.parentId == null || n.infected) continue;   // skip dead/infected strands
-      const p = net.byId.get(n.parentId); if (!p) continue;
-      const rev = this.revealFactor(n, time);
-      if (rev <= 0) continue;                            // not grown-in here yet
-      const ex = rev < 1 ? p.x + (n.x - p.x) * rev : n.x;
-      const ey = rev < 1 ? p.y + (n.y - p.y) * rev : n.y;
-      ctx.lineWidth = 1.0 + Math.min(0.6, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.14);
-      ctx.globalAlpha = rev < 1 ? rev : 1;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+    // Two passes: a soft ~1px feather underneath, then the crisp strands on top. Even out
+    // the weight so the heavy trunks don't dominate the fine tips — thin tips/secondaries
+    // render a touch fatter + fully opaque, while the thickest trunks take a little
+    // transparency.
+    for (let pass = 0; pass < 2; pass++) {
+      for (const n of net.nodes) {
+        if (n.parentId == null || n.infected) continue;   // skip dead/infected strands
+        const p = net.byId.get(n.parentId); if (!p) continue;
+        const rev = this.revealFactor(n, time);
+        if (rev <= 0) continue;                            // not grown-in here yet
+        const ex = rev < 1 ? p.x + (n.x - p.x) * rev : n.x;
+        const ey = rev < 1 ? p.y + (n.y - p.y) * rev : n.y;
+        const ls = Math.log(1 + (this.subtreeSize.get(n.id) || 1));   // ~0.69 (tip) .. 5+ (trunk)
+        const crispW = 1.2 + Math.min(0.5, ls * 0.12);                // fatter tips (1.2) so they read solid
+        const crispA = 1 - 0.22 * Math.min(1, Math.max(0, ls - 2.3) / 2.5);   // heavy trunks fade to ~0.78; tips/secondary stay 1.0
+        const rf = rev < 1 ? rev : 1;
+        ctx.lineWidth = pass === 0 ? crispW + featherW : crispW;
+        ctx.globalAlpha = (pass === 0 ? 0.18 : crispA) * rf;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
