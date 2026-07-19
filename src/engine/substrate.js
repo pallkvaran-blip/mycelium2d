@@ -766,7 +766,7 @@ export function generateSubstrate(config, rng) {
           if (d2 > R * R) continue;
           const cell = sub.cellAt(cx + dc, cy + dr);
           if (!cell) continue;
-          if (d2 <= rad * rad) {
+          if (d2 <= rad * rad && Math.abs(dc) <= reservoirHalfWidth(dr, rad)) {
             cell.rock = true; cell.water = true; cell.reservoir = id;   // impassable water pocket (like a lake)
             cell.formation = false; cell.rockFill = false;
             cell.nutrient = 0; cell.maxNutrient = 0; cell.hazard = false;
@@ -782,6 +782,22 @@ export function generateSubstrate(config, rng) {
   }
 
   return sub;
+}
+
+// Reservoir pools RENDER as a TEARDROP (narrow at top & bottom, widest in the lower-middle),
+// so their WATER footprint is carved to that egg shape — NOT a full circle — to line the sim's
+// water cells up with the drawn pool (no phantom water in the teardrop's empty corners, which is
+// what made income fire "far" from the pool and helper strands stop short of it). Profile =
+// opaque half-width (fraction of the widest row) sampled top→bottom from the art alpha; main.js
+// `drawReservoirs` scales the art with the matching RESERVOIR_OPAQUE box so the visible pool
+// covers exactly these cells. Shared across the 3 arts (all similar teardrops).
+export const RESERVOIR_PROFILE = [0.02, 0.56, 0.76, 0.88, 0.95, 0.96, 0.88, 0.68, 0.10];
+export function reservoirHalfWidth(dr, rad) {
+  const t = Math.max(0, Math.min(1, (dr + rad) / (2 * rad)));    // 0 = top, 1 = bottom
+  const f = t * (RESERVOIR_PROFILE.length - 1);
+  const i = Math.min(RESERVOIR_PROFILE.length - 2, Math.floor(f));
+  const fw = RESERVOIR_PROFILE[i] + (RESERVOIR_PROFILE[i + 1] - RESERVOIR_PROFILE[i]) * (f - i);
+  return rad * (fw / 0.96) + 0.4;                                // widest row ≈ rad; +0.4 cell rounding slack
 }
 
 // Stamp a circular footprint, invoking cb(cell, distInCells, col, row) per cell.

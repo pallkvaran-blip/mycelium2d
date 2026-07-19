@@ -461,6 +461,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Reservoir water CELLS now match the drawn pool (fixes phantom Aquifer Tap + short helper).**
+  Root cause of "income far from the water / helper won't reach it": the reservoir's `cell.water`
+  was a full CIRCULAR disc, but the teardrop art only fills ~50–72% of its 640² image (measured
+  from the PNG alpha) — so stretched over the disc's square bbox the visible pool sat ~1 cell
+  INSIDE the water cells on every side. Strands stopped against (and income fired on) invisible
+  water in the corners. Two matching fixes: (1) `substrate.js` carves the reservoir water as the
+  **teardrop shape** (`reservoirHalfWidth`/`RESERVOIR_PROFILE`, not a circle); (2) `main.js
+  drawReservoirs` scales each art so its **opaque box** (`RESERVOIR_OPAQUE`, per-art, measured from
+  the alpha) maps onto the water footprint + a 0.4-cell overhang — so the visible pool COVERS
+  exactly the water cells. Now income pays only when a strand is inside the visible pool, and the
+  water-seek helper reaches into it. Verified with an HTTP-served Playwright capture (water-cell
+  outlines sit inside the drawn pool) at rad 2 and 3. No RNG/repro impact (reservoir carve is last).
+
 - **Fruiting celebration = a gentle calm breeze; both outcomes persist; new low-water text.**
   Reworked the win/death spore drift (`main.js emitSpores`/`drawWinCelebration`): **~25% fewer
   spores** (`CELE_MAX_SPORES` 2600→1950, per-puff `3+rand4`→`2+rand4`) and **~half the drift

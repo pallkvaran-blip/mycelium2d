@@ -2819,6 +2819,16 @@ function drawLakes() {
 // to each reservoir so a map never repeats the same art (there are ≤3 reservoirs).
 // Touching one grants Water income (cards.js).
 const RESERVOIR_KEYS = ['reservoir1', 'reservoir2', 'reservoir3'];
+// Bounding box of each reservoir art's OPAQUE teardrop within its 640² image, as fractions
+// (measured from the PNG alpha). The art is drawn scaled so THIS box maps onto the reservoir's
+// water-cell footprint (+ a small overhang) — so the visible pool covers exactly the water cells
+// the sim uses (substrate.js reservoirHalfWidth carves the matching teardrop). Without this the
+// teardrop only fills ~60% of the drawn rect, leaving phantom water in the corners.
+const RESERVOIR_OPAQUE = {
+  reservoir1: { x: 0.25, y: 0.15, w: 0.50, h: 0.72 },
+  reservoir2: { x: 0.19, y: 0.17, w: 0.64, h: 0.62 },
+  reservoir3: { x: 0.13, y: 0.18, w: 0.72, h: 0.62 },
+};
 function drawReservoirs() {
   const keys = RESERVOIR_KEYS.filter(hasAsset);
   if (!keys.length) return;
@@ -2830,14 +2840,20 @@ function drawReservoirs() {
   // Seeded shuffle of the available arts → distinct art per reservoir, no repeats
   // (until the pool is exhausted, which needs >3 reservoirs — the count caps at 3).
   const order = keys.map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.037) })).sort((a, b) => a.r - b.r).map((o) => o.k);
-  const M = 0.6;   // overdraw margin (cells) so feathered art edges bleed into soil
+  const OV = 0.4;   // teardrop overhang (cells) past the water footprint so the pool's feathered
+                    // edge just covers every water cell and bleeds into soil.
   list.forEach((r, i) => {
-    const img = asset(order[i % order.length]);
+    const key = order[i % order.length];
+    const img = asset(key);
     if (!img) return;
-    const wx = (r.c0 - M) * cs, wy = (r.r0 - M) * cs + sub.surfaceY;
-    const tl = camera.worldToScreen(wx, wy);
-    const sw = (r.c1 - r.c0 + 1 + 2 * M) * cs * z;
-    const sh = (r.r1 - r.r0 + 1 + 2 * M) * cs * z;
+    const ob = RESERVOIR_OPAQUE[key] || { x: 0, y: 0, w: 1, h: 1 };
+    // Target the water-cell footprint + overhang (world units) for the OPAQUE teardrop…
+    const tx = (r.c0 - OV) * cs, ty = (r.r0 - OV) * cs + sub.surfaceY;
+    const tW = (r.c1 - r.c0 + 1 + 2 * OV) * cs, tH = (r.r1 - r.r0 + 1 + 2 * OV) * cs;
+    // …then scale the FULL image so that box lands there (rest of the image is transparent).
+    const drawW = tW / ob.w, drawH = tH / ob.h;
+    const tl = camera.worldToScreen(tx - ob.x * drawW, ty - ob.y * drawH);
+    const sw = drawW * z, sh = drawH * z;
     if (tl.x > camera.viewW || tl.x + sw < 0 || tl.y > camera.viewH || tl.y + sh < 0) return;
     ctx.drawImage(img, tl.x, tl.y, sw, sh);
   });
