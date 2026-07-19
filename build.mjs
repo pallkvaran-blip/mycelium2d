@@ -159,5 +159,13 @@ if (existsSync(R('assets'))) {
   console.log('Copied assets/ -> dist/assets/');
 }
 
+// Publish the standalone card cost/description editor alongside the game so it's
+// reachable on the deployed site at <site>/card-editor.html. It's self-contained
+// (cards.json inlined); regenerate it with `node scripts/build_cardeditor.mjs`.
+if (existsSync(R('docs/card-editor.html'))) {
+  cpSync(R('docs/card-editor.html'), R('dist/card-editor.html'));
+  console.log('Copied docs/card-editor.html -> dist/card-editor.html');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);
