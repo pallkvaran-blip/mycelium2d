@@ -430,7 +430,7 @@
     "type": "action",
     "category": "anti-worm",
     "buyCostEnergy": 16,
-    "buyCostPhosphorus": 0,
+    "buyCostPhosphorus": 4,
     "playCostEnergy": 0,
     "playCostWater": 0,
     "playCostPhosphorus": 3,

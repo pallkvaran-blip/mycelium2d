@@ -146,6 +146,12 @@ function applyCarry(st, carry) {
   st.cards = carry.cards;
   st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
   st.cards.round = 1;
+  // The Aquifer Tap water trickle is a SYNTHETIC engine kept in sync with live water
+  // contact (cards.js updateWaterSourceEngine). It must NOT carry between levels — a
+  // fresh map's colony isn't touching any water, so drop it; you re-earn the trickle by
+  // growing into a new water body. (The next tick would splice it out anyway, but this
+  // keeps it off the opening ledger too.)
+  if (Array.isArray(st.cards.engines)) st.cards.engines = st.cards.engines.filter((e) => !e._waterSource);
   const net = st.active;
   net.energy = carry.energy; net.water = carry.water; net.phosphorus = carry.phosphorus;
   st.log('Your colony carries its deck, engines and reserves down to the next level.', 'good');
@@ -153,6 +159,19 @@ function applyCarry(st, carry) {
 
 // Route a finished run: a level win advances the campaign; puzzle wins / deaths
 // fall through to the generic overlay (death's button goes back to the picker).
+// A win at the goal is held PENDING (state.winPending) while the colony finishes
+// harvesting the food piles it occupied and the player picks the resulting draft(s).
+// Once no draft is left, end the run for real — which kicks off the victory sequence.
+function maybeFinalizePendingWin() {
+  if (!state.winPending) return;
+  const c = state.cards;
+  if (c && c.pendingOffers && c.pendingOffers.length) return;   // still a draft to pick
+  state.winPending = false;
+  if (state.active) state.active.alive = false;
+  state.runOver = true;
+  presentRunOver();
+}
+
 function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   _runOverPresented = true;
@@ -255,23 +274,39 @@ function startCelebration(side, onFinish) {
       sway: Math.random() * Math.PI * 2, spots, lastEmit: 0, depth: d,
     });
   }
-  winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [] };
-  // Frame the hill: centre it a little left (room for spores to sail off the right),
-  // surface low in view (sky above for the drift).
+  // A DEATH ("your run has ended") keeps its spores drifting in EVERY direction and
+  // never stops (persist) — the run-over card sits over a living hill, no fade to black.
+  winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [], side, omni: home, persist: home };
+  // Frame the hill HIGH — on desktop in the TOP THIRD so it never sits under the bottom
+  // card carousel / the win-or-death card; centre it a little left (room for spores to
+  // sail off), sky above for the drift.
   const cx = (colLo + span * (home ? 0.5 : 0.45)) * cs;
   const z = Math.max(0.85, Math.min(1.7, camera.viewW / ((span + 7) * cs)));
-  focusWorld(cx, surfY - 18, z, 0.6, home ? 0.38 : 0.42);
+  const anchorY = isDesktopWide() ? 0.32 : 0.6;
+  focusWorld(cx, surfY - 18, z, anchorY, home ? 0.38 : 0.42);
 }
 
-function emitSpores(list, m, n, time) {
+function emitSpores(list, m, n, time, omni) {
   if (list.length >= CELE_MAX_SPORES) return;
   const capX = m.x, capY = m.y - m.h * 0.95;                // world position of the cap top
-  for (let k = 0; k < n; k++) list.push({
-    x0: capX + (Math.random() - 0.5) * m.capR * 1.6, y0: capY - Math.random() * m.capR * 0.7,
-    vx: 0.05 + Math.random() * 0.11, rise: 0.006 + Math.random() * 0.022,
-    swayA: 1.5 + Math.random() * 3.5, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
-    size: 0.45 + Math.random() * 1.05, born: time, life: 3800 + Math.random() * 2600, alpha: 0.4 + Math.random() * 0.5,
-  });
+  for (let k = 0; k < n; k++) {
+    // Win hill: spores drift RIGHT on the wind and rise. Death hill (omni): they puff
+    // out in EVERY direction (random heading), with a faint upward bias so the cloud
+    // still lifts as it spreads.
+    let vx, vy;
+    if (omni) {
+      const ang = Math.random() * Math.PI * 2, sp = 0.04 + Math.random() * 0.13;
+      vx = Math.cos(ang) * sp; vy = Math.sin(ang) * sp - 0.012;
+    } else {
+      vx = 0.05 + Math.random() * 0.11; vy = -(0.006 + Math.random() * 0.022);
+    }
+    list.push({
+      x0: capX + (Math.random() - 0.5) * m.capR * 1.6, y0: capY - Math.random() * m.capR * 0.7,
+      vx, vy,
+      swayA: 1.5 + Math.random() * 3.5, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
+      size: 0.45 + Math.random() * 1.05, born: time, life: 3800 + Math.random() * 2600, alpha: 0.4 + Math.random() * 0.5,
+    });
+  }
 }
 
 function drawCeleMushroom(m, g, time) {
@@ -307,35 +342,44 @@ function drawWinCelebration(time) {
   if (!winCele) return;
   if (!winCele.start) winCele.start = time;
   const t = time - winCele.start;
+  const omni = !!winCele.omni, persist = !!winCele.persist;
   for (const m of winCele.mushrooms) {
     const mt = t - m.delay; if (mt <= 0) continue;
     const g = easeOutBack(Math.min(1, mt / m.grow));
     drawCeleMushroom(m, g, time);
-    if (g > 0.75 && t >= CELE_SPORE_START && t < CELE_SPORE_END && time - m.lastEmit > 45) {
-      m.lastEmit = time; emitSpores(winCele.spores, m, 3 + (Math.random() * 4 | 0), time);
+    // A win hill puffs for a window; a DEATH hill (persist) keeps puffing forever so
+    // the run-over card always sits over living, drifting spores (no fade to black).
+    const emitting = persist ? (t >= CELE_SPORE_START) : (t >= CELE_SPORE_START && t < CELE_SPORE_END);
+    if (g > 0.75 && emitting && time - m.lastEmit > 45) {
+      m.lastEmit = time; emitSpores(winCele.spores, m, 3 + (Math.random() * 4 | 0), time, omni);
     }
   }
-  const spr = sporeSprite(), spores = winCele.spores, W = camera.viewW;
+  const spr = sporeSprite(), spores = winCele.spores, W = camera.viewW, H = camera.viewH;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = spores.length - 1; i >= 0; i--) {
     const p = spores[i], age = time - p.born;
     if (age >= p.life) { spores.splice(i, 1); continue; }
-    // drift right on the wind; a coherent travelling wave (based on world-x + time)
-    // makes the whole cloud weave and ripple as it flows, showing the wind.
+    // Drift by the spore's own velocity; a coherent travelling wave (world-x + time)
+    // makes the cloud weave and ripple. Omni spores head every which way; a win hill's
+    // spores stream right on the wind.
     const wx = p.x0 + p.vx * age;
-    const wy = p.y0 - p.rise * age
+    const wy = p.y0 + (p.vy || 0) * age
              + p.swayA * Math.sin(age * p.swayF + p.ph)
              + 5.5 * Math.sin(wx * 0.03 - time * 0.004 + p.ph * 0.5);
     const s = camera.worldToScreen(wx, wy);
-    if (s.x > W + 60) { spores.splice(i, 1); continue; }
-    const a = Math.min(1, age / 200) * (1 - smooth01(0.72, 1, age / p.life)) * (1 - smooth01(W - 90, W + 30, s.x)) * p.alpha;
+    // Cull once well off ANY edge (omni exits every side; a win drifts off the right).
+    if (s.x < -90 || s.x > W + 90 || s.y < -90 || s.y > H + 90) { spores.splice(i, 1); continue; }
+    const edgeFade = omni ? 1 : (1 - smooth01(W - 90, W + 30, s.x));
+    const a = Math.min(1, age / 200) * (1 - smooth01(0.72, 1, age / p.life)) * edgeFade * p.alpha;
     if (a <= 0.01) continue;
     const r = p.size * camera.zoom * 1.7;
     ctx.globalAlpha = a; ctx.drawImage(spr, s.x - r, s.y - r, r * 2, r * 2);
   }
   ctx.restore();
   if (t >= CELE_BANNER_AT && !winCele.finished) { winCele.finished = true; winCele.onFinish(); }
-  if (winCele.finished && (t >= CELE_HARD_END || spores.length === 0)) winCele = null;
+  // A win celebration ends once the banner is up and its spores have sailed off; a DEATH
+  // hill PERSISTS (spores keep drifting) until the next run clears it in begin().
+  if (!persist && winCele.finished && (t >= CELE_HARD_END || spores.length === 0)) winCele = null;
 }
 
 function onLevelWon() {
@@ -366,7 +410,34 @@ function onLevelWon() {
 function backToPicker() {
   ui.hideOverlay();
   currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
+  winCele = null;               // stop the persistent death-hill spores when leaving
   showPicker();
+}
+
+// The title screen (Survival New / Continue → species picker). Shown on boot and
+// reachable from the run-over card's "Main menu" button.
+function showMainMenu() {
+  if (ui) ui.hideOverlay();
+  showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+    // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
+    onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onContinue: () => showPicker(),
+    // TEMP dev: jump straight into the tutorial with a random starter species.
+    onDevTutorial: () => {
+      chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
+      currentLevel = 1; carryOver = null; tutorialDevForce = true;
+      startRun();
+    },
+  });
+}
+
+// Run-over card → "Main menu": drop the run and return to the title screen (which
+// covers the whole viewport, so the dead colony behind it doesn't matter).
+function backToTitle() {
+  if (ui) ui.hideOverlay();
+  currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
+  winCele = null;
+  showMainMenu();
 }
 
 // The top-centre "Level N / 11" chip was removed; clean up any lingering node.
@@ -552,7 +623,7 @@ function begin(newState) {
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
-    chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
+    chooseCard: (name) => { const r = chooseOffer(state, name); maybeFinalizePendingWin(); uiDirty = true; return r; },
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
@@ -659,6 +730,9 @@ const handlers = {
   },
   onBackToPicker() {                  // death (campaign) → choose a species again from scratch
     backToPicker();
+  },
+  onMainMenu() {                      // run-over card → back to the title screen
+    backToTitle();
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
@@ -827,6 +901,7 @@ const handlers = {
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
     else if (res.message) { ui.toast(res.message); uiDirty = true; }
+    maybeFinalizePendingWin();   // a win that was waiting on this draft can now finish
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -888,7 +963,7 @@ function checkWater() {
   }
   if (w <= 5 && !state._waterWarned) {
     state._waterWarned = true;
-    if (ui) ui.toast('Warning! 5 water left. Your colony will die without water.', 'warn');
+    if (ui) ui.warningPopup('Water is running low. Your colony will shrivel up and die if it runs out — grow into a lake or reservoir, or play a Water card to replenish it.');
   }
 }
 
@@ -3217,15 +3292,5 @@ if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
 else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
-else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
-  // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-  onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
-  onContinue: () => showPicker(),
-  // TEMP dev: jump straight into the tutorial with a random starter species.
-  onDevTutorial: () => {
-    chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
-    currentLevel = 1; carryOver = null; tutorialDevForce = true;
-    startRun();
-  },
-});
+else showMainMenu();
 requestAnimationFrame(frame);

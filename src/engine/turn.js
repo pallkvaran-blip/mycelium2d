@@ -18,7 +18,7 @@ import { stepNematodes } from './nematodes.js';
 import { produceCardEngines, checkGoalReached, checkPileRewards } from './cards.js';
 
 export function tickWorld(state) {
-  if (state.runOver) return;
+  if (state.runOver || state.winPending) return;   // goal reached, waiting on the final draft
 
   const { config, substrate } = state;
 

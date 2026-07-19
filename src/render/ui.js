@@ -721,7 +721,9 @@ export class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
-    const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
+    // Campaign death: a new run and a way back to the main menu (no icon on "New run").
+    const pickerBtn = `<button class="btn big" id="overlay-picker">New run</button>`;
+    const menuBtn = `<button class="btn big secondary" id="overlay-menu">Main menu</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
     // Total Spores earned across this run — shown on the death card so the loss still
@@ -735,7 +737,7 @@ export class UI {
         <p>${body}</p>
         ${sporeLine}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
-          : campaignDeath ? pickerBtn
+          : campaignDeath ? `<div class="ctrl deathctrl">${pickerBtn}${menuBtn}</div>`
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
     const rb = o.querySelector('#overlay-restart');
@@ -744,8 +746,33 @@ export class UI {
     if (pb) pb.onclick = () => this.handlers.onPuzzle();
     const pk = o.querySelector('#overlay-picker');
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
+    const mn = o.querySelector('#overlay-menu');
+    if (mn) mn.onclick = () => this.handlers.onMainMenu();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
+
+  // A click-to-dismiss WARNING modal (used for the survival/low-water warning). Clean
+  // black & white, no gradients; the "Warning" heading is red. Stays up until the player
+  // clicks OK (or the backdrop) — unlike the transient toast, it demands acknowledgement.
+  warningPopup(message) {
+    let el = this._warnPop;
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'warnpop hidden';
+      document.body.appendChild(el);
+      this._warnPop = el;
+    }
+    el.innerHTML = `<div class="warnpop-box">`
+      + `<h2 class="warnpop-title">Warning</h2>`
+      + `<p class="warnpop-msg"></p>`
+      + `<button type="button" class="warnpop-ok">OK</button>`
+      + `</div>`;
+    el.querySelector('.warnpop-msg').textContent = message;
+    const close = () => el.classList.add('hidden');
+    el.querySelector('.warnpop-ok').onclick = (e) => { e.stopPropagation(); close(); };
+    el.onclick = (e) => { if (!e.target.closest('.warnpop-box')) close(); };
+    el.classList.remove('hidden');
+  }
 
   update() {
     const s = this.state;

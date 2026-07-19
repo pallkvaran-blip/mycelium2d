@@ -291,6 +291,26 @@ export function infectNetwork(net, state) {
   for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
 }
 
+// Growing INTO active mould infects you FIRST. Any healthy strand standing in a
+// trich-filled cell (above growInfectThreshold, and not warded) is overrun on the
+// spot. contactChance is already 1.0 (a cloud's touch = infection), so this simply
+// applies that rule DETERMINISTICALLY at the moment a grow/goal is resolved: a
+// fruiting strand that pushed through the Trichoderma sitting on the finish line is
+// dead tissue and cannot win — checkGoalReached skips infected nodes. Returns count.
+export function infectStrandsInMould(net, state) {
+  if (!net) return 0;
+  const sub = state.substrate;
+  const th = (state.config.trichoderma && state.config.trichoderma.growInfectThreshold) || 0.05;
+  let hit = 0;
+  for (const n of net.nodes) {
+    if (n.infected || n.side) continue;             // already rot / decorative fuzz
+    const cell = sub.cellAtWorld(n.x, n.y);
+    if (cell && cell.trich >= th && !cellProofed(sub, n)) { n.infected = true; hit++; }
+  }
+  if (hit) net.recomputeVitality();
+  return hit;
+}
+
 // A node sitting on a warded cell is immune to fresh infection for the ward's
 // duration. `mouldProof` is the visible harden/immune ward (Melanized Wall, Crust
 // Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden

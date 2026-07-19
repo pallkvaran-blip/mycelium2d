@@ -365,14 +365,19 @@
     .overlay p.small { font-size: 12px; }
     .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(127,230,163,0.16);
       border-color: var(--accent); }
-    /* Death prompts: flat black & white — no gradients, no colour accents. */
-    .overlay:has(.card.death) { background: rgba(0,0,0,0.82); backdrop-filter: blur(3px); }
-    .overlay .card.death { background: #0b0b0b; border: 1px solid #e9e9e9; box-shadow: none; }
+    /* Death prompts: flat black & white — no gradients, no colour accents. The run-over
+       card does NOT fade the screen to black: the backdrop stays clear so the fruiting
+       green hill (framed in the top third) and its drifting spores keep the focus. */
+    .overlay:has(.card.death) { background: transparent; backdrop-filter: none; align-items: center; }
+    .overlay .card.death { background: #0b0b0b; border: 1px solid #e9e9e9; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
     .overlay .card.death h1 { color: #ffffff; }
     .overlay .card.death p { color: #dcdcdc; }
     .overlay .card.death p.dim { color: #9a9a9a; }
-    .overlay .card.death .btn.big { background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
+    .overlay .card.death .deathctrl { justify-content: center; margin-top: 18px; }
+    .overlay .card.death .btn.big { margin-top: 0; background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
     .overlay .card.death .btn.big:hover { background: #2b2b2b; border-color: #ffffff; }
+    .overlay .card.death .btn.big.secondary { background: transparent; }
+    .overlay .card.death .btn.big.secondary:hover { background: #1b1b1b; }
     /* Spores-earned line on the death card — kept flat white (spore icon desaturated
        to a white shine) so it stays true to the black-&-white death prompt. */
     .overlay .card.death .death-spores { display:flex; align-items:center; justify-content:center; gap:8px;
@@ -380,6 +385,19 @@
     .overlay .card.death .death-spores b { color:#ffffff; font-weight:700; }
     .overlay .card.death .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto;
       filter:brightness(0) invert(1); }
+
+    /* Warning popup — a click-to-dismiss modal (survival warnings). Clean black & white,
+       no gradients; the "Warning" heading is red. */
+    .warnpop { position: fixed; inset: 0; z-index: 4000; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55); }
+    .warnpop.hidden { display: none; }
+    .warnpop-box { background: #000; border: 1px solid #fff; border-radius: 10px; padding: 26px 30px 24px;
+      max-width: 360px; text-align: center; }
+    .warnpop-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; letter-spacing: .06em; color: #e23b3b; }
+    .warnpop-msg { margin: 0 0 22px; font-size: 14px; line-height: 1.55; color: #fff; }
+    .warnpop-ok { cursor: pointer; font-family: inherit; font-weight: 600; font-size: 14px; letter-spacing: .02em;
+      padding: 9px 28px; border-radius: 8px; background: #000; color: #fff; border: 1px solid #fff; }
+    .warnpop-ok:hover { background: #fff; color: #000; }
 
     /* mobile-ish */
     @media (max-width: 720px) {
@@ -1204,8 +1222,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "ztv0rq";
-globalThis.__BUILD__ = "local 07-19 10:14";
+window.__ASSET_VER = "13ug9zc";
+globalThis.__BUILD__ = "local 07-19 10:52";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1415,6 +1433,15 @@ const CONFIG = {
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
+    // --- water bodies (lake / reservoir): income + auto-reach helper ---------
+    // Income (the Aquifer Tap trickle) only kicks in when a strand ALMOST TOUCHES the
+    // water — a node within this many world units of a water cell's edge (much tighter
+    // than the old sensing-range test). ~0.6 cell ≈ hugging the water face.
+    waterContactDist: 22,
+    // When the colony comes within this reach of a water body but isn't touching it yet,
+    // a helper grows an extra strand STRAIGHT toward the water (like food), stopping at
+    // the edge (never overlapping the water). See network.js reachForWater.
+    waterSeekReach: 150,
   },
 
   // ---- Vitality / health (A5, A8) ----------------------------------------
@@ -1448,6 +1475,7 @@ const CONFIG = {
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
+    growInfectThreshold: 0.05,   // a strand standing in a trich-field cell ≥ this is infected on the spot (growing INTO mould) — so it can't fruit/win at the goal
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium
     spreadDepthPerTurn: 6,       // once inside, the rot races this many rings along your filaments each step (runs on every action AND on end-turn)
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences
@@ -2039,7 +2067,7 @@ const CARD_DATA = [
   "category": "anti-worm",
   "displayCategory": "engine",
   "buyCostEnergy": 16,
-  "buyP": 0,
+  "buyP": 4,
   "costW": 0,
   "costP": 3,
   "timing": "any",
@@ -3938,7 +3966,7 @@ class Network {
     }
     // Growing also fully colonises any substrate pile now within reach.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created > 0) this.recomputeVitality();
+    if (created > 0) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -4213,7 +4241,7 @@ class Network {
     }
     // Directed growth also colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -4299,7 +4327,7 @@ class Network {
     }
     // Fanning out also fully colonises any substrate pile within reach, in one step.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -4367,6 +4395,57 @@ class Network {
       if (!this._placeOk(substrate, x0 + dx * t, y0 + dy * t)) return false;
     }
     return true;
+  }
+
+  // WATER-SEEK HELPER (config growth.waterSeekReach / waterContactDist): when the colony
+  // comes within reach of a water body (lake or reservoir cell) but isn't hugging it yet,
+  // grow ONE extra strand STRAIGHT toward the nearest water — treating water like food.
+  // It stops at the water's edge (water is solid, so _segmentClear halts the chain on the
+  // near face — it never overlaps the water). Deterministic: no rng, no side-strands, so
+  // it can't shift the main food-seek/collision path. Runs after each grow. Returns nodes.
+  reachForWater(substrate) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 0;
+    const cs = substrate.cellSize;
+    const reach = g.waterSeekReach || g.sensingRadius || 150;
+    const contact = (g.waterContactDist != null ? g.waterContactDist : cs * 0.6);
+    const reachCells = Math.ceil(reach / cs) + 1, reach2 = reach * reach;
+    const skip2 = (contact + cs) * (contact + cs);
+    // Each advancing tip's nearest water cell (if within reach and not already hugging).
+    const cands = [];
+    for (const t of this.tips()) {
+      if (t.infected || t.side) continue;
+      const col = substrate.colAtX(t.x), row = substrate.rowAtY(t.y);
+      let bx = 0, by = 0, bd = reach2;
+      for (let dr = -reachCells; dr <= reachCells; dr++) for (let dc = -reachCells; dc <= reachCells; dc++) {
+        const cell = substrate.cellAt(col + dc, row + dr);
+        if (!cell || !cell.water) continue;
+        const c = substrate.cellCenter(col + dc, row + dr);
+        const d2 = (c.x - t.x) ** 2 + (c.y - t.y) ** 2;
+        if (d2 < bd) { bd = d2; bx = c.x; by = c.y; }
+      }
+      if (bd < reach2 && bd > skip2) cands.push({ t, bx, by, d2: bd });   // in range, not already hugging
+    }
+    if (!cands.length) return 0;
+    // Grow a straight chain toward the CLOSEST reachable water; a blocked nearest water
+    // (e.g. behind rock) falls through to the next candidate. Stops at the water face
+    // (water is solid → _segmentClear halts the chain), so it never overlaps the water.
+    cands.sort((a, b) => a.d2 - b.d2);
+    for (const cd of cands) {
+      const dx = cd.bx - cd.t.x, dy = cd.by - cd.t.y;
+      const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      const steps = Math.ceil(len / g.segmentLength) + 1;
+      let parent = cd.t, made = 0;
+      for (let i = 0; i < steps; i++) {
+        if (this.nodes.length >= g.maxNodes) break;
+        const nx = parent.x + ux * g.segmentLength, ny = parent.y + uy * g.segmentLength;
+        if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
+        parent = this.addNode(nx, ny, parent);
+        made++;
+      }
+      if (made > 0) { this.recomputeVitality(); return made; }
+    }
+    return 0;
   }
 
   // Grow `steps` from the frontier tip nearest to food, toward that food (works
@@ -5412,6 +5491,26 @@ function infectNetwork(net, state) {
   for (const n of front) infectAround(net, n, t.spreadDepthPerTurn, t.infectionSpreadChance, rng, sub);
 }
 
+// Growing INTO active mould infects you FIRST. Any healthy strand standing in a
+// trich-filled cell (above growInfectThreshold, and not warded) is overrun on the
+// spot. contactChance is already 1.0 (a cloud's touch = infection), so this simply
+// applies that rule DETERMINISTICALLY at the moment a grow/goal is resolved: a
+// fruiting strand that pushed through the Trichoderma sitting on the finish line is
+// dead tissue and cannot win — checkGoalReached skips infected nodes. Returns count.
+function infectStrandsInMould(net, state) {
+  if (!net) return 0;
+  const sub = state.substrate;
+  const th = (state.config.trichoderma && state.config.trichoderma.growInfectThreshold) || 0.05;
+  let hit = 0;
+  for (const n of net.nodes) {
+    if (n.infected || n.side) continue;             // already rot / decorative fuzz
+    const cell = sub.cellAtWorld(n.x, n.y);
+    if (cell && cell.trich >= th && !cellProofed(sub, n)) { n.infected = true; hit++; }
+  }
+  if (hit) net.recomputeVitality();
+  return hit;
+}
+
 // A node sitting on a warded cell is immune to fresh infection for the ward's
 // duration. `mouldProof` is the visible harden/immune ward (Melanized Wall, Crust
 // Reserve, Sclerotial Crust/Rind); `reinfectGrace` is Rehydration Pulse's hidden
@@ -5468,7 +5567,7 @@ function totalTrichoderma(substrate) {
   return total;
 }
 
-  return { seedTrichoderma, placeClouds, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, checkPuzzleGoal, totalTrichoderma };
+  return { seedTrichoderma, placeClouds, spawnTrichodermaAt, spreadTrichoderma, infectNetwork, infectStrandsInMould, checkPuzzleGoal, totalTrichoderma };
 })();
 
 // ===================== src/engine/ants.js =====================
@@ -5806,6 +5905,7 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     traps: [],             // Constricting Ring traps: {x,y,r,reward} — digest a worm on contact
     turn: 1,
     runOver: false,
+    winPending: false,     // goal reached, but finishing harvest + drafts before the win lands
     runResult: null,
     logEntries: [],
     _logSeq: 0,
@@ -5836,6 +5936,7 @@ function newRun(config, seed) {
 const __m_engine_cards = (function () {
   const { CARD_DATA, CARD_BY_NAME } = __m_cards_data;
   const { attackNest, recalibrateAnts } = __m_engine_ants;
+  const { infectStrandsInMould } = __m_engine_threats;
 // =============================================================================
 // Card runtime (C1) — the deck / hand / resource layer on top of the action sim.
 //
@@ -6301,11 +6402,31 @@ function activateAction(state, i, ctx) {
   return { ok: true, message: res.message };
 }
 
+// Drain EVERY colonised food cell to empty in one go, banking its Energy. Called at
+// the moment of victory so a win never abandons a half-digested pile — the emptied
+// piles then trigger their card drafts (checkPileRewards). Mirrors turn.js
+// resolveIncome's energy math but takes all the remaining nutrient at once.
+function finishOccupiedHarvest(state) {
+  const net = state.active, sub = state.substrate;
+  const e = state.config.energy;
+  let gained = 0;
+  for (const cell of sub.cells) {
+    if (cell.colonized <= 0 || cell.nutrient <= 0 || cell.hazard) continue;
+    const take = cell.nutrient;                 // final harvest: take everything left
+    cell.nutrient = 0;
+    gained += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : e.incomeEfficiency);
+  }
+  if (gained > 0) { net.energy += gained; state.log(`Final harvest: +${Math.round(gained)}⚡ from the piles you occupied.`, 'good'); }
+}
+
 // --- WIN: a strand reaches the goal zone; LOSE: card-dry & broke ------------
 function checkGoalReached(state) {
-  if (state.runOver || !state.cards) return;
+  if (state.runOver || state.winPending || !state.cards) return;
   const net = state.active; if (!net || !net.alive) return;
   const sub = state.substrate;
+  // A strand that grew INTO the Trichoderma gets infected FIRST, so a fruiting body
+  // pushed through mould sitting on the finish line is dead tissue and can't win.
+  infectStrandsInMould(net, state);
   const f = state.config.actions.fruit;
   for (const n of net.nodes) {
     if (n.infected) continue;
@@ -6313,10 +6434,21 @@ function checkGoalReached(state) {
     if (surf && surf.goal) {
       const depth = n.y - sub.surfaceY;
       if (depth >= 0 && depth <= f.reachDepth) {
-        net.fruited = true; net.alive = false;
-        state.runOver = true; state.won = true;
+        // WIN — but first FINISH HARVESTING every food pile the colony still occupies
+        // (bank its Energy) and hand out any resulting card drafts. The victory sequence
+        // only begins once those are resolved: if a draft is now pending we mark the win
+        // PENDING and wait for the player to pick (main.js maybeFinalizePendingWin);
+        // otherwise the run ends right away.
+        net.fruited = true; state.won = true;
         state.runResult = { won: true, turns: state.turn };
         state.log('A fruiting body breaks the surface at the goal — you win the level!', 'good');
+        finishOccupiedHarvest(state);
+        checkPileRewards(state);
+        if (state.cards.pendingOffers && state.cards.pendingOffers.length) {
+          state.winPending = true;
+        } else {
+          net.alive = false; state.runOver = true;
+        }
         return;
       }
     }
@@ -6415,34 +6547,56 @@ function nodeTouches(state, pred) {
   }
   return false;
 }
-// Water contact. A "lake" is open lake water; a "reservoir" is an underground
-// pocket (cell.reservoir = its id). Both are impassable water, but they're counted
-// SEPARATELY for the water-source income (max +1 per lake, +1 per distinct reservoir).
-const nodeTouchesWater = (state) => nodeTouches(state, (c) => c.water);              // lake OR reservoir
-const touchesLake = (state) => nodeTouches(state, (c) => c.water && !c.reservoir);   // open lake only
 const touchesMineral = (state) => nodeTouches(state, (c) => c.rock && !c.water);
 
+// Water contact is STRICT: a strand must ALMOST TOUCH the water, not merely sense it.
+// A node counts against a water cell only when it's within growth.waterContactDist of
+// that cell's rectangle (≈ hugging the water face) — far tighter than the old 3×3
+// cell-neighbourhood test, which read like "within sensing range". A "lake" is open
+// lake water; a "reservoir" is an underground pocket (cell.reservoir = its id).
+function waterContactDist2(state) {
+  const cs = state.substrate.cellSize;
+  const d = (state.config.growth && state.config.growth.waterContactDist != null) ? state.config.growth.waterContactDist : cs * 0.6;
+  return d * d;
+}
+// Squared distance from world point (x,y) to substrate cell (col,row)'s rectangle.
+function distSqToCellRect(sub, col, row, x, y) {
+  const cs = sub.cellSize;
+  const x0 = col * cs, x1 = x0 + cs, y0 = sub.surfaceY + row * cs, y1 = y0 + cs;
+  const dx = x < x0 ? x0 - x : (x > x1 ? x - x1 : 0);
+  const dy = y < y0 ? y0 - y : (y > y1 ? y - y1 : 0);
+  return dx * dx + dy * dy;
+}
+// The set of distinct water SOURCES the colony almost-touches: 'lake' for open lake
+// water, or a reservoir's numeric id. Empty when nothing is close enough.
+function waterSourcesNear(state) {
+  const sub = state.substrate;
+  const md2 = waterContactDist2(state);
+  const reach = Math.ceil(Math.sqrt(md2) / sub.cellSize) + 1;
+  const found = new Set();
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
+    for (let dr = -reach; dr <= reach; dr++) for (let dc = -reach; dc <= reach; dc++) {
+      const cell = sub.cellAt(col + dc, row + dr);
+      if (!cell || !cell.water) continue;
+      if (distSqToCellRect(sub, col + dc, row + dr, n.x, n.y) > md2) continue;
+      found.add(cell.reservoir ? cell.reservoir : 'lake');
+    }
+  }
+  return found;
+}
+const nodeTouchesWater = (state) => waterSourcesNear(state).size > 0;    // lake OR reservoir
+
 // --- water-source income ----------------------------------------------------
-// Touching open lake water OR an underground reservoir gives the colony a Water
+// Almost-touching open lake water OR an underground reservoir gives the colony a Water
 // trickle: +1 Water every 3 rounds PER source (at most +1 for the lake, +1 per
 // distinct reservoir). Implemented as a synthetic engine kept in C.engines so the
 // income pill + ledger display it automatically — added while a source is in
 // contact, removed the moment none is.
 const WATER_SOURCE_NAME = 'Aquifer Tap';
 const WATER_SOURCE_EVERY = 3;
-function distinctReservoirsTouched(state) {
-  const sub = state.substrate, seen = new Set();
-  for (const n of state.active.nodes) {
-    if (n.infected) continue;
-    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      const cell = sub.cellAt(col + dc, row + dr);
-      if (cell && cell.reservoir) seen.add(cell.reservoir);
-    }
-  }
-  return seen.size;
-}
-const waterSourcesTouched = (state) => (touchesLake(state) ? 1 : 0) + distinctReservoirsTouched(state);
+const waterSourcesTouched = (state) => waterSourcesNear(state).size;
 function updateWaterSourceEngine(state) {
   const C = state.cards; if (!C || !C.engines) return;
   const sources = (state.active && state.active.alive) ? waterSourcesTouched(state) : 0;
@@ -6946,7 +7100,7 @@ const __m_engine_turn = (function () {
 
 
 function tickWorld(state) {
-  if (state.runOver) return;
+  if (state.runOver || state.winPending) return;   // goal reached, waiting on the final draft
 
   const { config, substrate } = state;
 
@@ -9843,7 +9997,9 @@ class UI {
     // Mode-aware buttons (primary first).
     const puzzleBtn = `<button class="btn big" id="overlay-puzzle">${won ? 'Play again 🧩' : 'Retry puzzle 🧩'}</button>`;
     const randomBtn = `<button class="btn big" id="overlay-restart">${puzzle ? 'New random map ↻' : 'Begin a new colony ↻'}</button>`;
-    const pickerBtn = `<button class="btn big" id="overlay-picker">New run ↻</button>`;
+    // Campaign death: a new run and a way back to the main menu (no icon on "New run").
+    const pickerBtn = `<button class="btn big" id="overlay-picker">New run</button>`;
+    const menuBtn = `<button class="btn big secondary" id="overlay-menu">Main menu</button>`;
     // A campaign death returns to the species picker (choose again from scratch).
     const campaignDeath = this.cardsOn && !puzzle && died;
     // Total Spores earned across this run — shown on the death card so the loss still
@@ -9857,7 +10013,7 @@ class UI {
         <p>${body}</p>
         ${sporeLine}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
-          : campaignDeath ? pickerBtn
+          : campaignDeath ? `<div class="ctrl deathctrl">${pickerBtn}${menuBtn}</div>`
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
       </div>`;
     const rb = o.querySelector('#overlay-restart');
@@ -9866,8 +10022,33 @@ class UI {
     if (pb) pb.onclick = () => this.handlers.onPuzzle();
     const pk = o.querySelector('#overlay-picker');
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
+    const mn = o.querySelector('#overlay-menu');
+    if (mn) mn.onclick = () => this.handlers.onMainMenu();
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
+
+  // A click-to-dismiss WARNING modal (used for the survival/low-water warning). Clean
+  // black & white, no gradients; the "Warning" heading is red. Stays up until the player
+  // clicks OK (or the backdrop) — unlike the transient toast, it demands acknowledgement.
+  warningPopup(message) {
+    let el = this._warnPop;
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'warnpop hidden';
+      document.body.appendChild(el);
+      this._warnPop = el;
+    }
+    el.innerHTML = `<div class="warnpop-box">`
+      + `<h2 class="warnpop-title">Warning</h2>`
+      + `<p class="warnpop-msg"></p>`
+      + `<button type="button" class="warnpop-ok">OK</button>`
+      + `</div>`;
+    el.querySelector('.warnpop-msg').textContent = message;
+    const close = () => el.classList.add('hidden');
+    el.querySelector('.warnpop-ok').onclick = (e) => { e.stopPropagation(); close(); };
+    el.onclick = (e) => { if (!e.target.closest('.warnpop-box')) close(); };
+    el.classList.remove('hidden');
+  }
 
   update() {
     const s = this.state;
@@ -12165,6 +12346,12 @@ function applyCarry(st, carry) {
   st.cards = carry.cards;
   st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
   st.cards.round = 1;
+  // The Aquifer Tap water trickle is a SYNTHETIC engine kept in sync with live water
+  // contact (cards.js updateWaterSourceEngine). It must NOT carry between levels — a
+  // fresh map's colony isn't touching any water, so drop it; you re-earn the trickle by
+  // growing into a new water body. (The next tick would splice it out anyway, but this
+  // keeps it off the opening ledger too.)
+  if (Array.isArray(st.cards.engines)) st.cards.engines = st.cards.engines.filter((e) => !e._waterSource);
   const net = st.active;
   net.energy = carry.energy; net.water = carry.water; net.phosphorus = carry.phosphorus;
   st.log('Your colony carries its deck, engines and reserves down to the next level.', 'good');
@@ -12172,6 +12359,19 @@ function applyCarry(st, carry) {
 
 // Route a finished run: a level win advances the campaign; puzzle wins / deaths
 // fall through to the generic overlay (death's button goes back to the picker).
+// A win at the goal is held PENDING (state.winPending) while the colony finishes
+// harvesting the food piles it occupied and the player picks the resulting draft(s).
+// Once no draft is left, end the run for real — which kicks off the victory sequence.
+function maybeFinalizePendingWin() {
+  if (!state.winPending) return;
+  const c = state.cards;
+  if (c && c.pendingOffers && c.pendingOffers.length) return;   // still a draft to pick
+  state.winPending = false;
+  if (state.active) state.active.alive = false;
+  state.runOver = true;
+  presentRunOver();
+}
+
 function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   _runOverPresented = true;
@@ -12274,23 +12474,39 @@ function startCelebration(side, onFinish) {
       sway: Math.random() * Math.PI * 2, spots, lastEmit: 0, depth: d,
     });
   }
-  winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [] };
-  // Frame the hill: centre it a little left (room for spores to sail off the right),
-  // surface low in view (sky above for the drift).
+  // A DEATH ("your run has ended") keeps its spores drifting in EVERY direction and
+  // never stops (persist) — the run-over card sits over a living hill, no fade to black.
+  winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [], side, omni: home, persist: home };
+  // Frame the hill HIGH — on desktop in the TOP THIRD so it never sits under the bottom
+  // card carousel / the win-or-death card; centre it a little left (room for spores to
+  // sail off), sky above for the drift.
   const cx = (colLo + span * (home ? 0.5 : 0.45)) * cs;
   const z = Math.max(0.85, Math.min(1.7, camera.viewW / ((span + 7) * cs)));
-  focusWorld(cx, surfY - 18, z, 0.6, home ? 0.38 : 0.42);
+  const anchorY = isDesktopWide() ? 0.32 : 0.6;
+  focusWorld(cx, surfY - 18, z, anchorY, home ? 0.38 : 0.42);
 }
 
-function emitSpores(list, m, n, time) {
+function emitSpores(list, m, n, time, omni) {
   if (list.length >= CELE_MAX_SPORES) return;
   const capX = m.x, capY = m.y - m.h * 0.95;                // world position of the cap top
-  for (let k = 0; k < n; k++) list.push({
-    x0: capX + (Math.random() - 0.5) * m.capR * 1.6, y0: capY - Math.random() * m.capR * 0.7,
-    vx: 0.05 + Math.random() * 0.11, rise: 0.006 + Math.random() * 0.022,
-    swayA: 1.5 + Math.random() * 3.5, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
-    size: 0.45 + Math.random() * 1.05, born: time, life: 3800 + Math.random() * 2600, alpha: 0.4 + Math.random() * 0.5,
-  });
+  for (let k = 0; k < n; k++) {
+    // Win hill: spores drift RIGHT on the wind and rise. Death hill (omni): they puff
+    // out in EVERY direction (random heading), with a faint upward bias so the cloud
+    // still lifts as it spreads.
+    let vx, vy;
+    if (omni) {
+      const ang = Math.random() * Math.PI * 2, sp = 0.04 + Math.random() * 0.13;
+      vx = Math.cos(ang) * sp; vy = Math.sin(ang) * sp - 0.012;
+    } else {
+      vx = 0.05 + Math.random() * 0.11; vy = -(0.006 + Math.random() * 0.022);
+    }
+    list.push({
+      x0: capX + (Math.random() - 0.5) * m.capR * 1.6, y0: capY - Math.random() * m.capR * 0.7,
+      vx, vy,
+      swayA: 1.5 + Math.random() * 3.5, swayF: 0.002 + Math.random() * 0.004, ph: Math.random() * Math.PI * 2,
+      size: 0.45 + Math.random() * 1.05, born: time, life: 3800 + Math.random() * 2600, alpha: 0.4 + Math.random() * 0.5,
+    });
+  }
 }
 
 function drawCeleMushroom(m, g, time) {
@@ -12326,35 +12542,44 @@ function drawWinCelebration(time) {
   if (!winCele) return;
   if (!winCele.start) winCele.start = time;
   const t = time - winCele.start;
+  const omni = !!winCele.omni, persist = !!winCele.persist;
   for (const m of winCele.mushrooms) {
     const mt = t - m.delay; if (mt <= 0) continue;
     const g = easeOutBack(Math.min(1, mt / m.grow));
     drawCeleMushroom(m, g, time);
-    if (g > 0.75 && t >= CELE_SPORE_START && t < CELE_SPORE_END && time - m.lastEmit > 45) {
-      m.lastEmit = time; emitSpores(winCele.spores, m, 3 + (Math.random() * 4 | 0), time);
+    // A win hill puffs for a window; a DEATH hill (persist) keeps puffing forever so
+    // the run-over card always sits over living, drifting spores (no fade to black).
+    const emitting = persist ? (t >= CELE_SPORE_START) : (t >= CELE_SPORE_START && t < CELE_SPORE_END);
+    if (g > 0.75 && emitting && time - m.lastEmit > 45) {
+      m.lastEmit = time; emitSpores(winCele.spores, m, 3 + (Math.random() * 4 | 0), time, omni);
     }
   }
-  const spr = sporeSprite(), spores = winCele.spores, W = camera.viewW;
+  const spr = sporeSprite(), spores = winCele.spores, W = camera.viewW, H = camera.viewH;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (let i = spores.length - 1; i >= 0; i--) {
     const p = spores[i], age = time - p.born;
     if (age >= p.life) { spores.splice(i, 1); continue; }
-    // drift right on the wind; a coherent travelling wave (based on world-x + time)
-    // makes the whole cloud weave and ripple as it flows, showing the wind.
+    // Drift by the spore's own velocity; a coherent travelling wave (world-x + time)
+    // makes the cloud weave and ripple. Omni spores head every which way; a win hill's
+    // spores stream right on the wind.
     const wx = p.x0 + p.vx * age;
-    const wy = p.y0 - p.rise * age
+    const wy = p.y0 + (p.vy || 0) * age
              + p.swayA * Math.sin(age * p.swayF + p.ph)
              + 5.5 * Math.sin(wx * 0.03 - time * 0.004 + p.ph * 0.5);
     const s = camera.worldToScreen(wx, wy);
-    if (s.x > W + 60) { spores.splice(i, 1); continue; }
-    const a = Math.min(1, age / 200) * (1 - smooth01(0.72, 1, age / p.life)) * (1 - smooth01(W - 90, W + 30, s.x)) * p.alpha;
+    // Cull once well off ANY edge (omni exits every side; a win drifts off the right).
+    if (s.x < -90 || s.x > W + 90 || s.y < -90 || s.y > H + 90) { spores.splice(i, 1); continue; }
+    const edgeFade = omni ? 1 : (1 - smooth01(W - 90, W + 30, s.x));
+    const a = Math.min(1, age / 200) * (1 - smooth01(0.72, 1, age / p.life)) * edgeFade * p.alpha;
     if (a <= 0.01) continue;
     const r = p.size * camera.zoom * 1.7;
     ctx.globalAlpha = a; ctx.drawImage(spr, s.x - r, s.y - r, r * 2, r * 2);
   }
   ctx.restore();
   if (t >= CELE_BANNER_AT && !winCele.finished) { winCele.finished = true; winCele.onFinish(); }
-  if (winCele.finished && (t >= CELE_HARD_END || spores.length === 0)) winCele = null;
+  // A win celebration ends once the banner is up and its spores have sailed off; a DEATH
+  // hill PERSISTS (spores keep drifting) until the next run clears it in begin().
+  if (!persist && winCele.finished && (t >= CELE_HARD_END || spores.length === 0)) winCele = null;
 }
 
 function onLevelWon() {
@@ -12386,6 +12611,32 @@ function backToPicker() {
   ui.hideOverlay();
   currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
   showPicker();
+}
+
+// The title screen (Survival New / Continue → species picker). Shown on boot and
+// reachable from the run-over card's "Main menu" button.
+function showMainMenu() {
+  if (ui) ui.hideOverlay();
+  showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+    // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
+    onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onContinue: () => showPicker(),
+    // TEMP dev: jump straight into the tutorial with a random starter species.
+    onDevTutorial: () => {
+      chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
+      currentLevel = 1; carryOver = null; tutorialDevForce = true;
+      startRun();
+    },
+  });
+}
+
+// Run-over card → "Main menu": drop the run and return to the title screen (which
+// covers the whole viewport, so the dead colony behind it doesn't matter).
+function backToTitle() {
+  if (ui) ui.hideOverlay();
+  currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
+  winCele = null;
+  showMainMenu();
 }
 
 // The top-centre "Level N / 11" chip was removed; clean up any lingering node.
@@ -12571,7 +12822,7 @@ function begin(newState) {
     draw: () => resolveCardOp(drawCard(state)),
     skip: () => resolveCardOp(skipRound(state)),
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
-    chooseCard: (name) => { const r = chooseOffer(state, name); uiDirty = true; return r; },
+    chooseCard: (name) => { const r = chooseOffer(state, name); maybeFinalizePendingWin(); uiDirty = true; return r; },
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
@@ -12678,6 +12929,9 @@ const handlers = {
   },
   onBackToPicker() {                  // death (campaign) → choose a species again from scratch
     backToPicker();
+  },
+  onMainMenu() {                      // run-over card → back to the title screen
+    backToTitle();
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing
@@ -12846,6 +13100,7 @@ const handlers = {
     const res = chooseOffer(state, name);
     if (res.ok) uiDirty = true;
     else if (res.message) { ui.toast(res.message); uiDirty = true; }
+    maybeFinalizePendingWin();   // a win that was waiting on this draft can now finish
   },
   onFruitPreview(on) {
     previewFruit = on;
@@ -12907,7 +13162,7 @@ function checkWater() {
   }
   if (w <= 5 && !state._waterWarned) {
     state._waterWarned = true;
-    if (ui) ui.toast('Warning! 5 water left. Your colony will die without water.', 'warn');
+    if (ui) ui.warningPopup('Water is running low. Your colony will shrivel up and die if it runs out — grow into a lake or reservoir, or play a Water card to replenish it.');
   }
 }
 
@@ -15236,17 +15491,7 @@ if (location.hash === '#puzzle') startPuzzle();
 else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
 else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
 else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
-else showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
-  // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-  onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
-  onContinue: () => showPicker(),
-  // TEMP dev: jump straight into the tutorial with a random starter species.
-  onDevTutorial: () => {
-    chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
-    currentLevel = 1; carryOver = null; tutorialDevForce = true;
-    startRun();
-  },
-});
+else showMainMenu();
 requestAnimationFrame(frame);
 
   return {  };

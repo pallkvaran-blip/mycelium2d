@@ -204,6 +204,15 @@ export const CONFIG = {
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
+    // --- water bodies (lake / reservoir): income + auto-reach helper ---------
+    // Income (the Aquifer Tap trickle) only kicks in when a strand ALMOST TOUCHES the
+    // water — a node within this many world units of a water cell's edge (much tighter
+    // than the old sensing-range test). ~0.6 cell ≈ hugging the water face.
+    waterContactDist: 22,
+    // When the colony comes within this reach of a water body but isn't touching it yet,
+    // a helper grows an extra strand STRAIGHT toward the water (like food), stopping at
+    // the edge (never overlapping the water). See network.js reachForWater.
+    waterSeekReach: 150,
   },
 
   // ---- Vitality / health (A5, A8) ----------------------------------------
@@ -237,6 +246,7 @@ export const CONFIG = {
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
+    growInfectThreshold: 0.05,   // a strand standing in a trich-field cell ≥ this is infected on the spot (growing INTO mould) — so it can't fruit/win at the goal
     contactChunk: 4,             // the breach instantly claims this many rings of mycelium
     spreadDepthPerTurn: 6,       // once inside, the rot races this many rings along your filaments each step (runs on every action AND on end-turn)
     infectionSpreadChance: 0.85, // chance the rot takes each step of that race (SLIDER) — high = real consequences

@@ -370,14 +370,19 @@
     .overlay p.small { font-size: 12px; }
     .overlay .btn.big { margin-top: 18px; font-size: 15px; padding: 12px 22px; background: rgba(127,230,163,0.16);
       border-color: var(--accent); }
-    /* Death prompts: flat black & white — no gradients, no colour accents. */
-    .overlay:has(.card.death) { background: rgba(0,0,0,0.82); backdrop-filter: blur(3px); }
-    .overlay .card.death { background: #0b0b0b; border: 1px solid #e9e9e9; box-shadow: none; }
+    /* Death prompts: flat black & white — no gradients, no colour accents. The run-over
+       card does NOT fade the screen to black: the backdrop stays clear so the fruiting
+       green hill (framed in the top third) and its drifting spores keep the focus. */
+    .overlay:has(.card.death) { background: transparent; backdrop-filter: none; align-items: center; }
+    .overlay .card.death { background: #0b0b0b; border: 1px solid #e9e9e9; box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
     .overlay .card.death h1 { color: #ffffff; }
     .overlay .card.death p { color: #dcdcdc; }
     .overlay .card.death p.dim { color: #9a9a9a; }
-    .overlay .card.death .btn.big { background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
+    .overlay .card.death .deathctrl { justify-content: center; margin-top: 18px; }
+    .overlay .card.death .btn.big { margin-top: 0; background: #1b1b1b; border-color: #e9e9e9; color: #ffffff; }
     .overlay .card.death .btn.big:hover { background: #2b2b2b; border-color: #ffffff; }
+    .overlay .card.death .btn.big.secondary { background: transparent; }
+    .overlay .card.death .btn.big.secondary:hover { background: #1b1b1b; }
     /* Spores-earned line on the death card — kept flat white (spore icon desaturated
        to a white shine) so it stays true to the black-&-white death prompt. */
     .overlay .card.death .death-spores { display:flex; align-items:center; justify-content:center; gap:8px;
@@ -385,6 +390,19 @@
     .overlay .card.death .death-spores b { color:#ffffff; font-weight:700; }
     .overlay .card.death .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto;
       filter:brightness(0) invert(1); }
+
+    /* Warning popup — a click-to-dismiss modal (survival warnings). Clean black & white,
+       no gradients; the "Warning" heading is red. */
+    .warnpop { position: fixed; inset: 0; z-index: 4000; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.55); }
+    .warnpop.hidden { display: none; }
+    .warnpop-box { background: #000; border: 1px solid #fff; border-radius: 10px; padding: 26px 30px 24px;
+      max-width: 360px; text-align: center; }
+    .warnpop-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; letter-spacing: .06em; color: #e23b3b; }
+    .warnpop-msg { margin: 0 0 22px; font-size: 14px; line-height: 1.55; color: #fff; }
+    .warnpop-ok { cursor: pointer; font-family: inherit; font-weight: 600; font-size: 14px; letter-spacing: .02em;
+      padding: 9px 28px; border-radius: 8px; background: #000; color: #fff; border: 1px solid #fff; }
+    .warnpop-ok:hover { background: #fff; color: #000; }
 
     /* mobile-ish */
     @media (max-width: 720px) {

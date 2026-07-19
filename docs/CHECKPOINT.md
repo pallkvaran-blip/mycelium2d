@@ -512,6 +512,12 @@ Both menus are dark, on-theme, with glowing green borders.
   - Tests updated for the new costs (Trunkline 6P play, Aquaporin 7P play, Osmotic Cashout 4→5P,
     Toxocyst Array 3P buy-in). `node --test test/*.test.js` green; headless-verified buyP gate +
     charge + Acorn Cache directional drop.
+  - **FOLLOW-UP — water-engine tier normalised to fire every 6 rounds** (supersedes the
+    Aquaporin/Capillary numbers above): all three water engines now share a `every: 6` cadence
+    for a clean **+1/+2/+3 Water per 6 rounds** ladder at escalating cost — **Aquaporin Channels**
+    +1/6 (20⚡ · 6P play), **Dew Traps** +2/6 (25⚡ · 12P play), **Capillary Runners** +3/6 (30⚡ ·
+    16P play). Cadence lives in the `engine({water,every})` spec in `cards.js`; the Aquaporin
+    engine-cadence test now checks 5 silent off-rounds → +1 on the 6th. cards-design §23 amended.
   - **Follow-up — water-engine tier all fires every 6 rounds** (supersedes the Aquaporin/Capillary
     numbers above): the three water engines now share a `+N Water every 6` cadence at a clean cost
     ladder — **Aquaporin Channels** +1/6 (20⚡ · 6P play), **Dew Traps** +2/6 (25⚡ · 12P play),

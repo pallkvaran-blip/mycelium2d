@@ -110,7 +110,7 @@ export class Network {
     }
     // Growing also fully colonises any substrate pile now within reach.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created > 0) this.recomputeVitality();
+    if (created > 0) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -385,7 +385,7 @@ export class Network {
     }
     // Directed growth also colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -471,7 +471,7 @@ export class Network {
     }
     // Fanning out also fully colonises any substrate pile within reach, in one step.
     created += this.colonizeReachablePiles(substrate, rng);
-    if (created) this.recomputeVitality();
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
   }
 
@@ -539,6 +539,57 @@ export class Network {
       if (!this._placeOk(substrate, x0 + dx * t, y0 + dy * t)) return false;
     }
     return true;
+  }
+
+  // WATER-SEEK HELPER (config growth.waterSeekReach / waterContactDist): when the colony
+  // comes within reach of a water body (lake or reservoir cell) but isn't hugging it yet,
+  // grow ONE extra strand STRAIGHT toward the nearest water — treating water like food.
+  // It stops at the water's edge (water is solid, so _segmentClear halts the chain on the
+  // near face — it never overlaps the water). Deterministic: no rng, no side-strands, so
+  // it can't shift the main food-seek/collision path. Runs after each grow. Returns nodes.
+  reachForWater(substrate) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 0;
+    const cs = substrate.cellSize;
+    const reach = g.waterSeekReach || g.sensingRadius || 150;
+    const contact = (g.waterContactDist != null ? g.waterContactDist : cs * 0.6);
+    const reachCells = Math.ceil(reach / cs) + 1, reach2 = reach * reach;
+    const skip2 = (contact + cs) * (contact + cs);
+    // Each advancing tip's nearest water cell (if within reach and not already hugging).
+    const cands = [];
+    for (const t of this.tips()) {
+      if (t.infected || t.side) continue;
+      const col = substrate.colAtX(t.x), row = substrate.rowAtY(t.y);
+      let bx = 0, by = 0, bd = reach2;
+      for (let dr = -reachCells; dr <= reachCells; dr++) for (let dc = -reachCells; dc <= reachCells; dc++) {
+        const cell = substrate.cellAt(col + dc, row + dr);
+        if (!cell || !cell.water) continue;
+        const c = substrate.cellCenter(col + dc, row + dr);
+        const d2 = (c.x - t.x) ** 2 + (c.y - t.y) ** 2;
+        if (d2 < bd) { bd = d2; bx = c.x; by = c.y; }
+      }
+      if (bd < reach2 && bd > skip2) cands.push({ t, bx, by, d2: bd });   // in range, not already hugging
+    }
+    if (!cands.length) return 0;
+    // Grow a straight chain toward the CLOSEST reachable water; a blocked nearest water
+    // (e.g. behind rock) falls through to the next candidate. Stops at the water face
+    // (water is solid → _segmentClear halts the chain), so it never overlaps the water.
+    cands.sort((a, b) => a.d2 - b.d2);
+    for (const cd of cands) {
+      const dx = cd.bx - cd.t.x, dy = cd.by - cd.t.y;
+      const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      const steps = Math.ceil(len / g.segmentLength) + 1;
+      let parent = cd.t, made = 0;
+      for (let i = 0; i < steps; i++) {
+        if (this.nodes.length >= g.maxNodes) break;
+        const nx = parent.x + ux * g.segmentLength, ny = parent.y + uy * g.segmentLength;
+        if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
+        parent = this.addNode(nx, ny, parent);
+        made++;
+      }
+      if (made > 0) { this.recomputeVitality(); return made; }
+    }
+    return 0;
   }
 
   // Grow `steps` from the frontier tip nearest to food, toward that food (works

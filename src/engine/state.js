@@ -74,6 +74,7 @@ function assembleState(config, rng, seed, substrate, networks, clouds, extra) {
     traps: [],             // Constricting Ring traps: {x,y,r,reward} — digest a worm on contact
     turn: 1,
     runOver: false,
+    winPending: false,     // goal reached, but finishing harvest + drafts before the win lands
     runResult: null,
     logEntries: [],
     _logSeq: 0,

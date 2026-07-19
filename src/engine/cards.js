@@ -21,6 +21,7 @@ import { CARD_DATA, CARD_BY_NAME } from '../cards-data.js';
 // Cordyceps cards destroy an ant nest (attackNest with frac 1 = full kill);
 // Sclerotial Seal reroutes ants off a sealed pile (recalibrateAnts).
 import { attackNest, recalibrateAnts } from './ants.js';
+import { infectStrandsInMould } from './threats.js';
 
 // Add `amt` to a resource pool, capped at its soft cap — but NEVER below what you
 // already hold. (A plain Math.min(cap, cur+amt) DROPS a pool that's already over
@@ -465,11 +466,31 @@ export function activateAction(state, i, ctx) {
   return { ok: true, message: res.message };
 }
 
+// Drain EVERY colonised food cell to empty in one go, banking its Energy. Called at
+// the moment of victory so a win never abandons a half-digested pile — the emptied
+// piles then trigger their card drafts (checkPileRewards). Mirrors turn.js
+// resolveIncome's energy math but takes all the remaining nutrient at once.
+function finishOccupiedHarvest(state) {
+  const net = state.active, sub = state.substrate;
+  const e = state.config.energy;
+  let gained = 0;
+  for (const cell of sub.cells) {
+    if (cell.colonized <= 0 || cell.nutrient <= 0 || cell.hazard) continue;
+    const take = cell.nutrient;                 // final harvest: take everything left
+    cell.nutrient = 0;
+    gained += take * (cell.energyPerNutrient != null ? cell.energyPerNutrient : e.incomeEfficiency);
+  }
+  if (gained > 0) { net.energy += gained; state.log(`Final harvest: +${Math.round(gained)}⚡ from the piles you occupied.`, 'good'); }
+}
+
 // --- WIN: a strand reaches the goal zone; LOSE: card-dry & broke ------------
 export function checkGoalReached(state) {
-  if (state.runOver || !state.cards) return;
+  if (state.runOver || state.winPending || !state.cards) return;
   const net = state.active; if (!net || !net.alive) return;
   const sub = state.substrate;
+  // A strand that grew INTO the Trichoderma gets infected FIRST, so a fruiting body
+  // pushed through mould sitting on the finish line is dead tissue and can't win.
+  infectStrandsInMould(net, state);
   const f = state.config.actions.fruit;
   for (const n of net.nodes) {
     if (n.infected) continue;
@@ -477,10 +498,21 @@ export function checkGoalReached(state) {
     if (surf && surf.goal) {
       const depth = n.y - sub.surfaceY;
       if (depth >= 0 && depth <= f.reachDepth) {
-        net.fruited = true; net.alive = false;
-        state.runOver = true; state.won = true;
+        // WIN — but first FINISH HARVESTING every food pile the colony still occupies
+        // (bank its Energy) and hand out any resulting card drafts. The victory sequence
+        // only begins once those are resolved: if a draft is now pending we mark the win
+        // PENDING and wait for the player to pick (main.js maybeFinalizePendingWin);
+        // otherwise the run ends right away.
+        net.fruited = true; state.won = true;
         state.runResult = { won: true, turns: state.turn };
         state.log('A fruiting body breaks the surface at the goal — you win the level!', 'good');
+        finishOccupiedHarvest(state);
+        checkPileRewards(state);
+        if (state.cards.pendingOffers && state.cards.pendingOffers.length) {
+          state.winPending = true;
+        } else {
+          net.alive = false; state.runOver = true;
+        }
         return;
       }
     }
@@ -579,34 +611,56 @@ function nodeTouches(state, pred) {
   }
   return false;
 }
-// Water contact. A "lake" is open lake water; a "reservoir" is an underground
-// pocket (cell.reservoir = its id). Both are impassable water, but they're counted
-// SEPARATELY for the water-source income (max +1 per lake, +1 per distinct reservoir).
-const nodeTouchesWater = (state) => nodeTouches(state, (c) => c.water);              // lake OR reservoir
-const touchesLake = (state) => nodeTouches(state, (c) => c.water && !c.reservoir);   // open lake only
 const touchesMineral = (state) => nodeTouches(state, (c) => c.rock && !c.water);
 
+// Water contact is STRICT: a strand must ALMOST TOUCH the water, not merely sense it.
+// A node counts against a water cell only when it's within growth.waterContactDist of
+// that cell's rectangle (≈ hugging the water face) — far tighter than the old 3×3
+// cell-neighbourhood test, which read like "within sensing range". A "lake" is open
+// lake water; a "reservoir" is an underground pocket (cell.reservoir = its id).
+function waterContactDist2(state) {
+  const cs = state.substrate.cellSize;
+  const d = (state.config.growth && state.config.growth.waterContactDist != null) ? state.config.growth.waterContactDist : cs * 0.6;
+  return d * d;
+}
+// Squared distance from world point (x,y) to substrate cell (col,row)'s rectangle.
+function distSqToCellRect(sub, col, row, x, y) {
+  const cs = sub.cellSize;
+  const x0 = col * cs, x1 = x0 + cs, y0 = sub.surfaceY + row * cs, y1 = y0 + cs;
+  const dx = x < x0 ? x0 - x : (x > x1 ? x - x1 : 0);
+  const dy = y < y0 ? y0 - y : (y > y1 ? y - y1 : 0);
+  return dx * dx + dy * dy;
+}
+// The set of distinct water SOURCES the colony almost-touches: 'lake' for open lake
+// water, or a reservoir's numeric id. Empty when nothing is close enough.
+function waterSourcesNear(state) {
+  const sub = state.substrate;
+  const md2 = waterContactDist2(state);
+  const reach = Math.ceil(Math.sqrt(md2) / sub.cellSize) + 1;
+  const found = new Set();
+  for (const n of state.active.nodes) {
+    if (n.infected) continue;
+    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
+    for (let dr = -reach; dr <= reach; dr++) for (let dc = -reach; dc <= reach; dc++) {
+      const cell = sub.cellAt(col + dc, row + dr);
+      if (!cell || !cell.water) continue;
+      if (distSqToCellRect(sub, col + dc, row + dr, n.x, n.y) > md2) continue;
+      found.add(cell.reservoir ? cell.reservoir : 'lake');
+    }
+  }
+  return found;
+}
+const nodeTouchesWater = (state) => waterSourcesNear(state).size > 0;    // lake OR reservoir
+
 // --- water-source income ----------------------------------------------------
-// Touching open lake water OR an underground reservoir gives the colony a Water
+// Almost-touching open lake water OR an underground reservoir gives the colony a Water
 // trickle: +1 Water every 3 rounds PER source (at most +1 for the lake, +1 per
 // distinct reservoir). Implemented as a synthetic engine kept in C.engines so the
 // income pill + ledger display it automatically — added while a source is in
 // contact, removed the moment none is.
 export const WATER_SOURCE_NAME = 'Aquifer Tap';
 const WATER_SOURCE_EVERY = 3;
-function distinctReservoirsTouched(state) {
-  const sub = state.substrate, seen = new Set();
-  for (const n of state.active.nodes) {
-    if (n.infected) continue;
-    const col = sub.colAtX(n.x), row = sub.rowAtY(n.y);
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      const cell = sub.cellAt(col + dc, row + dr);
-      if (cell && cell.reservoir) seen.add(cell.reservoir);
-    }
-  }
-  return seen.size;
-}
-const waterSourcesTouched = (state) => (touchesLake(state) ? 1 : 0) + distinctReservoirsTouched(state);
+const waterSourcesTouched = (state) => waterSourcesNear(state).size;
 function updateWaterSourceEngine(state) {
   const C = state.cards; if (!C || !C.engines) return;
   const sources = (state.active && state.active.alive) ? waterSourcesTouched(state) : 0;

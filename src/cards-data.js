@@ -370,7 +370,7 @@ export const CARD_DATA = [
   "category": "anti-worm",
   "displayCategory": "engine",
   "buyCostEnergy": 16,
-  "buyP": 0,
+  "buyP": 4,
   "costW": 0,
   "costP": 3,
   "timing": "any",
