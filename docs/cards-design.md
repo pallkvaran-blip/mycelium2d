@@ -916,9 +916,12 @@ action, read as a per-use cost (the `action` spec's `cost/res`), not a `buyP` in
 - **Toxocyst Burst** — Phosphorus income **caps at 10** (`gain = Math.min(n, 10)`) while still
   killing **every** nematode in radius; text "…digested (+1 P each, **max 10 P**)."
 
+**Water-engine tier — all three fire every 6 rounds** (was 2/3/6): **Aquaporin Channels** +1
+Water/6 (20⚡ · 6P play), **Dew Traps** +2 Water/6 (25⚡ · 12P play), **Capillary Runners** +3
+Water/6 (30⚡ · 16P play). A clean +1/+2/+3-per-6 ladder at escalating cost.
+
 **Cost retune (~30 cards).** Broad E/P buy & play retuning across the set — engines and
-utilities made pricier (e.g. Aquaporin Channels 10→25⚡ +7P play, Capillary Runners 9→30⚡ +7P,
-Dew Traps 11→22⚡ +8P), a few softened (Cordyceps Bloom 14→7⚡, Cord Capillary 6→4⚡). Not
-reproduced card-by-card here — see `cards.json`. Tests in `test/cards.test.js` assert the new
-numbers for Rhizomorph Trunkline (6P play), Aquaporin (7P play), Osmotic Cashout (5P play),
-and Toxocyst Array (3P buy-in).
+utilities made pricier, a few softened (Cordyceps Bloom 14→7⚡, Cord Capillary 6→4⚡). Not
+reproduced card-by-card here — see `cards.json` / the card editor. Tests in `test/cards.test.js`
+assert the new numbers for Rhizomorph Trunkline (6P play), Aquaporin (+1/6 rounds, 6P play),
+Osmotic Cashout (5P play), and Toxocyst Array (3P buy-in).

@@ -46,10 +46,10 @@ console.log('# Card economy + effects');
 
   net.energy = 100; net.phosphorus = 20;
   const wi = ensureHand(s, 'Aquaporin Channels'); playCard(s, wi);
-  net.water = 0; produceCardEngines(s);
-  ok(net.water === 0, 'water engine does not produce on the off-round (every 2 rounds)');
+  net.water = 0; for (let k = 0; k < 5; k++) produceCardEngines(s);
+  ok(net.water === 0, 'water engine stays silent on the 5 off-rounds (every 6 rounds)');
   produceCardEngines(s);
-  ok(net.water === 1, `water engine produces +1 every 2 rounds (got ${net.water})`);
+  ok(net.water === 1, `water engine produces +1 every 6 rounds (got ${net.water})`);
 
   // engine energy clamp (< skip)
   s.cards.engines = [{ energy: 8 }, { energy: 8 }]; net.energy = 0; produceCardEngines(s);

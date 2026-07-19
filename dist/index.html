@@ -1210,8 +1210,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1bc5b1b";
-globalThis.__BUILD__ = "local 07-19 08:51";
+window.__ASSET_VER = "1cmeg5y";
+globalThis.__BUILD__ = "local 07-19 09:27";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1961,15 +1961,15 @@ const CARD_DATA = [
   "type": "engine",
   "category": "water-engine",
   "displayCategory": "engine",
-  "buyCostEnergy": 25,
+  "buyCostEnergy": 20,
   "buyP": 0,
   "costW": 0,
-  "costP": 7,
+  "costP": 6,
   "timing": "early",
   "repay": 4,
   "threat": "none",
   "produces": "+1 Water / 2 rounds",
-  "effect": "Gain +1 Water every 2 rounds.",
+  "effect": "Gain +1 Water every 6 rounds.",
   "family": "water",
   "tutorial": true,
   "startCopies": 0
@@ -2252,7 +2252,7 @@ const CARD_DATA = [
   "buyCostEnergy": 30,
   "buyP": 0,
   "costW": 0,
-  "costP": 7,
+  "costP": 16,
   "timing": "any",
   "repay": 0,
   "threat": "none",
@@ -2285,15 +2285,15 @@ const CARD_DATA = [
   "type": "engine",
   "category": "water-engine",
   "displayCategory": "engine",
-  "buyCostEnergy": 22,
+  "buyCostEnergy": 25,
   "buyP": 0,
   "costW": 0,
-  "costP": 8,
+  "costP": 12,
   "timing": "any",
   "repay": 0,
   "threat": "none",
   "produces": "+2 Water / 3 rounds",
-  "effect": "Gain +2 Water every 3 rounds.",
+  "effect": "Gain +2 Water every 6 rounds.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -6583,7 +6583,7 @@ const EFFECTS = {
   'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
 
   // --- resource engines ---
-  'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
+  'Aquaporin Channels': engine({ water: 1, every: 6 }, 'Installed: +1 Water every 6 rounds.'),
   'Phosphatase Reserve': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
@@ -6718,7 +6718,7 @@ EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune)', eve
   return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to infection for ${R.immuneRounds} rounds.` : `Hardened the patch — immune to infection for ${R.immuneRounds} rounds.` };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
+EFFECTS['Dew Traps'] = engine({ water: 2, every: 6 }, 'Installed: +2 Water every 6 rounds.');
 EFFECTS['Prospecting Cords'] = engine({ phosphorus: 1, every: 8 }, 'Installed: +1 Phosphorus every 8 rounds.');
 
 // --- tempo upgrades (one-shot, pick ONE installed ability) ----------------

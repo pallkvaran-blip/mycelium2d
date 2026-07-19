@@ -830,7 +830,7 @@ export const EFFECTS = {
   'Osmotic Cashout': grow((s) => { s.active.energy += 22; return { ok: true, message: '+22⚡.' }; }),
 
   // --- resource engines ---
-  'Aquaporin Channels': engine({ water: 1, every: 2 }, 'Installed: +1 Water every 2 rounds.'),
+  'Aquaporin Channels': engine({ water: 1, every: 6 }, 'Installed: +1 Water every 6 rounds.'),
   'Phosphatase Reserve': engine({ phosphorus: 2, every: 8 }, 'Installed: +2 Phosphorus every 8 rounds.'),
   'Mineralizing Saprobe': engine({ phosphorus: 1, every: 5 }, 'Installed: +1 Phosphorus every 5 rounds.'),
 
@@ -965,7 +965,7 @@ EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune)', eve
   return { ok: true, message: h ? `Hardened & cleared ${h} strands — immune to infection for ${R.immuneRounds} rounds.` : `Hardened the patch — immune to infection for ${R.immuneRounds} rounds.` };
 });
 EFFECTS['Capillary Runners'] = engine({ water: 3, every: 6 }, 'Installed: +3 Water every 6 rounds.');
-EFFECTS['Dew Traps'] = engine({ water: 2, every: 3 }, 'Installed: +2 Water every 3 rounds.');
+EFFECTS['Dew Traps'] = engine({ water: 2, every: 6 }, 'Installed: +2 Water every 6 rounds.');
 EFFECTS['Prospecting Cords'] = engine({ phosphorus: 1, every: 8 }, 'Installed: +1 Phosphorus every 8 rounds.');
 
 // --- tempo upgrades (one-shot, pick ONE installed ability) ----------------
