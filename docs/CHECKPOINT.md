@@ -461,6 +461,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Lake art now CLIPPED to its water cells (strands stop at the visible pool, not inside it).**
+  Same class of art/cell mismatch as reservoirs, but for lakes: the sim's lake water is a
+  semi-ellipse **bowl** (`substrate.js`: deep centre, shallow edges), while each lake ART image
+  has its own baked bowl that can be fuller/narrower — so a strand hugging the water cells (which
+  it does correctly; collision is solid, verified 0 nodes-in-water) appeared to poke into empty
+  teal (fuller arts) or stop short (narrower arts). Fix is render-only: `main.js drawLakes` now
+  **clips the art to the actual water-cell bowl** (flat top at the waterline; bottom follows each
+  column's water depth) before drawing, so the visible pool == the water cells for ALL three lake
+  arts. Verified with an HTTP Playwright capture (teal fills the water-cell outlines exactly; the
+  water-seek strands hug the bowl's lower edge). No engine/test change; reservoirs use their own
+  teardrop+opaque-box fix (below).
+
 - **Reservoir water CELLS now match the drawn pool (fixes phantom Aquifer Tap + short helper).**
   Root cause of "income far from the water / helper won't reach it": the reservoir's `cell.water`
   was a full CIRCULAR disc, but the teardrop art only fills ~50–72% of its 640² image (measured

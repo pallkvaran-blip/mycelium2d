@@ -1222,8 +1222,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "aioijs";
-globalThis.__BUILD__ = "local 07-19 12:28";
+window.__ASSET_VER = "kgavzt";
+globalThis.__BUILD__ = "local 07-19 13:13";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -15081,7 +15081,26 @@ function drawLakes() {
     const sw = (run.c1 - run.c0 + 1) * cs * z;
     const sh = run.maxD * cs * z;
     if (tl.x > camera.viewW || tl.x + sw < 0) continue;
+    // CLIP the art to the actual water-cell BOWL (a lake is a semi-ellipse — deep at the
+    // centre, shallow at the edges — but the art image's own bowl can be fuller/narrower).
+    // Clipping to the real cells makes the visible pool == the water the sim uses, so a
+    // strand hugging the cells reads as touching the pool's edge (not poking into empty
+    // teal, and no phantom water over dry soil). Bottom follows each column's water depth.
+    const surfSY = camera.worldToScreen(0, sub.surfaceY).y;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(tl.x, surfSY);
+    ctx.lineTo(tl.x + sw, surfSY);                                // flat top along the waterline
+    for (let col = run.c1; col >= run.c0; col--) {                // bottom bowl, right → left
+      let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
+      const xc = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY).x;
+      const yb = camera.worldToScreen(0, sub.surfaceY + d * cs).y;
+      ctx.lineTo(xc, yb);
+    }
+    ctx.closePath();
+    ctx.clip();
     ctx.drawImage(img, tl.x, tl.y, sw, sh);
+    ctx.restore();
   }
 }
 
