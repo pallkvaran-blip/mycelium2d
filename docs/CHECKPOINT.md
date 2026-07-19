@@ -469,10 +469,10 @@ Both menus are dark, on-theme, with glowing green borders.
     skeleton). So the colony reads bright white with light confined to the filaments — no halo.
     Verified: colony p99 luminance ~233 (off, near-white), while the earth *between* strands stays
     dim (colony-area median 66 off vs 117 on) — bright strands, no bleed. (Supersedes the earlier
-    "glow always on" approach.) `overlayStrands` evens the weight of heavy trunks vs fine tips
-    (thickest trunks take a little transparency, ~0.78α; thin tips render a touch fatter + fully
-    opaque) and lays a soft ~1px feather stroke underneath each strand (two passes) for a gentle
-    edge with no wide halo.
+    "glow always on" approach.) `overlayStrands` draws EVERY strand near-identically — one colour
+    (`#eef9ff`), one opacity (0.9α), near-uniform width (1.4–1.55, a barely-there taper only), so
+    there's no "main vs tip" contrast — plus a soft ~1px feather stroke underneath each strand
+    (two passes) for a gentle edge with no wide halo.
 
 - **Left "home" hill + death fruiting + reworded death card + half-Spores on death.**
   - **Home hill (LEFT):** `drawHomeBackdrop()` + `drawHomeProps()` (main.js) draw half a green
