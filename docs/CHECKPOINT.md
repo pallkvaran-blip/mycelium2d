@@ -460,7 +460,11 @@ Both menus are dark, on-theme, with glowing green borders.
     off-frame left (clipped by `withWorldClip`), right slope descending into the map — with one
     small tree. Width from `homeHillCols()` (= `sub.startCols + 4`, min 6; `startCols` now stored
     on the substrate). Drawn right after `drawMoon`/before the goal backdrop, and its tree after
-    `drawSurfaceProps`.
+    `drawSurfaceProps`. **Cities/mountains never overlap it:** `sub.homeCols` (= the render's
+    `homeHillCols`) is the shared keep-clear width; `cityRuns()` starts its skyline scan at
+    `homeCols`, and `drawMountains` clips the background range and skips/shrinks foreground peaks
+    (like the lake clamp) so nothing renders left of the hill's right edge `homeR`. All render-side —
+    the substrate RNG stream (seed reproducibility) is untouched.
   - **Death fruiting celebration:** `startWinCelebration` refactored into `startCelebration(side,…)`
     with `startWinCelebration`='goal' (right meadow) and `startDeathCelebration`='home' (left hill).
     The home variant places mushrooms on a LEFT-peaking slope profile and frames the left hill; a

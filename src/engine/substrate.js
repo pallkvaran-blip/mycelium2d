@@ -288,6 +288,9 @@ export function generateSubstrate(config, rng) {
   const startCols = Math.max(1, Math.min(sub.cols - goalCols - 1, s.startCols || 2));
   const goalStart = sub.cols - goalCols;
   sub.startCols = startCols;   // exposed for the render layer (left "home" hill over the start)
+  // Columns spanned by the left "home" hill backdrop (must match render's homeHillCols()).
+  // Surface landmarks (mountains, cities) are kept clear of these so nothing overlaps the hill.
+  sub.homeCols = Math.max(6, startCols + 4);
 
   // Everything is impassable surface by default…
   for (let c = 0; c < sub.cols; c++) {

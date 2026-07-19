@@ -2584,6 +2584,7 @@ function drawMountains() {
   const surfY = camera.worldToScreen(0, sub.surfaceY).y;
   const skyTopY = camera.worldToScreen(0, 0).y;   // top of the starry sky — cut peaks off here
   const seed = (state.seed || 1) >>> 0;
+  const homeR = camera.worldToScreen((sub.homeCols || 0) * cs, sub.surfaceY).x;   // right edge of the left home hill — keep the range + peaks clear of it
 
   // --- background: one map-wide range, low on the horizon, faded back ---
   const ranges = MOUNTAIN_RANGE_KEYS.filter(hasAsset);
@@ -2615,6 +2616,7 @@ function drawMountains() {
       bctx.fillRect(0, 0, bandW, bandH);
       bctx.globalCompositeOperation = 'source-over';
       ctx.save();
+      ctx.beginPath(); ctx.rect(homeR, skyTopY, Math.max(0, camera.viewW - homeR), bandH); ctx.clip();   // never haze over the left home hill
       ctx.globalAlpha = 0.55;                                 // distant haze
       ctx.drawImage(_rangeBuf, 0, skyTopY);
       ctx.restore();
@@ -2655,6 +2657,10 @@ function drawMountains() {
         return;                                    // centred over the lake (shouldn't happen) — skip
       }
     }
+    // Keep the peak clear of the left home hill: skip any centred under/left of it, and
+    // shrink one just to its right so its left edge stops at the hill's edge (no overlap).
+    if (s.x <= homeR + GAP) return;
+    sw = Math.min(sw, Math.max(0, 2 * (s.x - (homeR + GAP))));
     if (sw < 4) return;
     const sh = sw * aspect;
     const by = s.y + sh * MOUNTAIN_EMBED_FRAC;      // bury the base below the soil line
@@ -2764,7 +2770,7 @@ let _cityState = null, _cities = null;
 function cityRuns() {
   if (_cityState === state) return _cities;
   const sub = state.substrate, runs = [];
-  let c = 0;
+  let c = Math.max(0, homeHillCols());   // never start a skyline under the left home hill
   while (c < sub.cols) {
     if (sub.surface[c] && sub.surface[c].barrier === 'concrete') {
       let end = c;
@@ -2911,7 +2917,7 @@ function drawGoalProps() {
 // the right slope shows, descending into the map. Mirrors the goal-hill art (flipped).
 function homeHillCols() {
   const sub = state.substrate;
-  return Math.max(6, (sub.startCols || 2) + 4);   // visible right-slope width in columns (covers the start)
+  return sub.homeCols || Math.max(6, (sub.startCols || 2) + 4);   // visible right-slope width (covers the start); shared with substrate landmark placement
 }
 function drawHomeBackdrop() {
   const hill = asset('goalhill'); if (!hill) return;
