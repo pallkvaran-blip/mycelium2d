@@ -288,7 +288,7 @@ function startCelebration(side, onFinish) {
   focusWorld(cx, surfY - 18, z, anchorY, home ? 0.38 : 0.42);
 }
 
-function emitSpores(list, m, n, time, omni) {
+function emitSpores(list, m, n, time, bothWays) {
   if (list.length >= CELE_MAX_SPORES) return;
   const capX = m.x, capY = m.y - m.h * 0.95;                // world position of the cap top
   for (let k = 0; k < n; k++) {
