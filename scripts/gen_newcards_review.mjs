@@ -9,13 +9,15 @@ import { dirname, join } from 'path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = process.argv[2] || join(ROOT, 'docs', 'newcards-review.html');
-// NC_CARDS = comma-separated card names (default: all 9). NC_WHITE=1 shows the "-w<n>" redo
-// options (white / less-stylized batch) instead of the original "-<n>" options.
+// NC_CARDS = comma-separated card names (default: all 9). NC_SUFFIX = an option-file letter
+// tag: '' shows the original "-<n>" options, 'w' shows the white redo "-w<n>", 'x' the next
+// batch "-x<n>", etc. (NC_WHITE=1 kept as an alias for NC_SUFFIX=w.)
 const NEW = process.env.NC_CARDS
   ? process.env.NC_CARDS.split(',').map((s) => s.trim()).filter(Boolean)
   : ['Guerrilla Runners', 'Turgor Thrust', 'Vesicle Surge', 'Translocation Cord',
      'Explorer Cord', 'Turgor Line', 'Vesicle Supply Line', 'Bulk-Flow Cord', 'Rhizomorph Cable'];
-const WHITE = !!process.env.NC_WHITE;
+const SUFFIX = (process.env.NC_SUFFIX || (process.env.NC_WHITE ? 'w' : '')).trim();
+const WHITE = SUFFIX !== '';   // any lettered batch is a "redo" set (header copy)
 
 const all = JSON.parse(readFileSync(join(ROOT, 'docs', 'cards.json'), 'utf8'));
 const cards = NEW.map((n) => all.find((c) => c.name === n)).filter(Boolean);
@@ -26,8 +28,8 @@ const OPTDIR = join(ROOT, 'assets', 'card_options');
 const opts = {};
 for (const c of cards) {
   const slug = slugOf(c.name);
-  const re = WHITE ? new RegExp('^' + slug + '-w\\d+\\.jpg$') : new RegExp('^' + slug + '-\\d+\\.jpg$');
-  const numOf = (f) => +f.match(/-w?(\d+)\.jpg$/)[1];
+  const re = new RegExp('^' + slug + '-' + SUFFIX + '\\d+\\.jpg$');   // SUFFIX '' → -N; 'w' → -wN; 'x' → -xN
+  const numOf = (f) => +f.match(/(\d+)\.jpg$/)[1];
   const files = existsSync(OPTDIR)
     ? readdirSync(OPTDIR).filter((f) => re.test(f)).sort((a, b) => numOf(a) - numOf(b))
     : [];
