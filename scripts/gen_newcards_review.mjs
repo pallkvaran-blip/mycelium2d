@@ -9,8 +9,13 @@ import { dirname, join } from 'path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = process.argv[2] || join(ROOT, 'docs', 'newcards-review.html');
-const NEW = ['Guerrilla Runners', 'Turgor Thrust', 'Vesicle Surge', 'Translocation Cord',
-  'Explorer Cord', 'Turgor Line', 'Vesicle Supply Line', 'Bulk-Flow Cord', 'Rhizomorph Cable'];
+// NC_CARDS = comma-separated card names (default: all 9). NC_WHITE=1 shows the "-w<n>" redo
+// options (white / less-stylized batch) instead of the original "-<n>" options.
+const NEW = process.env.NC_CARDS
+  ? process.env.NC_CARDS.split(',').map((s) => s.trim()).filter(Boolean)
+  : ['Guerrilla Runners', 'Turgor Thrust', 'Vesicle Surge', 'Translocation Cord',
+     'Explorer Cord', 'Turgor Line', 'Vesicle Supply Line', 'Bulk-Flow Cord', 'Rhizomorph Cable'];
+const WHITE = !!process.env.NC_WHITE;
 
 const all = JSON.parse(readFileSync(join(ROOT, 'docs', 'cards.json'), 'utf8'));
 const cards = NEW.map((n) => all.find((c) => c.name === n)).filter(Boolean);
@@ -21,13 +26,13 @@ const OPTDIR = join(ROOT, 'assets', 'card_options');
 const opts = {};
 for (const c of cards) {
   const slug = slugOf(c.name);
+  const re = WHITE ? new RegExp('^' + slug + '-w\\d+\\.jpg$') : new RegExp('^' + slug + '-\\d+\\.jpg$');
+  const numOf = (f) => +f.match(/-w?(\d+)\.jpg$/)[1];
   const files = existsSync(OPTDIR)
-    ? readdirSync(OPTDIR).filter((f) => new RegExp('^' + slug + '-\\d+\\.jpg$').test(f)).sort((a, b) => {
-        const na = +a.match(/-(\d+)\./)[1], nb = +b.match(/-(\d+)\./)[1]; return na - nb;
-      })
+    ? readdirSync(OPTDIR).filter((f) => re.test(f)).sort((a, b) => numOf(a) - numOf(b))
     : [];
   opts[c.name] = files.map((f) => ({
-    n: +f.match(/-(\d+)\./)[1], file: f,
+    n: numOf(f), file: f,
     uri: 'data:image/jpeg;base64,' + readFileSync(join(OPTDIR, f)).toString('base64'),
   }));
 }
@@ -144,9 +149,11 @@ textarea.comment.has{border-style:solid;border-color:var(--water);background:rgb
 `;
 
 const body = `<div class="wrap">
-  <p class="eyebrow">Mycelium · new grow cards</p>
-  <h1>Pick the art, tune the costs</h1>
-  <p class="lede">The ${cards.length} new grow cards, each on its <b>real card face</b>. For every card:
+  <p class="eyebrow">Mycelium · new grow cards${WHITE ? ' · white redo' : ''}</p>
+  <h1>${WHITE ? 'Pick the white art' : 'Pick the art, tune the costs'}</h1>
+  <p class="lede">${WHITE
+    ? `Fresh <b>white / less-stylized</b> options for the ${cards.length} cards you didn't like — 4 each. `
+    : `The ${cards.length} new grow cards, each on its <b>real card face</b>. `}For every card:
   <b>pick your favourite art</b> (click a thumbnail — the face updates), <b>adjust any cost</b>, tweak the
   <b>description</b>, and leave a <b>comment</b> for anything else. Then hit <b>Copy for Claude</b> and paste it
   back. Everything saves in this browser.</p>
