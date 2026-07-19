@@ -177,8 +177,8 @@ export class NetworkRenderer {
     // halo bleeding into the earth. It must animate WITH growth, so — like the base structure
     // — it's stroked per-node reveal-aware (only the batched-LOD path, used when zoomed out,
     // draws the static skeleton, matching that LOD's own non-animated strands).
-    const featherW = 2.2 / Math.max(0.001, zoom);   // ~1.1px each side — hugs the strand
-    const SHEEN_A = 0.24;
+    const featherW = 1.8 / Math.max(0.001, zoom);   // ~0.9px each side — hugs the strand
+    const SHEEN_A = 0.29;
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = this.config.render.networkLight;   // mint (rgba(150,255,190,1))
     if (simplify) {
