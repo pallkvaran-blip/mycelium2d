@@ -1204,8 +1204,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "iqjuqv";
-globalThis.__BUILD__ = "local 07-19 08:26";
+window.__ASSET_VER = "7jfi9a";
+globalThis.__BUILD__ = "local 07-19 08:29";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8351,8 +8351,8 @@ class NetworkRenderer {
     // halo bleeding into the earth. It must animate WITH growth, so — like the base structure
     // — it's stroked per-node reveal-aware (only the batched-LOD path, used when zoomed out,
     // draws the static skeleton, matching that LOD's own non-animated strands).
-    const featherW = 1.8 / Math.max(0.001, zoom);   // ~0.9px each side — hugs the strand
-    const SHEEN_A = 0.29;
+    const featherW = 1.6 / Math.max(0.001, zoom);   // ~0.8px each side — hugs the strand
+    const SHEEN_A = 0.31;
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = this.config.render.networkLight;   // mint (rgba(150,255,190,1))
     if (simplify) {
