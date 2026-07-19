@@ -1252,12 +1252,18 @@ function renderFrame(time) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
   }
 
-  // Dynamic lighting: dim the earth, then add the colony's glow back in. The settings
-  // toggle controls ONLY the sensing-range aura (the soft glow at the colony's sensing
-  // frontier) — the ambient darkening, colony glow and hazard glow always stay, so the
-  // overall look is unchanged when it's off.
+  // Dynamic lighting: dim the earth, then add the colony's glow back in. The sensing
+  // toggle gates BOTH the wide sensing-range aura AND the colony's own glow. With it OFF
+  // there's no lit halo bleeding into the earth — instead we overlay the strands in bright
+  // white (below) so the colony still reads clearly against the dimmed ground.
   lighting.senseAura = sensingLightOn;
   lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  if (!sensingLightOn && state.config.render.lighting !== false) {
+    for (const net of state.networks) {
+      if (!net.alive && !net.fruited) continue;
+      rendererFor(net).overlayStrands(ctx, camera, time, '#eef9ff');
+    }
+  }
 
   // Atmosphere drifts on top of the lighting so spores read as bright motes.
   substrateRenderer.drawAtmosphere(ctx, camera, time);

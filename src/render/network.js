@@ -148,6 +148,39 @@ export class NetworkRenderer {
     ctx.globalAlpha = 1;
   }
 
+  // Stroke the LIVING structure in a flat colour with NO glow/bleed — used to keep the
+  // colony bright WHITE when the sensing-range lighting (the colony glow) is toggled
+  // off. Drawn OVER the composited (dimmed) scene, so only the strand pixels light up
+  // and nothing bleeds into the earth. Reveal-aware for a normal colony (new growth
+  // still animates in); a very large colony falls back to the batched skeleton so the
+  // extra pass stays cheap.
+  overlayStrands(ctx, camera, time, color) {
+    if (this._builtNodeCount !== this.network.nodes.length) this.structureDirty = true;
+    if (this.structureDirty) { this._rebuildCaches(); this.structureDirty = false; }
+    const net = this.network, zoom = camera.zoom, tl = camera.worldToScreen(0, 0);
+    ctx.save();
+    ctx.translate(tl.x, tl.y); ctx.scale(zoom, zoom);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    if (net.nodes.length > 1600) {
+      for (const b of this.batches.cream) { ctx.lineWidth = b.w; ctx.stroke(b.path); }
+      ctx.restore(); return;
+    }
+    for (const n of net.nodes) {
+      if (n.parentId == null || n.infected) continue;   // skip dead/infected strands
+      const p = net.byId.get(n.parentId); if (!p) continue;
+      const rev = this.revealFactor(n, time);
+      if (rev <= 0) continue;                            // not grown-in here yet
+      const ex = rev < 1 ? p.x + (n.x - p.x) * rev : n.x;
+      const ey = rev < 1 ? p.y + (n.y - p.y) * rev : n.y;
+      ctx.lineWidth = 1.0 + Math.min(0.6, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.14);
+      ctx.globalAlpha = rev < 1 ? rev : 1;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   // Draw the mycelial structure as crisp vectors. The caller has already applied
   // a world→screen transform (translate to the map origin, scale by camera.zoom)
   // on top of the device-pixel-ratio transform, so world coordinates and world-

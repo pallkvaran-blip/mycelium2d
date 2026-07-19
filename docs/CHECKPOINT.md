@@ -461,12 +461,15 @@ Both menus are dark, on-theme, with glowing green borders.
     threads it; `EFFECTS['Acorn Cache']` passes `config.cards.acornCacheEnergy` (=2). Description
     (cards.json → regen) now reads "…drop a SMALL **2⚡** nut cache…". Verified: pile totals 2.000
     across seeds (4–5 cells). Other deposit callers pass no `energyTotal` → unchanged.
-  - **Sense-range lighting OFF now keeps the mycelium bright white.** In `render/lighting.js` the
-    colony's own mint glow (the light that keeps filaments bright against the dimmed earth) was
-    gated by the sensing toggle, so turning it off dimmed the whole colony. That glow is now
-    ALWAYS on; only the wide sensing AURA (the sensed-area frontier glow) is toggled. Verified:
-    colony p99 luminance 252 (off) ≈ 255 (on), while surrounding earth dims (53 vs 82) — bright
-    colony, no surrounding aura.
+  - **Sense-range lighting OFF now shows the colony as bright-WHITE strands, no bleed.** The toggle
+    still gates BOTH the sensing aura AND the colony's own mint glow (in `render/lighting.js`), so
+    with it off nothing lights the earth around the colony. Instead, `main.js` overlays the strands
+    themselves in bright white AFTER the lighting multiply (new `NetworkRenderer.overlayStrands` —
+    strokes the living, reveal-aware structure in `#eef9ff`, big colonies fall back to the batched
+    skeleton). So the colony reads bright white with light confined to the filaments — no halo.
+    Verified: colony p99 luminance ~233 (off, near-white), while the earth *between* strands stays
+    dim (colony-area median 66 off vs 117 on) — bright strands, no bleed. (Supersedes the earlier
+    "glow always on" approach.)
 
 - **Left "home" hill + death fruiting + reworded death card + half-Spores on death.**
   - **Home hill (LEFT):** `drawHomeBackdrop()` + `drawHomeProps()` (main.js) draw half a green
