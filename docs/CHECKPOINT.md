@@ -508,6 +508,27 @@ Both menus are dark, on-theme, with glowing green borders.
     `assets/cards/<slug>.jpg` (owner review = a published artifact gallery). Kept to the **"mycelium, not
     mushrooms"** brief — strands end in fine, pointed / thread-like hyphal tips, never a cap (a few FLUX
     options that drifted into mushrooms were rejected; Turgor Thrust was regenerated).
+  - **Final art picks (owner review, this batch).** After three redo rounds the applied
+    `assets/cards/<slug>.jpg` are: **Guerrilla Runners** ← `translocation-cord-1`, **Turgor Thrust** ←
+    `turgor-thrust-x4` (long-reach white), **Vesicle Surge** ← `vesicle-surge-1`, **Translocation Cord** ←
+    `translocation-cord-w4` (white), **Explorer Cord** ← `translocation-cord-w2` (white), **Turgor Line** ←
+    `turgor-line-x2` (single line into the distance), **Vesicle Supply Line** ← `turgor-line-x3` (a spare
+    single-line option re-homed), **Bulk-Flow Cord** ← `bulk-flow-cord-1`, **Rhizomorph Cable** ←
+    `rhizomorph-cable-1`. Some faces borrow a `translocation-cord`/`turgor-line` option because those
+    generations read best as "reaching cord / long line" — the source option is preserved in
+    `assets/card_options/`, only the winner is copied to `assets/cards/`.
+  - **Owner-facing art-review tooling (reusable for any future card-art batch).**
+    `scripts/gen_newcards_review.mjs` emits a self-contained **Artifact-body** picker: each named card's real
+    in-game face beside its FLUX option thumbnails, with **editable** description/costs, a free-text comment
+    box, and an **Export** button that dumps the owner's picks+edits as markdown to paste back. Env:
+    `NC_CARDS` (comma-separated card names), `NC_SUFFIX` (`''`→`<slug>-N.jpg`, `w`→`-wN`, `x`→`-xN`;
+    `NC_WHITE=1` aliases `w`). `scripts/gen_newcards_gallery.mjs` is the read-only counterpart — the nine
+    final faces with a caption of which option won, plus an optional **"spare art to place"** callout
+    (`SPARE_FILE`/`SPARE_LABEL`) used to re-home an unused option onto another card. FLUX redo scripts from
+    this batch: `gen_grow_redo_white.py` (white-hyphae redo), `gen_turgor_thrust_far.py` (long-reach),
+    `gen_turgor_line_white.py` + `gen_turgor_line_far.py` (single-line-into-the-distance) — all share the
+    "white mycelium, naturalistic macro, NOT painterly, hyphae not mushrooms" brief and write `-w<n>`/`-x<n>`
+    suffixed options.
   - **Verified:** 101 + 61 tests green; a headless effect harness and a real-`dist`-bundle Playwright pass
     confirm each card grows/installs and charges the exact ⚡/W/P and every new face renders. An adversarial
     review **Workflow** (correctness / balance / data / integration → verify) caught + fixed the
