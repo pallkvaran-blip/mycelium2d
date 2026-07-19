@@ -549,43 +549,48 @@ export class Network {
     const dy = y < y0 ? y0 - y : (y > y1 ? y - y1 : 0);
     return dx * dx + dy * dy;
   }
-  // Water bodies the colony is ALREADY touching — a live (non-infected) node within
-  // `contact` of a water cell. Same measure the income uses (cards.js waterSourcesNear),
-  // so a body reads as "tapped" for the helper exactly when it pays income.
-  _waterBodiesTouched(substrate, contact) {
+  // How many strands already REACH each water body — counted as live (non-infected) nodes
+  // hugging it (within `contact` of a water cell; each hugging strand contributes ~1 such
+  // tip). Same `contact` measure the income uses (cards.js waterSourcesNear). Returns a
+  // Map bodyId → count, so the helper can top a pool up to a few strands but no more.
+  _waterBodyTouchCounts(substrate, contact) {
     const cs = substrate.cellSize, c2 = contact * contact;
     const rc = Math.ceil(contact / cs) + 1;
-    const touched = new Set();
+    const counts = new Map();
     for (const n of this.nodes) {
       if (n.infected || n.side) continue;
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
-      for (let dr = -rc; dr <= rc; dr++) for (let dc = -rc; dc <= rc; dc++) {
+      let body = null;
+      for (let dr = -rc; dr <= rc && body == null; dr++) for (let dc = -rc; dc <= rc; dc++) {
         const cell = substrate.cellAt(col + dc, row + dr);
         if (!cell || !cell.water) continue;
         if (this._distSqToCellRect(substrate, col + dc, row + dr, n.x, n.y) <= c2) {
-          touched.add(cell.reservoir ? cell.reservoir : 'lake');
+          body = cell.reservoir ? cell.reservoir : 'lake'; break;   // count each node once
         }
       }
+      if (body != null) counts.set(body, (counts.get(body) || 0) + 1);
     }
-    return touched;
+    return counts;
   }
-  // WATER-SEEK HELPER (config growth.waterSeekReach / waterContactDist): when the colony
-  // grows within reach of a water body it doesn't yet touch, grow ONE extra strand toward
-  // that body and CREEP the tip right up to the water so the colony VISIBLY reaches it —
-  // like colonising food. Water is solid, so the strand hugs the near face and never grows
-  // INTO the pool. At most ONE strand per body ever (a body already touched is skipped), so
-  // it never looks like many strands in the water. Deterministic (no rng, no side-strands),
-  // so it can't shift the main food-seek/collision path. Runs after each grow. Returns nodes.
+  // WATER-SEEK HELPER (config growth.sensingRadius / waterContactDist / waterHelperMaxStrands):
+  // whenever the colony grows and a tip is within SENSING RANGE of a water body, grow a free
+  // extra strand toward it and CREEP the tip right up to the water so the colony VISIBLY
+  // reaches it — like colonising food. Water is solid, so each strand hugs the near face and
+  // never grows INTO the pool. A pool fills up to `waterHelperMaxStrands` strands as the
+  // colony nears from different tips (one new strand per grow), then stops — enough help to
+  // reliably tap it without matting the water. Deterministic (no rng, no side-strands), so it
+  // can't shift the main food-seek/collision path. Runs after each grow. Returns nodes made.
   reachForWater(substrate) {
     const g = this.config.growth;
     if (this.nodes.length >= g.maxNodes) return 0;
     const cs = substrate.cellSize;
-    const reach = g.waterSeekReach || g.sensingRadius || 150;
+    const reach = g.sensingRadius || g.waterSeekReach || 135;   // "within sensing range" of water
     const contact = (g.waterContactDist != null ? g.waterContactDist : cs * 0.6);
+    const maxPerBody = g.waterHelperMaxStrands || 3;
     const reachCells = Math.ceil(reach / cs) + 1, reach2 = reach * reach;
-    // Never grow a second helper into a body we already reach → one strand per pool.
-    const touched = this._waterBodiesTouched(substrate, contact);
-    // For each UNtouched body in reach, the nearest (tip, water-cell) approach.
+    // How many strands already reach each body — so we top a pool up to a few, then leave it.
+    const have = this._waterBodyTouchCounts(substrate, contact);
+    // For each body still short of its strand quota, the nearest (tip, water-cell) approach.
     const target = new Map();   // bodyId -> { tip, tx, ty, d2 }
     for (const t of this.tips()) {
       if (t.infected || t.side) continue;
@@ -594,7 +599,7 @@ export class Network {
         const cell = substrate.cellAt(col + dc, row + dr);
         if (!cell || !cell.water) continue;
         const body = cell.reservoir ? cell.reservoir : 'lake';
-        if (touched.has(body)) continue;                 // already tapped — no second strand
+        if ((have.get(body) || 0) >= maxPerBody) continue;   // pool already served by enough strands
         const c = substrate.cellCenter(col + dc, row + dr);
         const d2 = (c.x - t.x) ** 2 + (c.y - t.y) ** 2;
         if (d2 > reach2) continue;

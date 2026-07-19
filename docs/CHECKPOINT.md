@@ -473,6 +473,15 @@ Both menus are dark, on-theme, with glowing green borders.
   running low. Your colony will be forced to fruit if you run out, ending your run. Grow into a
   water source or play water income cards to get more water."*
 
+- **Water-seek helper: more generous — up to a few strands per pool, keyed off SENSING range.**
+  Follow-up to the hug-the-water fix below: the helper now triggers whenever a tip is within the
+  colony's **sensing radius** (`growth.sensingRadius`, 135) of a water body — replacing the old
+  `waterSeekReach` — and a pool fills up to **`waterHelperMaxStrands`** (=3) helper strands as the
+  colony nears from different tips (one new strand per grow, `_waterBodiesTouched`→
+  `_waterBodyTouchCounts` gates on the per-body count), instead of just one. Enough free help to
+  reliably tap the water without matting it; still edge-hugging (never overlaps), deterministic.
+  Verified headless: with tips ringing a pool it grows ≥2 strands and caps at 3, none inside water.
+
 - **Water-seek helper now VISIBLY hugs the water + income only pays on visible contact.**
   The Aquifer Tap trickle was turning on while the colony was still a clear gap from the pool
   (income contact 22px, but the helper's "already hugging" skip was ~40px from the water edge —

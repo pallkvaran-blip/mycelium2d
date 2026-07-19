@@ -210,11 +210,12 @@ export const CONFIG = {
     // water-seek helper below reliably creeps a tip to within ~7px of the edge, so this is
     // set just above that: income pays exactly when a strand you can SEE reaches the water.
     waterContactDist: 14,
-    // When the colony comes within this reach of a water body it doesn't yet touch, a
-    // helper grows ONE extra strand toward the water (like food) and creeps its tip right
-    // up to the edge so contact is visible — never overlapping, at most one strand per
-    // body. See network.js reachForWater / _growToWaterEdge.
-    waterSeekReach: 150,
+    // Water-seek helper: whenever a tip is within SENSING RANGE (sensingRadius above) of a
+    // water body, a free extra strand grows toward the water (like food) and creeps its tip
+    // right up to the edge so contact is visible — never overlapping. A pool fills up to this
+    // many helper strands as the colony nears from different tips (one per grow), then stops —
+    // enough help to reliably tap it without matting the water. See network.js reachForWater.
+    waterHelperMaxStrands: 3,
   },
 
   // ---- Vitality / health (A5, A8) ----------------------------------------
