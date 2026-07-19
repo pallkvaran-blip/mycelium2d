@@ -807,7 +807,12 @@ Both menus are dark, on-theme, with glowing green borders.
     synthetic engine (`_waterSource:true`, `WATER_SOURCE_NAME` = **"Aquifer Tap"**) that `updateWaterSourceEngine()`
     adds/updates/removes at the top of `produceCardEngines` — so it shows in the income pill + ledger
     automatically and vanishes when nothing is touched. `touchesLake` now excludes reservoir cells;
-    `nodeTouchesWater` (lake OR reservoir) drives Hyphal Osmosis's lake-tier harvest.
+    `nodeTouchesWater` (lake OR reservoir) drives Hyphal Osmosis's lake-tier harvest. Income +
+    the **water-seek helper** (`network.js reachForWater`, §9) both key off `cell.water` within
+    `waterContactDist` (14px), so the DRAWN pool is deliberately aligned to those cells: **lakes**
+    clip the art to the water-cell bowl (`drawLakes`), **reservoirs** carve a teardrop + scale the
+    art by its opaque box (`reservoirHalfWidth` + `RESERVOIR_OPAQUE`) — so "touching" always means
+    *visibly* touching, and a helper strand ends at the visible edge. See §9 for both fixes.
   - **Underground reservoirs** (`substrate.js` §2c-iv + `cell.reservoir` flag): 1–3 small impassable water
     pockets (`config.reservoirCount/Radius*`) placed one row ABOVE the winnable corridor (guaranteed
     reachable, never blocking the path). Marked `rock+water+reservoir` so they're solid + baked into the
