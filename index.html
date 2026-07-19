@@ -1206,6 +1206,56 @@
       .tut-btn { padding:8px 15px; font-size:13px; }
     }
 
+    /* ---- Level intro -------------------------------------------------------
+       A full-screen BLACK "Level N" + threat-roster screen shown before each
+       campaign level's map fades in. No container / no buttons — the content
+       sits straight on black. The overlay fades ITS OWN opacity out on click,
+       revealing the (already fully drawn) map behind it — that IS the map
+       fade-in (see main.js revealMap / level_intro.js). Sits above the tutorial
+       (z 1200) so a deferred first-run tutorial starts only after it clears. */
+    #levelIntro { position:fixed; inset:0; z-index:1300; background:#000; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; padding:24px;
+      opacity:1; transition:opacity 1.4s ease; -webkit-tap-highlight-color:transparent; }
+    /* Once dismissed, stop intercepting input immediately (even before the node is
+       removed) so the fading-out overlay can never swallow a map tap. */
+    #levelIntro.li-out { opacity:0; pointer-events:none; }
+    .li-inner { display:flex; flex-direction:column; align-items:center;
+      gap:clamp(26px,5.2vh,56px); text-align:center;
+      opacity:0; transform:translateY(12px); transition:opacity .8s ease, transform .8s ease; }
+    #levelIntro.li-in .li-inner { opacity:1; transform:none; }
+    .li-level { font-family:var(--serif); font-weight:600; color:#fff; line-height:1;
+      font-size:clamp(40px,8.2vw,80px); letter-spacing:.012em;
+      text-shadow:0 0 30px rgba(255,255,255,0.28); }
+    .li-threats { display:flex; align-items:flex-start; justify-content:center;
+      gap:clamp(16px,4.4vw,46px); flex-wrap:wrap; }
+    .li-threat { display:flex; flex-direction:column; align-items:center; gap:clamp(10px,1.6vh,16px); }
+    /* Square portrait with a white border + faint glow, matching the tutorial figures. */
+    .li-pic { width:clamp(98px,20vw,196px); aspect-ratio:1/1; border-radius:13px; overflow:hidden;
+      background:#000; border:1.5px solid rgba(255,255,255,0.55);
+      box-shadow:0 0 24px -4px rgba(255,255,255,0.42), inset 0 0 34px -18px rgba(255,255,255,0.22); }
+    .li-pic img { width:100%; height:100%; object-fit:cover; display:block; filter:contrast(1.05); }
+    /* Head-focused crops: the square keeps the ant's head/mandibles and the
+       nematode's mouth as the focus, without cropping down to only the head. */
+    .li-pic--ant img { object-position:50% 45%; }
+    .li-pic--nematode img { object-position:54% 42%; }
+    .li-pic--trichoderma img { object-position:50% 50%; }
+    .li-pic--noimg { display:none; }
+    .li-count { font-family:var(--serif); font-weight:600; color:#fff; letter-spacing:.02em;
+      font-size:clamp(21px,3.6vw,32px); }
+    .li-hint { font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:13px;
+      letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,0.42);
+      animation:liHint 2.2s ease-in-out infinite; }
+    @keyframes liHint { 0%,100%{ opacity:.3 } 50%{ opacity:.62 } }
+    @media (max-width:720px) {
+      .li-threat { gap:9px; }
+      .li-hint { font-size:11px; letter-spacing:.12em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .li-inner { transition-duration:.01ms; }
+      #levelIntro { transition-duration:.01ms; }
+      .li-hint { animation:none; }
+    }
+
     /* HUD campaign level chip (top-centre, non-interactive) */
 
     @media (max-width:720px) {

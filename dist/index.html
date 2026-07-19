@@ -1207,6 +1207,56 @@
       .tut-btn { padding:8px 15px; font-size:13px; }
     }
 
+    /* ---- Level intro -------------------------------------------------------
+       A full-screen BLACK "Level N" + threat-roster screen shown before each
+       campaign level's map fades in. No container / no buttons — the content
+       sits straight on black. The overlay fades ITS OWN opacity out on click,
+       revealing the (already fully drawn) map behind it — that IS the map
+       fade-in (see main.js revealMap / level_intro.js). Sits above the tutorial
+       (z 1200) so a deferred first-run tutorial starts only after it clears. */
+    #levelIntro { position:fixed; inset:0; z-index:1300; background:#000; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; padding:24px;
+      opacity:1; transition:opacity 1.4s ease; -webkit-tap-highlight-color:transparent; }
+    /* Once dismissed, stop intercepting input immediately (even before the node is
+       removed) so the fading-out overlay can never swallow a map tap. */
+    #levelIntro.li-out { opacity:0; pointer-events:none; }
+    .li-inner { display:flex; flex-direction:column; align-items:center;
+      gap:clamp(26px,5.2vh,56px); text-align:center;
+      opacity:0; transform:translateY(12px); transition:opacity .8s ease, transform .8s ease; }
+    #levelIntro.li-in .li-inner { opacity:1; transform:none; }
+    .li-level { font-family:var(--serif); font-weight:600; color:#fff; line-height:1;
+      font-size:clamp(40px,8.2vw,80px); letter-spacing:.012em;
+      text-shadow:0 0 30px rgba(255,255,255,0.28); }
+    .li-threats { display:flex; align-items:flex-start; justify-content:center;
+      gap:clamp(16px,4.4vw,46px); flex-wrap:wrap; }
+    .li-threat { display:flex; flex-direction:column; align-items:center; gap:clamp(10px,1.6vh,16px); }
+    /* Square portrait with a white border + faint glow, matching the tutorial figures. */
+    .li-pic { width:clamp(98px,20vw,196px); aspect-ratio:1/1; border-radius:13px; overflow:hidden;
+      background:#000; border:1.5px solid rgba(255,255,255,0.55);
+      box-shadow:0 0 24px -4px rgba(255,255,255,0.42), inset 0 0 34px -18px rgba(255,255,255,0.22); }
+    .li-pic img { width:100%; height:100%; object-fit:cover; display:block; filter:contrast(1.05); }
+    /* Head-focused crops: the square keeps the ant's head/mandibles and the
+       nematode's mouth as the focus, without cropping down to only the head. */
+    .li-pic--ant img { object-position:50% 45%; }
+    .li-pic--nematode img { object-position:54% 42%; }
+    .li-pic--trichoderma img { object-position:50% 50%; }
+    .li-pic--noimg { display:none; }
+    .li-count { font-family:var(--serif); font-weight:600; color:#fff; letter-spacing:.02em;
+      font-size:clamp(21px,3.6vw,32px); }
+    .li-hint { font-family:"Segoe UI",system-ui,-apple-system,sans-serif; font-size:13px;
+      letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,0.42);
+      animation:liHint 2.2s ease-in-out infinite; }
+    @keyframes liHint { 0%,100%{ opacity:.3 } 50%{ opacity:.62 } }
+    @media (max-width:720px) {
+      .li-threat { gap:9px; }
+      .li-hint { font-size:11px; letter-spacing:.12em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .li-inner { transition-duration:.01ms; }
+      #levelIntro { transition-duration:.01ms; }
+      .li-hint { animation:none; }
+    }
+
     /* HUD campaign level chip (top-centre, non-interactive) */
 
     @media (max-width:720px) {
@@ -1228,8 +1278,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "kgavzt";
-globalThis.__BUILD__ = "local 07-19 13:13";
+window.__ASSET_VER = "sbcvvq";
+globalThis.__BUILD__ = "local 07-19 14:01";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12275,6 +12325,98 @@ function startTutorial(deps) {
   return { startTutorial };
 })();
 
+// ===================== src/render/level_intro.js =====================
+const __m_render_level_intro = (function () {
+// =============================================================================
+// LEVEL INTRO — a full-screen BLACK card shown at the start of every campaign
+// level, BEFORE the map fades in. It announces "Level N" and the threats waiting
+// in this map (ant / nematode / trichoderma), each a square portrait with a white
+// glow border (matching the tutorial's) and an ×count. A click ANYWHERE fades the
+// overlay out — and because the finished map is already drawn behind it at full
+// opacity, that fade IS the map fading in (main.js sets the canvas opaque first).
+//
+//   showLevelIntro({ level, threats, onDone }) → controller { destroy(), active }
+//
+// threats: [{ slug, label, count }, ...] — already filtered to count > 0 by the
+// caller. `slug` names the art file assets/tutorial/<slug>.jpg (reused from the
+// first-run tutorial). `onDone` fires once the overlay has faded out and been
+// removed — main.js uses it to kick off any deferred first-run tutorial.
+// =============================================================================
+
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+function showLevelIntro(opts) {
+  const level = (opts && opts.level) || 1;
+  const threats = (opts && opts.threats) || [];
+  const onDone = opts && opts.onDone;
+
+  const root = el('div'); root.id = 'levelIntro';
+  const inner = el('div', 'li-inner');
+  inner.appendChild(el('div', 'li-level', 'Level ' + level));
+
+  const row = el('div', 'li-threats');
+  for (const th of threats) {
+    const cell = el('div', 'li-threat');
+    const pic = el('div', 'li-pic li-pic--' + th.slug);
+    const img = el('img');
+    img.src = 'assets/tutorial/' + th.slug + '.jpg' + VER;
+    img.alt = th.label || th.slug;
+    img.draggable = false;
+    img.onerror = () => { pic.classList.add('li-pic--noimg'); };   // keep the count if art is missing
+    pic.appendChild(img);
+    cell.appendChild(pic);
+    cell.appendChild(el('div', 'li-count', '&times;' + th.count));
+    row.appendChild(cell);
+  }
+  inner.appendChild(row);
+  inner.appendChild(el('div', 'li-hint', 'Click anywhere to begin'));
+  root.appendChild(inner);
+  document.body.appendChild(root);
+
+  let alive = true;
+  function unbind() {
+    root.removeEventListener('click', dismiss);
+    document.removeEventListener('keydown', onKey);
+  }
+  // User dismiss (click / key): fade the overlay out — the map appears behind it —
+  // then remove the node and run onDone (which kicks off any deferred tutorial).
+  function dismiss() {
+    if (!alive) return;
+    alive = false;
+    unbind();
+    root.classList.add('li-out');            // CSS fades opacity 1 -> 0
+    let removed = false;
+    const finishOut = () => {
+      if (removed) return; removed = true;
+      root.remove();
+      try { onDone && onDone(); } catch (_) {}
+    };
+    root.addEventListener('transitionend', (e) => { if (e.target === root && e.propertyName === 'opacity') finishOut(); });
+    setTimeout(finishOut, 1700);             // fallback if transitionend never fires
+  }
+  // Programmatic teardown (a superseding begin()): drop the overlay at once, and
+  // DON'T run onDone — that level's deferred tutorial is no longer wanted.
+  function destroy() {
+    if (!alive && !root.isConnected) return;
+    alive = false;
+    unbind();
+    root.remove();
+  }
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss(); };
+  root.addEventListener('click', dismiss);
+  document.addEventListener('keydown', onKey);
+
+  // Fade the CONTENT in on the next frame (so it eases up rather than hard-cutting).
+  requestAnimationFrame(() => { if (alive) root.classList.add('li-in'); });
+
+  return { destroy, get active() { return alive; } };
+}
+
+  return { showLevelIntro };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -12291,6 +12433,7 @@ const __m_main = (function () {
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
+  const { showLevelIntro } = __m_render_level_intro;
   const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
@@ -12343,6 +12486,8 @@ function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
 let _revealPending = false;           // reveal (fade in) after the next fully-drawn frame
+let pendingLevelIntro = null;         // {level, threats, onContinue} — black "Level N" screen shown before the map fades in (campaign)
+let levelIntro = null;                // active level-intro overlay controller
 let draftIntro = null;                // sequenced food-pile → card-draft animation (see updateDraftIntro)
 
 // Fade the whole map in from black. Fired by the render loop after the FIRST fully
@@ -12350,11 +12495,39 @@ let draftIntro = null;                // sequenced food-pile → card-draft anim
 // finished scene fades up as a whole — never a blank canvas (which is what a
 // warm-cache refresh used to show, revealing before the first frame was drawn).
 function revealMap() {
+  // A pending LEVEL INTRO takes over the reveal: the finished map has now drawn a
+  // full frame, so snap the canvas fully opaque (no fade) behind a solid black
+  // "Level N" overlay, and let that overlay fade ITSELF out on click — that fade
+  // is the map fading in. On dismiss it runs onContinue (any deferred tutorial).
+  if (pendingLevelIntro) {
+    const info = pendingLevelIntro; pendingLevelIntro = null;
+    canvas.style.transition = 'none';
+    canvas.style.opacity = '1';
+    if (levelIntro) { try { levelIntro.destroy(); } catch (_) {} levelIntro = null; }
+    levelIntro = showLevelIntro({
+      level: info.level,
+      threats: info.threats,
+      onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
+    });
+    return;
+  }
   canvas.style.transition = 'none';
   canvas.style.opacity = '0';
   void canvas.offsetWidth;            // commit opacity:0 with no transition
   canvas.style.transition = 'opacity 1.4s ease';
   canvas.style.opacity = '1';         // animate 0 -> 1
+}
+
+// The threats seeded into the CURRENT map, as the intro's roster (count > 0 only).
+// Counts come from the live state (== the per-level LEVEL_THREATS seed, before any
+// tick), so it always reflects what's actually on the map — incl. a trich-free run.
+function levelThreatList() {
+  const s = state; if (!s) return [];
+  return [
+    { slug: 'ant',         label: 'Ants',        count: (s.ants || []).length },
+    { slug: 'nematode',    label: 'Nematodes',   count: (s.nematodes || []).length },
+    { slug: 'trichoderma', label: 'Trichoderma', count: (s.clouds || []).length },
+  ].filter((t) => t.count > 0);
 }
 
 let previewFruit = false;
@@ -12888,6 +13061,8 @@ function begin(newState) {
   _runOverPresented = false;
   winCele = null;                 // drop any lingering win celebration from the prior level
   if (tutorial) { tutorial.destroy(); tutorial = null; }   // never carry a tutorial across levels/runs
+  pendingLevelIntro = null;       // drop an unshown intro from a superseded begin()
+  if (levelIntro) { try { levelIntro.destroy(); } catch (_) {} levelIntro = null; }   // clear a lingering intro overlay
   // Card layer online for procedural (non-puzzle) runs. Priority:
   //   carryOver  → transplant the deck+reserves from the previous level (campaign)
   //   chosenSpecies → that species' exact starting hand + resources
@@ -12951,14 +13126,26 @@ function begin(newState) {
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
   // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
-  // it seen — so it never interferes with testing the real first-run flow.
+  // it seen — so it never interferes with testing the real first-run flow. It is
+  // DEFERRED behind the level intro (below) so its camera zooms / popups only begin
+  // once the black "Level 1" screen clears and the map is on show.
+  let afterIntro = null;
   if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
     const devForced = tutorialDevForce;
     tutorialPending = false; tutorialDevForce = false;
     if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
       if (!devForced) markTutorialSeen();
-      beginTutorial();
+      afterIntro = () => beginTutorial();
     }
+  }
+  // Level intro (campaign): a black "Level N" + threat-roster screen shown before
+  // the map fades in. Armed here, shown by revealMap() once the first frame draws;
+  // dismissing it reveals the map and runs any deferred tutorial. Puzzle mode skips
+  // it and just fades the map in.
+  if (state.mode !== 'puzzle') {
+    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: afterIntro };
+  } else if (afterIntro) {
+    afterIntro();
   }
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it

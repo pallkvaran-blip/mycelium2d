@@ -21,6 +21,7 @@ import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
+import { showLevelIntro } from './render/level_intro.js';
 import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
@@ -64,6 +65,8 @@ function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch 
 let uiDirty = true;
 let assetsReady = false;              // canvas art loaded — until then the map stays hidden
 let _revealPending = false;           // reveal (fade in) after the next fully-drawn frame
+let pendingLevelIntro = null;         // {level, threats, onContinue} — black "Level N" screen shown before the map fades in (campaign)
+let levelIntro = null;                // active level-intro overlay controller
 let draftIntro = null;                // sequenced food-pile → card-draft animation (see updateDraftIntro)
 
 // Fade the whole map in from black. Fired by the render loop after the FIRST fully
@@ -71,11 +74,39 @@ let draftIntro = null;                // sequenced food-pile → card-draft anim
 // finished scene fades up as a whole — never a blank canvas (which is what a
 // warm-cache refresh used to show, revealing before the first frame was drawn).
 function revealMap() {
+  // A pending LEVEL INTRO takes over the reveal: the finished map has now drawn a
+  // full frame, so snap the canvas fully opaque (no fade) behind a solid black
+  // "Level N" overlay, and let that overlay fade ITSELF out on click — that fade
+  // is the map fading in. On dismiss it runs onContinue (any deferred tutorial).
+  if (pendingLevelIntro) {
+    const info = pendingLevelIntro; pendingLevelIntro = null;
+    canvas.style.transition = 'none';
+    canvas.style.opacity = '1';
+    if (levelIntro) { try { levelIntro.destroy(); } catch (_) {} levelIntro = null; }
+    levelIntro = showLevelIntro({
+      level: info.level,
+      threats: info.threats,
+      onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
+    });
+    return;
+  }
   canvas.style.transition = 'none';
   canvas.style.opacity = '0';
   void canvas.offsetWidth;            // commit opacity:0 with no transition
   canvas.style.transition = 'opacity 1.4s ease';
   canvas.style.opacity = '1';         // animate 0 -> 1
+}
+
+// The threats seeded into the CURRENT map, as the intro's roster (count > 0 only).
+// Counts come from the live state (== the per-level LEVEL_THREATS seed, before any
+// tick), so it always reflects what's actually on the map — incl. a trich-free run.
+function levelThreatList() {
+  const s = state; if (!s) return [];
+  return [
+    { slug: 'ant',         label: 'Ants',        count: (s.ants || []).length },
+    { slug: 'nematode',    label: 'Nematodes',   count: (s.nematodes || []).length },
+    { slug: 'trichoderma', label: 'Trichoderma', count: (s.clouds || []).length },
+  ].filter((t) => t.count > 0);
 }
 
 let previewFruit = false;
@@ -609,6 +640,8 @@ function begin(newState) {
   _runOverPresented = false;
   winCele = null;                 // drop any lingering win celebration from the prior level
   if (tutorial) { tutorial.destroy(); tutorial = null; }   // never carry a tutorial across levels/runs
+  pendingLevelIntro = null;       // drop an unshown intro from a superseded begin()
+  if (levelIntro) { try { levelIntro.destroy(); } catch (_) {} levelIntro = null; }   // clear a lingering intro overlay
   // Card layer online for procedural (non-puzzle) runs. Priority:
   //   carryOver  → transplant the deck+reserves from the previous level (campaign)
   //   chosenSpecies → that species' exact starting hand + resources
@@ -672,14 +705,26 @@ function begin(newState) {
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
   // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
-  // it seen — so it never interferes with testing the real first-run flow.
+  // it seen — so it never interferes with testing the real first-run flow. It is
+  // DEFERRED behind the level intro (below) so its camera zooms / popups only begin
+  // once the black "Level 1" screen clears and the map is on show.
+  let afterIntro = null;
   if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
     const devForced = tutorialDevForce;
     tutorialPending = false; tutorialDevForce = false;
     if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
       if (!devForced) markTutorialSeen();
-      beginTutorial();
+      afterIntro = () => beginTutorial();
     }
+  }
+  // Level intro (campaign): a black "Level N" + threat-roster screen shown before
+  // the map fades in. Armed here, shown by revealMap() once the first frame draws;
+  // dismissing it reveals the map and runs any deferred tutorial. Puzzle mode skips
+  // it and just fades the map in.
+  if (state.mode !== 'puzzle') {
+    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: afterIntro };
+  } else if (afterIntro) {
+    afterIntro();
   }
   // On a new map, fade the finished scene in AFTER its first frame draws (the very
   // first map also waits for art to load — see the loadAssets() boot below), so it

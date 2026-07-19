@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-19 (**experimental side-strand branching:** every
+_Living status + knowledge doc. Last updated: 2026-07-19 (**level-intro screen:** every level now opens
+on a BLACK "Level N" card that names the threats waiting on the map — ant / nematode / trichoderma, each a
+white-glow square (tutorial art, head-focused crops) with an ×count — then fades the map in on any click;
+the first-run tutorial is deferred to fire only after it clears. `src/render/level_intro.js` +
+`main.js begin/revealMap`. See §9. — earlier: **experimental side-strand branching:** every
 grow type now sprouts extra fuzz — each growth step has a 60% chance to sprout a small 2–3-segment
 side-strand from a random point along the strand, in a random direction; drawn from a SEPARATE
 deterministic RNG (`network.js _branchRng`) so it's purely additive and never shifts the main
@@ -460,6 +464,32 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Level-intro screen: a black "Level N" + threat-roster card shown before every level's map fades in.**
+  New `src/render/level_intro.js` (`showLevelIntro({level, threats, onDone})`) renders a full-screen
+  BLACK overlay — big serif **"Level N"**, then the three threats waiting on this map (ant / nematode /
+  trichoderma), each a **square portrait with a white glow border** (matching the tutorial figures) and
+  an **×count**, plus a faint "click anywhere to begin" hint. **No container / no buttons** — content
+  sits straight on black, per the request. A click ANYWHERE fades the overlay's own opacity out (1.4s);
+  because the finished map is already drawn behind it at full opacity, **that fade IS the map fading in**.
+  Threat art is REUSED from the first-run tutorial (`assets/tutorial/{ant,nematode,trichoderma}.jpg`); the
+  ant/nematode squares use `object-position` crops (`.li-pic--ant/-nematode`) that keep the **head as the
+  focus without cropping to only the head** (ant head+mandibles centred; nematode mouth centred; both still
+  show body). Counts come from the LIVE state (`state.ants/nematodes/clouds.length` == the per-level
+  `LEVEL_THREATS` seed, before any tick), filtered to >0 (so a trich-free `#notrich` sandbox just omits it).
+  - **Wiring (`main.js`):** `begin()` arms `pendingLevelIntro = {level, threats, onContinue}` for every
+    non-puzzle level; `revealMap()` (fired after the first fully-drawn frame) shows the intro instead of the
+    plain canvas fade — it snaps the canvas opaque behind the black overlay and lets the overlay fade itself
+    out. Puzzle mode keeps the old direct fade. A superseding `begin()` drops any unshown/lingering intro.
+  - **Tutorial now DEFERRED behind the intro:** the first-run tutorial (level 1 only) used to start
+    synchronously in `begin()`; it now rides `pendingLevelIntro.onContinue`, so its camera zooms / popups
+    begin **only after** the black screen clears — never under it. `markTutorialSeen()` still fires up-front
+    so it can't re-trigger. Verified in the real game (HTTP Playwright, external hosts stubbed to keep
+    headless Chromium off the music/SSL storm): intro mounts on level start with the right counts, click
+    fades the real map in and the game is immediately playable, and `tutorialPresentUnderIntro=false` →
+    tutorial appears 1s after dismiss. `.li-out` also drops `pointer-events` the instant it's dismissed so a
+    fading (not-yet-removed) overlay can never swallow a map tap. All CSS in `index.html` (`#levelIntro` /
+    `.li-*`, z 1300 — above the tutorial's 1200); module registered in `build.mjs`; 101 tests green.
 
 - **Lake art now CLIPPED to its water cells (strands stop at the visible pool, not inside it).**
   Same class of art/cell mismatch as reservoirs, but for lakes: the sim's lake water is a

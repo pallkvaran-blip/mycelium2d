@@ -48,6 +48,7 @@ const MODULES = [
   'src/render/species_select.js',
   'src/render/title_screen.js',
   'src/render/tutorial.js',
+  'src/render/level_intro.js',
   'src/main.js',
 ];
 
