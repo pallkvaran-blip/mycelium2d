@@ -1228,8 +1228,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "8xv6e0";
-globalThis.__BUILD__ = "local 07-19 11:19";
+window.__ASSET_VER = "226m7i";
+globalThis.__BUILD__ = "local 07-19 11:35";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1440,13 +1440,15 @@ const CONFIG = {
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
     // --- water bodies (lake / reservoir): income + auto-reach helper ---------
-    // Income (the Aquifer Tap trickle) only kicks in when a strand ALMOST TOUCHES the
-    // water — a node within this many world units of a water cell's edge (much tighter
-    // than the old sensing-range test). ~0.6 cell ≈ hugging the water face.
-    waterContactDist: 22,
-    // When the colony comes within this reach of a water body but isn't touching it yet,
-    // a helper grows an extra strand STRAIGHT toward the water (like food), stopping at
-    // the edge (never overlapping the water). See network.js reachForWater.
+    // Income (the Aquifer Tap trickle) only kicks in when a strand is VISIBLY HUGGING the
+    // water — a node within this many world units of a water cell's edge (~0.4 cell). The
+    // water-seek helper below reliably creeps a tip to within ~7px of the edge, so this is
+    // set just above that: income pays exactly when a strand you can SEE reaches the water.
+    waterContactDist: 14,
+    // When the colony comes within this reach of a water body it doesn't yet touch, a
+    // helper grows ONE extra strand toward the water (like food) and creeps its tip right
+    // up to the edge so contact is visible — never overlapping, at most one strand per
+    // body. See network.js reachForWater / _growToWaterEdge.
     waterSeekReach: 150,
   },
 
@@ -4403,12 +4405,41 @@ class Network {
     return true;
   }
 
+  // Squared distance from world point (x,y) to a substrate cell (col,row)'s rectangle.
+  _distSqToCellRect(substrate, col, row, x, y) {
+    const cs = substrate.cellSize;
+    const x0 = col * cs, x1 = x0 + cs, y0 = substrate.surfaceY + row * cs, y1 = y0 + cs;
+    const dx = x < x0 ? x0 - x : (x > x1 ? x - x1 : 0);
+    const dy = y < y0 ? y0 - y : (y > y1 ? y - y1 : 0);
+    return dx * dx + dy * dy;
+  }
+  // Water bodies the colony is ALREADY touching — a live (non-infected) node within
+  // `contact` of a water cell. Same measure the income uses (cards.js waterSourcesNear),
+  // so a body reads as "tapped" for the helper exactly when it pays income.
+  _waterBodiesTouched(substrate, contact) {
+    const cs = substrate.cellSize, c2 = contact * contact;
+    const rc = Math.ceil(contact / cs) + 1;
+    const touched = new Set();
+    for (const n of this.nodes) {
+      if (n.infected || n.side) continue;
+      const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
+      for (let dr = -rc; dr <= rc; dr++) for (let dc = -rc; dc <= rc; dc++) {
+        const cell = substrate.cellAt(col + dc, row + dr);
+        if (!cell || !cell.water) continue;
+        if (this._distSqToCellRect(substrate, col + dc, row + dr, n.x, n.y) <= c2) {
+          touched.add(cell.reservoir ? cell.reservoir : 'lake');
+        }
+      }
+    }
+    return touched;
+  }
   // WATER-SEEK HELPER (config growth.waterSeekReach / waterContactDist): when the colony
-  // comes within reach of a water body (lake or reservoir cell) but isn't hugging it yet,
-  // grow ONE extra strand STRAIGHT toward the nearest water — treating water like food.
-  // It stops at the water's edge (water is solid, so _segmentClear halts the chain on the
-  // near face — it never overlaps the water). Deterministic: no rng, no side-strands, so
-  // it can't shift the main food-seek/collision path. Runs after each grow. Returns nodes.
+  // grows within reach of a water body it doesn't yet touch, grow ONE extra strand toward
+  // that body and CREEP the tip right up to the water so the colony VISIBLY reaches it —
+  // like colonising food. Water is solid, so the strand hugs the near face and never grows
+  // INTO the pool. At most ONE strand per body ever (a body already touched is skipped), so
+  // it never looks like many strands in the water. Deterministic (no rng, no side-strands),
+  // so it can't shift the main food-seek/collision path. Runs after each grow. Returns nodes.
   reachForWater(substrate) {
     const g = this.config.growth;
     if (this.nodes.length >= g.maxNodes) return 0;
@@ -4416,42 +4447,62 @@ class Network {
     const reach = g.waterSeekReach || g.sensingRadius || 150;
     const contact = (g.waterContactDist != null ? g.waterContactDist : cs * 0.6);
     const reachCells = Math.ceil(reach / cs) + 1, reach2 = reach * reach;
-    const skip2 = (contact + cs) * (contact + cs);
-    // Each advancing tip's nearest water cell (if within reach and not already hugging).
-    const cands = [];
+    // Never grow a second helper into a body we already reach → one strand per pool.
+    const touched = this._waterBodiesTouched(substrate, contact);
+    // For each UNtouched body in reach, the nearest (tip, water-cell) approach.
+    const target = new Map();   // bodyId -> { tip, tx, ty, d2 }
     for (const t of this.tips()) {
       if (t.infected || t.side) continue;
       const col = substrate.colAtX(t.x), row = substrate.rowAtY(t.y);
-      let bx = 0, by = 0, bd = reach2;
       for (let dr = -reachCells; dr <= reachCells; dr++) for (let dc = -reachCells; dc <= reachCells; dc++) {
         const cell = substrate.cellAt(col + dc, row + dr);
         if (!cell || !cell.water) continue;
+        const body = cell.reservoir ? cell.reservoir : 'lake';
+        if (touched.has(body)) continue;                 // already tapped — no second strand
         const c = substrate.cellCenter(col + dc, row + dr);
         const d2 = (c.x - t.x) ** 2 + (c.y - t.y) ** 2;
-        if (d2 < bd) { bd = d2; bx = c.x; by = c.y; }
+        if (d2 > reach2) continue;
+        const prev = target.get(body);
+        if (!prev || d2 < prev.d2) target.set(body, { tip: t, tx: c.x, ty: c.y, d2 });
       }
-      if (bd < reach2 && bd > skip2) cands.push({ t, bx, by, d2: bd });   // in range, not already hugging
     }
-    if (!cands.length) return 0;
-    // Grow a straight chain toward the CLOSEST reachable water; a blocked nearest water
-    // (e.g. behind rock) falls through to the next candidate. Stops at the water face
-    // (water is solid → _segmentClear halts the chain), so it never overlaps the water.
-    cands.sort((a, b) => a.d2 - b.d2);
-    for (const cd of cands) {
-      const dx = cd.bx - cd.t.x, dy = cd.by - cd.t.y;
-      const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-      const steps = Math.ceil(len / g.segmentLength) + 1;
-      let parent = cd.t, made = 0;
-      for (let i = 0; i < steps; i++) {
-        if (this.nodes.length >= g.maxNodes) break;
-        const nx = parent.x + ux * g.segmentLength, ny = parent.y + uy * g.segmentLength;
-        if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
-        parent = this.addNode(nx, ny, parent);
-        made++;
+    if (!target.size) return 0;
+    let made = 0;
+    for (const { tip, tx, ty } of target.values()) {
+      if (this.nodes.length >= g.maxNodes) break;
+      made += this._growToWaterEdge(substrate, tip, tx, ty);
+    }
+    if (made) this.recomputeVitality();
+    return made;
+  }
+  // Grow a straight chain from `tip` toward (tx,ty), then CREEP the last node right up to
+  // the water's edge (water is solid → _placeOk fails inside it, so we stop at the last
+  // clear point on the near face) so the tip visibly hugs the pool. Returns nodes made.
+  _growToWaterEdge(substrate, tip, tx, ty) {
+    const g = this.config.growth;
+    const dx = tx - tip.x, dy = ty - tip.y;
+    const len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    const steps = Math.ceil(len / g.segmentLength) + 1;
+    let parent = tip, made = 0;
+    for (let i = 0; i < steps; i++) {
+      if (this.nodes.length >= g.maxNodes) return made;
+      const nx = parent.x + ux * g.segmentLength, ny = parent.y + uy * g.segmentLength;
+      if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // hit the water face (or rock)
+      parent = this.addNode(nx, ny, parent);
+      made++;
+    }
+    // Creep the final few px right up to the water so contact is visible (and drives income).
+    if (this.nodes.length < g.maxNodes) {
+      const fine = substrate._fineSize ? substrate._fineSize * 0.5 : substrate.cellSize / 4;
+      let cx = parent.x, cy = parent.y, crept = false;
+      for (let d = fine; d <= g.segmentLength + fine; d += fine) {
+        const px = parent.x + ux * d, py = parent.y + uy * d;
+        if (!this._placeOk(substrate, px, py)) break;    // reached the solid water edge
+        cx = px; cy = py; crept = true;
       }
-      if (made > 0) { this.recomputeVitality(); return made; }
+      if (crept) { this.addNode(cx, cy, parent); made++; }
     }
-    return 0;
+    return made;
   }
 
   // Grow `steps` from the frontier tip nearest to food, toward that food (works

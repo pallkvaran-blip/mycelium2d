@@ -205,13 +205,15 @@ export const CONFIG = {
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
     // --- water bodies (lake / reservoir): income + auto-reach helper ---------
-    // Income (the Aquifer Tap trickle) only kicks in when a strand ALMOST TOUCHES the
-    // water — a node within this many world units of a water cell's edge (much tighter
-    // than the old sensing-range test). ~0.6 cell ≈ hugging the water face.
-    waterContactDist: 22,
-    // When the colony comes within this reach of a water body but isn't touching it yet,
-    // a helper grows an extra strand STRAIGHT toward the water (like food), stopping at
-    // the edge (never overlapping the water). See network.js reachForWater.
+    // Income (the Aquifer Tap trickle) only kicks in when a strand is VISIBLY HUGGING the
+    // water — a node within this many world units of a water cell's edge (~0.4 cell). The
+    // water-seek helper below reliably creeps a tip to within ~7px of the edge, so this is
+    // set just above that: income pays exactly when a strand you can SEE reaches the water.
+    waterContactDist: 14,
+    // When the colony comes within this reach of a water body it doesn't yet touch, a
+    // helper grows ONE extra strand toward the water (like food) and creeps its tip right
+    // up to the edge so contact is visible — never overlapping, at most one strand per
+    // body. See network.js reachForWater / _growToWaterEdge.
     waterSeekReach: 150,
   },
 

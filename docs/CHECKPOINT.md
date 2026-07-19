@@ -461,6 +461,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Water-seek helper now VISIBLY hugs the water + income only pays on visible contact.**
+  The Aquifer Tap trickle was turning on while the colony was still a clear gap from the pool
+  (income contact 22px, but the helper's "already hugging" skip was ~40px from the water edge —
+  so a strand could sit in the 22–40px band paying income with no visible touch). Reworked
+  `network.js reachForWater`: (1) dedupe per water BODY — skip any body a live node already
+  touches, so **at most one strand ever enters each pool** (no "many strands in the water");
+  (2) new `_growToWaterEdge` grows the strand then **creeps the tip right up to the solid water
+  face** (`_placeOk` fails inside water) so the colony visibly reaches it — measured ≤7px gap
+  across seeds/bodies/approach angles, never overlapping. Tightened `waterContactDist` 22→**14**
+  (income + the helper's dedupe use the same measure), so income pays **exactly when a strand you
+  can see hugs the water**. Verified headless: income off at 40px → on after the helper hugs;
+  2nd `reachForWater` call makes 0 nodes (one strand per body). `config.js` waterContactDist=14.
+
 - **Experimental side-strand branching (EVERY grow type sprouts extra fuzz).** New: as a strand grows,
   **each step has a 60% chance to sprout a small side-strand from a RANDOM point along the strand so
   far, in a RANDOM direction** (owner-chosen params: per-step roll, 1–3 segments; a full-length
