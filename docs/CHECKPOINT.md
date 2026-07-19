@@ -461,6 +461,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fruiting celebration = a gentle calm breeze; both outcomes persist; new low-water text.**
+  Reworked the win/death spore drift (`main.js emitSpores`/`drawWinCelebration`): **~25% fewer
+  spores** (`CELE_MAX_SPORES` 2600→1950, per-puff `3+rand4`→`2+rand4`) and **~half the drift
+  speed** so the wind reads clearly, plus a slower/wider sway and a gentler travelling wave for a
+  lazy breeze. A **DEATH** no longer puffs omni-directionally — the wind now carries spores **LEFT
+  AND RIGHT** (`vx = ±speed`, 50/50; the `omni` flag now means "both ways"; edge-fade at whichever
+  horizontal edge). A **WIN** streams them **RIGHT** and — new — **also persists** (`persist:true`
+  for both), so the spores keep sailing after the win card appears (cleared only when the next
+  run/level calls `begin()`/`backToPicker`). Low-water warning popup text updated to: *"Water is
+  running low. Your colony will be forced to fruit if you run out, ending your run. Grow into a
+  water source or play water income cards to get more water."*
+
 - **Water-seek helper now VISIBLY hugs the water + income only pays on visible contact.**
   The Aquifer Tap trickle was turning on while the colony was still a clear gap from the pool
   (income contact 22px, but the helper's "already hugging" skip was ~40px from the water edge —
