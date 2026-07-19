@@ -470,7 +470,10 @@ Both menus are dark, on-theme, with glowing green borders.
     verbatim (strands + fuzz + fan, in the colony's normal colours; batched LOD when zoomed out),
     minus the reveal scheduling + dynamic layer (draw() already ran those). So the colony reads in
     one consistent colour (tips and trunks alike), at its natural lit brightness, with the earth
-    around it left dark — no glow bleed. (Supersedes the white-overlay approach.)
+    around it left dark — no glow bleed. (Supersedes the white-overlay approach.) `redrawBright`
+    also lays a subtle mint SHEEN on top — an additive (`lighter`) re-stroke of the batched cream
+    skeleton in `config.render.networkLight`, α 0.16, ~0.7px feather each side — so the colony gets
+    the lit glow's soft mint sheen while the light stays hugging the strands (no earth halo).
 
 - **Left "home" hill + death fruiting + reworded death card + half-Spores on death.**
   - **Home hill (LEFT):** `drawHomeBackdrop()` + `drawHomeProps()` (main.js) draw half a green
