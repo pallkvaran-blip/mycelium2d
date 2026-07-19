@@ -487,10 +487,15 @@ Both menus are dark, on-theme, with glowing green borders.
     you draft basic action cards and event cards. Red leaves give you engine cards — very rare."*
     New `enginePile()` dep in `main.js` (centroid of the `foodPiles` pile with `kind==='engine'`);
     the step `skip`s cleanly if a map somehow has no engine cache.
-  - **Card cost/description editor** (`scripts/build_cardeditor.mjs` → `docs/card-editor.html`).
+  - **Card cost/description editor** (`scripts/build_cardeditor.mjs` → `docs/card-editor.html`,
+    also copied into `dist/` by `build.mjs` → live at `<site>/card-editor.html`).
     A self-contained, directly-openable tool (full standalone HTML, unlike the Artifact-fragment
-    review tools) that inlines the live `docs/cards.json` and lets you edit every card's costs
-    (buy ⚡, play ⚡/💧/P) + description (`effect`) + `flavor`. Edited fields glow amber, edits
+    review tools) that inlines the live `docs/cards.json` **and shows each card's REAL in-game face**
+    (art + cost pips + name + rules, using the game's own `.cardbtn` markup/CSS from index.html;
+    art inlined as data: URIs). The face updates LIVE as you edit — pips from the cost fields
+    (mirrors `ui.js gateChips`: buy ⚡ gate + non-action play 💧/P), rules from the `effect` field.
+    Lets you edit every card's costs (buy ⚡, play ⚡/💧/P) + description (`effect`) + `flavor`.
+    Edited fields glow amber, edits
     persist in `localStorage`, and there are two round-trips: **Download cards.json** (drop over
     `docs/cards.json`, then `node scripts/gen-carddata.mjs && node build.mjs`) or **Copy changes**
     (a per-card diff to paste back to a session). Regenerate with `node scripts/build_cardeditor.mjs`
