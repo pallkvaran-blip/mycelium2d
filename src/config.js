@@ -199,8 +199,11 @@ export const CONFIG = {
     // collision-aware. Applies to every grow primitive (directional, fan, lunge,
     // undirected) — see network.js _sproutSideStrand.
     sideStrandChance: 0.6,       // 60% per growth step
-    sideStrandMin: 2,            // side-strand length in segments (inclusive range)
+    sideStrandMin: 1,            // side-strand length in segments (inclusive range)
     sideStrandMax: 3,
+    // A side-strand that rolls the FULL max length has this chance to sprout one
+    // extra length-1 twig off itself (see network.js _sproutSideStrand).
+    sideStrandForkChance: 0.5,
   },
 
   // ---- Vitality / health (A5, A8) ----------------------------------------

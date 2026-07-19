@@ -467,7 +467,10 @@ Both menus are dark, on-theme, with glowing green borders.
   Applies to **all** grow primitives — `growDirected` (Apical Drive / Rhizomorph Lance / Fruiting
   Vigil), `growRadial` (Foraging Fan), `growToNearestFood` (Tropic Lunge) and the undirected
   `grow`/`_growStep` (Hyphal Extension). Config knobs in `config.js growth`: `sideStrandChance` (0.6),
-  `sideStrandMin` (2), `sideStrandMax` (3) — set chance to 0 to disable.
+  `sideStrandMin` (1), `sideStrandMax` (3) — set chance to 0 to disable. A side-strand that grows out
+  to the **full max length** (3) then forks one extra **length-1 twig** off itself with probability
+  `sideStrandForkChance` (0.5) — a single level of extra branching, drawn from `_branchRng` only
+  (`_sproutSideStrand`'s `forceLen` arg builds that twig and blocks it from forking again).
   - **Key design decision — a SEPARATE deterministic RNG (`network.js` `this._branchRng`, seeded
     `0x9e3779b9`).** Branching draws ALL its randomness from this stream, never the main sim `rng`, so
     side-strands are **purely additive**: the main food-seeking / collision trajectory is byte-identical

@@ -282,13 +282,13 @@ export class Network {
   // _segmentClear, tries a few headings, and simply doesn't grow if it's walled in on
   // all of them. Draws only from _branchRng (the dedicated stream), so it never shifts
   // the main growth path. Returns the number of nodes created.
-  _sproutSideStrand(substrate, strandNodes) {
+  _sproutSideStrand(substrate, strandNodes, forceLen = null) {
     const g = this.config.growth;
     const rng = this._branchRng;
     if (!strandNodes || !strandNodes.length) return 0;
     if (this.nodes.length >= g.maxNodes) return 0;
     const from = rng.pick(strandNodes);                 // a random point along the strand
-    const len = rng.int(g.sideStrandMin, g.sideStrandMax);
+    const len = forceLen != null ? forceLen : rng.int(g.sideStrandMin, g.sideStrandMax);
     // Try a few random directions so an offshoot aimed into rock/edge still finds soil.
     for (let attempt = 0; attempt < 6; attempt++) {
       const ang0 = rng.range(0, Math.PI * 2);           // a random direction
@@ -296,6 +296,7 @@ export class Network {
       const fy = from.y + Math.sin(ang0) * g.segmentLength;
       if (!this._segmentClear(substrate, from.x, from.y, fx, fy)) continue;  // walled — try another heading
       let parent = from, made = 0;
+      const created = [];
       for (let i = 0; i < len; i++) {
         if (this.nodes.length >= g.maxNodes) break;
         // i=0 uses the heading we just verified clear (guaranteeing ≥1 node); later
@@ -306,7 +307,14 @@ export class Network {
         if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
         parent = this.addNode(nx, ny, parent);
         parent.side = true;   // decorative offshoot: excluded from the undirected seek/crowd buckets
+        created.push(parent);
         made++;
+      }
+      // A side-strand that grows out to the FULL max length has a chance to fork one
+      // extra length-1 twig off itself. `forceLen` is set only on that twig, so it can
+      // never fork again (single level of branching, drawn from _branchRng only).
+      if (forceLen == null && made === g.sideStrandMax && rng.chance(g.sideStrandForkChance)) {
+        made += this._sproutSideStrand(substrate, created, 1);
       }
       return made;
     }
