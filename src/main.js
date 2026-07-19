@@ -1254,14 +1254,15 @@ function renderFrame(time) {
 
   // Dynamic lighting: dim the earth, then add the colony's glow back in. The sensing
   // toggle gates BOTH the wide sensing-range aura AND the colony's own glow. With it OFF
-  // there's no lit halo bleeding into the earth — instead we overlay the strands in bright
-  // white (below) so the colony still reads clearly against the dimmed ground.
+  // there's no lit halo bleeding into the earth — instead we re-draw the whole colony at
+  // full brightness (below) so it looks exactly like its lit self (consistent colour, tips
+  // and trunks alike), just without the surrounding earth being lit.
   lighting.senseAura = sensingLightOn;
   lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
   if (!sensingLightOn && state.config.render.lighting !== false) {
     for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
-      rendererFor(net).overlayStrands(ctx, camera, time, '#eef9ff');
+      rendererFor(net).redrawBright(ctx, camera, time, 1.15);
     }
   }
 

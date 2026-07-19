@@ -148,51 +148,29 @@ export class NetworkRenderer {
     ctx.globalAlpha = 1;
   }
 
-  // Stroke the LIVING structure in a flat colour with NO glow/bleed — used to keep the
-  // colony bright WHITE when the sensing-range lighting (the colony glow) is toggled
-  // off. Drawn OVER the composited (dimmed) scene, so only the strand pixels light up
-  // and nothing bleeds into the earth. Reveal-aware for a normal colony (new growth
-  // still animates in); a very large colony falls back to the batched skeleton so the
-  // extra pass stays cheap.
-  overlayStrands(ctx, camera, time, color) {
+  // Re-draw the WHOLE colony (strands + fuzz + fan, in its NORMAL colours) at full
+  // brightness on top of the composited scene — used when the sensing lighting is off, so
+  // the colony reads exactly like its LIT self (one consistent colour everywhere, tips and
+  // trunks alike) without the glow/aura that would light the surrounding earth. Reuses
+  // draw()'s structure pass verbatim, minus the reveal scheduling + dynamic layer (draw()
+  // already ran those this frame and set `_now`/`_appearAt`).
+  redrawBright(ctx, camera, time, brightness = 1) {
     if (this._builtNodeCount !== this.network.nodes.length) this.structureDirty = true;
     if (this.structureDirty) { this._rebuildCaches(); this.structureDirty = false; }
-    const net = this.network, zoom = camera.zoom, tl = camera.worldToScreen(0, 0);
-    const featherW = 2 / Math.max(0.001, zoom);   // ~1px each side of the strand, in screen space
+    this._now = time;
+    const zoom = camera.zoom, tl = camera.worldToScreen(0, 0);
+    const c0 = camera.screenToWorld(0, 0), c1 = camera.screenToWorld(camera.viewW, camera.viewH);
+    const M = 28;
+    const cull = {
+      minX: Math.min(c0.x, c1.x) - M, maxX: Math.max(c0.x, c1.x) + M,
+      minY: Math.min(c0.y, c1.y) - M, maxY: Math.max(c0.y, c1.y) + M,
+    };
+    const detailAmt = smoothstep(0.42, 0.62, zoom) * (1 - smoothstep(1400, 1900, this.network.nodes.length));
     ctx.save();
     ctx.translate(tl.x, tl.y); ctx.scale(zoom, zoom);
     ctx.lineCap = 'round';
-    ctx.strokeStyle = color;
-    // Every strand reads the SAME — same colour, same opacity, near-identical width
-    // (only a tiny taper by strand thickness). No "main vs tip" contrast.
-    const FLAT_A = 0.9;                            // one opacity for all strands
-    // Very large colony → batched skeleton (cost), at a uniform width, still feathered.
-    if (net.nodes.length > 1600) {
-      for (let pass = 0; pass < 2; pass++) {
-        ctx.globalAlpha = pass === 0 ? 0.18 : FLAT_A;
-        ctx.lineWidth = 1.5 + (pass === 0 ? featherW : 0);
-        for (const b of this.batches.cream) ctx.stroke(b.path);
-      }
-      ctx.globalAlpha = 1; ctx.restore(); return;
-    }
-    // Two passes: a soft ~1px feather underneath, then the crisp strands on top.
-    for (let pass = 0; pass < 2; pass++) {
-      for (const n of net.nodes) {
-        if (n.parentId == null || n.infected) continue;   // skip dead/infected strands
-        const p = net.byId.get(n.parentId); if (!p) continue;
-        const rev = this.revealFactor(n, time);
-        if (rev <= 0) continue;                            // not grown-in here yet
-        const ex = rev < 1 ? p.x + (n.x - p.x) * rev : n.x;
-        const ey = rev < 1 ? p.y + (n.y - p.y) * rev : n.y;
-        // Near-uniform width: 1.4 (tip) .. ~1.55 (trunk) — a barely-there taper only.
-        const crispW = 1.4 + Math.min(0.15, Math.log(1 + (this.subtreeSize.get(n.id) || 1)) * 0.04);
-        const rf = rev < 1 ? rev : 1;
-        ctx.lineWidth = pass === 0 ? crispW + featherW : crispW;
-        ctx.globalAlpha = (pass === 0 ? 0.18 : FLAT_A) * rf;
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke();
-      }
-    }
-    ctx.globalAlpha = 1;
+    if (detailAmt <= 0.02) this._strokeBatched(ctx, brightness);
+    else this._strokeStructure(ctx, brightness, cull, detailAmt);
     ctx.restore();
   }
 
