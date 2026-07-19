@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-18 (**card-name mycology pass:** 7 owner-approved
+_Living status + knowledge doc. Last updated: 2026-07-19 (**experimental side-strand branching:** every
+grow type now sprouts extra fuzz — each growth step has a 60% chance to sprout a small 2–3-segment
+side-strand from a random point along the strand, in a random direction; drawn from a SEPARATE
+deterministic RNG (`network.js _branchRng`) so it's purely additive and never shifts the main
+food-seek/collision path. See §9. — earlier: **card-name mycology pass:** 7 owner-approved
 renames for fungal accuracy — Nutrient Transmutation→**Metabolic Reroute**, Suberin Wall→**Melanized Wall**,
 Mycorrhizal Mat→**Humic Mat**, Symbiont Weave→**Cord Weave**, Phosphatase Cushion→**Phosphatase Reserve**,
 Tap-Root Rhizomorph→**Sinker Rhizomorph**, Hyphal Imbibition→**Hyphal Osmosis** — plus Mineralizing Saprobe
@@ -456,6 +460,26 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Experimental side-strand branching (EVERY grow type sprouts extra fuzz).** New: as a strand grows,
+  **each step has a 60% chance to sprout a small side-strand from a RANDOM point along the strand so
+  far, in a RANDOM direction** (owner-chosen params: per-step roll, 2–3 segments, non-recursive).
+  Applies to **all** grow primitives — `growDirected` (Apical Drive / Rhizomorph Lance / Fruiting
+  Vigil), `growRadial` (Foraging Fan), `growToNearestFood` (Tropic Lunge) and the undirected
+  `grow`/`_growStep` (Hyphal Extension). Config knobs in `config.js growth`: `sideStrandChance` (0.6),
+  `sideStrandMin` (2), `sideStrandMax` (3) — set chance to 0 to disable.
+  - **Key design decision — a SEPARATE deterministic RNG (`network.js` `this._branchRng`, seeded
+    `0x9e3779b9`).** Branching draws ALL its randomness from this stream, never the main sim `rng`, so
+    side-strands are **purely additive**: the main food-seeking / collision trajectory is byte-identical
+    to the no-branching baseline. The first attempt drew from the shared `rng` and shifted the whole
+    deterministic path — the undirected food-seek then reached col 3 instead of col 8 (fewer main nodes,
+    and the ant-trail smoke test failed). The separate stream fixed it (OFF 56 nodes / crossed vs ON 69
+    nodes / crossed — same main reach, more fuzz). See `_sproutSideStrand` / `_ancestryStrand`.
+  - **Side-strand nodes carry `node.side = true`** and are **excluded from `_growStep`'s seek/crowd
+    buckets** (`if (n.side) continue;`) so accumulated fuzz never seeks food nor blocks the structural
+    frontier via `minTipSpacing`. They ARE real nodes (colonise / feed threats / render + animate via
+    the normal reveal path) and still count as growable tips for aimed plays. Collision-aware: an
+    offshoot that can't place (rock/edge/surface) simply doesn't grow. All 162 tests green.
 
 - **Card rebalancing pass + new `buyCostPhosphorus` install gate + Acorn Cache = drag-aim.**
   - **New cost dimension `buyCostPhosphorus` (→ `buyP` in CARD_DATA).** Cards could gate install on

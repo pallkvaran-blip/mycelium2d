@@ -10,12 +10,18 @@
 // 2D space colonization toward substrate nutrient (the "sensing" of food).
 // =============================================================================
 
+import { makeRng } from './rng.js';
+
 let NETWORK_SEQ = 0;
 
 export class Network {
   constructor(config) {
     this.id = NETWORK_SEQ++;
     this.config = config;
+    // Dedicated deterministic stream for experimental side-branching, kept SEPARATE
+    // from the main sim rng so decorative offshoots never perturb the food-seeking /
+    // collision trajectory (they're purely additive). See _sproutSideStrand.
+    this._branchRng = makeRng(0x9e3779b9);
     this.nodes = [];           // array of node objects
     this.byId = new Map();     // id -> node
     this.nextNodeId = 0;
@@ -130,6 +136,7 @@ export class Network {
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
       if (n.infected) continue;                 // infected (dead) strands can't grow
+      if (n.side) continue;                     // decorative side-strand fuzz: never seeks food nor blocks the frontier
       const col = substrate.colAtX(n.x), row = substrate.rowAtY(n.y);
       const k = key(col, row);
       let b = buckets.get(k);
@@ -190,7 +197,11 @@ export class Network {
         if (!this._placeOk(substrate, nx, ny)) continue;   // rock (beyond the soft edge margin) / edge / surface
         if (this._tooClose(nx, ny, g.minTipSpacing, substrate, buckets, key, reach)) continue;
         const child = this.addNode(nx, ny, node);
-        newNodes.push(child); created++; placed = true; break;
+        newNodes.push(child); created++; placed = true;
+        // Experimental: each new filament step may sprout a small side-strand off a
+        // random point of the strand it's advancing (its recent ancestry chain).
+        if (this._branchRng.chance(g.sideStrandChance)) created += this._sproutSideStrand(substrate, this._ancestryStrand(child, 4));
+        break;
       }
       void placed;
       if (this.nodes.length >= g.maxNodes) break;
@@ -251,6 +262,57 @@ export class Network {
     return !substrate.solidAtWorld(nx, ny);
   }
 
+  // The last `k` nodes of the filament ending at `node` (node + up to k−1 ancestors) —
+  // used as the "random point of the strand that was growing" pool for the undirected
+  // grow, whose growth front isn't a single contiguous chain we can accumulate.
+  _ancestryStrand(node, k) {
+    const out = [];
+    let cur = node;
+    while (cur && out.length < k) {
+      out.push(cur);
+      cur = cur.parentId != null ? this.byId.get(cur.parentId) : null;
+    }
+    return out;
+  }
+
+  // Experimental side-branching (config growth.sideStrand*): sprout a small side-strand
+  // from a RANDOM node in `strandNodes` (a point along the strand that's currently
+  // growing), heading in a RANDOM direction. Non-recursive (side-strand steps never
+  // roll again) and collision-aware — the offshoot respects rock/edge/surface via
+  // _segmentClear, tries a few headings, and simply doesn't grow if it's walled in on
+  // all of them. Draws only from _branchRng (the dedicated stream), so it never shifts
+  // the main growth path. Returns the number of nodes created.
+  _sproutSideStrand(substrate, strandNodes) {
+    const g = this.config.growth;
+    const rng = this._branchRng;
+    if (!strandNodes || !strandNodes.length) return 0;
+    if (this.nodes.length >= g.maxNodes) return 0;
+    const from = rng.pick(strandNodes);                 // a random point along the strand
+    const len = rng.int(g.sideStrandMin, g.sideStrandMax);
+    // Try a few random directions so an offshoot aimed into rock/edge still finds soil.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const ang0 = rng.range(0, Math.PI * 2);           // a random direction
+      const fx = from.x + Math.cos(ang0) * g.segmentLength;
+      const fy = from.y + Math.sin(ang0) * g.segmentLength;
+      if (!this._segmentClear(substrate, from.x, from.y, fx, fy)) continue;  // walled — try another heading
+      let parent = from, made = 0;
+      for (let i = 0; i < len; i++) {
+        if (this.nodes.length >= g.maxNodes) break;
+        // i=0 uses the heading we just verified clear (guaranteeing ≥1 node); later
+        // steps wobble with the usual branch jitter for an organic look.
+        const ang = ang0 + (i === 0 ? 0 : rng.range(-g.branchJitter, g.branchJitter));
+        const nx = parent.x + Math.cos(ang) * g.segmentLength;
+        const ny = parent.y + Math.sin(ang) * g.segmentLength;
+        if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
+        parent = this.addNode(nx, ny, parent);
+        parent.side = true;   // decorative offshoot: excluded from the undirected seek/crowd buckets
+        made++;
+      }
+      return made;
+    }
+    return 0;
+  }
+
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
   // `startTip` when given (aimed plays pass the tip nearest the aim point, so growth
   // originates from the strand you aimed from); otherwise it starts from the frontier
@@ -300,6 +362,7 @@ export class Network {
     if (startTip && !startTip.infected) prefer.push(startTip);
     for (const n of ordered) if (n !== startTip) prefer.push(n);
     let parent = prefer.find((n) => stepFrom(n, 0)) || prefer[0];
+    const strand = parent ? [parent] : [];   // origin + each step so far — the side-branch source pool
     let created = 0;
     for (let i = 0; i < steps; i++) {
       if (this.nodes.length >= g.maxNodes) break;
@@ -307,7 +370,10 @@ export class Network {
       const nxt = stepFrom(parent, jitter);
       if (!nxt) break;   // walled in on every dodge — stop
       parent = this.addNode(nxt.nx, nxt.ny, parent);
+      strand.push(parent);
       created++;
+      // Experimental: each step may sprout a small side-strand off a random point of it.
+      if (this._branchRng.chance(g.sideStrandChance)) created += this._sproutSideStrand(substrate, strand);
     }
     // Directed growth also colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
@@ -338,6 +404,7 @@ export class Network {
     // Grow a chain of up to `cells` segments from `start` toward `ang0`; returns count.
     const growChain = (start, ang0) => {
       let parent = start, made = 0;
+      const strand = [start];   // origin + each step so far — the side-branch source pool
       for (let step = 0; step < cells; step++) {
         if (this.nodes.length >= g.maxNodes) break;
         const ang = ang0 + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
@@ -345,6 +412,9 @@ export class Network {
         if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;   // rock/edge/surface
         if (this._tooClose(nx, ny, spacing, substrate, buckets, key, 1)) break;   // already occupied
         parent = this.addNode(nx, ny, parent); bucket(parent); made++;
+        strand.push(parent);
+        // Experimental: each step may sprout a small side-strand off a random point of it.
+        if (this._branchRng.chance(g.sideStrandChance)) made += this._sproutSideStrand(substrate, strand);
       }
       return made;
     };

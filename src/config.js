@@ -193,6 +193,14 @@ export const CONFIG = {
     foragingFanRays: 8,          // Foraging Fan: new strands sprouted per tip, around the circle
     startDepth: 20,              // initial seed depth below the surface line (tiny starting sprout)
     minTipSpacing: 11,           // don't spawn a node this close to an existing one
+    // Experimental side-branching: as a strand grows, EACH step has this chance to
+    // sprout a small extra strand from a random point along the strand-so-far, heading
+    // in a random direction. Non-recursive (side-strands don't branch again) and
+    // collision-aware. Applies to every grow primitive (directional, fan, lunge,
+    // undirected) — see network.js _sproutSideStrand.
+    sideStrandChance: 0.6,       // 60% per growth step
+    sideStrandMin: 2,            // side-strand length in segments (inclusive range)
+    sideStrandMax: 3,
   },
 
   // ---- Vitality / health (A5, A8) ----------------------------------------
