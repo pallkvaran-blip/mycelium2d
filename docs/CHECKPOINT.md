@@ -128,6 +128,8 @@ src/render/                 # rendering (canvas), driven from state
   network.js                # per-network renderer (baked + animated)
   ui.js                     # HUD, action bar, hand carousel, log dropdown, offers, dev panel
   species_select.js         # start-of-run species picker overlay (#speciesSelect / .ss-* — namespaced; card faces derived from CARD_DATA)
+  tutorial.js               # first-run scripted B&W walkthrough overlay (#tutorial / .tut-*)
+  level_intro.js            # per-level black "Level N" + threat-roster screen shown before the map fades in (#levelIntro / .li-*)
   assets.js                 # sprite loading via assets/manifest.json
   lighting.js, noise.js     # visual helpers
 
@@ -375,6 +377,16 @@ Both menus are dark, on-theme, with glowing green borders.
   colony's root node (`networks[0].nodes[0]`) at zoom ~0.85 (not the old whole-map
   overview), so the player sees their network immediately. Puzzle mode still fits
   the whole level.
+- **Level intro (every non-puzzle level start)** — `render/level_intro.js`
+  (`showLevelIntro`) drops a full-screen BLACK **"Level N"** card that names the map's
+  threats (ant / nematode / trichoderma; tutorial art, head-focused square crops with a
+  white glow border) with an ×count from the live threat seed, then fades itself out on a
+  click anywhere — the finished map is already drawn opaque behind it, so that fade is the
+  map fading in. `main.js begin()` arms `pendingLevelIntro`; `revealMap()` shows it after
+  the first drawn frame (puzzle mode keeps the old direct canvas fade). The first-run
+  tutorial rides `pendingLevelIntro.onContinue`, so it starts only AFTER the intro clears —
+  never under the black screen. CSS `#levelIntro` / `.li-*` (z 1300, above the tutorial's
+  1200); `.li-out` drops `pointer-events` on dismiss so the fading overlay can't eat a tap.
 - **Bottom dirt buffer** — `substrate.worldHeight` is the CONTENT region (grid +
   all generation/engine bounds stay inside it). `substrate.viewHeight =
   worldHeight + config.world.bottomBuffer` (2160) adds empty dirt below it that the
@@ -2036,7 +2048,17 @@ Both menus are dark, on-theme, with glowing green borders.
   renderer thread so no stable paint lands in time). Freezing the loop doesn't help — the readback itself is
   that slow. So DON'T chase live game-canvas screenshots here: verify via (a) headless DOM/state assertions,
   (b) static-HTML renders of just the CSS/markup (no game canvas = fast), and (c) `node` unit tests; leave
-  the final visual sign-off to on-device. (Perf note: the same lighting/composite cost that's slow here is a
+  the final visual sign-off to on-device. **(2026-07-19 update — live game screenshots ARE sometimes
+  feasible.** The worst instability turned out to be the boot's **external request storm**: `initMusic()` /
+  streaming fire a burst of HTTPS calls that the agent proxy rejects (SSL-handshake errors), and the renderer
+  would hard-crash mid-frame — Playwright then reports `Target page/context/browser has been closed`. In a
+  Playwright context, **`ctx.route('**', …)` that `route.fulfill({status:204})`s every non-`127.0.0.1` URL**
+  (music/CDN) keeps headless Chromium stable, and `page.screenshot()` then lands real game frames — this
+  session captured the full map after the level-intro click that way. Launch with just `['--no-sandbox']`
+  (adding `--disable-gpu`/`--disable-dev-shm-usage` made it LESS stable), `deviceScaleFactor` 2, and prefer
+  `page.evaluate` DOM polling over `waitForSelector`. Screenshots can still time out on "waiting for fonts",
+  so treat a captured frame as a bonus, not a guarantee; DOM/state assertions remain the reliable check.)
+  (Perf note: the same lighting/composite cost that's slow here is a
   much smaller — but real — cost on a phone GPU. Biggest real-device lever = **capping `devicePixelRatio`**:
   `main.js renderDpr()` now caps it at **2** (`RENDER_DPR_CAP`) for the game canvas, so a 3× phone backs at
   2× — ~44% of the pixels, nearly halving per-frame fill work (worst-case zoomed-out); desktops at DPR 1–2
