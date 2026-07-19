@@ -158,8 +158,11 @@ export const CONFIG = {
     substrateLarge: 110,
     acornCacheEnergy: 2,         // Acorn Cache pile digests to exactly this much Energy total (not the default per-nutrient rate)
     // Growth distances follow one convention: 1 "step" ≈ 3 cells.
-    reachSegments: 18,           // Rhizomorph Lance / Fruiting Vigil: "6 steps" forward (6 × 3)
-    directionalSteps: 6,         // Apical Drive: "2 steps" in a direction (2 × 3)
+    reachSegments: 18,           // Rhizomorph Lance / Fruiting Vigil / Rhizomorph Cable: "6 steps" forward (6 × 3)
+    directionalSteps: 9,         // Apical Drive / Leading Cord: "3 steps" in a direction (3 × 3) — buffed 2→3
+    grow4Segments: 12,           // paid grow-4 family (Turgor Thrust/Vesicle Surge/Turgor Line/Vesicle Supply Line): "4 steps" (4 × 3)
+    grow5Segments: 15,           // paid grow-5 family (Guerrilla Runners/Translocation Cord/Explorer Cord/Bulk-Flow Cord): "5 steps" (5 × 3)
+    foodSeekSteps: 2,            // food-seek grows (Hyphal Extension / Colonizing Front): how many grow() passes per play — buffed 1→2
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius

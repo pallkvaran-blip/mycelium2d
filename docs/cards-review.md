@@ -133,3 +133,24 @@ Leaf Litter Cache), both in the tutorial set. Then built the whole card layer in
 (`src/engine/cards.js` + HUD): deck/hand/W-P-N, draw/skip/play, per-round engines, reach-the-goal win.
 Verified headless (19/19 card tests, 86/86 smoke) and in a real browser (self-play routes to the goal
 and wins). Full write-up: `cards-design.md` §17. Now playable — ready for hands-on playtest feedback.
+
+---
+
+## New grow-card family (owner batch) — PENDING PLAYTEST
+
+Landed but **not yet rated** — evaluate next session. Design intent (the hypothesis to test):
+
+- **Rhizomorph Lance should no longer be the auto-take grow.** After the batch it costs 2⚡+2W and competes
+  with 4 new paid basics + the buffed free grows (Apical Drive 3, Hyphal Extension 2). Watch whether the
+  draft now presents a real choice rather than "always Lance."
+- **The 4 new basics** (Guerrilla Runners 5·1⚡1W1P / Turgor Thrust 4·2⚡1W / Vesicle Surge 4·3⚡1P /
+  Translocation Cord 5·2⚡2P) should each find use depending on which resource is flush. Flag any that is
+  never worth a card slot, or that eclipses Apical Drive / Rhizomorph Lance outright.
+- **The 5 new engines** — do the same-reach Water/Phosphorus twins (Turgor Line ↔ Vesicle Supply Line;
+  Explorer Cord ↔ Bulk-Flow Cord) both get taken across runs, or does one route dominate? Is Rhizomorph
+  Cable (grow-6, 20⚡4P/2W) worth its top-of-ladder price vs installing two cheaper grow engines?
+- **Feel:** the exploratory (`straight:false`) grows (Guerrilla Runners / Explorer Cord) should read as
+  probing/organic; the committed cords (`straight:true`) should read as decisive lances. Confirm the
+  drag-aim reach preview matches the actual reach for each.
+
+See `cards-design.md` §24 for the full spec + balance ladder.

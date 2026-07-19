@@ -774,11 +774,33 @@ const action = (spec, run) => ({ apply: () => ({ ok: true, installAction: { ...s
 const maxedOut = (s) => s.active.nodes.length >= s.config.growth.maxNodes;
 const MAXED_MSG = 'The colony has reached its maximum size.';
 
+// Paid DIRECTIONAL grow family (owner batch): press-and-drag aim a heading, grow
+// `segFn(state)` segments along it. `straight` picks the feel — true = a committed
+// cord/thrust (dead-on-aim, tighter dodge), false = an exploratory probe (jitter +
+// wider dodge, like Apical Drive). Shared by the one-shot BASIC grows below and, via
+// aimedGrowAction, by their installed ENGINE twins.
+// Core takes (state, ctx) so it fits BOTH call shapes: a card effect's apply is
+// (state, card, ctx) while an installed action's run is (state, ctx) — the wrappers
+// below adapt each to this common core.
+const aimedGrowCore = (s, ctx, segFn, straight) => {
+  if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
+  const { dx, dy, tip } = dirFrom(s, ctx);
+  const n = s.active.growDirected(s.substrate, s.rng, dx, dy, segFn(s), straight, tip);
+  return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
+};
+const aimedGrow = (segFn, straight) => directional(segFn, (s, c, ctx) => aimedGrowCore(s, ctx, segFn, straight));
+const aimedGrowAction = (effect, spec, segFn, straight) =>
+  action({ effect, target: true, aim: 'drag', reachFn: segFn, ...spec }, (s, ctx) => aimedGrowCore(s, ctx, segFn, straight));
+
 export const EFFECTS = {
   // --- grow (Water) ---
   'Hyphal Extension': grow((s) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-    const c = s.active.grow(s.substrate, s.rng);
+    // Two food-seek passes (config cards.foodSeekSteps) so the free omni grow keeps
+    // pace with the paid aimed-grow family — advance toward food, then again from the
+    // new front (the 2nd pass naturally no-ops once all sensed food is reached).
+    let c = 0;
+    for (let i = 0; i < s.config.cards.foodSeekSteps && !maxedOut(s); i++) c += s.active.grow(s.substrate, s.rng);
     return c > 0 ? { ok: true, message: `Grew ${c} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
   }),
   'Apical Drive': directional((s) => s.config.cards.directionalSteps, (s, c, ctx) => {
@@ -835,6 +857,13 @@ export const EFFECTS = {
     checkGoalReached(s);
     return { ok: true, message: s.won ? 'Reached the goal!' : `Grew ${n} in your chosen direction.` };
   }),
+
+  // --- paid directional grow family (owner batch): aimed grows of 4–5 steps at ---
+  // various E/W/P mixes, so the grow you take flexes with the resources you have.
+  'Guerrilla Runners': aimedGrow((s) => s.config.cards.grow5Segments, false),   // 5, exploratory
+  'Turgor Thrust': aimedGrow((s) => s.config.cards.grow4Segments, true),        // 4, committed (W route)
+  'Vesicle Surge': aimedGrow((s) => s.config.cards.grow4Segments, true),        // 4, committed (P route)
+  'Translocation Cord': aimedGrow((s) => s.config.cards.grow5Segments, true),   // 5, committed cord (P route)
 
   // --- substrate (Water) ---
   'Leaf Litter Cache': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1); return { ok: true, message: 'Dropped a small patch at the sensing edge.' }; }),
@@ -982,7 +1011,7 @@ for (const [name, payload] of Object.entries(DRAW_ENGINES)) {
 // player-triggered ACTIONS (right menu): ready every 6 rounds, aim + pay a per-use
 // resource. Harvest ones install as passive resource ENGINES (left ledger). All
 // cost 8⚡ to install (see docs/cards.json).
-EFFECTS['Leading Cord'] = action({ effect: 'grow 2 in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.directionalSteps }, (s, ctx) => {
+EFFECTS['Leading Cord'] = action({ effect: 'grow 3 in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.directionalSteps }, (s, ctx) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
   const { dx, dy, tip } = dirFrom(s, ctx);
   const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
@@ -1004,11 +1033,20 @@ EFFECTS['Questing Front'] = action({ effect: 'grow 5 steps to the nearest food',
   if (s.active.hasFood(s.substrate)) return { ok: false, message: 'Blocked — rock walls off the path to every food source.' };
   return { ok: false, message: 'Every food pile has already been reached.' };
 });
-EFFECTS['Colonizing Front'] = action({ effect: 'grow toward all food in range', every: 6, cost: 1, res: 'water' }, (s) => {
+EFFECTS['Colonizing Front'] = action({ effect: 'grow 2 steps toward all food in range', every: 6, cost: 1, res: 'water' }, (s) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-  const n = s.active.grow(s.substrate, s.rng);
+  let n = 0;
+  for (let i = 0; i < s.config.cards.foodSeekSteps && !maxedOut(s); i++) n += s.active.grow(s.substrate, s.rng);
   return n > 0 ? { ok: true, message: `Grew ${n} filaments toward food.` } : { ok: false, message: 'No food within sensing range.' };
 });
+// Installed DIRECTIONAL grow ENGINES (owner batch) — the repeatable twins of the new
+// paid basic grows (+ Rhizomorph Cable = the installed Rhizomorph Lance). Each installs
+// to the Actions menu: every 6 rounds, pay its per-use resource, drag-aim, grow N steps.
+EFFECTS['Explorer Cord'] = aimedGrowAction('grow 5 in a chosen direction', { every: 6, cost: 1, res: 'water' }, (s) => s.config.cards.grow5Segments, false);
+EFFECTS['Turgor Line'] = aimedGrowAction('grow 4 in a chosen direction', { every: 6, cost: 1, res: 'water' }, (s) => s.config.cards.grow4Segments, true);
+EFFECTS['Vesicle Supply Line'] = aimedGrowAction('grow 4 in a chosen direction', { every: 6, cost: 1, res: 'phosphorus' }, (s) => s.config.cards.grow4Segments, true);
+EFFECTS['Bulk-Flow Cord'] = aimedGrowAction('grow 5 in a chosen direction', { every: 6, cost: 1, res: 'phosphorus' }, (s) => s.config.cards.grow5Segments, true);
+EFFECTS['Rhizomorph Cable'] = aimedGrowAction('grow 6 in a chosen direction', { every: 6, cost: 2, res: 'water' }, (s) => s.config.cards.reachSegments, true);
 EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cost: 1, res: 'water', target: true }, (s, ctx) => {
   depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1);
   return { ok: true, message: 'Buried a small nut cache at the sensing edge.' };

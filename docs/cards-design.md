@@ -927,3 +927,68 @@ utilities made pricier, a few softened (Cordyceps Bloom 14→7⚡, Cord Capillar
 reproduced card-by-card here — see `cards.json` / the card editor. Tests in `test/cards.test.js`
 assert the new numbers for Rhizomorph Trunkline (6P play), Aquaporin (+1/6 rounds, 6P play),
 Osmotic Cashout (5P play), and Toxocyst Array (3P buy-in).
+
+---
+
+## 24. Grow-card family expansion + tempo rebalance (CURRENT — authoritative for these cards)
+
+Owner batch. Rhizomorph Lance (grow 6 for a flat 2 W) had become the auto-take grow, so this pass
+(a) buffs the cheap/free grows so they stay relevant, (b) nerfs Rhizomorph Lance a notch, and (c) adds
+a **paid directional aimed-grow family** — a spread of one-shot BASICs and installed ENGINEs at
+different reach/cost mixes so the grow you take flexes with the resources you hold. All directional grows
+here are **press-and-drag aimed** (R8: player-aimed, never goal-pathing). Growth convention unchanged:
+**1 step = 3 segments** (`segmentLength` 17). Runtime helpers `aimedGrow` / `aimedGrowAction` in
+`engine/cards.js` (a shared `aimedGrowCore(state, ctx)` adapts to both the card-effect and installed-action
+call shapes); segment counts come from `config.cards`.
+
+### 24.1 Buffs to the existing grows
+- **Apical Drive 2 → 3 steps** and **Leading Cord 2 → 3** — both read `config.cards.directionalSteps`,
+  raised **6 → 9**.
+- **Hyphal Extension 1 → 2 steps** and **Colonizing Front 1 → 2** — the food-seek effects now run
+  `config.cards.foodSeekSteps` (= **2**) `grow()` passes; the 2nd pass advances the front, then senses the
+  next food (it no-ops once all sensed food is reached).
+- **Rhizomorph Lance → 2⚡ + 2 W** (`buyCostEnergy` 1 → 2; play Water stays 2) — still the cheap 6-step
+  event, just no longer strictly the best grow in the deck.
+
+### 24.2 Four new BASIC directional grows (one-shot, played from hand)
+`type:basic` (drafts from the infinite basic pool, 3 copies). ⚡ = `buyCostEnergy`, W = `playCostWater`,
+P = `playCostPhosphorus`.
+
+| Card | Steps | ⚡ | W | P | Feel (`straight`) | Mycology |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Guerrilla Runners** | 5 | 1 | 1 | 1 | exploratory (false) | guerrilla foraging growth form — fast, sparse runner hyphae |
+| **Turgor Thrust** | 4 | 2 | 1 | 0 | committed (true) | turgor / hydrostatic pressure ramming the tip forward (W route) |
+| **Vesicle Surge** | 4 | 3 | 0 | 1 | committed (true) | Spitzenkörper flooding the apex with wall-building vesicles (P route) |
+| **Translocation Cord** | 5 | 2 | 0 | 2 | committed (true) | bulk cytoplasmic translocation down a differentiated cord (P route) |
+
+Reach: grow-4 = `grow4Segments` (12), grow-5 = `grow5Segments` (15). The two 5-step / two 4-step cards are a
+**Water-route vs Phosphorus-route pair** so one is always playable when the other resource is dry.
+
+### 24.3 Five new grow ENGINES (installed actions — "every 6 rounds: pay ⟨res⟩, drag-aim, grow N steps")
+`type:action`, `displayCategory:engine` (unique, drafts from RED engine caches). Install = `buyCostEnergy`
+(⚡) + `buyCostPhosphorus` (P); the per-use cost is the `action` spec `cost`/`res` (so the play-W/P pip is
+hidden on the face, per §22).
+
+| Card | Steps | Install ⚡ + P | Per-use | Twin of |
+| --- | --- | --- | --- | --- |
+| **Turgor Line** | 4 | 13⚡ + 3P | 1 W | Turgor Thrust |
+| **Vesicle Supply Line** | 4 | 10⚡ + 3P | 1 P | Vesicle Surge |
+| **Explorer Cord** | 5 | 17⚡ + 3P | 1 W | Guerrilla Runners |
+| **Bulk-Flow Cord** | 5 | 14⚡ + 4P | 1 P | Translocation Cord |
+| **Rhizomorph Cable** | 6 | 20⚡ + 4P | 2 W | Rhizomorph Lance |
+
+**Balance ladder** (in line with the existing grow engines — Leading Cord grow-3 = 9⚡+3P/1W, Colonizing
+Front 7⚡+1P/1W, Forager Bloom 4⚡+1P/1W): the **Water-route install ladder is a consistent +4⚡/step** —
+Leading Cord 9 (g3) → Turgor Line 13 (g4) → Explorer Cord 17 (g5) → Rhizomorph Cable 20 (g6, +double
+per-use water). Each same-reach W/P pair is **non-dominated**: the Water twin installs pricier but each use
+spends plentiful Water; the Phosphorus twin installs cheaper (lower ⚡) but each use spends scarce Phosphorus.
+(An earlier Explorer Cord at 15⚡ inverted the ladder and squeezed Turgor Line out of a niche — an adversarial
+review workflow caught it; fixed to 17⚡.)
+
+### 24.4 Config / data
+- `config.cards`: `directionalSteps` 6→**9**, new `grow4Segments` **12** / `grow5Segments` **15**, new
+  `foodSeekSteps` **2**. grow-6 reuses `reachSegments` (18).
+- All nine cards live in `docs/cards.json` → `src/cards-data.js` (regen) → `dist/` (build). Effects:
+  `aimedGrow`/`aimedGrowAction` for the directional set; the food-seek buff loops `grow()` `foodSeekSteps`×.
+- **Art:** FLUX 1.1 Pro (`scripts/gen_grow_cards.py`), 3 options/card → `assets/card_options/`, winners →
+  `assets/cards/<slug>.jpg`. Brief: **mycelium, not mushrooms** — fine pointed / thread-like hyphal tips, no caps.

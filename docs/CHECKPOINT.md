@@ -1,6 +1,11 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-19 (**level-intro screen:** every level now opens
+_Living status + knowledge doc. Last updated: 2026-07-19 (**grow-card family:** added a paid directional
+aimed-grow family — 4 basics (Guerrilla Runners / Turgor Thrust / Vesicle Surge / Translocation Cord) + 5
+installed engines (Explorer Cord / Turgor Line / Vesicle Supply Line / Bulk-Flow Cord / Rhizomorph Cable) —
+plus buffs so the free grows keep pace (Apical Drive→3 steps, Hyphal Extension→2, Leading Cord→3, Colonizing
+Front→2) and a Rhizomorph Lance nerf (now 2⚡+2W). New art via FLUX 1.1 Pro. See §9. — earlier:
+**level-intro screen:** every level now opens
 on a BLACK "Level N" card that names the threats waiting on the map — ant / nematode / trichoderma, each a
 white-glow square (tutorial art, head-focused crops) with an ×count — then fades the map in on any click;
 the first-run tutorial is deferred to fire only after it clears. `src/render/level_intro.js` +
@@ -476,6 +481,37 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Grow-card family expansion + tempo rebalance (owner batch).** Rhizomorph Lance was auto-best, so
+  added a paid **directional aimed-grow family** to compete with it and buffed the free grows to keep pace.
+  - **Buffs:** Apical Drive **2→3** steps, Hyphal Extension **1→2** steps; their installed twins match —
+    **Leading Cord** 2→3 (shares `config.cards.directionalSteps`, now **9**) and **Colonizing Front** 1→2
+    (`config.cards.foodSeekSteps` **2** — the food-seek effects now run 2 `grow()` passes). **Rhizomorph
+    Lance** now costs **2⚡ + 2W** (`buyCostEnergy` 1→2).
+  - **4 new BASIC directional grows** (press-and-drag aim; `aimedGrow` helper in `cards.js`): **Guerrilla
+    Runners** (5 steps · 1⚡1W1P), **Turgor Thrust** (4 · 2⚡1W), **Vesicle Surge** (4 · 3⚡1P),
+    **Translocation Cord** (5 · 2⚡2P) — the E/W/P mix flexes with the resources you have. Themes are real
+    mycology: guerrilla foraging growth form, turgor-pressure tip growth, the Spitzenkörper vesicle-supply
+    centre, bulk-flow cord translocation.
+  - **5 new grow ENGINES** (installed actions — "every 6 rounds: pay ⟨res⟩, drag-aim, grow N steps";
+    `aimedGrowAction` helper): **Explorer Cord** (5 · install 17⚡3P · 1W/use), **Turgor Line** (4 · 13⚡3P ·
+    1W), **Vesicle Supply Line** (4 · 10⚡3P · 1P), **Bulk-Flow Cord** (5 · 14⚡4P · 1P), **Rhizomorph Cable**
+    (6 · 20⚡4P · 2W — the installed twin of Rhizomorph Lance). W-route install ladder is a clean **+4⚡/step**
+    (Leading Cord 9 → 13 → 17 → 20); each same-reach W/P pair is non-dominated (cheap-Water-per-use vs
+    scarce-Phosphorus-per-use). New segment knobs `config.cards.grow4Segments` **12** / `grow5Segments` **15**
+    (1 step = 3 segments); grow-6 reuses `reachSegments` 18. Energy cost note: for basics/events the ⚡ price
+    is `buyCostEnergy` (`playCostEnergy` is dropped by `gen-carddata` and unused); for the engines the ⚡+P
+    install is `buyCostEnergy`+`buyCostPhosphorus` and the per-use ⟨res⟩ lives in the `EFFECTS` action spec.
+  - **Data/flow:** `docs/cards.json` (source) → `node scripts/gen-carddata.mjs` → `node build.mjs`. Basics
+    draft from the infinite basic pool (3 copies); engines are unique from the RED engine caches. **Art:**
+    FLUX 1.1 Pro (`scripts/gen_grow_cards.py`), 3 options/card in `assets/card_options/`, winners promoted to
+    `assets/cards/<slug>.jpg` (owner review = a published artifact gallery). Kept to the **"mycelium, not
+    mushrooms"** brief — strands end in fine, pointed / thread-like hyphal tips, never a cap (a few FLUX
+    options that drifted into mushrooms were rejected; Turgor Thrust was regenerated).
+  - **Verified:** 101 + 61 tests green; a headless effect harness and a real-`dist`-bundle Playwright pass
+    confirm each card grows/installs and charges the exact ⚡/W/P and every new face renders. An adversarial
+    review **Workflow** (correctness / balance / data / integration → verify) caught + fixed the
+    Explorer-Cord install-ladder inversion that had squeezed Turgor Line.
 
 - **Level-intro screen: a black "Level N" + threat-roster card shown before every level's map fades in.**
   New `src/render/level_intro.js` (`showLevelIntro({level, threats, onDone})`) renders a full-screen
