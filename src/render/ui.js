@@ -696,6 +696,10 @@ export class UI {
       body = this.cardsOn && !puzzle
         ? `The colony crossed the map and fruited at the summer goal in <b>${result.turns}</b> steps.`
         : `The colony threaded the map and reached the chest in <b>${result.turns}</b> turns.`;
+    } else if (died && this.cardsOn && !puzzle) {
+      // Campaign death (any cause): the colony was forced to fruit and spore.
+      title = 'Your run has ended';
+      body = 'You ran out of playable cards or resources to continue expanding your colony and were forced to fruit and spore.';
     } else if (died && result.cause === 'water') {
       title = 'You ran out of water';
       body = 'Your mycelium colony shrivelled up and died.';

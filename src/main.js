@@ -156,16 +156,27 @@ function applyCarry(st, carry) {
 function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   _runOverPresented = true;
-  // What happens once any win celebration has finished (or immediately otherwise).
+  // What happens once any celebration has finished (or immediately otherwise).
   const finish = () => {
     if (state.won && cardsCampaign()) { onLevelWon(); return; }
     const r = state.runResult || {};
-    if (cardsCampaign()) r.runSpores = runSpores;   // banked-this-run total, shown on the death card
+    if (cardsCampaign()) {
+      // A campaign DEATH still fruits at the last: pay HALF the level's win-Spores into the
+      // wallet + this run's total (the colony was forced to fruit and spore before dying).
+      if (r.died && !r._sporesAwarded) {
+        r._sporesAwarded = true;
+        const half = Math.floor(sporesForLevel(currentLevel) / 2);
+        if (half > 0) { addSpores(half); runSpores += half; }
+      }
+      r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
+    }
     ui.showOverlay(r);
   };
-  // A WIN in card mode earns the fruiting celebration first — mushrooms pop up in the
-  // goal meadow and release spores on the wind — THEN the success banner appears.
+  // A WIN in card mode earns the fruiting celebration on the RIGHT goal meadow; a campaign
+  // DEATH gets the same fruiting on the LEFT home hill ("forced to fruit and spore") — both
+  // release spores on the wind BEFORE the run-over card appears. Puzzle/sandbox skip it.
   if (state.won && state.mode !== 'puzzle') startWinCelebration(finish);
+  else if (state.runResult && state.runResult.died && cardsCampaign()) startDeathCelebration(finish);
   else finish();
 }
 
@@ -192,28 +203,45 @@ function sporeSprite() {
 const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const smooth01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-function startWinCelebration(onFinish) {
-  const sub = state.substrate, cs = sub.cellSize;
-  const g0 = goalCol0(), surfY = sub.surfaceY;
-  if (g0 < 0) { onFinish(); return; }                       // no goal meadow found — skip straight to the banner
-  const span = Math.max(6, Math.min(16, sub.cols - g0 - 1));
-  // Green-hill rise in world units (matches drawGoalBackdrop's mound), so mushrooms
-  // can spread UP the slope: ones set higher read as further away (smaller = depth).
+function startWinCelebration(onFinish) { startCelebration('goal', onFinish); }
+function startDeathCelebration(onFinish) { startCelebration('home', onFinish); }
+
+// Shared fruiting celebration: little mushrooms pop up across a green hill and puff spores
+// that drift right on the wind. side 'goal' = the RIGHT goal meadow (a WIN); side 'home' =
+// the LEFT home hill over the colony's start (a DEATH — "forced to fruit and spore").
+function startCelebration(side, onFinish) {
+  const sub = state.substrate, cs = sub.cellSize, surfY = sub.surfaceY;
   const hill = asset('goalhill');
-  const wWorld = sub.worldWidth - g0 * cs;
+  const home = side === 'home';
+  let colLo, span, wWorld;
+  if (home) {
+    span = homeHillCols();                                   // visible slope width in columns (cols 0..span)
+    colLo = 0;
+    wWorld = span * 2 * cs;                                   // full hill (peak off-frame left)
+  } else {
+    const g0 = goalCol0();
+    if (g0 < 0) { onFinish(); return; }                      // no goal meadow found — skip straight to the banner
+    colLo = g0;
+    span = Math.max(6, Math.min(16, sub.cols - g0 - 1));
+    wWorld = sub.worldWidth - g0 * cs;
+  }
+  // Green-hill rise in world units (matches the drawn mound), so mushrooms can spread UP
+  // the slope: ones set higher read as further away (smaller = depth).
   const hillRise = hill ? wWorld * (hill.height / hill.width) : span * cs * 0.4;
-  const riseMax = hillRise * 0.42;                          // keep them on the green, not up in the sky
-  // Keep mushrooms off the two goal bushes (drawGoalProps clusters) — no fruiting on
-  // top of the trees, only on the open hill. Exclude each canopy's horizontal footprint.
+  const riseMax = hillRise * 0.42;                           // keep them on the green, not up in the sky
+  // Keep mushrooms off the trees (goal hill has two bushes; home hill has one small tree).
   const bush = asset('goalbush'), bAsp = bush ? bush.width / bush.height : 1;
-  const treeZones = [[g0 + 4, 3.0], [g0 + 9, 2.2]].map(([col, hC]) => [(col + 0.5) * cs, cs * hC * bAsp * 0.5]);
+  const treeCols = home ? [[Math.max(1, Math.round(span * 0.5)), 1.7]] : [[colLo + 4, 3.0], [colLo + 9, 2.2]];
+  const treeZones = treeCols.map(([col, hC]) => [(col + 0.5) * cs, cs * hC * bAsp * 0.5]);
   const underTree = (x) => treeZones.some(([c, hw]) => Math.abs(x - c) < hw);
   const N = 46, mushrooms = [];
   for (let i = 0; i < N; i++) {
-    let fx = 0.03 + Math.random() * 0.94, x = (g0 + 1 + fx * (span - 1)) * cs;   // horizontal fraction across the meadow
-    for (let tries = 0; tries < 6 && underTree(x); tries++) { fx = 0.03 + Math.random() * 0.94; x = (g0 + 1 + fx * (span - 1)) * cs; }
-    if (underTree(x)) continue;                             // landed on a tree every try — skip this one
-    const dome = 0.28 + 0.72 * Math.pow(Math.sin(Math.PI * fx), 0.7);   // mound is taller through the middle
+    let fx = 0.03 + Math.random() * 0.94, x = (colLo + 1 + fx * (span - 1)) * cs;   // horizontal fraction across the hill
+    for (let tries = 0; tries < 6 && underTree(x); tries++) { fx = 0.03 + Math.random() * 0.94; x = (colLo + 1 + fx * (span - 1)) * cs; }
+    if (underTree(x)) continue;                              // landed on a tree every try — skip this one
+    // Goal hill peaks in the MIDDLE (dome); the home hill peaks at the LEFT edge (descending slope).
+    const prof = home ? Math.pow(1 - fx, 0.9) : Math.pow(Math.sin(Math.PI * fx), 0.7);
+    const dome = 0.28 + 0.72 * prof;                         // local mound height fraction
     const d = Math.random();                                // depth: 0 = foreground (low + big), 1 = far (high + small)
     const rise = riseMax * dome * d;
     const depthS = 1 - 0.62 * d;                            // higher up the slope → smaller
@@ -228,11 +256,11 @@ function startWinCelebration(onFinish) {
     });
   }
   winCele = { start: 0, onFinish, finished: false, mushrooms, spores: [] };
-  // Frame the meadow: centre it a little left (room for spores to sail off the right),
+  // Frame the hill: centre it a little left (room for spores to sail off the right),
   // surface low in view (sky above for the drift).
-  const cx = (g0 + span * 0.45) * cs;
+  const cx = (colLo + span * (home ? 0.5 : 0.45)) * cs;
   const z = Math.max(0.85, Math.min(1.7, camera.viewW / ((span + 7) * cs)));
-  focusWorld(cx, surfY - 18, z, 0.6, 0.42);
+  focusWorld(cx, surfY - 18, z, 0.6, home ? 0.38 : 0.42);
 }
 
 function emitSpores(list, m, n, time) {
@@ -1198,6 +1226,7 @@ function renderFrame(time) {
 
   substrateRenderer.draw(ctx, camera, time);
   drawMoon();                   // luminous moon high in the twilight sky
+  drawHomeBackdrop();           // half a green "home" hill hugging the LEFT frame over the colony start
   drawGoalBackdrop();           // summery green hill band behind the goal (far backdrop)
   drawTerrainAssets();          // optional image-based textures over the earth (gated)
   drawSubstrateLeaves();        // food piles rendered as heaped leaves (gated) — UNDER rocks
@@ -1210,6 +1239,7 @@ function renderFrame(time) {
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
   drawCities();                 // city skylines over the concrete barriers (gated)
   drawSurfaceProps();           // optional above-ground sprites: trees/grass/houses (gated)
+  drawHomeProps();              // one small tree on the left home hill (over its backdrop)
   drawGoalProps();              // summery bush clusters on the goal soil (over the hill backdrop)
 
   for (const net of state.networks) {
@@ -2874,6 +2904,43 @@ function drawGoalProps() {
       ctx.drawImage(bush, s.x - sw / 2, by - sh, sw, sh);
     }
   });
+}
+
+// The LEFT "home" hill — the colony's birthplace. Half a green mound hugging the frame
+// over the start: its peak sits off the left edge (clipped by the world frame) so only
+// the right slope shows, descending into the map. Mirrors the goal-hill art (flipped).
+function homeHillCols() {
+  const sub = state.substrate;
+  return Math.max(6, (sub.startCols || 2) + 4);   // visible right-slope width in columns (covers the start)
+}
+function drawHomeBackdrop() {
+  const hill = asset('goalhill'); if (!hill) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const halfW = homeHillCols() * cs;                          // visible slope reaches this far into the map
+  const wWorld = halfW * 2;                                   // full hill = twice the half (peak at world x=0)
+  const hWorld = wWorld * (hill.height / hill.width);
+  const sw = wWorld * z, sh = hWorld * z;
+  const left = camera.worldToScreen(-halfW, sub.surfaceY);    // left edge of the full (mostly off-frame) hill
+  const by = left.y + sh * 0.04;
+  if (left.x > camera.viewW || left.x + sw < 0) return;
+  withWorldClip(() => {
+    ctx.save();
+    ctx.translate(left.x + sw, by - sh); ctx.scale(-1, 1);    // flip horizontally → mirror the goal hill's slope
+    ctx.drawImage(hill, 0, 0, sw, sh);
+    ctx.restore();
+  });
+}
+function drawHomeProps() {
+  const bush = asset('goalbush'); if (!bush) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const aspect = bush.width / bush.height;
+  const col = Math.max(1, Math.round(homeHillCols() * 0.5));   // one small tree partway up the slope
+  const hCells = 1.7, hWorld = cs * hCells, wWorld = hWorld * aspect;
+  const s = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY);
+  const sw = wWorld * z, sh = hWorld * z;
+  const by = s.y + sh * 0.05;
+  if (s.x < -sw || s.x > camera.viewW + sw) return;
+  withWorldClip(() => ctx.drawImage(bush, s.x - sw / 2, by - sh, sw, sh));
 }
 
 // Nematodes: small pale wriggling worms. They writhe in place, tint reddish

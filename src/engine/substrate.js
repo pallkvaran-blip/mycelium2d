@@ -287,6 +287,7 @@ export function generateSubstrate(config, rng) {
   const goalCols = Math.max(2, Math.min(sub.cols - 4, s.goalCols || 6));
   const startCols = Math.max(1, Math.min(sub.cols - goalCols - 1, s.startCols || 2));
   const goalStart = sub.cols - goalCols;
+  sub.startCols = startCols;   // exposed for the render layer (left "home" hill over the start)
 
   // Everything is impassable surface by default…
   for (let c = 0; c < sub.cols; c++) {

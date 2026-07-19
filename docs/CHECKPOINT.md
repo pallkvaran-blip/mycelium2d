@@ -454,6 +454,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Left "home" hill + death fruiting + reworded death card + half-Spores on death.**
+  - **Home hill (LEFT):** `drawHomeBackdrop()` + `drawHomeProps()` (main.js) draw half a green
+    mound hugging the left frame over the colony start — the goal-hill art flipped, its peak
+    off-frame left (clipped by `withWorldClip`), right slope descending into the map — with one
+    small tree. Width from `homeHillCols()` (= `sub.startCols + 4`, min 6; `startCols` now stored
+    on the substrate). Drawn right after `drawMoon`/before the goal backdrop, and its tree after
+    `drawSurfaceProps`.
+  - **Death fruiting celebration:** `startWinCelebration` refactored into `startCelebration(side,…)`
+    with `startWinCelebration`='goal' (right meadow) and `startDeathCelebration`='home' (left hill).
+    The home variant places mushrooms on a LEFT-peaking slope profile and frames the left hill; a
+    campaign DEATH now runs it before the run-over card ("forced to fruit and spore").
+  - **Death card copy:** campaign death (any cause) now reads **"Your run has ended"** / *"You ran
+    out of playable cards or resources to continue expanding your colony and were forced to fruit
+    and spore."* (`render/ui.js`).
+  - **Half-Spores on death:** `presentRunOver`'s finish pays `floor(sporesForLevel(currentLevel)/2)`
+    into the wallet + run total on a campaign death, then ends the run. Verified: level-1 death →
+    wallet 0→50, card shows "50 Spores earned this run", correct title/body, no errors.
+
 - **Ant harvest 2× + one red engine cache + tutorial red-leaf step + card editor tool.**
   - **Ants eat piles ~twice as fast:** `config.js ants.harvestRate` 20 → 40 (nutrient a nest
     carries off its target cell per action). Halves the time to strip a pile.
