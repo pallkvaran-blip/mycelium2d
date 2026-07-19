@@ -486,6 +486,29 @@ Both menus are dark, on-theme, with glowing green borders.
   running low. Your colony will be forced to fruit if you run out, ending your run. Grow into a
   water source or play water income cards to get more water."*
 
+- **Campaign win/death UX + rules batch (implemented earlier; verified & finalized this session).**
+  A set of 8 requests that landed together — recorded here so they're findable:
+  - **Win/lose hill framed in the TOP THIRD on desktop** (`main.js` celebration `focusWorld(…,
+    anchorY)` = 0.32 desktop / 0.6 phone) so the fruiting hill never sits under the card carousel.
+  - **Low-resource warning is a click-to-dismiss POPUP** (`ui.js warningPopup`), clean B&W, red
+    "Warning" heading (CSS `.warnpop*` in index.html); fired from `main.js checkWater` at ≤5 water.
+  - **Death overlay: no fade to black** — the death hill + spores persist under the run-over card
+    (`persist`, above); overlay has a **Main menu** button (`onMainMenu`) and **no icon on "New
+    run"** (`ui.js showOverlay`, `campaignDeath` branch).
+  - **Constricting Ring costs 4 P to install** (`buyCostPhosphorus:4` in cards.json) on top of its
+    3 P per-activation cost.
+  - **Harvest + draft finish BEFORE the victory sequence** (`cards.js checkGoalReached` →
+    `finishOccupiedHarvest` + `checkPileRewards`; a pending draft sets `state.winPending` and
+    `main.js maybeFinalizePendingWin` waits for it before `presentRunOver`).
+  - **Infected strands can't win** (`checkGoalReached` runs `infectStrandsInMould` FIRST, then the
+    goal loop skips `n.infected` nodes) — growing through goal-line Trichoderma infects and voids
+    the fruiting body.
+  - **Aquifer Tap doesn't carry between levels** (`main.js applyCarry` filters `_waterSource`
+    engines) — you re-earn the trickle by growing into a new water body each level.
+  - Bug caught this session: the breeze rework left `emitSpores`' param named `omni` while the body
+    used `bothWays` → `ReferenceError` every puff, freezing the celebration mid-render; renamed the
+    param. (See the crash repro note in the water-seek work.)
+
 - **Water-seek helper: more generous — up to a few strands per pool, keyed off SENSING range.**
   Follow-up to the hug-the-water fix below: the helper now triggers whenever a tip is within the
   colony's **sensing radius** (`growth.sensingRadius`, 135) of a water body — replacing the old
@@ -2057,7 +2080,10 @@ Both menus are dark, on-theme, with glowing green borders.
   `substrate.js` §2c-iv generates them **LAST** (after food) and scans down from just under the
   **corridor** for the shallowest spot free of the *unmovable* stuff — a lake, a path COLUMN
   (drawn from `sub.rockColumns`, not cells), or a food pile — then **CARVES a clean hollow**: the
-  disc cells turn to water, and every scattered BOULDER or rock FORMATION in a `reservoirClearCells`
+  **teardrop** cells turn to water (`reservoirHalfWidth`/`RESERVOIR_PROFILE` shape it to the drawn
+  art — NOT a full disc — so water cells line up with the visible pool; `main.js drawReservoirs`
+  scales the art by its measured `RESERVOIR_OPAQUE` box to cover exactly those cells — see §9), and
+  every scattered BOULDER or rock FORMATION in a `reservoirClearCells`
   (=2) halo is erased to soil (`rock/formation/rockFill=false` — both render from per-cell flags
   that skip water, so clearing removes their sprite; boulder sprites spill ~1.5 cells, hence the
   2-cell halo). The shallow zone is formation-DENSE, so carving (not avoiding) is what keeps the

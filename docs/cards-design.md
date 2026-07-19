@@ -902,11 +902,13 @@ too, charged for **any** card type alongside `buyCostEnergy`:
   (right after the buy-⚡ pip — unlike play-W/P, which stays off action faces). The card editor
   has a **Buy P** field + face pip.
 - Install-P set on: **Leading Cord 3 · Forager Bloom 1 · Crust Reserve 3 · Colonizing Front 1 ·
-  Acorn Fall 1 · Sclerotial Seal 1 · Melanized Wall 2 · Sclerotial Rind 2 · Toxocyst Array 3.**
+  Acorn Fall 1 · Sclerotial Seal 1 · Melanized Wall 2 · Sclerotial Rind 2 · Toxocyst Array 3 ·
+  Constricting Ring 4** (added later — see below).
 
-**Constricting Ring** — now **3 P per activation** (was free; §22 table's "free" is superseded).
-Interpretation call: its rebalance was expressed as `playCostPhosphorus 0→3` on an installed
-action, read as a per-use cost (the `action` spec's `cost/res`), not a `buyP` install gate.
+**Constricting Ring** — **3 P per activation** AND **4 P to install** (`buyCostPhosphorus:4`, added
+after the initial pass; supersedes §22 table's "free"). The per-activation 3 P was expressed as
+`playCostPhosphorus 0→3` on an installed action → read as a per-use cost (the `action` spec's
+`cost/res`); the 4 P install is the separate `buyP` acquisition gate.
 
 **Mechanic changes.**
 - **Acorn Cache** — placement is now **drag-aim (`directional`)** like grow cards (aim a
