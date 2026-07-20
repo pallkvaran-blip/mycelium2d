@@ -60,10 +60,12 @@ function tryPlay() {
 }
 function bindGesture() {
   if (gestureBound) return; gestureBound = true;
-  const kick = () => tryPlay();           // harmless passive retry; no-ops once already playing
-  window.addEventListener('pointerdown', kick, true);
-  window.addEventListener('keydown', kick, true);
-  window.addEventListener('touchend', kick, true);
+  // Mobile browsers only start audio inside a user gesture — and are picky about WHICH
+  // event counts (iOS favours touchend/click). Retry on a broad set, on both window
+  // (capture, fires first) and document, so the first real tap reliably unlocks playback.
+  const kick = () => tryPlay();           // no-ops once already playing
+  const evts = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'];
+  for (const ev of evts) { window.addEventListener(ev, kick, true); document.addEventListener(ev, kick, false); }
 }
 
 // Title + species picker: play vol29 (quick fade-in), looping. Idempotent — if it's
@@ -77,10 +79,8 @@ export function playMenuMusic() {
   audio.loop = true;                       // loop the (intro-trimmed) track for as long as you're in the menus
   audio.src = MENU_TRACK; audio.load();
   audio.volume = 0; stopFade();
-  // Quick fade-in the moment playback actually starts (survives an autoplay-blocked
-  // start that only begins on the first gesture).
-  audio.addEventListener('playing', () => { if (mode === 'menu') ramp(FULL_VOL, MENU_FADE_MS); }, { once: true });
   tryPlay();
+  ramp(FULL_VOL, MENU_FADE_MS);            // wall-clock quick fade-in; always reaches full even if a 'playing' event never fires
 }
 
 // A level started: switch to a RANDOM level track (never vol29). If already in level
