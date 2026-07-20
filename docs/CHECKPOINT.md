@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-20 (**two new starter species:** added **Oyster
+_Living status + knowledge doc. Last updated: 2026-07-20 (**three double-engine species:** Wine Cap
+(Stropharia rugosoannulata, Cord Capillary + Mineralizing Saprobe, lvl 5), Violet Webcap (Cortinarius
+violaceus, Phosphatase Reserve + Aquaporin Channels, lvl 7) and Dry Rot (Serpula lacrymans, Aquaporin
+Channels + Cord Capillary, lvl 7) — each starts able to install BOTH engines turn 1; realistic FLUX
+portraits. See §9. — earlier: **two new starter species:** added **Oyster
 Mushroom** (#3 — first/strongest energy engine the player can start with, Cord Capillary) and **Slippery
 Jack** (#4 — first/strongest phosphorus engine, Prospecting Cords) as Complete-level-1 unlocks; **Common
 Earthball** + **Bleeding Tooth** bumped to Complete level 3 (now #5/#6). Realistic FLUX portraits. See §9.
@@ -485,6 +489,31 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Three "double-engine" species (fill the level-5/7 tiers).** Owner-specified engine pairings; I chose
+  factually-accurate real mushrooms + generated realistic FLUX portraits. Each starts with enough resources to
+  install BOTH its engines on turn 1 (headless-verified, `scratchpad/species_install2.mjs`):
+  - **Wine Cap** (`Stropharia rugosoannulata`, id `stropharia`, `warm`) — **Complete level 5**, slot 2 (beside
+    Split Gill). Openers **Cord Capillary** (+1⚡/rd) + **Mineralizing Saprobe** (+1P/5rd). A vigorous
+    saprotroph that decomposes (energy) and mineralises phosphate; its acanthocyte-bearing mycelium really does
+    snare nematodes. Start `20⚡/20W/8P` (installs = 4⚡+2W+6P and 14⚡). Hand: the 2 engines + Hyphal Ext ×5,
+    Foraging Fan ×4, Acorn Cache ×3.
+  - **Violet Webcap** (`Cortinarius violaceus`, id `cortinarius`, `spore`/violet border) — **Complete level 7**,
+    slot 1. Openers **Phosphatase Reserve** (+2P/8rd) + **Aquaporin Channels** (+1W/6rd). Ectomycorrhizal
+    nutrient-miner: secretes phosphatases to free bound phosphate, shuttles water to its host. Start
+    `34⚡/18W/8P` (installs = 12⚡ and 20⚡+6P). Hand: 2 engines + Apical Drive ×5, Hyphal Ext ×5, Acorn Cache ×3.
+  - **Dry Rot** (`Serpula lacrymans`, id `serpula`, `warm`) — **Complete level 7**, slot 2. Openers **Aquaporin
+    Channels** (+1W/6rd) + **Cord Capillary** (+1⚡/rd). True dry rot literally translocates water through its
+    cords to rot dry timber for energy — cords-pipe-water + wood-energy. Start `26⚡/18W/14P` (installs =
+    20⚡+6P and 4⚡+2W+6P). Hand: 2 engines + Apical Drive ×5, Hyphal Ext ×5, Acorn Cache ×3.
+  - Appended to `SPECIES` (between-tier order is irrelevant to the picker; within-tier order gives the slots).
+    No card-data changes. Picker now full through level 7: #1 Fairy Ring · #2 Honey Fungus · #3 Oyster · #4
+    Slippery Jack · #5 Earthball · #6 Bleeding Tooth · #7 Split Gill · #8 Wine Cap · #9 Violet Webcap · #10 Dry
+    Rot (only Complete level 10 + the communal "?" row remain empty). Costs: lvl 5 = 4000, lvl 7 = 8000 Spores.
+  - **Art:** `scripts/gen_species_batch3.py` (field-photo prompt); 3 options each in `assets/species_options/`,
+    winners promoted to `assets/species/{stropharia-rugosoannulata,cortinarius-violaceus,serpula-lacrymans}.jpg`.
+    Verified live picker order + all detail cards via Playwright (`scratchpad/species_shot3.mjs`). Cards 61/0;
+    smoke 100/1 (pre-existing ant-trail fail). Import-leak 0, rebuilt `dist/`.
 
 - **Two new starter species + level-1/3 roster reshuffle (the "first economy engine" on-ramp).** Added two
   brand-new gated species to `species.js`, both unlocking at **Complete level 1**:
