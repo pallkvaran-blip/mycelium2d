@@ -1516,8 +1516,8 @@ function cardArt(name) {
 //    zero or more per card (Grow, Substrate, Water, Mineral, Energy, Defense).
 const GROUP_LABELS = { basic: 'Basic', engine: 'Engine', event: 'Event', draw: 'Draw', grow: 'Grow',
   substrate: 'Substrate', water: 'Water', mineral: 'Mineral', energy: 'Energy', defense: 'Defense' };
-const GROUP_ORDER = ['basic', 'engine', 'event', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
-function cardGroups(c) {
+export const GROUP_ORDER = ['basic', 'engine', 'event', 'draw', 'grow', 'substrate', 'water', 'mineral', 'energy', 'defense'];
+export function cardGroups(c) {
   // Verb bucket comes from the DISPLAY category (Basic/Engine/Event) — cosmetic,
   // set per card; `type` still drives behavior. Effect tags below are unchanged.
   const dc = c.displayCategory || c.type || '', cat = (c.category || '').toLowerCase(), fam = (c.family || '').toLowerCase();
@@ -1553,11 +1553,11 @@ function gateChips(c) {
 // One portrait card face: framed art window + cost pips + name plate + FULL rules.
 // Category tint class for a card face (Basic = green, Engine = red, Event = orange).
 // Keys off the cosmetic displayCategory; colours are defined in index.html.
-function catClass(c) {
+export function catClass(c) {
   const dc = (c && (c.displayCategory || c.type)) || '';
   return dc === 'engine' ? 'cat-engine' : dc === 'event' ? 'cat-event' : 'cat-basic';
 }
-function cardFaceHTML(name, c, count) {
+export function cardFaceHTML(name, c, count) {
   return cardArt(name)
     + (count > 1 ? `<span class="stackn">×${count}</span>` : '')
     + `<span class="pips">${gateChips(c) || '<span class="cc free">free</span>'}</span>`

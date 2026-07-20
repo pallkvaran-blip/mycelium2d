@@ -497,10 +497,15 @@ Both menus are dark, on-theme, with glowing green borders.
     through the picker: if a memory species drafted anything, show the loadout screen, save the pick, then
     continue. (A zero-draft run keeps the prior loadout rather than wiping it.)
   - **UI:** new `src/render/loadout_select.js` (`showLoadoutSelect`, namespaced `#loadoutSelect`/`.lo-*`,
-    CSS in `index.html`). Two card rows: UPPER = next run's hand (fixed opener **locked** + selected),
-    LOWER = drafted-this-run pool with copy counts. Single-click a lower card → move ONE copy up; click a
-    selected upper card → move it back; cap **5** copies (lower dims at the cap); centered **"Choose 5
-    cards for your next run"** + an X/5 counter. Card faces derive from `CARD_DATA` + `assets/cards`.
+    CSS in `index.html`). Two carousels that **REUSE the in-game hand carousel** — same `.cardbtn` faces
+    (`cardFaceHTML`/`catClass`, now exported from `ui.js`) and same `.fchip` filter bar per row
+    (`cardGroups`/`GROUP_ORDER`): UPPER = next run's hand (fixed opener **locked** + selected), LOWER =
+    drafted-this-run pool with copy counts. Single-click a lower card → move ONE copy up; click a selected
+    upper card → move it back; cap **5** copies (lower greys via `.unaff` at the cap); centered **"Choose 5
+    cards for your next run"** + an X/5 counter; plain **black-&-white Confirm** button (no gradient/icon).
+    The species-detail inspector (`species_select.js`) shows a 3rd **"Choose Five"** placeholder card (a
+    dashed "?" face: "Any combination of 5 basic and action cards **drafted during your last run**.") for
+    memory species.
   - **Art:** `assets/species/schizophyllum-commune.jpg` (FLUX 1.1 Pro, `scripts/gen_species_splitgill.py`,
     3 options in `assets/species_options/`, option 3 picked — clearest split gills). Registered in
     `build.mjs` module list.

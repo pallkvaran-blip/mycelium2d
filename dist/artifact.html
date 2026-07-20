@@ -1004,6 +1004,11 @@
     .ss-gc-art { position:relative; aspect-ratio:3/2; overflow:hidden; background:#04060a; flex:0 0 auto; }
     .ss-gc-art img { width:100%; height:100%; object-fit:cover; display:block; }
     .ss-gc-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 64%, rgba(8,13,12,0.92)); }
+    /* "Choose Five" placeholder face (memory species): a "?" art window, no image. */
+    .ss-gc-art.ss-gc-q { display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 42%, #14201a, #05100b); }
+    .ss-gc-art.ss-gc-q::after { display:none; }
+    .ss-gc-q .ss-q { font-size:30px; }
+    .ss-gc.ss-gc-choose { border-style:dashed; }
     .ss-gc-name { font-family:var(--ss-serif); font-size:11.5px; font-weight:600; line-height:1.12; color:#eef7f1; padding:6px 8px 3px; }
     .ss-gc-eff { font-size:9px; line-height:1.34; color:var(--ss-ink-dim); padding:0 8px 8px; flex:1 1 auto; overflow:hidden;
       display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; }
@@ -1204,50 +1209,45 @@
     }
 
     /* ---- Run-end loadout picker (memory species, e.g. Split Gill) ----------
-       Two card rows: UPPER = next run's hand (fixed opener locked + selected),
-       LOWER = cards drafted this run. Click to move copies up/down. Namespaced
+       Two carousels that REUSE the in-game hand carousel (.cardbtn faces + .fchip
+       filters): UPPER = next run's hand (fixed opener locked + selected), LOWER =
+       cards drafted this run. Click to move copies up/down. Namespaced
        #loadoutSelect / .lo-*. See render/loadout_select.js. */
     #loadoutSelect { position:fixed; inset:0; z-index:1400; display:flex; align-items:center; justify-content:center;
       background:radial-gradient(1200px 620px at 50% -6%, rgba(126,240,192,0.07), transparent 60%),
         linear-gradient(180deg,#08110d,#050b08); color:#e6f4ec;
-      font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif; padding:18px; overflow:auto; }
+      font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif; padding:16px; overflow:auto; }
     #loadoutSelect *, #loadoutSelect *::before, #loadoutSelect *::after { box-sizing:border-box; }
-    .lo-panel { width:100%; max-width:920px; display:flex; flex-direction:column; align-items:center; gap:12px; margin:auto; }
+    .lo-panel { width:100%; max-width:1120px; display:flex; flex-direction:column; align-items:center; gap:8px; margin:auto; }
     .lo-title { font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; font-size:clamp(18px,3.2vw,26px);
       font-weight:600; letter-spacing:.01em; text-align:center; color:#eaf4ee; }
-    .lo-sub { font-size:13px; color:#8fb3a4; text-align:center; max-width:60ch; margin:-4px 0 2px; }
+    .lo-sub { font-size:13px; color:#8fb3a4; text-align:center; max-width:60ch; margin:-2px 0 2px; }
     .lo-sub b { color:#bfe0d2; }
-    .lo-carowrap { width:100%; }
-    .lo-label { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7ef0c0; font-weight:700; margin:0 2px 6px; }
-    .lo-row { display:flex; gap:9px; overflow-x:auto; padding:6px 2px 10px; min-height:118px; align-items:stretch;
-      border:1px solid rgba(126,240,192,0.16); border-radius:13px; background:linear-gradient(180deg,rgba(10,18,14,0.55),rgba(6,11,9,0.7)); }
-    .lo-upper { box-shadow:inset 0 0 0 1px rgba(126,240,192,0.10); }
-    .lo-card { position:relative; flex:0 0 auto; width:92px; padding:0; border-radius:11px; overflow:hidden; cursor:pointer;
-      background:linear-gradient(158deg,#101a15,#070c0a 72%); border:2px solid rgba(130,230,166,0.42); color:#d7e6dc;
-      text-align:left; box-shadow:0 6px 16px -10px rgba(0,0,0,0.8); transition:transform .1s, border-color .1s; }
-    .lo-card:hover { transform:translateY(-3px); border-color:#7ef0c0; outline:none; }
-    .lo-art { display:block; width:100%; aspect-ratio:3/2; overflow:hidden; background:radial-gradient(circle at 50% 40%,#16241c,#060f0b); }
-    .lo-art img { width:100%; height:100%; object-fit:cover; display:block; }
-    .lo-cnt { position:absolute; top:6px; right:6px; z-index:3; font-size:12px; font-weight:800; color:#eafff4;
-      background:rgba(6,12,9,0.82); border:1px solid rgba(126,240,192,0.4); border-radius:8px; padding:0 6px; line-height:17px; }
-    .lo-type { position:absolute; top:6px; left:6px; z-index:3; font-size:8px; letter-spacing:.1em; text-transform:uppercase;
-      color:#bfe0d2; background:rgba(6,12,9,0.7); border-radius:6px; padding:1px 5px; }
-    .lo-nm { display:block; padding:5px 7px 7px; font-family:"Iowan Old Style",Palatino,Georgia,serif; font-size:11px;
-      line-height:1.15; color:#eaf4ee; }
-    .lo-lock { position:absolute; bottom:26px; right:6px; z-index:3; font-size:13px; color:#7ef0c0; text-shadow:0 1px 4px #000; }
-    .lo-card.lo-locked { cursor:default; border-color:rgba(126,240,192,0.28); opacity:0.96; }
-    .lo-card.lo-locked:hover { transform:none; border-color:rgba(126,240,192,0.28); }
-    .lo-card.lo-dim { cursor:default; opacity:0.34; filter:grayscale(0.5); }
-    .lo-card.lo-dim:hover { transform:none; border-color:rgba(130,230,166,0.42); }
-    .lo-empty { color:#8fb3a4; font-size:13px; padding:22px 12px; margin:auto; }
+    .lo-caro { width:100%; display:flex; flex-direction:column; gap:6px; }
+    .lo-label { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7ef0c0; font-weight:700; margin:0 2px; }
+    /* filter chips — same look as the in-game .handfilter row */
+    .lo-filter { display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; padding:1px 2px; }
+    .lo-filter::-webkit-scrollbar { display:none; }
+    /* carousel scroll list — mirrors .handlist (horizontal, hidden scrollbar) */
+    .lo-list { display:flex; gap:8px; overflow-x:auto; overflow-y:hidden; padding:6px 2px 10px; min-height:150px;
+      align-items:flex-start; scroll-snap-type:x proximity;
+      border:1px solid rgba(126,240,192,0.14); border-radius:13px; background:linear-gradient(180deg,rgba(10,18,14,0.5),rgba(6,11,9,0.66)); }
+    .lo-list::-webkit-scrollbar { display:none; }
+    /* the .cardbtn faces come straight from the in-game carousel; add the fixed-opener lock badge */
+    #loadoutSelect .cardbtn { cursor:pointer; }
+    #loadoutSelect .cardbtn.lo-fixed { cursor:default; }
+    #loadoutSelect .cardbtn.unaff { cursor:default; }
+    .lo-lock { position:absolute; bottom:8px; right:9px; z-index:6; font-size:14px; color:#7ef0c0; text-shadow:0 1px 5px #000; }
+    .lo-empty { color:#8fb3a4; font-size:13px; padding:40px 12px; margin:auto; }
     .lo-mid { display:flex; flex-direction:column; align-items:center; gap:3px; margin:2px 0; }
     .lo-mid-txt { font-size:clamp(14px,2.4vw,18px); font-weight:700; color:#eaf4ee; letter-spacing:.01em; }
     .lo-count { font-size:12px; font-weight:800; color:#8fb3a4; letter-spacing:.08em; }
     .lo-count.lo-full { color:#7ef0c0; }
-    .lo-actions { margin-top:6px; }
-    .lo-btn { font:inherit; font-size:15px; font-weight:700; color:#06140d; background:linear-gradient(180deg,#8ff0c2,#4fce97);
-      border:none; border-radius:11px; padding:11px 26px; cursor:pointer; box-shadow:0 8px 20px -10px rgba(79,206,151,0.8); }
-    .lo-btn:hover { filter:brightness(1.06); }
+    .lo-actions { margin-top:8px; }
+    /* simple black & white button (no gradient, no icon) */
+    .lo-btn { font:inherit; font-size:15px; font-weight:700; color:#000; background:#fff;
+      border:2px solid #fff; border-radius:10px; padding:11px 30px; cursor:pointer; }
+    .lo-btn:hover { background:#e9e9e9; }
 
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each
@@ -1320,8 +1320,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "19kpwry";
-globalThis.__BUILD__ = "local 07-20 09:54";
+window.__ASSET_VER = "hb0sur";
+globalThis.__BUILD__ = "local 07-20 10:12";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -11325,7 +11325,7 @@ function vitalityColor(v) {
   return `rgb(${r},${g},${b})`;
 }
 
-  return { SPORE_ICON, UI, cardSlug };
+  return { SPORE_ICON, UI, cardSlug, GROUP_ORDER, cardGroups, catClass, cardFaceHTML };
 })();
 
 // ===================== src/render/mycelium_title.js =====================
@@ -11586,6 +11586,16 @@ function cardFace(entry) {
   '</div>';
 }
 
+// A placeholder "Choose Five" card shown on a MEMORY species' starting-hand display:
+// a "?" art window standing in for the 5 cards the player curates each run.
+function chooseFiveFace() {
+  return '<div class="ss-gc ss-gc-choose">' +
+    '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
+    '<div class="ss-gc-name">Choose Five</div>' +
+    '<div class="ss-gc-eff">Any combination of 5 basic and action cards <b>drafted during your last run</b>.</div>' +
+  '</div>';
+}
+
 function resPills(res) {
   const order = [['energy', 'energy'], ['water', 'water'], ['phosphorus', 'phos']];
   let out = '';
@@ -11634,7 +11644,7 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
-  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('');
+  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace() : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';
@@ -11820,12 +11830,13 @@ function showGameWon({ spores, balance, onNewRun }) {
 // ===================== src/render/loadout_select.js =====================
 const __m_render_loadout_select = (function () {
   const { CARD_DATA } = __m_cards_data;
-  const { cardSlug } = __m_render_ui;
+  const { cardFaceHTML, catClass, cardGroups, GROUP_ORDER } = __m_render_ui;
 // =============================================================================
 // Run-end LOADOUT picker for "memory" species (e.g. Split Gill).
 //
 // showLoadoutSelect({ species, drafted, fixed, onConfirm }) — a full-screen
-// overlay shown when a run ENDS with a memory species. Two card rows:
+// overlay shown when a run ENDS with a memory species. Two card carousels that
+// REUSE the in-game hand carousel (same .cardbtn faces + .fchip filters):
 //   • UPPER = next run's starting hand: the species' FIXED opener (locked) plus
 //     the copies the player selects (up to 5).
 //   • LOWER = every NON-ENGINE card DRAFTED this run, with remaining copies.
@@ -11833,18 +11844,17 @@ const __m_render_loadout_select = (function () {
 // card to move it back down. Fixed cards can't be moved. Between the rows sits
 // "Choose 5 cards for your next run". Confirm saves the picked list.
 //
-// Card faces (art / name / count) are derived from CARD_DATA + assets/cards, so
-// data/art changes flow through automatically. Namespaced #loadoutSelect / .lo-*.
+// Namespaced #loadoutSelect / .lo-*; card faces/filters come from ui.js so they
+// stay identical to the in-game carousel.
 // =============================================================================
 
 
 const CARD_BY_NAME = {};
 for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
 
-const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
-const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
 const MAX_PICK = 5;
 
@@ -11857,65 +11867,92 @@ function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   const selected = {};
   const fixedList = (fixed || []).map((f) => ({ name: f.name, count: f.count || 0 }));
   const selCount = () => Object.keys(selected).reduce((a, n) => a + selected[n], 0);
+  let upperFilter = 'all', lowerFilter = 'all';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for your next run">' +
       '<div class="lo-title">' + esc((species && species.name) || 'Your colony') + ' — carry cards forward</div>' +
-      '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried. Your fixed opener is locked in.</div>' +
-      '<div class="lo-carowrap"><div class="lo-label">Next run’s starting hand</div>' +
-        '<div class="lo-row lo-upper" id="loUpper"></div></div>' +
+      '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried.</div>' +
+      '<div class="lo-caro"><div class="lo-label">Next run’s starting hand</div>' +
+        '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
       '<div class="lo-mid"><span class="lo-mid-txt">Choose 5 cards for your next run</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-carowrap"><div class="lo-label">Drafted this run — click to add</div>' +
-        '<div class="lo-row lo-lower" id="loLower"></div></div>' +
-      '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm ▸</button></div>' +
+      '<div class="lo-caro"><div class="lo-label">Drafted this run — click to add</div>' +
+        '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
+      '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm</button></div>' +
     '</div>';
   document.body.appendChild(root);
 
   const upper = root.querySelector('#loUpper');
   const lower = root.querySelector('#loLower');
+  const upFilterBar = root.querySelector('#loUpFilter');
+  const loFilterBar = root.querySelector('#loLoFilter');
   const countEl = root.querySelector('#loCount');
 
-  function tile(name, count, opts = {}) {
-    const c = CARD_BY_NAME[name] || { name, type: '', effect: '' };
-    const t = el('button', 'lo-card' + (opts.locked ? ' lo-locked' : '') + (opts.dim ? ' lo-dim' : ''));
-    t.type = 'button';
-    t.innerHTML =
-      '<span class="lo-art"><img src="' + cardImg(name) + '" alt="" onerror="this.style.display=\'none\'"></span>' +
-      (opts.locked ? '<span class="lo-lock" title="Fixed opener">◉</span>' : '') +
-      '<span class="lo-cnt">×' + count + '</span>' +
-      (c.type ? '<span class="lo-type">' + esc(c.type) + '</span>' : '') +
-      '<span class="lo-nm">' + esc(c.name) + '</span>';
-    if (opts.onClick && !opts.locked && !opts.dim) t.addEventListener('click', opts.onClick);
-    return t;
+  // A card face identical to the in-game hand card (.cardbtn + shared faceHTML).
+  function faceEl(name, count, { extra, locked, onClick }) {
+    const c = cardOf(name);
+    const b = el('button', 'cardbtn ' + catClass(c) + (extra ? ' ' + extra : ''));
+    b.type = 'button';
+    b.innerHTML = cardFaceHTML(name, c, count) + (locked ? '<span class="lo-lock" title="Fixed opener">◉</span>' : '');
+    b.setAttribute('data-name', name);
+    if (onClick && !locked) b.addEventListener('click', onClick);
+    return b;
   }
 
-  function render() {
-    // UPPER: fixed opener (locked) then the selected copies (click to remove one)
-    upper.innerHTML = '';
-    for (const f of fixedList) upper.appendChild(tile(f.name, f.count, { locked: true }));
-    for (const name of Object.keys(selected)) {
-      if (selected[name] <= 0) continue;
-      upper.appendChild(tile(name, selected[name], { onClick: () => {
-        selected[name]--; if (selected[name] <= 0) delete selected[name]; render();
-      } }));
+  // Filter chips for a row, built from the cards currently IN that row (All + each
+  // group present), mirroring the in-game hand filter. `entries` = [{name,count}].
+  function renderFilter(bar, entries, active, onPick) {
+    const present = new Map();
+    let total = 0;
+    for (const e of entries) {
+      total += e.count;
+      for (const gr of cardGroups(cardOf(e.name))) {
+        const p = present.get(gr.key) || { key: gr.key, label: gr.label, n: 0 };
+        p.n += e.count; present.set(gr.key, p);
+      }
     }
-    // LOWER: drafted pool with REMAINING copies (dim when depleted or the pick is full)
+    if (active !== 'all' && !present.has(active)) { active = 'all'; onPick('all', true); }
+    const ordered = GROUP_ORDER.filter((k) => present.has(k)).map((k) => present.get(k));
+    bar.style.display = ordered.length > 1 ? '' : 'none';
+    const chip = (key, label, n, on) => `<button class="fchip${on ? ' on' : ''}" data-f="${key}">${esc(label)}<span class="fn">${n}</span></button>`;
+    bar.innerHTML = chip('all', 'All', total, active === 'all') + ordered.map((e) => chip(e.key, e.label, e.n, active === e.key)).join('');
+    bar.querySelectorAll('.fchip').forEach((btn) => { btn.onclick = () => onPick(btn.dataset.f, false); });
+    return active;
+  }
+
+  const matches = (name, key) => key === 'all' || cardGroups(cardOf(name)).some((g) => g.key === key);
+
+  function render() {
+    // ---- UPPER: fixed opener (locked) + selected copies ----
+    const upEntries = fixedList.concat(Object.keys(selected).filter((n) => selected[n] > 0).map((n) => ({ name: n, count: selected[n] })));
+    upperFilter = renderFilter(upFilterBar, upEntries, upperFilter, (k) => { upperFilter = k; render(); });
+    upper.innerHTML = '';
+    for (const f of fixedList) if (matches(f.name, upperFilter)) upper.appendChild(faceEl(f.name, f.count, { extra: 'lo-fixed', locked: true }));
+    for (const name of Object.keys(selected)) {
+      if (selected[name] <= 0 || !matches(name, upperFilter)) continue;
+      upper.appendChild(faceEl(name, selected[name], { onClick: () => { selected[name]--; if (selected[name] <= 0) delete selected[name]; render(); } }));
+    }
+    if (!upper.children.length) upper.appendChild(el('div', 'lo-empty', 'No cards in this filter.'));
+
+    // ---- LOWER: drafted pool with remaining copies (dim at 0 or when the pick is full) ----
+    const loEntries = Object.keys(pool).map((n) => ({ name: n, count: pool[n] }));
+    lowerFilter = renderFilter(loFilterBar, loEntries, lowerFilter, (k) => { lowerFilter = k; render(); });
     lower.innerHTML = '';
-    const names = Object.keys(pool);
-    if (!names.length) { lower.appendChild(el('div', 'lo-empty', 'No non-engine cards drafted this run.')); }
     const full = selCount() >= MAX_PICK;
-    for (const name of names) {
+    let shown = 0;
+    for (const name of Object.keys(pool)) {
+      if (!matches(name, lowerFilter)) continue;
+      shown++;
       const remaining = pool[name] - (selected[name] || 0);
-      lower.appendChild(tile(name, remaining, {
-        dim: remaining <= 0 || full,
-        onClick: () => {
-          if (selCount() < MAX_PICK && (pool[name] - (selected[name] || 0)) > 0) {
-            selected[name] = (selected[name] || 0) + 1; render();
-          }
-        },
+      const dim = remaining <= 0 || full;
+      lower.appendChild(faceEl(name, remaining, {
+        extra: dim ? 'unaff' : '', locked: dim,
+        onClick: () => { if (selCount() < MAX_PICK && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
       }));
     }
+    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'No non-engine cards drafted this run.'));
+
     const n = selCount();
     countEl.textContent = n + ' / ' + MAX_PICK;
     countEl.className = 'lo-count' + (n === MAX_PICK ? ' lo-full' : '');

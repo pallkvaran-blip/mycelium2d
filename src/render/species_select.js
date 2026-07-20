@@ -66,6 +66,16 @@ function cardFace(entry) {
   '</div>';
 }
 
+// A placeholder "Choose Five" card shown on a MEMORY species' starting-hand display:
+// a "?" art window standing in for the 5 cards the player curates each run.
+function chooseFiveFace() {
+  return '<div class="ss-gc ss-gc-choose">' +
+    '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
+    '<div class="ss-gc-name">Choose Five</div>' +
+    '<div class="ss-gc-eff">Any combination of 5 basic and action cards <b>drafted during your last run</b>.</div>' +
+  '</div>';
+}
+
 function resPills(res) {
   const order = [['energy', 'energy'], ['water', 'water'], ['phosphorus', 'phos']];
   let out = '';
@@ -114,7 +124,7 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
-  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('');
+  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace() : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';
