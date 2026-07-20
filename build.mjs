@@ -170,5 +170,20 @@ if (existsSync(R('docs/card-editor.html'))) {
   console.log('Copied docs/card-editor.html -> dist/card-editor.html');
 }
 
+// Publish the species editor at <site>/species-editor.html. It live-imports ../src when
+// run from the source tree, but dist/ has no src/, so BAKE the current roster + a slim
+// card list into its #injectedData tag (the page prefers that when present).
+if (existsSync(R('docs/species-editor.html'))) {
+  const sp = await import('./src/species.js');
+  const cd = await import('./src/cards-data.js');
+  const slimCards = cd.CARD_DATA.map((c) => ({ name: c.name, type: c.type, displayCategory: c.displayCategory }));
+  const data = JSON.stringify({ SPECIES: sp.SPECIES, LOCKED_TIERS: sp.LOCKED_TIERS, CARD_DATA: slimCards }).replace(/</g, '\\u003c');
+  let seHtml = readFileSync(R('docs/species-editor.html'), 'utf8');
+  seHtml = seHtml.replace('<script id="injectedData" type="application/json"></script>',
+    '<script id="injectedData" type="application/json">' + data + '</script>');
+  writeFileSync(R('dist/species-editor.html'), seHtml);
+  console.log('Copied docs/species-editor.html -> dist/species-editor.html (roster injected)');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);

@@ -501,10 +501,14 @@ Both menus are dark, on-theme, with glowing green borders.
   `../src/species.js` (SPECIES/LOCKED_TIERS/unlockCost) and `../src/cards-data.js` at runtime (ES modules), so
   it never goes stale — unlike `card-editor.html`, which inlines its data. Edits persist to localStorage;
   toolbar exports a ready-to-paste `export const SPECIES = […]` block (strings via `JSON.stringify` → valid
-  JS), a human-readable change summary, or JSON. **Local-only tool** (relative `../src` + `../assets`): serve
-  the repo root and open `/docs/species-editor.html` — NOT wired into `build.mjs`/`dist` (would need src/assets
-  alongside). Verified via Playwright (`scratchpad/species_editor_verify.mjs`): 11 species load in order,
-  portraits + 41 hand chips render, export contains all ids + the conk's memory fields, reorder works.
+  JS), a human-readable change summary, or JSON. **Deployed + local:** `build.mjs` bakes the current roster +
+  a slim card list into the page's `#injectedData` tag and writes `dist/species-editor.html`, so it's live at
+  **`<site>/species-editor.html`**; when that tag is empty (running from `docs/` in the source tree) the page
+  live-imports `../src` instead and prefixes assets `../assets/` vs `assets/`. `unlockCost` is reimplemented in
+  the page so it needs no runtime import. Verified via Playwright both ways (`scratchpad/species_editor_verify.mjs`
+  from repo root; `scratchpad/species_editor_dist.mjs` from `dist/`): 11 species load in order, portraits + hand
+  chips render, the dist copy makes ZERO `/src/` fetches, export contains all ids + the conk's memory fields,
+  reorder works.
 
 - **Final species — Artist's Conk (`Ganoderma applanatum`), the upgraded MEMORY colony (Complete level 10).**
   Like Split Gill it curates its opening hand from the LAST run's drafts — but bigger, and now with engines:
