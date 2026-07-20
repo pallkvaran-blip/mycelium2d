@@ -494,6 +494,28 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Five polish/feel tweaks (owner batch).**
+  1. **Win/lose waits for the last grow to finish animating.** `presentRunOver()` now defers while
+     `anyRevealing(lastTime)` is true (reusing the draft-intro reveal check), retried every frame from
+     `renderFrame` (`if (state.runOver && !_runOverPresented) presentRunOver()`), with a `REVEAL_START_GRACE`
+     (450 ms, so a reveal has time to *start*) and a `REVEAL_END_WAIT` hard cap (2800 ms, so a stuck/never-
+     starting reveal can't hang the ending). `_runOverAt` timer reset in `begin()`. Verified no soft-lock (a
+     forced `killColony` still presents within ~1.5 s).
+  2. **Removed the Dev:tutorial title button** — `showMainMenu` no longer passes `onDevTutorial`, so
+     title_screen.js (guarded by `if (onDevTutorial)`) renders nothing; the `tutorialDevForce` plumbing is left
+     dormant.
+  3. **Enemy field-of-vision darker / more legible** — `drawOccludedSight` wash `edgeA*0.32`→`*0.55`; mould
+     sight `150,190,70 @0.10`→`120,155,45 @0.28` (dying 0.05→0.12), worm sight `165,205,115 @0.10`→
+     `130,165,80 @0.28`.
+  4. **Can't outrun Trichoderma with a big grow.** New `config.trichoderma.growInfectBurst` (18 ≈ 6 grow-steps,
+     SLIDER): `infectStrandsInMould` now `infectAround(node, growInfectBurst, chance 1)` from every strand
+     caught in the mould, so a grow-6 that pushes its tip past a cloud has the whole strand (tip included)
+     claimed at once instead of leaving a white tip to run on. Headless-verified (seed 18 rings away → 21 nodes
+     rot; burst 0 = old 1-node behavior). Only the grow-INTO-mould path bursts; passive cloud contact keeps
+     `contactChunk` 4.
+  5. **Artist's Conk "?" card title** `Choose 15 + 2 engines`→**`15+2`** (species_select.js `chooseFiveFace`).
+  Cards 61/0; smoke 100/1 (pre-existing). Import-leak 0, rebuilt `dist/`.
+
 - **Species balance pass (owner, authored via the species-editor).** Roster-wide water buffs (most species now
   **35–52 W**), P/E tweaks, and hand redesigns — Oyster → Cord Capillary + 3 Foraging Fan + **12 Turgor Thrust**;
   Slippery Jack → Prospecting Cords + 8 Apical Drive + 6 Vesicle Surge + 3 Fruiting Vigil; Bleeding Tooth → +6

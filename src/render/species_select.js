@@ -71,7 +71,7 @@ function cardFace(entry) {
 function chooseFiveFace(sp) {
   const pick = (sp && sp.memPick) || 8;
   const eng = (sp && sp.memEngines) || 0;
-  const title = eng > 0 ? ('Choose ' + pick + ' + ' + eng + ' engines') : ('Choose ' + pick);
+  const title = eng > 0 ? (pick + '+' + eng) : ('Choose ' + pick);
   const eff = eng > 0
     ? ('Any combination of ' + pick + ' basic and event cards, plus ' + eng + ' engine cards, <b>drafted during your last run</b>.')
     : ('Any combination of ' + pick + ' basic and event cards <b>drafted during your last run</b>.');

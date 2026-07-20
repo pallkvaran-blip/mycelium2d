@@ -371,13 +371,20 @@ export function infectNetwork(net, state) {
 export function infectStrandsInMould(net, state) {
   if (!net) return 0;
   const sub = state.substrate;
-  const th = (state.config.trichoderma && state.config.trichoderma.growInfectThreshold) || 0.05;
+  const t = (state && state.config && state.config.trichoderma) || {};
+  const th = t.growInfectThreshold || 0.05;
+  const burst = t.growInfectBurst | 0;
   let hit = 0;
+  const seeds = [];
   for (const n of net.nodes) {
     if (n.infected || n.side) continue;             // already rot / decorative fuzz
     const cell = sub.cellAtWorld(n.x, n.y);
-    if (cell && cell.trich >= th && !cellProofed(sub, n)) { n.infected = true; hit++; }
+    if (cell && cell.trich >= th && !cellProofed(sub, n)) { n.infected = true; hit++; seeds.push(n); }
   }
+  // First-touch burst: a strand caught in the mould rots a deep chunk in EVERY direction
+  // at once, so a long grow (e.g. grow 6) can't just shoot its tip past the cloud and
+  // outrun the infection — the tip is claimed too. `growInfectBurst` rings, guaranteed.
+  if (burst > 0) for (const n of seeds) infectAround(net, n, burst, 1, (state.rng || Math.random), sub);
   if (hit) net.recomputeVitality();
   return hit;
 }

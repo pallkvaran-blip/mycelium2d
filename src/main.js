@@ -49,6 +49,9 @@ let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
 let runSpores = 0;                      // Spores earned across the current run (levels finished) — shown on death
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
+let _runOverAt = 0;                    // when the run first flagged over — used to let the last grow finish animating before the win/lose sequence
+const REVEAL_END_WAIT = 2800;          // hard cap (ms) so a stuck reveal can never hang the ending
+const REVEAL_START_GRACE = 450;        // wait this long for a grow's reveal to START before giving up on it (a non-grow death then shows after this brief beat)
 const networkRenderers = new Map();
 
 // First-run tutorial: a scripted popup walkthrough that fires ONCE, the first
@@ -275,6 +278,13 @@ function forceFruitAbandon() {
 
 function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
+  // Let the player's LAST action (e.g. a grow) finish ANIMATING before the win/lose
+  // sequence takes over — so you see the strand finish reaching the goal / the danger
+  // before the celebration or death overlay. Retried every frame from renderFrame;
+  // capped so a stuck / never-starting reveal can't hang the ending.
+  if (!_runOverAt) _runOverAt = lastTime || 0;
+  const waited = (lastTime || 0) - _runOverAt;
+  if (waited < REVEAL_END_WAIT && (anyRevealing(lastTime) || waited < REVEAL_START_GRACE)) return;
   _runOverPresented = true;
   // What happens once any celebration has finished (or immediately otherwise).
   const finish = () => {
@@ -526,12 +536,6 @@ function showMainMenu() {
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
-    // TEMP dev: jump straight into the tutorial with a random starter species.
-    onDevTutorial: () => {
-      chosenSpecies = SPECIES[(Math.random() * SPECIES.length) | 0];
-      currentLevel = 1; carryOver = null; tutorialDevForce = true;
-      startRun();
-    },
   });
 }
 
@@ -708,6 +712,7 @@ function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
   _runOverPresented = false;
+  _runOverAt = 0;                 // reset the "let the last grow finish" defer timer
   winCele = null;                 // drop any lingering win celebration from the prior level
   if (tutorial) { tutorial.destroy(); tutorial = null; }   // never carry a tutorial across levels/runs
   pendingLevelIntro = null;       // drop an unshown intro from a superseded begin()
@@ -1439,6 +1444,11 @@ function renderFrame(time) {
     if (net.fruited && net.fruitPoints.length) drawFruitBodies(ctx, camera, net.fruitPoints, time, false);
   }
 
+  // Win/lose is HELD until the player's last grow finishes animating (presentRunOver
+  // defers while anyRevealing). Retry here each frame now that the reveal state for
+  // this frame is current, so the ending fires the moment the strand finishes.
+  if (state.runOver && !_runOverPresented) presentRunOver();
+
   // Fruit preview (where would it fruit?) — uses the cache from hover-start.
   if (previewFruit && !state.runOver) {
     drawFruitBodies(ctx, camera, previewFruitPoints, time, true);
@@ -1582,8 +1592,8 @@ function drawOccludedSight(wx, wy, radiusWorld, rgb, edgeA) {
   }
   ctx.closePath();
   ctx.clip();
-  // Faint even wash over the seen area…
-  ctx.fillStyle = `rgba(${rgb},${edgeA * 0.32})`;
+  // Even wash over the seen area…
+  ctx.fillStyle = `rgba(${rgb},${edgeA * 0.55})`;
   ctx.fillRect(s.x - sight, s.y - sight, sight * 2, sight * 2);
   // …plus the original soft rim near the sight edge.
   const g = ctx.createRadialGradient(s.x, s.y, sight * 0.78, s.x, s.y, sight);
@@ -1603,7 +1613,7 @@ function drawCloudSight() {
   const sight = state.config.trichoderma.sightRadius;
   for (const c of clouds) {
     if (!c.showSight) continue;                       // only when the player has tapped this cloud
-    drawOccludedSight(c.cx, c.cy, sight, '150,190,70', c.dying ? 0.05 : 0.10);
+    drawOccludedSight(c.cx, c.cy, sight, '120,155,45', c.dying ? 0.12 : 0.28);
   }
 }
 
@@ -3216,7 +3226,7 @@ function drawNematodes(time) {
     for (const w of worms) {
       // Shown for any worm the player has TAPPED, plus the dev "Worm Vision" overlay.
       if (!(w.showSight || (showNematodeVision && !w.sees))) continue;
-      drawOccludedSight(w.x, w.y, sight, '165,205,115', 0.10);
+      drawOccludedSight(w.x, w.y, sight, '130,165,80', 0.28);
     }
   }
 
