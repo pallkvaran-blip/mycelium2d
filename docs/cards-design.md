@@ -30,6 +30,30 @@ a depletion clock — so maps can be procedural and we do **not** hand-author ch
 The loop in one line:
 **random tools (draft) × contested spatial economy (piles vs. ants) × a depletion clock = difficulty.**
 
+### 1a. Difficulty & progression intent — **INTENTIONAL, do not "fix"**
+
+This is a **roguelike**. The early game is *meant to be punishing* so that the meta-progression
+feels like real, earned power growth. Treat all of the following as **deliberate design, not balance
+bugs** — do not buff the opening, do not make the starting species self-sufficient, and do not let a
+"balance" review flag any of it as a defect:
+
+- **The starting species are NOT meant to be viable long-run.** The two ungated starters
+  (`species.js`: Fairy Ring Champignon, Honey Fungus) are the *weak* on-ramp. A first-run player
+  should **not** get much past **level ~3**. Dying early is the intended experience.
+- **Players are meant to die a lot.** Death is the progression engine: each finished level pays
+  **Spores** into a persistent wallet, and Spores + level-clears **reveal and then unlock
+  increasingly powerful species** (`species.js` tier ladder, cost doubling per tier). You claw
+  forward across many runs, not within one.
+- **The best engines are draftable but *unplayable at the start* — on purpose.** The strong
+  installed engines carry high `buyCostEnergy` + `buyCostPhosphorus` install gates (e.g. Rhizomorph
+  Cable 20⚡+4P, Bulk-Flow Cord 14⚡+4P) that dwarf a starter's 0–10⚡ / 0–5P. You *see* the powerful
+  tool in the draft and can't afford to install it yet — that gap is the aspiration that pulls the
+  player deeper. Do **not** lower these to make them early-affordable.
+- **Corollary for reviews/workflows:** "starting deck can't reach the goal", "engine X is
+  unaffordable for N levels", "species Y always loses on a fresh save" are **expected**, not
+  findings. The knobs that *are* fair game to tune are the *shape* of the curve (how steep, where
+  the wall lands), never its existence.
+
 ---
 
 ## 2. Locked design decisions

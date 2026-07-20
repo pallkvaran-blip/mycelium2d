@@ -2098,6 +2098,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **The punishing early game is INTENTIONAL roguelike design — never "balance-fix" it.** (Owner canon,
+  see `cards-design.md` §1a.) A first run is *meant* to die by ~level 3; the two ungated starting species
+  (`species.js`) are the deliberately-weak on-ramp and are **not** meant to be viable long-run; the strong
+  installed engines are **draftable but unplayable at the start** by design (their `buyCostEnergy`+
+  `buyCostPhosphorus` install gates far exceed a starter's 0–10⚡/0–5P). Progression is meta: you **die a
+  lot**, earn **Spores**, and unlock **increasingly powerful species** across runs. So do NOT buff the
+  opening, do NOT make starters self-sufficient, and do NOT lower the top engines' install cost to be
+  early-affordable — and if a "balance" review/Workflow flags "starting deck can't win / engine X
+  unaffordable / species Y always loses on a fresh save", that is **expected**, not a finding. Only the
+  *shape* of the curve (how steep, where the wall lands) is fair to tune, never its existence.
 - **This headless env has NO GPU — canvas rendering runs in slow software (SwiftShader).** The game LOGIC
   is fine (boots in ~450ms, `node --test` fast, DOM/state readable via `page.evaluate`), but every PIXEL op
   is ~1000× slower than a real device: a single `canvas.toDataURL()` readback measured **~70 s**, and
