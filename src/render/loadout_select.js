@@ -27,6 +27,40 @@ const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
 const MAX_PICK = 8;
 
+// Mouse drag-to-scroll for a horizontal carousel list (touch already scrolls natively),
+// mirroring the in-game hand carousel: inertial glide on release, and a >6px drag cancels
+// the trailing click so dragging over a card doesn't add/remove a copy.
+function enableDragScroll(el) {
+  if (!el) return;
+  let down = false, startX = 0, startScroll = 0, moved = 0, lastX = 0, lastT = 0, vel = 0, raf = 0;
+  const stopGlide = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;   // touch scrolls natively
+    stopGlide();
+    down = true; startX = e.clientX; startScroll = el.scrollLeft; moved = 0;
+    lastX = e.clientX; lastT = performance.now(); vel = 0;
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!down) return;
+    const dx = e.clientX - startX;
+    moved = Math.max(moved, Math.abs(dx));
+    el.scrollLeft = startScroll - dx;
+    const t = performance.now(), dt = t - lastT;
+    if (dt > 0) { vel = (e.clientX - lastX) / dt; lastX = e.clientX; lastT = t; }
+  });
+  const end = () => {
+    if (!down) return;
+    down = false;
+    let v = -vel * 16;   // px/ms → px/frame; scroll moves opposite the drag
+    if (Math.abs(v) < 1) return;
+    const step = () => { el.scrollLeft += v; v *= 0.93; raf = Math.abs(v) > 0.3 ? requestAnimationFrame(step) : 0; };
+    raf = requestAnimationFrame(step);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointerleave', end);
+  el.addEventListener('click', (e) => { if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
+}
+
 export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   const root = el('div'); root.id = 'loadoutSelect';
 
@@ -55,6 +89,7 @@ export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   const upFilterBar = root.querySelector('#loUpFilter');
   const loFilterBar = root.querySelector('#loLoFilter');
   const countEl = root.querySelector('#loCount');
+  enableDragScroll(upper); enableDragScroll(lower);   // mouse drag-to-scroll (like the in-game carousel)
 
   // A card face identical to the in-game hand card (.cardbtn + shared faceHTML).
   function faceEl(name, count, { extra, locked, onClick }) {

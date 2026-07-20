@@ -1235,9 +1235,11 @@
     .lo-filter::-webkit-scrollbar { display:none; }
     /* carousel scroll list — mirrors .handlist (horizontal, hidden scrollbar) */
     .lo-list { display:flex; gap:8px; overflow-x:auto; overflow-y:hidden; padding:6px 2px 10px; min-height:150px;
-      align-items:flex-start; scroll-snap-type:x proximity;
+      align-items:flex-start; cursor:grab; user-select:none; -webkit-user-select:none; touch-action:pan-x;
       border:1px solid rgba(126,240,192,0.14); border-radius:13px; background:linear-gradient(180deg,rgba(10,18,14,0.5),rgba(6,11,9,0.66)); }
+    .lo-list:active { cursor:grabbing; }
     .lo-list::-webkit-scrollbar { display:none; }
+    #loadoutSelect .cardbtn img { -webkit-user-drag:none; user-drag:none; }   /* don't let the art start a native image-drag */
     /* the .cardbtn faces come straight from the in-game carousel; add the fixed-opener lock badge */
     #loadoutSelect .cardbtn { cursor:pointer; }
     #loadoutSelect .cardbtn.lo-fixed { cursor:default; }

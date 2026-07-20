@@ -532,7 +532,9 @@ Both menus are dark, on-theme, with glowing green borders.
     **locked** + selected), LOWER = "Drafted last run" pool with copy counts. Single-click a lower card →
     move ONE copy up; click a selected upper card → move it back; cap **8** copies (`MAX_PICK`; lower greys
     via `.unaff` at the cap); centered
-    **"Choose 8 cards for this run"** + an X/8 counter; plain **black-&-white Confirm** button (no
+    **"Choose 8 cards for this run"** + an X/8 counter; both lists support **mouse drag-to-scroll**
+    (`enableDragScroll`, inertial glide, a >6px drag cancels the click so it doesn't add a card) plus native
+    touch/trackpad scroll, so a large drafted pool is fully browsable. Plain **black-&-white Confirm** button (no
     gradient/icon). The species-detail inspector (`species_select.js`) shows a 3rd **"Choose Eight"**
     placeholder card (a dashed "?" face: "Any combination of 8 basic and event cards **drafted during your
     last run**.") for memory species.
