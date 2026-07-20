@@ -173,11 +173,12 @@ export const CONFIG = {
     fanReach: 1.15,              // rounds = fanSteps × this (how far the front advances)
     fanRays: 5,                  // seeds spread around the aim (the base of the fan)
     fanSpread: 0.34,             // angle (radians) between adjacent base seeds
-    fanForkChance: 0.5,          // per tip per round chance to BIFURCATE — higher = denser
+    fanForkChance: 0.55,         // per tip per round chance to BIFURCATE — higher = denser
+    fanForkTaper: 0.5,           // fork chance ramps to 0 by this fraction of the way out — keeps the OUTER strands airy
     fanForkAngle: 0.4,           // angle (radians) the two branches spread when a tip bifurcates
     fanMaxDev: 1.2,              // clamp: keep every tip's heading within ± this of the aim (wedge half-width)
-    fanSpacing: 2.5,             // min gap (px) between fan nodes — tiny so fine branches pack densely
-    fanBudget: 300,              // hard cap on total segments grown by one fan (keeps it dense but bounded)
+    fanSpacing: 3.5,             // min gap (px) between fan nodes — bigger = airier, less dense
+    fanBudget: 240,              // hard cap on total segments grown by one fan
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius

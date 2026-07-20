@@ -398,16 +398,17 @@ export class Network {
   // forward wedge. Tips that would land on rock or too close to existing tissue
   // (`fanSpacing`) are simply pruned, which self-limits the density evenly. Runs
   // `steps × fanReach` rounds (~depth), capped by a node `fanBudget`. Tunables (all
-  // config.growth): fanRays/fanSpread/fanReach/fanForkChance/fanForkAngle/fanMaxDev/
+  // config.cards): fanRays/fanSpread/fanReach/fanForkChance/fanForkAngle/fanMaxDev/
   // fanSpacing/fanBudget.
   growFanDirected(substrate, rng, dx, dy, steps, startTip = null) {
     const g = this.config.growth;
+    const cf = this.config.cards;   // fan tunables live here (alongside fanSteps)
     if (this.nodes.length >= g.maxNodes) return 0;
     const norm = Math.hypot(dx, dy) || 1; dx /= norm; dy /= norm;
     const aim = Math.atan2(dy, dx);
     // Fine branches must be allowed to pack tightly, or the dense front gets crowd-rejected
     // and the fan thins out. `fanSpacing` (px) is well below the normal min-tip-spacing.
-    const spacing = g.fanSpacing != null ? g.fanSpacing : Math.max(3, g.minTipSpacing * 0.3);
+    const spacing = cf.fanSpacing != null ? cf.fanSpacing : Math.max(3, g.minTipSpacing * 0.3);
     const key = (c, r) => c + ',' + r;
     const buckets = new Map();
     const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
@@ -431,28 +432,34 @@ export class Network {
     const source = (startTip && !startTip.infected) ? startTip
       : tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy))[0];
 
-    const forkAngle = g.fanForkAngle != null ? g.fanForkAngle : 0.4;
-    const forkChance = g.fanForkChance != null ? g.fanForkChance : 0.55;
-    const maxDev = g.fanMaxDev != null ? g.fanMaxDev : 1.15;   // wedge half-width (radians)
-    const rounds = Math.max(1, Math.round(steps * (g.fanReach != null ? g.fanReach : 1.15)));
-    let budget = Math.max(1, g.fanBudget || 700);
+    const forkAngle = cf.fanForkAngle != null ? cf.fanForkAngle : 0.4;
+    const forkChance = cf.fanForkChance != null ? cf.fanForkChance : 0.55;
+    const maxDev = cf.fanMaxDev != null ? cf.fanMaxDev : 1.15;   // wedge half-width (radians)
+    const rounds = Math.max(1, Math.round(steps * (cf.fanReach != null ? cf.fanReach : 1.15)));
+    let budget = Math.max(1, cf.fanBudget || 700);
     const clampDev = (h) => { let d = h - aim; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return aim + Math.max(-maxDev, Math.min(maxDev, d)); };
 
     // Initial front: a base spread of seeds around the aim, all starting at the source.
-    const nRays = Math.max(1, g.fanRays || 5);
-    const spread = g.fanSpread != null ? g.fanSpread : 0.36;
+    const nRays = Math.max(1, cf.fanRays || 5);
+    const spread = cf.fanSpread != null ? cf.fanSpread : 0.36;
     let front = [];
     { const offs = [0]; for (let k = 1; offs.length < nRays; k++) { offs.push(k * spread); if (offs.length < nRays) offs.push(-k * spread); }
       for (const o of offs) front.push({ node: source, heading: clampDev(aim + o) }); }
 
+    // Bifurcation is exponential, so without a taper the tips pile up faster than the
+    // wedge widens and the OUTER half of the fan reads too dense. Ramp the fork chance
+    // down to 0 by `fanForkTaper` of the way out: the base forks (builds the fan), the
+    // later strands mostly just extend (airy tips).
+    const taper = cf.fanForkTaper != null ? cf.fanForkTaper : 0.55;
     let created = 0;
     // Advance the whole front one segment per round; each tip may bifurcate. Spacing +
     // rock pruning keeps the density even and bounded; the budget is the hard ceiling.
     for (let r = 0; r < rounds && budget > 0 && front.length; r++) {
+      const effChance = forkChance * Math.max(0, 1 - r / Math.max(1, rounds * taper));
       const next = [];
       for (const f of front) {
         if (budget <= 0) break;
-        const headings = this._branchRng.chance(forkChance)
+        const headings = this._branchRng.chance(effChance)
           ? [clampDev(f.heading + forkAngle), clampDev(f.heading - forkAngle)]
           : [clampDev(f.heading + this._branchRng.range(-g.branchJitter, g.branchJitter) * 0.5)];
         for (const h of headings) {

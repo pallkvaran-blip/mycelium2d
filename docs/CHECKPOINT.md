@@ -495,12 +495,19 @@ Both menus are dark, on-theme, with glowing green borders.
   0.5) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
   rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
   within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
-  **`fanBudget` (300)** is the hard ceiling — the fan grows exactly up to that many segments (owner halved it
-  600 → 300; "600 was a bit much"). NB `fanBudget` sizes the FAN only; a play's total node bump can be larger
-  when the dense fan sweeps over food piles (`colonizeReachablePiles` colonises each). `fanSpacing`
-  being well below `minTipSpacing` is what lets the fine branches pack (without it the fan thins out). Config
-  knobs (all `config.growth`): `fanSteps/fanReach/fanRays/fanSpread/fanForkChance/fanForkAngle/fanMaxDev/
-  fanSpacing/fanBudget`; old `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
+  **`fanForkTaper` (0.5)** ramps the fork chance to 0 by half-way out, so the base forks (builds the fan) but
+  the OUTER strands just extend and stay airy (owner: "beginning perfect, latter half too dense" — the taper is
+  the fix; bifurcation is exponential so without it the tips pile up). **`fanBudget` (240)** is the hard
+  ceiling. NB `fanBudget` sizes the FAN only; a play's total node bump can be larger when the dense fan sweeps
+  over food piles (`colonizeReachablePiles` colonises each). `fanSpacing` (3.5) well below `minTipSpacing` lets
+  the base branches pack (bigger = airier). **IMPORTANT wiring gotcha (fixed):** the fan knobs live in
+  **`config.CARDS`** (next to `fanSteps`) but `growFanDirected` originally read them from `config.growth`
+  (`g.fan*`) → all `undefined` → it silently ran on the hardcoded fallbacks (budget 700 etc.), so several
+  rounds of owner "half it" tuning did NOTHING in-game. Now `growFanDirected` reads them via `cf =
+  this.config.cards`. If you re-tune, edit them under `cards:` and they take effect. Verify pure fan geometry
+  (no game/pile confound) with `scratchpad/fan_render.mjs`; fan-only counts with `scratchpad/fan_count.mjs`.
+  Knobs (all `config.cards`): `fanSteps/fanReach/fanRays/fanSpread/fanForkChance/fanForkTaper/fanForkAngle/
+  fanMaxDev/fanSpacing/fanBudget`; old `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
   (press-and-drag, `target:true`, `aim:'drag'`); Forager Bloom's installed action gained
   `target/aim:'drag'/reachFn` and calls growFanDirected. `growRadial`/`fanBlockReason` are now unused (left in
   place). Verified in a real run (Playwright): playing it grows a rich branching fan in the aimed direction that
