@@ -1329,8 +1329,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1ls1slb";
-globalThis.__BUILD__ = "local 07-20 17:32";
+window.__ASSET_VER = "1n64shl";
+globalThis.__BUILD__ = "local 07-20 17:44";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3197,6 +3197,45 @@ const SPECIES = [
       { name: 'Hyphal Extension', count: 5 },
       { name: 'Apical Drive', count: 5 },
       { name: 'Foraging Fan', count: 5 },
+      { name: 'Acorn Cache', count: 3 },
+    ],
+  },
+  {
+    id: 'stropharia', vibe: 'warm', unlock: 'Complete level 5',
+    name: 'Wine Cap', latin: 'Stropharia rugosoannulata', img: 'stropharia-rugosoannulata',
+    blurb: 'The <b>"garden giant"</b> — a bulky saprotroph with a wine-red cap that rips through wood chips, straw and forest mulch faster than almost anything, turning dead matter straight into <b>sugar and mineralised nutrients</b>. Its mycelium bristles with tiny spiked cells (acanthocytes) that puncture passing nematodes and bacteria and strip them for extra nitrogen and phosphate. It opens running two engines at once — a <b>cord that trickles energy</b> and a <b>saprobic front that mineralises phosphorus</b> — a self-feeding decomposer from turn one.',
+    res: { energy: 20, water: 20, phosphorus: 8 },   // openers Cord Capillary (4⚡+2W+6P) + Mineralizing Saprobe (14⚡) → install both turn 1
+    hand: [
+      { name: 'Cord Capillary', count: 1 },
+      { name: 'Mineralizing Saprobe', count: 1 },
+      { name: 'Hyphal Extension', count: 5 },
+      { name: 'Foraging Fan', count: 4 },
+      { name: 'Acorn Cache', count: 3 },
+    ],
+  },
+  {
+    id: 'cortinarius', vibe: 'spore', unlock: 'Complete level 7',
+    name: 'Violet Webcap', latin: 'Cortinarius violaceus', img: 'cortinarius-violaceus',
+    blurb: 'One of the few truly <b>violet</b> mushrooms — dark indigo from cap to stem — and an ectomycorrhizal partner that sheathes tree roots through damp, mossy forest floor. It mines the soil for locked-away nutrients, secreting <b>acid phosphatases that free bound phosphate</b>, and pipes <b>water and minerals</b> back to its host in trade for sugar. It opens with both taps already running: a slow, deep phosphate reserve and a steady draw of water.',
+    res: { energy: 34, water: 18, phosphorus: 8 },   // openers Phosphatase Reserve (12⚡) + Aquaporin Channels (20⚡+6P) → install both turn 1
+    hand: [
+      { name: 'Phosphatase Reserve', count: 1 },
+      { name: 'Aquaporin Channels', count: 1 },
+      { name: 'Apical Drive', count: 5 },
+      { name: 'Hyphal Extension', count: 5 },
+      { name: 'Acorn Cache', count: 3 },
+    ],
+  },
+  {
+    id: 'serpula', vibe: 'warm', unlock: 'Complete level 7',
+    name: 'Dry Rot', latin: 'Serpula lacrymans', img: 'serpula-lacrymans',
+    blurb: 'The most feared timber-rotter of all — <b>"true dry rot."</b> A brown-rot fungus that crumbles wood into dry, cracked cubes for energy, it has a rare trick: it <b>translocates water along its own mycelial cords</b>, carrying moisture from damp ground into bone-dry timber so it can rot wood nothing else can reach. Its rusty, folded fruitbodies bead with watery droplets — hence <i>lacrymans</i>, "weeping." It opens piping <b>water through its cords</b> while a <b>capillary trickles energy</b> — its whole biology, in two engines.',
+    res: { energy: 26, water: 18, phosphorus: 14 },   // openers Aquaporin Channels (20⚡+6P) + Cord Capillary (4⚡+2W+6P) → install both turn 1
+    hand: [
+      { name: 'Aquaporin Channels', count: 1 },
+      { name: 'Cord Capillary', count: 1 },
+      { name: 'Apical Drive', count: 5 },
+      { name: 'Hyphal Extension', count: 5 },
       { name: 'Acorn Cache', count: 3 },
     ],
   },
