@@ -39,12 +39,46 @@ export function seedTrichoderma(substrate, config, rng, network) {
   const root = network && network.root ? network.root : null;
   const clouds = [];
   const count = t.initialPatches;
-  for (let i = 0; i < count; i++) {
-    const spot = pickOpenSpot(substrate, rng, root, t, i, count);   // banded → even spread
+  // Level-2 teaching gate: force ONE cloud to sit in the soil at the goal approach,
+  // so the player MUST have an answer to Trichoderma before they can fruit.
+  let placed = 0;
+  if (t.goalGuard && count > 0) {
+    const g = pickGoalGuardSpot(substrate, config, rng, t);
+    clouds.push(makeCloud(g.x, g.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
+    placed = 1;
+  }
+  const roam = count - placed;                                      // remaining clouds roam normally
+  for (let i = 0; i < roam; i++) {
+    const spot = pickOpenSpot(substrate, rng, root, t, i, roam);    // banded → even spread
     clouds.push(makeCloud(spot.x, spot.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
   }
   stampCloudField(substrate, clouds);
   return clouds;
+}
+
+// Pick an OPEN (non-rock, non-food), shallow-ish spot in the columns straddling the
+// goal-zone entrance, so a goalGuard cloud parks right on the final approach.
+function pickGoalGuardSpot(substrate, config, rng, t) {
+  const cs = substrate.cellSize;
+  const goalCols = Math.max(2, (config.substrate && config.substrate.goalCols) || 6);
+  const goalStart = Math.max(1, substrate.cols - goalCols);          // first goal-zone column
+  const band = Math.max(1, t.goalGuardBandCols || 2);
+  const loC = Math.max(1, goalStart - band);                         // a little BEFORE the entrance …
+  const hiC = Math.min(substrate.cols - 2, goalStart + band);        // … to a little inside the zone
+  const loX = loC * cs, hiX = (hiC + 1) * cs;
+  // Seed in the upper soil, biased toward the surface (like findSpawnSpot), so it
+  // blocks the path a player actually takes rather than hiding on the deep floor.
+  const shallow = (substrate.rows - 1) * cs * 0.5;
+  const pickY = () => substrate.surfaceY + cs + Math.max(0, shallow - cs) * Math.pow(rng(), 1.6);
+  let ground = null;
+  for (let tries = 0; tries < 120; tries++) {
+    const x = rng.range(loX, hiX), y = pickY();
+    const c = substrate.cellAtWorld(x, y);
+    if (!c || c.rock || c.maxNutrient > 0) continue;                 // open ground only
+    if (!substrate.rockNear(substrate.colAtX(x), substrate.rowAtY(y), 3)) return { x, y };
+    if (!ground) ground = { x, y };                                  // fallback: open but rock-adjacent
+  }
+  return ground || { x: (loX + hiX) / 2, y: substrate.surfaceY + cs * 3 };
 }
 
 // Pick an open underground spot — NOT on food/rock and (ideally) a good way from

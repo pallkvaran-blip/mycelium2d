@@ -482,6 +482,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Level 2 = the Trichoderma tutorial: one mould cloud ALWAYS parks at the goal approach.** A
+  deliberate teaching gate (owner request) — the player learns they need an *answer to mould*
+  before they can fruit. `main.js configForLevel` sets `cfg.trichoderma.goalGuard = (level === 2)`
+  (and clears it under `#notrich`); `engine/threats.js seedTrichoderma` then places its FIRST cloud
+  via new `pickGoalGuardSpot(...)` — an open (non-rock, non-food), surface-biased spot in the columns
+  straddling the goal-zone entrance (`goalStart ± config.trichoderma.goalGuardBandCols`, default 2) —
+  and lets the remaining `initialPatches − 1` roam as before. Total cloud count is unchanged (level 2
+  is `trych:2`, so 1 gate + 1 roamer), so the level-intro "×N" still reads right. The non-guard path
+  is byte-identical to the old loop (same RNG draw order → other levels' seeds/tests unchanged).
+  New config: `trichoderma.goalGuard` (false) + `goalGuardBandCols` (2). Verified headless: the guard
+  cloud lands within ±2 cols of the goal entrance in **60/60** level-2 seeds (levels 1/3 only hit the
+  goal incidentally); 101+61 tests green; `dist` rebuilt (import-leak check 0).
+
 - **Card cost pills more legible on bright art.** The top-left resource-cost chips (`.cc` in
   `index.html`) had only a faint translucent *colour* tint, so on bright card faces (Acorn Cache,
   Sclerotial Crust, …) the cost read poorly. Added a dark base via `background-color: rgba(6,11,9,0.5)`

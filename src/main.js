@@ -145,9 +145,13 @@ function configForLevel(level) {
   cfg.ants.nestCount = t.ants;
   cfg.nematodes.initialCount = t.nematodes;
   cfg.trichoderma.initialPatches = t.trych;
+  // Level 2 is the Trichoderma tutorial: always park one cloud on the goal approach
+  // so the player learns they need an answer to mould before they can fruit.
+  cfg.trichoderma.goalGuard = (level === 2);
   if (noTrich) {   // testing aid: a trich-free sandbox
     cfg.trichoderma.initialPatches = 0;
     cfg.trichoderma.respawnChance = 0;
+    cfg.trichoderma.goalGuard = false;
   }
   return cfg;
 }

@@ -250,6 +250,8 @@ export const CONFIG = {
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
+    goalGuard: false,            // when true, ONE cloud always seeds in the soil at the goal approach (level-2 teaching gate — main.js configForLevel sets it); the rest roam normally
+    goalGuardBandCols: 2,        // goalGuard cloud seeds within this many columns either side of the goal-zone entrance
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     growInfectThreshold: 0.05,   // a strand standing in a trich-field cell ≥ this is infected on the spot (growing INTO mould) — so it can't fruit/win at the goal
