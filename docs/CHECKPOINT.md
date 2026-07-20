@@ -495,7 +495,7 @@ Both menus are dark, on-theme, with glowing green borders.
   0.5) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
   rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
   within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
-  **`fanForkTaper` (0.25)** multiplies the fork rate PAST THE MIDPOINT (0.25 = quarter the branching in the outer
+  **`fanForkTaper` (0.125)** multiplies the fork rate PAST THE MIDPOINT (0.125 = ~eighth the branching in the outer
   half) — the base forks at full rate (dense), the outer half thins but doesn't go bare (owner: "go back to the
   dense look and half whatever happens after the middle"; an earlier ramp-to-zero taper made it "way too
   thin"). **`fanBudget` (700)** is the hard ceiling (a full fan is ~400 segments — dense, matching the look the
