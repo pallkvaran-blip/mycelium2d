@@ -124,7 +124,8 @@ const ver = (() => {
   return (h >>> 0).toString(36);
 })();
 
-const body = `<title>Mycelium — Phase 1</title>
+const faviconDataUri = 'data:image/png;base64,' + readFileSync(R('assets/favicon.png')).toString('base64');
+const body = `<title>Mycelium</title>
 <meta name="description" content="A 2D roguelike engine-builder themed on the life of a fungal colony — steer, defend, and fruit a living mycelial network." />
 <style>
 ${css}
@@ -142,7 +143,7 @@ const standalone = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🍄</text></svg>" />
+<link rel="icon" type="image/png" href="${faviconDataUri}" />
 ${body}
 </head>
 <body>

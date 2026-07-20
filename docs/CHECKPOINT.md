@@ -482,6 +482,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Browser tab: title → "Mycelium", favicon → a petri-dish mycelium colony.** Title dropped the
+  "— Phase 1" suffix. Favicon is `assets/favicon.png` — a circular (transparent-outside) crop of the
+  **Forager Bloom** card art (a dense radial hyphal colony, i.e. a colony in a dish), generated from
+  `assets/cards/forager-bloom.jpg`. Both the title and favicon are set in **`build.mjs`** (the standalone
+  `<head>` template — NOT inherited from `index.html`): title literal + the favicon inlined as a PNG
+  **data URI** so `dist/index.html` is self-contained. `index.html` (source, played over http) references
+  `assets/favicon.png` directly. Rebuilt + verified in `dist` (title, data-URI icon, emoji removed).
+
 - **Settings-menu + softlock fixes (owner batch).**
   - **"Force Fruiting (abandon run)"** added to the gear settings menu (`ui.js` `#set-forcefruit`,
     warm-tinted `.setitem-danger`). Wired to `main.js` handler `onForceFruit` → new `forceFruitAbandon()`
