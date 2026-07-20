@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-20 (**three double-engine species:** Wine Cap
+_Living status + knowledge doc. Last updated: 2026-07-20 (**final species — Artist's Conk** (Ganoderma
+applanatum, Complete level 10): the upgraded "memory" colony — curate **15 basic/event cards + 2 engine
+cards** from your last run (two separate caps) plus a fixed 5× Apical Drive. Extends the Split-Gill memory
+system with an engine-draft pool. Picker roster is now full through level 10. See §9. — earlier:
+**three double-engine species:** Wine Cap
 (Stropharia rugosoannulata, Cord Capillary + Mineralizing Saprobe, lvl 5), Violet Webcap (Cortinarius
 violaceus, Phosphatase Reserve + Aquaporin Channels, lvl 7) and Dry Rot (Serpula lacrymans, Aquaporin
 Channels + Cord Capillary, lvl 7) — each starts able to install BOTH engines turn 1; realistic FLUX
@@ -489,6 +493,33 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Final species — Artist's Conk (`Ganoderma applanatum`), the upgraded MEMORY colony (Complete level 10).**
+  Like Split Gill it curates its opening hand from the LAST run's drafts — but bigger, and now with engines:
+  **pick up to 15 basic/event cards + 2 engine cards** drafted last run (two independent caps), plus a fixed
+  **5× Apical Drive**. Fills the last non-communal picker slot (#11 tile; 16000 Spores, tier rank 4). Theme:
+  a perennial polypore whose stacked annual tube layers are a living archive of past seasons (factual). The
+  memory system was extended to carry engines:
+  - `engine/cards.js chooseOffer` now tallies ENGINE-category drafts into a NEW `state.cards.runDraftedEngines`
+    map (parallel to `runDrafted`); both are init in `initCards` and ride `snapshotCarry`/`applyCarry` across
+    levels for free (the whole `state.cards` object is carried).
+  - `species.js`: new `lastDraftEngines` progress pool + `lastDraftEnginesFor` / `saveLastDraftEngines`
+    (parallel to lastDrafts). Species gained optional **`memPick`** (non-engine cap, default 8) and
+    **`memEngines`** (engine cap, default 0). Split Gill keeps the defaults → unchanged.
+  - `render/loadout_select.js`: generalized — `maxPick` / `maxEngines` / `enginePool` params, TWO independent
+    caps (a card dims/locks when ITS category cap is hit), counter reads "`N/15 cards · M/2 engines`" (or plain
+    "`N/8`" when there's no engine pool). The engine pool is only merged when `memEngines > 0`.
+  - `main.js`: `startRunWithLoadout` offers both pools (picker shows if either is non-empty); `runEndThen`
+    records both; `effectiveSpecies` merges the curated loadout (basics/events + engines) into the opening
+    hand exactly as before (engines are just cards by name → dealt to hand → installable).
+  - `render/species_select.js chooseFiveFace(sp)` reads the species' counts for the "?" placeholder card
+    ("Choose 15 + 2 engines" for Artist's Conk; "Choose 8" for Split Gill).
+  - **Verified (Playwright, `scratchpad/memory_verify.mjs`):** the loadout picker enforces both caps (reached
+    `5/15 cards · 2/2 engines`; a 3rd engine click is blocked), and the confirmed opening hand =
+    `{Apical Drive:5, Condense:5, Cord Capillary:1, Rhizomorph Trunkline:1}` (fixed + curated cards + curated
+    engines). Split Gill regression intact (mid "Choose 8 cards", counter "0 / 8", no engine pool). Realistic
+    FLUX portrait (concentric-ring top-down; `scripts/gen_ganoderma.py`, 3 options in `assets/species_options/`).
+    Cards 61/0; smoke 100/1 (pre-existing ant-trail fail). Import-leak 0, rebuilt `dist/`.
 
 - **Three "double-engine" species (fill the level-5/7 tiers).** Owner-specified engine pairings; I chose
   factually-accurate real mushrooms + generated realistic FLUX portraits. Each starts with enough resources to

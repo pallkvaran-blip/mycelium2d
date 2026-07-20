@@ -135,6 +135,15 @@ export const SPECIES = [
       { name: 'Acorn Cache', count: 3 },
     ],
   },
+  {
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2,
+    name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
+    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
+    res: { energy: 20, water: 25, phosphorus: 10 },
+    hand: [
+      { name: 'Apical Drive', count: 5 },
+    ],
+  },
 ];
 
 // Locked unlock tiers shown under the two available species (mystery "?" cards,
@@ -233,6 +242,7 @@ export function loadProgress() {
   if (!p.purchased) p.purchased = {};
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
+  if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
   return p;
 }
 export function saveProgress(p) {
@@ -311,6 +321,19 @@ export function saveLastDrafts(speciesId, list) {
   p.lastDrafts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
   saveProgress(p);
   return p.lastDrafts[speciesId];
+}
+// Parallel to lastDrafts, but the ENGINE cards drafted last run (offered under a separate,
+// smaller cap in the loadout picker). Only memory species with `memEngines > 0` use these.
+export function lastDraftEnginesFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const l = p.lastDraftEngines && p.lastDraftEngines[speciesId];
+  return Array.isArray(l) ? l.filter((e) => e && e.name && e.count > 0) : [];
+}
+export function saveLastDraftEngines(speciesId, list) {
+  const p = loadProgress();
+  p.lastDraftEngines[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.lastDraftEngines[speciesId];
 }
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).

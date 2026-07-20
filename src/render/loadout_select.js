@@ -25,8 +25,6 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
-const MAX_PICK = 8;
-
 // Mouse drag-to-scroll for a horizontal carousel list (touch already scrolls natively),
 // mirroring the in-game hand carousel: inertial glide on release, and a >6px drag cancels
 // the trailing click so dragging over a card doesn't add/remove a copy.
@@ -61,22 +59,34 @@ function enableDragScroll(el) {
   el.addEventListener('click', (e) => { if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
 }
 
-export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
+export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm }) {
   const root = el('div'); root.id = 'loadoutSelect';
+  const MAX_PICK = maxPick || 8;
+  const MAX_ENG = maxEngines || 0;
 
-  // model: pool = copies drafted this run; selected = copies chosen (name -> count)
+  // model: pool = copies drafted this run (non-engine + optional engine drafts). engineNames
+  // marks which pool entries are ENGINE cards — those curate under a separate, smaller cap.
   const pool = {};
+  const engineNames = new Set();
   for (const d of (drafted || [])) if (d && d.name && d.count > 0) pool[d.name] = (pool[d.name] || 0) + d.count;
+  if (MAX_ENG > 0) for (const d of (enginePool || [])) if (d && d.name && d.count > 0) { pool[d.name] = (pool[d.name] || 0) + d.count; engineNames.add(d.name); }
   const selected = {};
   const fixedList = (fixed || []).map((f) => ({ name: f.name, count: f.count || 0 }));
-  const selCount = () => Object.keys(selected).reduce((a, n) => a + selected[n], 0);
+  const isEng = (n) => engineNames.has(n);
+  const selCountNon = () => Object.keys(selected).reduce((a, n) => a + (isEng(n) ? 0 : selected[n]), 0);
+  const selCountEng = () => Object.keys(selected).reduce((a, n) => a + (isEng(n) ? selected[n] : 0), 0);
+  const capFor = (n) => (isEng(n) ? MAX_ENG : MAX_PICK);
+  const catCount = (n) => (isEng(n) ? selCountEng() : selCountNon());
   let upperFilter = 'all', lowerFilter = 'all';
+  const midTxt = MAX_ENG > 0
+    ? 'Choose up to ' + MAX_PICK + ' cards + ' + MAX_ENG + ' engines for this run'
+    : 'Choose ' + MAX_PICK + ' cards for this run';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
       '<div class="lo-caro"><div class="lo-label">Your starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for this run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">' + midTxt + '</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
       '<div class="lo-caro"><div class="lo-label">Drafted last run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
@@ -141,23 +151,24 @@ export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
     const loEntries = Object.keys(pool).map((n) => ({ name: n, count: pool[n] }));
     lowerFilter = renderFilter(loFilterBar, loEntries, lowerFilter, (k) => { lowerFilter = k; render(); });
     lower.innerHTML = '';
-    const full = selCount() >= MAX_PICK;
     let shown = 0;
     for (const name of Object.keys(pool)) {
       if (!matches(name, lowerFilter)) continue;
       shown++;
       const remaining = pool[name] - (selected[name] || 0);
-      const dim = remaining <= 0 || full;
+      const catFull = catCount(name) >= capFor(name);   // this card's category cap is reached
+      const dim = remaining <= 0 || catFull;
       lower.appendChild(faceEl(name, remaining, {
         extra: dim ? 'unaff' : '', locked: dim,
-        onClick: () => { if (selCount() < MAX_PICK && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
+        onClick: () => { if (catCount(name) < capFor(name) && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
       }));
     }
-    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'No non-engine cards drafted this run.'));
+    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'Nothing drafted last run.'));
 
-    const n = selCount();
-    countEl.textContent = n + ' / ' + MAX_PICK;
-    countEl.className = 'lo-count' + (n === MAX_PICK ? ' lo-full' : '');
+    const nNon = selCountNon(), nEng = selCountEng();
+    countEl.textContent = MAX_ENG > 0 ? (nNon + '/' + MAX_PICK + ' cards · ' + nEng + '/' + MAX_ENG + ' engines') : (nNon + ' / ' + MAX_PICK);
+    const full = MAX_ENG > 0 ? (nNon >= MAX_PICK && nEng >= MAX_ENG) : (nNon >= MAX_PICK);
+    countEl.className = 'lo-count' + (full ? ' lo-full' : '');
   }
   render();
 

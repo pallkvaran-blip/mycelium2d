@@ -68,11 +68,17 @@ function cardFace(entry) {
 
 // A placeholder "Choose Five" card shown on a MEMORY species' starting-hand display:
 // a "?" art window standing in for the 5 cards the player curates each run.
-function chooseFiveFace() {
+function chooseFiveFace(sp) {
+  const pick = (sp && sp.memPick) || 8;
+  const eng = (sp && sp.memEngines) || 0;
+  const title = eng > 0 ? ('Choose ' + pick + ' + ' + eng + ' engines') : ('Choose ' + pick);
+  const eff = eng > 0
+    ? ('Any combination of ' + pick + ' basic and event cards, plus ' + eng + ' engine cards, <b>drafted during your last run</b>.')
+    : ('Any combination of ' + pick + ' basic and event cards <b>drafted during your last run</b>.');
   return '<div class="ss-gc ss-gc-choose">' +
     '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
-    '<div class="ss-gc-name">Choose Eight</div>' +
-    '<div class="ss-gc-eff">Any combination of 8 basic and event cards <b>drafted during your last run</b>.</div>' +
+    '<div class="ss-gc-name">' + esc(title) + '</div>' +
+    '<div class="ss-gc-eff">' + eff + '</div>' +
   '</div>';
 }
 
@@ -124,7 +130,7 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
-  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace() : '');
+  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';

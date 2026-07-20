@@ -23,7 +23,7 @@ import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -181,8 +181,11 @@ function showPicker() {
 function startRunWithLoadout(sp) {
   if (sp && sp.memory) {
     const pool = lastDraftsFor(sp.id);
-    if (pool.length) {
-      showLoadoutSelect({ species: sp, drafted: pool, fixed: sp.hand,
+    const maxEngines = sp.memEngines || 0;
+    const enginePool = maxEngines > 0 ? lastDraftEnginesFor(sp.id) : [];
+    if (pool.length || enginePool.length) {
+      showLoadoutSelect({ species: sp, drafted: pool, enginePool, fixed: sp.hand,
+        maxPick: sp.memPick || 8, maxEngines,
         onConfirm: (picked) => { saveLoadout(sp.id, picked); startRun(); } });
       return;
     }
@@ -213,6 +216,11 @@ function runEndThen(next) {
     const rd = state.cards.runDrafted || {};
     const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
     saveLastDrafts(sp.id, drafted);
+    if (sp.memEngines) {
+      const rde = state.cards.runDraftedEngines || {};
+      const draftedEng = Object.keys(rde).filter((n) => rde[n] > 0).map((n) => ({ name: n, count: rde[n] }));
+      saveLastDraftEngines(sp.id, draftedEng);
+    }
   }
   next();
 }

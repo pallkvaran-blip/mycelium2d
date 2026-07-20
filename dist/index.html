@@ -1335,8 +1335,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1ot6jne";
-globalThis.__BUILD__ = "local 07-20 17:47";
+window.__ASSET_VER = "1rva0np";
+globalThis.__BUILD__ = "local 07-20 18:08";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3245,6 +3245,15 @@ const SPECIES = [
       { name: 'Acorn Cache', count: 3 },
     ],
   },
+  {
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2,
+    name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
+    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
+    res: { energy: 20, water: 25, phosphorus: 10 },
+    hand: [
+      { name: 'Apical Drive', count: 5 },
+    ],
+  },
 ];
 
 // Locked unlock tiers shown under the two available species (mystery "?" cards,
@@ -3343,6 +3352,7 @@ function loadProgress() {
   if (!p.purchased) p.purchased = {};
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
+  if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
   return p;
 }
 function saveProgress(p) {
@@ -3422,6 +3432,19 @@ function saveLastDrafts(speciesId, list) {
   saveProgress(p);
   return p.lastDrafts[speciesId];
 }
+// Parallel to lastDrafts, but the ENGINE cards drafted last run (offered under a separate,
+// smaller cap in the loadout picker). Only memory species with `memEngines > 0` use these.
+function lastDraftEnginesFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const l = p.lastDraftEngines && p.lastDraftEngines[speciesId];
+  return Array.isArray(l) ? l.filter((e) => e && e.name && e.count > 0) : [];
+}
+function saveLastDraftEngines(speciesId, list) {
+  const p = loadProgress();
+  p.lastDraftEngines[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.lastDraftEngines[speciesId];
+}
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).
 function purchaseSpecies(sp, progress) {
@@ -3458,7 +3481,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -6863,7 +6886,7 @@ function initCards(state, mode = 'tutorial', species = null) {
 
   state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [],
     draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
-    runDrafted: {} };                // {name: copies} of non-engine cards drafted this run (memory species loadout picker)
+    runDrafted: {}, runDraftedEngines: {} };   // {name: copies} drafted this run, split non-engine / engine (memory species loadout picker)
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -6968,9 +6991,12 @@ function chooseOffer(state, cardName) {
   const copies = cat === 'basic' ? Math.max(1, (state.config.cards.draftBasicCopies || 3)) : 1;
   for (let i = 0; i < copies; i++) C.hand.push({ id: C.seq++, name: cardName });
   if (cat === 'engine' && C.draftable) { const i = C.draftable.indexOf(cardName); if (i >= 0) C.draftable.splice(i, 1); }
-  // Memory species (e.g. Split Gill): tally NON-engine drafts this run (by copies) so the
-  // run-end loadout picker can offer them. Carried across levels with the cards object.
+  // Memory species (e.g. Split Gill / Artist's Conk): tally drafts this run (by copies) so the
+  // start-of-run loadout picker can offer them. NON-engine drafts and ENGINE drafts are kept in
+  // SEPARATE pools (Artist's Conk curates them under separate caps). Carried across levels with
+  // the cards object.
   if (cat !== 'engine') { if (!C.runDrafted) C.runDrafted = {}; C.runDrafted[cardName] = (C.runDrafted[cardName] || 0) + copies; }
+  else { if (!C.runDraftedEngines) C.runDraftedEngines = {}; C.runDraftedEngines[cardName] = (C.runDraftedEngines[cardName] || 0) + copies; }
   C.pendingOffers.shift();
   state.log(copies > 1
     ? `Drafted ${copies}× ${cardName} into your hand (free — you still pay to play them).`
@@ -11912,11 +11938,17 @@ function cardFace(entry) {
 
 // A placeholder "Choose Five" card shown on a MEMORY species' starting-hand display:
 // a "?" art window standing in for the 5 cards the player curates each run.
-function chooseFiveFace() {
+function chooseFiveFace(sp) {
+  const pick = (sp && sp.memPick) || 8;
+  const eng = (sp && sp.memEngines) || 0;
+  const title = eng > 0 ? ('Choose ' + pick + ' + ' + eng + ' engines') : ('Choose ' + pick);
+  const eff = eng > 0
+    ? ('Any combination of ' + pick + ' basic and event cards, plus ' + eng + ' engine cards, <b>drafted during your last run</b>.')
+    : ('Any combination of ' + pick + ' basic and event cards <b>drafted during your last run</b>.');
   return '<div class="ss-gc ss-gc-choose">' +
     '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
-    '<div class="ss-gc-name">Choose Eight</div>' +
-    '<div class="ss-gc-eff">Any combination of 8 basic and event cards <b>drafted during your last run</b>.</div>' +
+    '<div class="ss-gc-name">' + esc(title) + '</div>' +
+    '<div class="ss-gc-eff">' + eff + '</div>' +
   '</div>';
 }
 
@@ -11968,7 +12000,7 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
-  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace() : '');
+  ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';
@@ -12182,8 +12214,6 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
-const MAX_PICK = 8;
-
 // Mouse drag-to-scroll for a horizontal carousel list (touch already scrolls natively),
 // mirroring the in-game hand carousel: inertial glide on release, and a >6px drag cancels
 // the trailing click so dragging over a card doesn't add/remove a copy.
@@ -12218,22 +12248,34 @@ function enableDragScroll(el) {
   el.addEventListener('click', (e) => { if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
 }
 
-function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
+function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm }) {
   const root = el('div'); root.id = 'loadoutSelect';
+  const MAX_PICK = maxPick || 8;
+  const MAX_ENG = maxEngines || 0;
 
-  // model: pool = copies drafted this run; selected = copies chosen (name -> count)
+  // model: pool = copies drafted this run (non-engine + optional engine drafts). engineNames
+  // marks which pool entries are ENGINE cards — those curate under a separate, smaller cap.
   const pool = {};
+  const engineNames = new Set();
   for (const d of (drafted || [])) if (d && d.name && d.count > 0) pool[d.name] = (pool[d.name] || 0) + d.count;
+  if (MAX_ENG > 0) for (const d of (enginePool || [])) if (d && d.name && d.count > 0) { pool[d.name] = (pool[d.name] || 0) + d.count; engineNames.add(d.name); }
   const selected = {};
   const fixedList = (fixed || []).map((f) => ({ name: f.name, count: f.count || 0 }));
-  const selCount = () => Object.keys(selected).reduce((a, n) => a + selected[n], 0);
+  const isEng = (n) => engineNames.has(n);
+  const selCountNon = () => Object.keys(selected).reduce((a, n) => a + (isEng(n) ? 0 : selected[n]), 0);
+  const selCountEng = () => Object.keys(selected).reduce((a, n) => a + (isEng(n) ? selected[n] : 0), 0);
+  const capFor = (n) => (isEng(n) ? MAX_ENG : MAX_PICK);
+  const catCount = (n) => (isEng(n) ? selCountEng() : selCountNon());
   let upperFilter = 'all', lowerFilter = 'all';
+  const midTxt = MAX_ENG > 0
+    ? 'Choose up to ' + MAX_PICK + ' cards + ' + MAX_ENG + ' engines for this run'
+    : 'Choose ' + MAX_PICK + ' cards for this run';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
       '<div class="lo-caro"><div class="lo-label">Your starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for this run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">' + midTxt + '</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
       '<div class="lo-caro"><div class="lo-label">Drafted last run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
@@ -12298,23 +12340,24 @@ function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
     const loEntries = Object.keys(pool).map((n) => ({ name: n, count: pool[n] }));
     lowerFilter = renderFilter(loFilterBar, loEntries, lowerFilter, (k) => { lowerFilter = k; render(); });
     lower.innerHTML = '';
-    const full = selCount() >= MAX_PICK;
     let shown = 0;
     for (const name of Object.keys(pool)) {
       if (!matches(name, lowerFilter)) continue;
       shown++;
       const remaining = pool[name] - (selected[name] || 0);
-      const dim = remaining <= 0 || full;
+      const catFull = catCount(name) >= capFor(name);   // this card's category cap is reached
+      const dim = remaining <= 0 || catFull;
       lower.appendChild(faceEl(name, remaining, {
         extra: dim ? 'unaff' : '', locked: dim,
-        onClick: () => { if (selCount() < MAX_PICK && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
+        onClick: () => { if (catCount(name) < capFor(name) && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
       }));
     }
-    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'No non-engine cards drafted this run.'));
+    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'Nothing drafted last run.'));
 
-    const n = selCount();
-    countEl.textContent = n + ' / ' + MAX_PICK;
-    countEl.className = 'lo-count' + (n === MAX_PICK ? ' lo-full' : '');
+    const nNon = selCountNon(), nEng = selCountEng();
+    countEl.textContent = MAX_ENG > 0 ? (nNon + '/' + MAX_PICK + ' cards · ' + nEng + '/' + MAX_ENG + ' engines') : (nNon + ' / ' + MAX_PICK);
+    const full = MAX_ENG > 0 ? (nNon >= MAX_PICK && nEng >= MAX_ENG) : (nNon >= MAX_PICK);
+    countEl.className = 'lo-count' + (full ? ' lo-full' : '');
   }
   render();
 
@@ -13299,7 +13342,7 @@ const __m_main = (function () {
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -13466,8 +13509,11 @@ function showPicker() {
 function startRunWithLoadout(sp) {
   if (sp && sp.memory) {
     const pool = lastDraftsFor(sp.id);
-    if (pool.length) {
-      showLoadoutSelect({ species: sp, drafted: pool, fixed: sp.hand,
+    const maxEngines = sp.memEngines || 0;
+    const enginePool = maxEngines > 0 ? lastDraftEnginesFor(sp.id) : [];
+    if (pool.length || enginePool.length) {
+      showLoadoutSelect({ species: sp, drafted: pool, enginePool, fixed: sp.hand,
+        maxPick: sp.memPick || 8, maxEngines,
         onConfirm: (picked) => { saveLoadout(sp.id, picked); startRun(); } });
       return;
     }
@@ -13498,6 +13544,11 @@ function runEndThen(next) {
     const rd = state.cards.runDrafted || {};
     const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
     saveLastDrafts(sp.id, drafted);
+    if (sp.memEngines) {
+      const rde = state.cards.runDraftedEngines || {};
+      const draftedEng = Object.keys(rde).filter((n) => rde[n] > 0).map((n) => ({ name: n, count: rde[n] }));
+      saveLastDraftEngines(sp.id, draftedEng);
+    }
   }
   next();
 }
