@@ -1280,8 +1280,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1d88eeh";
-globalThis.__BUILD__ = "local 07-20 08:11";
+window.__ASSET_VER = "40obq7";
+globalThis.__BUILD__ = "local 07-20 08:26";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -15561,25 +15561,24 @@ function drawLakes() {
     const sw = (run.c1 - run.c0 + 1) * cs * z;
     const sh = run.maxD * cs * z;
     if (tl.x > camera.viewW || tl.x + sw < 0) continue;
-    // CLIP the art to the actual water-cell BOWL (a lake is a semi-ellipse — deep at the
-    // centre, shallow at the edges — but the art image's own bowl can be fuller/narrower).
-    // Clipping to the real cells makes the visible pool == the water the sim uses, so a
-    // strand hugging the cells reads as touching the pool's edge (not poking into empty
-    // teal, and no phantom water over dry soil). Bottom follows each column's water depth.
+    // CLIP the art to a SMOOTH semi-ellipse bowl. The lake water is carved as a
+    // semi-ellipse (deepest at the centre, shallow at the edges — substrate.js uses
+    // d = maxDepth·√(1−t²)); clipping to that analytic bowl instead of the per-column
+    // water-cell depths gives a clean, rounded bottom (the old per-column clip left an
+    // ugly notched / staircase edge) while keeping the visible pool aligned with the
+    // sim's water. A small vertical OVERSHOOT past the deepest row guarantees every
+    // water cell is covered and lets the feathered art edge blend into the soil below.
     const surfSY = camera.worldToScreen(0, sub.surfaceY).y;
+    const over = 0.35 * cs * z;                                   // cover the ≤½-cell rounding + soft blend
+    const ry = sh + over, cxs = tl.x + sw / 2;
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(tl.x, surfSY);
     ctx.lineTo(tl.x + sw, surfSY);                                // flat top along the waterline
-    for (let col = run.c1; col >= run.c0; col--) {                // bottom bowl, right → left
-      let d = 0; while (d < sub.rows && sub.cellAt(col, d) && sub.cellAt(col, d).water) d++;
-      const xc = camera.worldToScreen((col + 0.5) * cs, sub.surfaceY).x;
-      const yb = camera.worldToScreen(0, sub.surfaceY + d * cs).y;
-      ctx.lineTo(xc, yb);
-    }
+    ctx.ellipse(cxs, surfSY, sw / 2, ry, 0, 0, Math.PI);         // smooth bowl bottom, right → left
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(img, tl.x, tl.y, sw, sh);
+    ctx.drawImage(img, tl.x, tl.y, sw, sh + over);               // stretch art to fill the deepened bowl
     ctx.restore();
   }
 }

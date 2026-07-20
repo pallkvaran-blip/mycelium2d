@@ -482,6 +482,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Lake bottoms smoothed: clip the lake art to an ELLIPSE bowl, not the per-column water depths.**
+  The earlier "clip to the actual water cells" fix (`main.js drawLakes`) built the bottom of the clip
+  path as a polyline through each column's integer water depth — so the bottom came out as an ugly
+  **notched / staircase** edge (owner: "the bottoms don't look nice"). Since the sim carves the lake as a
+  **semi-ellipse** (`substrate.js`: `d = maxDepth·√(1−t²)`), `drawLakes` now clips to that analytic bowl
+  with a single `ctx.ellipse(cx, waterline, sw/2, ry, 0, 0, π)` — a clean rounded bottom that still lines
+  up with the sim's water. A small vertical **overshoot** (`ry = sh + 0.35·cs·z`, art drawn to the same
+  height) guarantees every water cell stays covered and lets the feathered art edge blend softly into the
+  soil below (no hard cut, no phantom-water complaint). Verified geometrically vs a real lake's water
+  cells (seed 1, cols 43–55, maxD 5): the ellipse envelopes the bowl cells where the old staircase
+  notched between them. 101+61 tests green; `dist` rebuilt (import-leak 0). Reservoirs are unchanged
+  (they use the teardrop `RESERVOIR_OPAQUE` box, a separate path).
+
 - **Level 2 = the Trichoderma gauntlet: BOTH clouds seed UNDER the green goal hill.** A deliberate
   teaching gate (owner request) — one cloud just under the hill's bottom-LEFT corner + one CENTRED under
   the hill sitting slightly deeper, so it's very hard to fruit without an answer to mould. Clouds are
