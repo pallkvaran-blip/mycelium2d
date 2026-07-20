@@ -221,6 +221,16 @@ export const CONFIG = {
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
+    // COMPANION strands (organic-growth test, currently wired ONLY to Rhizomorph Lance):
+    // as a directed grow advances, it occasionally throws a runner that branches off,
+    // SHADOWS the main heading toward the goal for a while, then tapers off to one side —
+    // so growth reads more like real mycelium. Decorative (flagged .side). See
+    // network.js _sproutCompanionStrand. (If we like it, enable on the other grow cards.)
+    companionChance: 0.22,       // per growth step, chance to throw a companion runner
+    companionMin: 4,             // companion length in segments (inclusive range)
+    companionMax: 9,
+    companionFollow: 0.6,        // fraction of its length it shadows the main heading before tapering off
+    companionDrift: 1.1,         // how hard it peels away to its side over the tapering tail
     // --- water bodies (lake / reservoir): income + auto-reach helper ---------
     // Income (the Aquifer Tap trickle) only kicks in when a strand is VISIBLY HUGGING the
     // water — a node within this many world units of a water cell's edge (~0.4 cell). The

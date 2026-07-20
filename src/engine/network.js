@@ -321,11 +321,46 @@ export class Network {
     return 0;
   }
 
+  // An organic COMPANION strand for directed grows: a runner that branches off the
+  // cord, SHADOWS the main heading `baseAng` for the first `companionFollow` of its
+  // length (running alongside toward the goal), then TAPERS OFF to one side over the
+  // tail — so growth reads more like real mycelium. Decorative (nodes flagged .side,
+  // excluded from the seek/crowd buckets); drawn only from _branchRng so it never
+  // perturbs the main growth path. Returns the number of nodes created.
+  _sproutCompanionStrand(substrate, from, baseAng, len) {
+    const g = this.config.growth;
+    const rng = this._branchRng;
+    if (!from || len < 1 || this.nodes.length >= g.maxNodes) return 0;
+    const side = rng.chance(0.5) ? 1 : -1;
+    const follow = g.companionFollow != null ? g.companionFollow : 0.6;
+    const drift = g.companionDrift != null ? g.companionDrift : 1.1;
+    let ang = baseAng + side * rng.range(0.2, 0.5);   // branch off to one side…
+    let parent = from, made = 0;
+    for (let i = 0; i < len; i++) {
+      if (this.nodes.length >= g.maxNodes) break;
+      const t = len > 1 ? i / (len - 1) : 1;
+      if (t <= follow) {
+        ang += (baseAng - ang) * 0.5 + rng.range(-g.branchJitter, g.branchJitter);   // …ease back onto the cord
+      } else {
+        ang += side * drift * ((t - follow) / (1 - follow)) * 0.5 + rng.range(-g.branchJitter, g.branchJitter);   // …then peel away
+      }
+      const nx = parent.x + Math.cos(ang) * g.segmentLength;
+      const ny = parent.y + Math.sin(ang) * g.segmentLength;
+      if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;
+      parent = this.addNode(nx, ny, parent);
+      parent.side = true; parent.companion = true;   // .side = excluded from seek/crowd; .companion tags these for tuning/diagnostics
+      made++;
+    }
+    return made;
+  }
+
   // Grow a chain of `steps` segments in direction (dx,dy). The chain starts from
   // `startTip` when given (aimed plays pass the tip nearest the aim point, so growth
   // originates from the strand you aimed from); otherwise it starts from the frontier
   // tip furthest along (dx,dy). straight=true ignores jitter; returns nodes created.
-  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null, noDodge = false) {
+  // companion=true also throws occasional organic COMPANION runners (see above) — an
+  // opt-in test currently used only by Rhizomorph Lance.
+  growDirected(substrate, rng, dx, dy, steps, straight = false, startTip = null, noDodge = false, companion = false) {
     const g = this.config.growth;
     const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
     const tips = this.tips();
@@ -382,6 +417,11 @@ export class Network {
       created++;
       // Experimental: each step may sprout a small side-strand off a random point of it.
       if (this._branchRng.chance(g.sideStrandChance)) created += this._sproutSideStrand(substrate, strand);
+      // Opt-in (Rhizomorph Lance test): occasionally throw an organic COMPANION runner
+      // that shadows the cord toward the goal, then tapers off (see _sproutCompanionStrand).
+      if (companion && this._branchRng.chance(g.companionChance != null ? g.companionChance : 0)) {
+        created += this._sproutCompanionStrand(substrate, parent, baseAng, this._branchRng.int(g.companionMin || 3, g.companionMax || 8));
+      }
     }
     // Directed growth also colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);

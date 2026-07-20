@@ -482,6 +482,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Organic COMPANION strands on directed grows — TEST wired to Rhizomorph Lance only.** Owner wants normal
+  grows to feel more like mycelium: an occasional runner that branches off, SHADOWS the main heading toward the
+  goal for a while, then tapers off to one side. Impl: `network.js _sproutCompanionStrand(substrate, from,
+  baseAng, len)` — branches off at ±0.2–0.5 rad, eases back onto `baseAng` for the first `companionFollow`
+  (0.6) of its length (runs alongside the cord), then peels away over the tail (`companionDrift` 1.1). Nodes
+  flagged `.side` (excluded from seek/crowd buckets, like `_sproutSideStrand`) **and** `.companion` (diagnostic
+  tag). Drawn only from `_branchRng` so it never perturbs the main path. `growDirected` gained an opt-in 9th
+  param `companion=false`; when true it rolls `companionChance` (0.22) per step and throws a runner of
+  `companionMin..Max` (4..9) segments. **Only Rhizomorph Lance passes `companion=true`** (cards.js) for now —
+  the other directed grows (Apical Drive, Fruiting Vigil, Leading Cord, Tropic Lunge) are unchanged pending
+  owner sign-off. Config knobs (`config.growth`): `companionChance/Min/Max/Follow/Drift`. Verified geometry
+  (`scratchpad/lance_render.mjs` — white cord / blue companions / dim old side-twigs): companions shadow the
+  cord then peel off, as intended. NB the pre-existing random side-twigs (`sideStrandChance` 0.6, random
+  direction) are separate and still fire on every directed grow. Tests green; import-leak 0. If approved,
+  enable `companion=true` on the other directed-grow effects.
+
 - **Foraging Fan + Forager Bloom → AIMED directional fan (was omni "every direction").** Owner: aim it like
   any other growth card and fan out 3 steps in the chosen direction ("looks like the current fan played 3× but
   one direction — pretty + thematic"). New effect text: Foraging Fan = "Grow 3 steps: choose a direction and
