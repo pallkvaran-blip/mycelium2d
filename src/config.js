@@ -165,7 +165,10 @@ export const CONFIG = {
     grow5Segments: 15,           // paid grow-5 family (Guerrilla Runners/Translocation Cord/Explorer Cord/Bulk-Flow Cord): "5 steps" (5 × 3)
     foodSeekSteps: 2,            // food-seek grows (Hyphal Extension / Colonizing Front): how many grow() passes per play — buffed 1→2
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
-    foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
+    foragingFanCells: 3,         // (legacy omni fan — kept for reference; Foraging Fan is now directional)
+    fanSteps: 9,                 // Foraging Fan / Forager Bloom: "3 steps" (3 × 3) fanned out in the AIMED direction
+    fanRays: 5,                  // rays in the directional fan wedge (straight-out + widening side rays)
+    fanSpread: 0.5,              // angle (radians) between adjacent fan rays — how wide the wedge opens
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius

@@ -1328,8 +1328,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "exm708";
-globalThis.__BUILD__ = "local 07-20 12:43";
+window.__ASSET_VER = "13pyqrs";
+globalThis.__BUILD__ = "local 07-20 13:26";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1500,7 +1500,10 @@ const CONFIG = {
     grow5Segments: 15,           // paid grow-5 family (Guerrilla Runners/Translocation Cord/Explorer Cord/Bulk-Flow Cord): "5 steps" (5 × 3)
     foodSeekSteps: 2,            // food-seek grows (Hyphal Extension / Colonizing Front): how many grow() passes per play — buffed 1→2
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
-    foragingFanCells: 3,         // Foraging Fan: "1 step" (3 cells) outward in every direction
+    foragingFanCells: 3,         // (legacy omni fan — kept for reference; Foraging Fan is now directional)
+    fanSteps: 9,                 // Foraging Fan / Forager Bloom: "3 steps" (3 × 3) fanned out in the AIMED direction
+    fanRays: 5,                  // rays in the directional fan wedge (straight-out + widening side rays)
+    fanSpread: 0.5,              // angle (radians) between adjacent fan rays — how wide the wedge opens
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
@@ -1901,7 +1904,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 1 step: every direction.",
+  "effect": "Grow 3 steps: choose a direction and fan out.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -2297,7 +2300,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 1 W to fan out, growing 1 step in every direction.",
+  "effect": "Once per 6 rounds: pay 1 W to grow 3 steps, fanning out in a chosen direction.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0
@@ -4589,6 +4592,61 @@ class Network {
       if (this._branchRng.chance(g.sideStrandChance)) created += this._sproutSideStrand(substrate, strand);
     }
     // Directed growth also colonises any substrate pile it brought within reach.
+    created += this.colonizeReachablePiles(substrate, rng);
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
+    return created;
+  }
+
+  // DIRECTIONAL FAN (Foraging Fan / Forager Bloom): aim a heading and fan OUTWARD in
+  // THAT direction only — a wedge of probe-chains opening from the aimed source tip,
+  // each `steps` segments deep. Reads like the omni fan committed to one direction.
+  // A few rays spread around the aim (straight-out plus widening side rays); each ray
+  // dodges rock (smallest deviation first) and stops when walled in or crowded, so it
+  // rounds corners and threads gaps like the other grows. `fanRays` (config) sets how
+  // many rays / how wide the wedge opens.
+  growFanDirected(substrate, rng, dx, dy, steps, startTip = null) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 0;
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const aim = Math.atan2(dy, dx);
+    const spacing = Math.max(4, g.minTipSpacing * 0.55);   // relaxed so a packed frontier can still push out
+    const key = (c, r) => c + ',' + r;
+    const buckets = new Map();
+    const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
+    for (const n of this.nodes) if (!n.infected) bucket(n);
+    // One clear segment from `start` toward `ang` (dodge rock, honour min-spacing).
+    const step1 = (start, ang) => {
+      if (this.nodes.length >= g.maxNodes) return null;
+      for (const off of [0, 0.28, -0.28, 0.58, -0.58, 0.9, -0.9]) {
+        const a = ang + off + rng.range(-g.branchJitter, g.branchJitter) * 0.35;
+        const nx = start.x + Math.cos(a) * g.segmentLength, ny = start.y + Math.sin(a) * g.segmentLength;
+        if (!this._segmentClear(substrate, start.x, start.y, nx, ny)) continue;
+        if (this._tooClose(nx, ny, spacing, substrate, buckets, key, 1)) continue;
+        const node = this.addNode(nx, ny, start); bucket(node); return node;
+      }
+      return null;
+    };
+    // Aimed source: the forced press tip (startTip), else the frontier tip furthest along the aim.
+    const tips = this.tips();
+    if (!tips.length) return 0;
+    const source = (startTip && !startTip.infected) ? startTip
+      : tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy))[0];
+    // Fan wedge: rays spread symmetrically around the aim (straight out first, then wider).
+    const n = Math.max(1, g.fanRays || 5);
+    const spread = g.fanSpread != null ? g.fanSpread : 0.5;   // radians between adjacent rays
+    const rays = [0];
+    for (let k = 1; rays.length < n; k++) { rays.push(k * spread); if (rays.length < n) rays.push(-k * spread); }
+    let created = 0;
+    for (const off of rays) {
+      if (this.nodes.length >= g.maxNodes) break;
+      let parent = source;
+      for (let s = 0; s < steps; s++) {
+        const nx = step1(parent, aim + off);
+        if (!nx) break;
+        parent = nx; created++;
+      }
+    }
+    // Fanning out also fully colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
     if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
     return created;
@@ -7256,17 +7314,14 @@ const EFFECTS = {
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
     return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
   }),
-  'Foraging Fan': grow((s) => {
+  // Aim a heading (press-and-drag) and fan OUTWARD in that direction — a wedge of
+  // probe-chains "3 steps" deep, like playing the old omni fan 3× but committed to one
+  // way. Partial growth always succeeds; only a source walled in on every ray fails.
+  'Foraging Fan': directional((s) => s.config.cards.fanSteps, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-    // Partial growth always succeeds: every frontier tip with open ground fans
-    // out, even if rock walls off the others. Only when NOT ONE tip anywhere can
-    // advance do we fail — and then we name the real reason (rock vs. too dense).
-    const n = s.active.growRadial(s.substrate, s.rng);
-    if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
-    const reason = s.active.fanBlockReason(s.substrate);
-    if (reason === 'cap') return { ok: false, message: MAXED_MSG };
-    if (reason === 'crowded') return { ok: false, message: 'The colony is packed too tightly here to fan out any further.' };
-    return { ok: false, message: 'Rock walls the colony in on every side — nowhere to fan out.' };
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growFanDirected(s.substrate, s.rng, dx, dy, s.config.cards.fanSteps, tip);
+    return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'Blocked — nothing fanned out that way.' };
   }),
   'Tropic Lunge': grow((s) => {
     // Lunge from the strand closest to ANY food it hasn't reached yet, toward that
@@ -7464,14 +7519,11 @@ EFFECTS['Leading Cord'] = action({ effect: 'grow 3 in a chosen direction', every
   const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
   return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
 });
-EFFECTS['Forager Bloom'] = action({ effect: 'fan out: grow every direction', every: 6, cost: 1, res: 'water' }, (s) => {
+EFFECTS['Forager Bloom'] = action({ effect: 'fan out 3 steps in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.fanSteps }, (s, ctx) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-  const n = s.active.growRadial(s.substrate, s.rng);
-  if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
-  const reason = s.active.fanBlockReason(s.substrate);
-  if (reason === 'cap') return { ok: false, message: MAXED_MSG };
-  if (reason === 'crowded') return { ok: false, message: 'Packed too tightly to fan out any further.' };
-  return { ok: false, message: 'Rock walls the colony in — nowhere to fan out.' };
+  const { dx, dy, tip } = dirFrom(s, ctx);
+  const n = s.active.growFanDirected(s.substrate, s.rng, dx, dy, s.config.cards.fanSteps, tip);
+  return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'Blocked — nothing fanned out that way.' };
 });
 EFFECTS['Questing Front'] = action({ effect: 'grow 5 steps to the nearest food', every: 6, cost: 2, res: 'water' }, (s) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };

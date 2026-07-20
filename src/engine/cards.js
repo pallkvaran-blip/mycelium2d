@@ -823,17 +823,14 @@ export const EFFECTS = {
     const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
     return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
   }),
-  'Foraging Fan': grow((s) => {
+  // Aim a heading (press-and-drag) and fan OUTWARD in that direction — a wedge of
+  // probe-chains "3 steps" deep, like playing the old omni fan 3× but committed to one
+  // way. Partial growth always succeeds; only a source walled in on every ray fails.
+  'Foraging Fan': directional((s) => s.config.cards.fanSteps, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-    // Partial growth always succeeds: every frontier tip with open ground fans
-    // out, even if rock walls off the others. Only when NOT ONE tip anywhere can
-    // advance do we fail — and then we name the real reason (rock vs. too dense).
-    const n = s.active.growRadial(s.substrate, s.rng);
-    if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
-    const reason = s.active.fanBlockReason(s.substrate);
-    if (reason === 'cap') return { ok: false, message: MAXED_MSG };
-    if (reason === 'crowded') return { ok: false, message: 'The colony is packed too tightly here to fan out any further.' };
-    return { ok: false, message: 'Rock walls the colony in on every side — nowhere to fan out.' };
+    const { dx, dy, tip } = dirFrom(s, ctx);
+    const n = s.active.growFanDirected(s.substrate, s.rng, dx, dy, s.config.cards.fanSteps, tip);
+    return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'Blocked — nothing fanned out that way.' };
   }),
   'Tropic Lunge': grow((s) => {
     // Lunge from the strand closest to ANY food it hasn't reached yet, toward that
@@ -1031,14 +1028,11 @@ EFFECTS['Leading Cord'] = action({ effect: 'grow 3 in a chosen direction', every
   const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.directionalSteps, false, tip);
   return n > 0 ? { ok: true, message: `Grew ${n} in your chosen direction.` } : { ok: false, message: 'Blocked — nothing grew that way.' };
 });
-EFFECTS['Forager Bloom'] = action({ effect: 'fan out: grow every direction', every: 6, cost: 1, res: 'water' }, (s) => {
+EFFECTS['Forager Bloom'] = action({ effect: 'fan out 3 steps in a chosen direction', every: 6, cost: 1, res: 'water', target: true, aim: 'drag', reachFn: (s) => s.config.cards.fanSteps }, (s, ctx) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
-  const n = s.active.growRadial(s.substrate, s.rng);
-  if (n > 0) return { ok: true, message: `Fanned out and colonised ${n} filaments.` };
-  const reason = s.active.fanBlockReason(s.substrate);
-  if (reason === 'cap') return { ok: false, message: MAXED_MSG };
-  if (reason === 'crowded') return { ok: false, message: 'Packed too tightly to fan out any further.' };
-  return { ok: false, message: 'Rock walls the colony in — nowhere to fan out.' };
+  const { dx, dy, tip } = dirFrom(s, ctx);
+  const n = s.active.growFanDirected(s.substrate, s.rng, dx, dy, s.config.cards.fanSteps, tip);
+  return n > 0 ? { ok: true, message: `Fanned out and colonised ${n} filaments.` } : { ok: false, message: 'Blocked — nothing fanned out that way.' };
 });
 EFFECTS['Questing Front'] = action({ effect: 'grow 5 steps to the nearest food', every: 6, cost: 2, res: 'water' }, (s) => {
   if (maxedOut(s)) return { ok: false, message: MAXED_MSG };

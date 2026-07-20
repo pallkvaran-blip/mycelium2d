@@ -89,7 +89,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Grow 1 step: every direction.",
+  "effect": "Grow 3 steps: choose a direction and fan out.",
   "family": "basics",
   "tutorial": false,
   "startCopies": 0
@@ -485,7 +485,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "none",
   "produces": "",
-  "effect": "Once per 6 rounds: pay 1 W to fan out, growing 1 step in every direction.",
+  "effect": "Once per 6 rounds: pay 1 W to grow 3 steps, fanning out in a chosen direction.",
   "family": "installs",
   "tutorial": true,
   "startCopies": 0

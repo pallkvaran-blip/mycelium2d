@@ -389,6 +389,61 @@ export class Network {
     return created;
   }
 
+  // DIRECTIONAL FAN (Foraging Fan / Forager Bloom): aim a heading and fan OUTWARD in
+  // THAT direction only — a wedge of probe-chains opening from the aimed source tip,
+  // each `steps` segments deep. Reads like the omni fan committed to one direction.
+  // A few rays spread around the aim (straight-out plus widening side rays); each ray
+  // dodges rock (smallest deviation first) and stops when walled in or crowded, so it
+  // rounds corners and threads gaps like the other grows. `fanRays` (config) sets how
+  // many rays / how wide the wedge opens.
+  growFanDirected(substrate, rng, dx, dy, steps, startTip = null) {
+    const g = this.config.growth;
+    if (this.nodes.length >= g.maxNodes) return 0;
+    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const aim = Math.atan2(dy, dx);
+    const spacing = Math.max(4, g.minTipSpacing * 0.55);   // relaxed so a packed frontier can still push out
+    const key = (c, r) => c + ',' + r;
+    const buckets = new Map();
+    const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
+    for (const n of this.nodes) if (!n.infected) bucket(n);
+    // One clear segment from `start` toward `ang` (dodge rock, honour min-spacing).
+    const step1 = (start, ang) => {
+      if (this.nodes.length >= g.maxNodes) return null;
+      for (const off of [0, 0.28, -0.28, 0.58, -0.58, 0.9, -0.9]) {
+        const a = ang + off + rng.range(-g.branchJitter, g.branchJitter) * 0.35;
+        const nx = start.x + Math.cos(a) * g.segmentLength, ny = start.y + Math.sin(a) * g.segmentLength;
+        if (!this._segmentClear(substrate, start.x, start.y, nx, ny)) continue;
+        if (this._tooClose(nx, ny, spacing, substrate, buckets, key, 1)) continue;
+        const node = this.addNode(nx, ny, start); bucket(node); return node;
+      }
+      return null;
+    };
+    // Aimed source: the forced press tip (startTip), else the frontier tip furthest along the aim.
+    const tips = this.tips();
+    if (!tips.length) return 0;
+    const source = (startTip && !startTip.infected) ? startTip
+      : tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy))[0];
+    // Fan wedge: rays spread symmetrically around the aim (straight out first, then wider).
+    const n = Math.max(1, g.fanRays || 5);
+    const spread = g.fanSpread != null ? g.fanSpread : 0.5;   // radians between adjacent rays
+    const rays = [0];
+    for (let k = 1; rays.length < n; k++) { rays.push(k * spread); if (rays.length < n) rays.push(-k * spread); }
+    let created = 0;
+    for (const off of rays) {
+      if (this.nodes.length >= g.maxNodes) break;
+      let parent = source;
+      for (let s = 0; s < steps; s++) {
+        const nx = step1(parent, aim + off);
+        if (!nx) break;
+        parent = nx; created++;
+      }
+    }
+    // Fanning out also fully colonises any substrate pile it brought within reach.
+    created += this.colonizeReachablePiles(substrate, rng);
+    if (created) { this.reachForWater(substrate); this.recomputeVitality(); }
+    return created;
+  }
+
   // Foraging Fan: EVERY frontier strand fans OUTWARD at once — a slow even ring of
   // probing tips (no food needed). Each current tip sprouts a small outward fan of
   // short probe-chains (`foragingFanCells` deep): the straight-out chain guarantees

@@ -482,6 +482,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Foraging Fan + Forager Bloom → AIMED directional fan (was omni "every direction").** Owner: aim it like
+  any other growth card and fan out 3 steps in the chosen direction ("looks like the current fan played 3× but
+  one direction — pretty + thematic"). New effect text: Foraging Fan = "Grow 3 steps: choose a direction and
+  fan out."; Forager Bloom = "Once per 6 rounds: pay 1 W to grow 3 steps, fanning out in a chosen direction."
+  Impl: new engine method **`network.js growFanDirected(substrate,rng,dx,dy,steps,startTip)`** — from the aimed
+  source tip, grows a wedge of `fanRays` (5) rays spread `fanSpread` (0.5 rad) around the aim, each a chain up
+  to `fanSteps` (9 seg = "3 steps") deep, dodging rock + honouring min-spacing (mirrors growRadial's chain
+  machinery). Config: `cards.fanSteps/fanRays/fanSpread` (tunable); old `foragingFanCells` kept as a legacy
+  note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)` (press-and-drag, `target:true`,
+  `aim:'drag'`); Forager Bloom's installed action gained `target/aim:'drag'/reachFn` and calls growFanDirected.
+  `growRadial`/`fanBlockReason` are now unused (left in place). Verified in a real run (Playwright): the card
+  faces show the new text and playing it grows a fan wedge in the aimed direction that colonises reached piles
+  (triggers the draft). Tests green; import-leak 0. Tunable via the three config knobs if the spread/reach need
+  taste adjustment.
+
 - **BUG (ON HOLD — awaiting repro specifics): food piles sometimes INVISIBLE until you grow into them.**
   Owner report: "sometimes food piles are not visible on the map until I grow into them, then they magically
   appear" — and crucially **not just hard to spot: not visible AT ALL** until they "appear out of nowhere when
