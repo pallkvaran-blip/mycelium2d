@@ -65,10 +65,27 @@ export class Lighting {
     lc.globalCompositeOperation = 'lighter';
     const baseR = r.lightRadius * camera.zoom;
 
-    // Nutrient pockets no longer emit a radial glow — that halo read like a
-    // "field of vision" around the substrate. Food is shown as heaped leaves
-    // (main.js), lit only by ambient + the colony, not its own light.
     if (substrateRenderer) {
+      // Food caches — a SMALL, tight warm glow so a pile reads as a point of interest
+      // in the dimmed earth (you can spot food BEFORE the colony reaches it, instead of
+      // it only "appearing" once a bright strand grows alongside). Deliberately much
+      // smaller + dimmer than the old full-radius glow, which read as a "field of vision"
+      // halo. NOT gated by the sensing toggle — food visibility is always on. Each point's
+      // brightness fades with its cell's remaining nutrient, so it dims out as the pile is
+      // digested (matching the leaves fading).
+      const fp = substrateRenderer.foodLightPoints;
+      if (fp && fp.length) {
+        const foodR = (r.foodLightRadius != null ? r.foodLightRadius : 30) * camera.zoom;
+        const foodA = (r.foodLightAlpha != null ? r.foodLightAlpha : 0.5) * breath;
+        const cells = state.substrate.cells;
+        for (let i = 0; i < fp.length; i++) {
+          const c = cells[fp[i].i];
+          if (!c || c.maxNutrient <= 0) continue;
+          const frac = c.nutrient / c.maxNutrient;   // fade as the pile drains
+          if (frac <= 0) continue;
+          this._light(lc, camera, this.spriteFood, fp[i].x, fp[i].y, foodR, foodA * frac * (fp[i].w || 1), W, H);
+        }
+      }
       // Toxic pools — teal glow.
       const hp = substrateRenderer.hazardLightPoints;
       const hs = Math.max(1, Math.ceil(hp.length / 60));

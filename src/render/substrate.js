@@ -607,12 +607,24 @@ export class SubstrateRenderer {
     const sub = this.substrate;
     const cs = sub.cellSize, sy = sub.surfaceY;
     octx.clearRect(0, 0, this.dyn.width, this.dyn.height);
-    this.foodLightPoints = [];
     octx.lineCap = 'round';
 
     // Substrate (food) is now drawn as heaped LEAF SPRITES by main.js, so the
     // old procedural detritus (the round lumps that showed through under the
     // leaves) is no longer baked here.
+
+    // Food caches emit a SMALL, tight warm glow (added by lighting.compose) so a
+    // pile reads as a point of interest in the dimmed earth — you can spot food
+    // BEFORE the colony reaches it, instead of it only "appearing" once a bright
+    // strand grows alongside. Positions are static (one point per food cell, baked
+    // here); the per-pile brightness fades LIVE in compose as the pile is digested.
+    this.foodLightPoints = [];
+    sub.forEachCell((cell, col, row) => {
+      if (cell.rock || !cell.foodKind || cell.maxNutrient <= 0) return;
+      // engine caches (the prize) glow a touch stronger; low-value duff a touch weaker.
+      const w = cell.foodKind === 'cache-engine' ? 1.15 : cell.foodKind === 'duff' ? 0.82 : 1;
+      this.foodLightPoints.push({ x: col * cs + cs / 2, y: sy + row * cs + cs / 2, i: sub.index(col, row), w });
+    });
 
     // Trichoderma — fuzzy speckled growth. Drawn boldly so it's easy to spot:
     // even faint mould reads clearly, and it holds opacity well across the cell.
