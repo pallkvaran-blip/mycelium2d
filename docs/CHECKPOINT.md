@@ -490,9 +490,10 @@ Both menus are dark, on-theme, with glowing green borders.
   flagged `.side` (excluded from seek/crowd buckets, like `_sproutSideStrand`) **and** `.companion` (diagnostic
   tag). Drawn only from `_branchRng` so it never perturbs the main path. `growDirected` gained an opt-in 9th
   param `companion=false`; when true it rolls `companionChance` (0.22) per step and throws a runner of
-  `companionMin..Max` (4..9) segments. **Only Rhizomorph Lance passes `companion=true`** (cards.js) for now —
-  the other directed grows (Apical Drive, Fruiting Vigil, Leading Cord, Tropic Lunge) are unchanged pending
-  owner sign-off. Config knobs (`config.growth`): `companionChance/Min/Max/Follow/Drift`. Verified geometry
+  `companionMin..Max` (4..9) segments. **Currently OFF everywhere** — Rhizomorph Lance's `companion` arg was
+  flipped back to `false` (owner is evaluating the curved twigs ALONE first); the machinery stays in place, so
+  re-enabling is a one-flag change (cards.js Rhizomorph Lance last arg → `true`). The other directed grows
+  (Apical Drive, Fruiting Vigil, Leading Cord, Tropic Lunge) never had it. Config knobs (`config.growth`): `companionChance/Min/Max/Follow/Drift`. Verified geometry
   (`scratchpad/lance_render.mjs` — white cord / blue companions / dim side-twigs): companions shadow the
   cord then peel off, as intended. Tests green; import-leak 0. If approved, enable `companion=true` on the
   other directed-grow effects.

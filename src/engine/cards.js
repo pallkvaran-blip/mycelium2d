@@ -858,9 +858,9 @@ export const EFFECTS = {
   'Rhizomorph Lance': directional((s) => s.config.cards.reachSegments, (s, c, ctx) => {
     if (maxedOut(s)) return { ok: false, message: MAXED_MSG };
     const { dx, dy, tip } = dirFrom(s, ctx);
-    // companion=true (last arg): organic-growth TEST — the lance throws occasional
-    // runners that shadow the cord toward the goal then taper off (network.js).
-    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip, false, true);
+    // last arg = companion runners: OFF for now (owner testing the curved twigs alone).
+    // Flip to `true` to bring back the shadow-then-peel companions (network.js).
+    const n = s.active.growDirected(s.substrate, s.rng, dx, dy, s.config.cards.reachSegments, true, tip, false, false);
     return n > 0 ? { ok: true, message: `Lanced ${n} cells forward.` } : { ok: false, message: 'Blocked — the lance hit rock.' };
   }),
   'Fruiting Vigil': directional(() => 24, (s, c, ctx) => {   // "up to 8 steps" (8 × 3 segments)
