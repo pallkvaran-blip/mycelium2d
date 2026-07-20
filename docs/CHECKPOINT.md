@@ -482,13 +482,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Browser tab: title → "Mycelium", favicon → a petri-dish mycelium colony.** Title dropped the
-  "— Phase 1" suffix. Favicon is `assets/favicon.png` — a circular (transparent-outside) crop of the
-  **Forager Bloom** card art (a dense radial hyphal colony, i.e. a colony in a dish), generated from
-  `assets/cards/forager-bloom.jpg`. Both the title and favicon are set in **`build.mjs`** (the standalone
-  `<head>` template — NOT inherited from `index.html`): title literal + the favicon inlined as a PNG
-  **data URI** so `dist/index.html` is self-contained. `index.html` (source, played over http) references
-  `assets/favicon.png` directly. Rebuilt + verified in `dist` (title, data-URI icon, emoji removed).
+- **Browser tab: title → "Mycelium", favicon → a simple vector mycelium mark.** Title dropped the
+  "— Phase 1" suffix. Favicon is **`assets/favicon.svg`** — a bold, *simplified* radial mycelium (6 forked
+  branches + a centre node, one medium-teal `#1ec08f`, **transparent** background, round caps) hand-built
+  as SVG so it stays crisp and legible at 16px. (First attempt was a circular crop of the Forager Bloom
+  card art — rejected: too detailed to read when tiny, and the photo's black/feathered disc showed instead
+  of transparency.) Title + favicon are set in **`build.mjs`** (its own `<head>` template — NOT inherited
+  from `index.html`): title literal + the SVG inlined as a base64 **data URI** so `dist/index.html` is
+  self-contained; `index.html` (source) references `assets/favicon.svg`. Verified across 16–64px on light
+  AND dark tab backgrounds via a Playwright render. Rebuilt; the old `favicon.png` removed.
 
 - **Settings-menu + softlock fixes (owner batch).**
   - **"Force Fruiting (abandon run)"** added to the gear settings menu (`ui.js` `#set-forcefruit`,
