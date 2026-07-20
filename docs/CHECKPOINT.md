@@ -482,6 +482,35 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **BUG (ON HOLD — awaiting repro specifics): food piles sometimes INVISIBLE until you grow into them.**
+  Owner report: "sometimes food piles are not visible on the map until I grow into them, then they magically
+  appear" — and crucially **not just hard to spot: not visible AT ALL** until they "appear out of nowhere when
+  I grew into them," and (unsure) "so far only relatively close to the finish line." **Root cause NOT yet
+  found.** Owner will provide specifics next time it happens (screenshot / what the pile was next to / which
+  card revealed it). What's been done so far:
+  - **REJECTED fix — do NOT re-add:** a food self-glow (config `render.foodLightRadius`/`foodLightAlpha` +
+    repopulating `substrateRenderer.foodLightPoints` in `_bakeDynamic`, drawn in `lighting.js compose`).
+    Committed (`ede2808`) then **REVERTED** (`b11f922`). Owner: "this was not the issue and the fix makes the
+    food piles look very off." The piles were genuinely invisible, not dim — a glow doesn't address that.
+  - **Ruled out (with evidence):** (1) food generated under rock — `substrate.js drop()` refuses `cell.rock`
+    and keeps a `foodRockBuffer` (2.2) clearance; reservoirs (placed last) treat `maxNutrient>0` as unmovable,
+    so they never overwrite food. (2) Rock-SPRITE occlusion as the *goal-specific* cause — 40-map headless
+    analysis (`scratchpad/food_occlusion.mjs`): occlusion is ~uniform across the map, if anything **lower**
+    near the goal (boulders stop at `goalStart-2`; formations/columns exclude the summer+goal zone). (3) Goal
+    hill / goal props — drawn ABOVE the soil line, don't cover underground. (4) Camera auto-follow — the camera
+    never pans on growth (`camFocus`/`focusWorld` fire only on win/death/level-intro), so piles don't scroll
+    in. (5) Lighting — reverted, and `sensingLightOn` is false so compose adds no local grow-reveal anyway.
+  - **Confirmed:** food piles **do render normally** in general (verified via real-run screenshots). A full
+    pile (`nutrient>0`, not rock, on-screen) is ALWAYS drawn by `drawSubstrateLeaves` — the only draw-gate that
+    can flip hidden→shown is `cell.rock` going false (dig/`punchThrough`), but generation never puts food on
+    rock. So the mechanism is still open.
+  - **One unconfirmed oddity:** engine/feature caches can spill a column or two INTO the goal zone (saw an
+    engine-cache centroid at col 67 with `goalStart=66`) — a plausible "near the finish line" lead.
+  - **Next-step idea (not yet built):** a `#dbgfood` debug overlay that outlines EVERY food-pile cell in the
+    same frame (same camera, no cull, no occlusion, drawn over everything) to distinguish occluded vs culled vs
+    truly-absent. Harnesses live in `scratchpad/`: `real_run.mjs` (boots a real run + dumps pile positions),
+    `food_occlusion.mjs` (headless occlusion stats).
+
 - **Browser tab: title → "Mycelium", favicon → a black organic mycelium mark (dark-mode auto-inverting).**
   Title dropped the "— Phase 1" suffix. Favicon is **`assets/favicon.svg`** — an *organic radial colony*
   (8 irregular forked filaments + a centre node) hand-built as a recursive-branch SVG, **transparent**
@@ -2242,6 +2271,16 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 10. Known caveats / watch-items
+
+- **`#dev` quick-start CRASHES headless Chromium in this env.** The dev scaffold (`initCards(state,'testall')`
+  = 300 E/W/P + 5× every card) hard-crashes the page ~0.5s after load in Playwright (no pageerror; browser
+  disconnects). The game itself boots fine to the title screen. To boot a REAL run headless, drive the normal
+  flow: `goto …/index.html#tutorial` (or `#notrich`) → wait `#ssAvail .ss-card` → click it → click `#ssIStart`
+  → click to dismiss `#levelIntro`. Then `window.__game` is live (camera/state/etc.). See
+  `scratchpad/real_run.mjs`. `deviceScaleFactor:1` and `--disable-dev-shm-usage` help stability.
+
+- **Food-pile "invisible until grown into" bug is OPEN (see §9).** Do NOT re-add a food self-glow — that was
+  tried and rejected (piles are truly invisible, not dim). Awaiting owner repro specifics.
 
 - **The punishing early game is INTENTIONAL roguelike design — never "balance-fix" it.** (Owner canon,
   see `cards-design.md` §1a.) A first run is *meant* to die by ~level 3; the two ungated starting species
