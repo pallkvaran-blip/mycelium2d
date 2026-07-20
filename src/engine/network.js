@@ -390,16 +390,19 @@ export class Network {
   }
 
   // DIRECTIONAL FAN (Foraging Fan / Forager Bloom): aim a heading and fan OUTWARD in
-  // THAT direction only — a wedge of probe-chains opening from the aimed source tip,
-  // each `steps` segments deep. Reads like the omni fan committed to one direction.
-  // A few rays spread around the aim (straight-out plus widening side rays); each ray
-  // dodges rock (smallest deviation first) and stops when walled in or crowded, so it
-  // rounds corners and threads gaps like the other grows. `fanRays` (config) sets how
-  // many rays / how wide the wedge opens.
+  // THAT direction only — but as a RECURSIVE fern, not a handful of straight rays: the
+  // source throws a few primary limbs spread around the aim, each limb FORKS into
+  // narrower child limbs, and those fork again (`fanGens` generations), so the whole
+  // thing fills into a proper fan. Each limb dodges rock (smallest deviation first) and
+  // stops when walled in or crowded, so it rounds corners and threads gaps. The deepest
+  // path is ~`steps` segments (limb lengths decay by `fanFalloff` per generation and are
+  // sized so they sum to `steps`); a node BUDGET (`fanBudget`) caps the whole fan so it
+  // stays full but never explodes. Tunables: fanRays/fanSpread/fanGens/fanForks/
+  // fanForkAngle/fanFalloff/fanBudget (config.growth).
   growFanDirected(substrate, rng, dx, dy, steps, startTip = null) {
     const g = this.config.growth;
     if (this.nodes.length >= g.maxNodes) return 0;
-    const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+    const norm = Math.hypot(dx, dy) || 1; dx /= norm; dy /= norm;
     const aim = Math.atan2(dy, dx);
     const spacing = Math.max(4, g.minTipSpacing * 0.55);   // relaxed so a packed frontier can still push out
     const key = (c, r) => c + ',' + r;
@@ -423,21 +426,40 @@ export class Network {
     if (!tips.length) return 0;
     const source = (startTip && !startTip.infected) ? startTip
       : tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy))[0];
-    // Fan wedge: rays spread symmetrically around the aim (straight out first, then wider).
-    const n = Math.max(1, g.fanRays || 5);
-    const spread = g.fanSpread != null ? g.fanSpread : 0.5;   // radians between adjacent rays
-    const rays = [0];
-    for (let k = 1; rays.length < n; k++) { rays.push(k * spread); if (rays.length < n) rays.push(-k * spread); }
+
+    const gens = Math.max(0, g.fanGens != null ? g.fanGens : 2);
+    const falloff = g.fanFalloff != null ? g.fanFalloff : 0.7;
+    const forkAngle = g.fanForkAngle != null ? g.fanForkAngle : 0.5;
+    const forks = Math.max(2, g.fanForks || 2);
+    let budget = Math.max(1, g.fanBudget || 60);
+    // Base limb length so the decaying generations sum to ~`steps` along the deepest path.
+    let ratioSum = 0; for (let gi = 0; gi <= gens; gi++) ratioSum += Math.pow(falloff, gi);
+    const len0 = Math.max(2, Math.round(steps / ratioSum));
+
     let created = 0;
-    for (const off of rays) {
-      if (this.nodes.length >= g.maxNodes) break;
-      let parent = source;
-      for (let s = 0; s < steps; s++) {
-        const nx = step1(parent, aim + off);
-        if (!nx) break;
-        parent = nx; created++;
+    // Grow one limb `len` segs toward `heading`, then FORK into `forks` children that
+    // spread ±forkAngle and recurse (each shorter). Bounded by the shared node budget.
+    const limb = (start, heading, len, gen) => {
+      let parent = start, grown = 0;
+      for (let i = 0; i < len && budget > 0; i++) {
+        const nxt = step1(parent, heading);
+        if (!nxt) break;
+        parent = nxt; grown++; created++; budget--;
       }
-    }
+      if (grown === 0 || gen >= gens || budget <= 0) return;
+      const childLen = Math.max(1, Math.round(len * falloff));
+      const offs = [];
+      for (let k = 1; offs.length < forks; k++) { offs.push(k * forkAngle); if (offs.length < forks) offs.push(-k * forkAngle); }
+      for (const o of offs) { if (budget <= 0) break; limb(parent, heading + o, childLen, gen + 1); }
+    };
+
+    // Primary limbs: a base spread of rays around the aim, each a recursive fern.
+    const nRays = Math.max(1, g.fanRays || 3);
+    const spread = g.fanSpread != null ? g.fanSpread : 0.5;
+    const rays = [0];
+    for (let k = 1; rays.length < nRays; k++) { rays.push(k * spread); if (rays.length < nRays) rays.push(-k * spread); }
+    for (const off of rays) { if (budget <= 0) break; limb(source, aim + off, len0, 0); }
+
     // Fanning out also fully colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
     if (created) { this.reachForWater(substrate); this.recomputeVitality(); }

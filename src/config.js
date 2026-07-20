@@ -166,9 +166,17 @@ export const CONFIG = {
     foodSeekSteps: 2,            // food-seek grows (Hyphal Extension / Colonizing Front): how many grow() passes per play — buffed 1→2
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // (legacy omni fan — kept for reference; Foraging Fan is now directional)
-    fanSteps: 9,                 // Foraging Fan / Forager Bloom: "3 steps" (3 × 3) fanned out in the AIMED direction
-    fanRays: 5,                  // rays in the directional fan wedge (straight-out + widening side rays)
-    fanSpread: 0.5,              // angle (radians) between adjacent fan rays — how wide the wedge opens
+    // Foraging Fan / Forager Bloom: an AIMED RECURSIVE fern — primary rays around the aim,
+    // each limb forks into shorter child limbs over `fanGens` generations, filling a full
+    // fan. Deepest path ≈ fanSteps segments; fanBudget caps the total so it never explodes.
+    fanSteps: 9,                 // "3 steps" (3 × 3) — depth of the deepest path along the fan
+    fanRays: 3,                  // primary limbs spread around the aim (the base of the fan)
+    fanSpread: 0.5,              // angle (radians) between adjacent primary limbs
+    fanGens: 2,                  // fork generations beyond the primary limbs (0 = straight rays)
+    fanForks: 2,                 // children each limb forks into
+    fanForkAngle: 0.5,           // angle (radians) a child limb diverges from its parent
+    fanFalloff: 0.7,             // child limb length ÷ parent (also sizes the primary limb so gens sum to fanSteps)
+    fanBudget: 60,               // hard cap on total segments grown by one fan (keeps it full but bounded)
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
