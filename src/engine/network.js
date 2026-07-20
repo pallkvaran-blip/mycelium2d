@@ -446,16 +446,15 @@ export class Network {
     { const offs = [0]; for (let k = 1; offs.length < nRays; k++) { offs.push(k * spread); if (offs.length < nRays) offs.push(-k * spread); }
       for (const o of offs) front.push({ node: source, heading: clampDev(aim + o) }); }
 
-    // Bifurcation is exponential, so without a taper the tips pile up faster than the
-    // wedge widens and the OUTER half of the fan reads too dense. Ramp the fork chance
-    // down to 0 by `fanForkTaper` of the way out: the base forks (builds the fan), the
-    // later strands mostly just extend (airy tips).
-    const taper = cf.fanForkTaper != null ? cf.fanForkTaper : 0.55;
+    // The first half of the fan forks at full rate (builds the dense base); PAST THE
+    // MIDPOINT the fork rate is multiplied by `fanForkTaper` (0.5 = half as much new
+    // branching in the outer half), so the tips thin out without going bare.
+    const outerFork = cf.fanForkTaper != null ? cf.fanForkTaper : 0.5;
     let created = 0;
     // Advance the whole front one segment per round; each tip may bifurcate. Spacing +
     // rock pruning keeps the density even and bounded; the budget is the hard ceiling.
     for (let r = 0; r < rounds && budget > 0 && front.length; r++) {
-      const effChance = forkChance * Math.max(0, 1 - r / Math.max(1, rounds * taper));
+      const effChance = r < rounds * 0.5 ? forkChance : forkChance * outerFork;
       const next = [];
       for (const f of front) {
         if (budget <= 0) break;

@@ -1328,8 +1328,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "9452lw";
-globalThis.__BUILD__ = "local 07-20 14:23";
+window.__ASSET_VER = "1d06qr";
+globalThis.__BUILD__ = "local 07-20 14:28";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1508,12 +1508,12 @@ const CONFIG = {
     fanReach: 1.15,              // rounds = fanSteps × this (how far the front advances)
     fanRays: 5,                  // seeds spread around the aim (the base of the fan)
     fanSpread: 0.34,             // angle (radians) between adjacent base seeds
-    fanForkChance: 0.55,         // per tip per round chance to BIFURCATE — higher = denser
-    fanForkTaper: 0.5,           // fork chance ramps to 0 by this fraction of the way out — keeps the OUTER strands airy
+    fanForkChance: 0.55,         // per tip per round chance to BIFURCATE (first half of the fan) — higher = denser
+    fanForkTaper: 0.5,           // PAST THE MIDPOINT the fork rate is × this (0.5 = half the branching in the outer half)
     fanForkAngle: 0.4,           // angle (radians) the two branches spread when a tip bifurcates
     fanMaxDev: 1.2,              // clamp: keep every tip's heading within ± this of the aim (wedge half-width)
-    fanSpacing: 3.5,             // min gap (px) between fan nodes — bigger = airier, less dense
-    fanBudget: 240,              // hard cap on total segments grown by one fan
+    fanSpacing: 3,               // min gap (px) between fan nodes — bigger = airier, less dense
+    fanBudget: 700,              // hard cap on total segments grown by one fan
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius
@@ -4664,16 +4664,15 @@ class Network {
     { const offs = [0]; for (let k = 1; offs.length < nRays; k++) { offs.push(k * spread); if (offs.length < nRays) offs.push(-k * spread); }
       for (const o of offs) front.push({ node: source, heading: clampDev(aim + o) }); }
 
-    // Bifurcation is exponential, so without a taper the tips pile up faster than the
-    // wedge widens and the OUTER half of the fan reads too dense. Ramp the fork chance
-    // down to 0 by `fanForkTaper` of the way out: the base forks (builds the fan), the
-    // later strands mostly just extend (airy tips).
-    const taper = cf.fanForkTaper != null ? cf.fanForkTaper : 0.55;
+    // The first half of the fan forks at full rate (builds the dense base); PAST THE
+    // MIDPOINT the fork rate is multiplied by `fanForkTaper` (0.5 = half as much new
+    // branching in the outer half), so the tips thin out without going bare.
+    const outerFork = cf.fanForkTaper != null ? cf.fanForkTaper : 0.5;
     let created = 0;
     // Advance the whole front one segment per round; each tip may bifurcate. Spacing +
     // rock pruning keeps the density even and bounded; the budget is the hard ceiling.
     for (let r = 0; r < rounds && budget > 0 && front.length; r++) {
-      const effChance = forkChance * Math.max(0, 1 - r / Math.max(1, rounds * taper));
+      const effChance = r < rounds * 0.5 ? forkChance : forkChance * outerFork;
       const next = [];
       for (const f of front) {
         if (budget <= 0) break;

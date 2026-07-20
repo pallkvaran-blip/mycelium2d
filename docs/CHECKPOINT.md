@@ -495,10 +495,11 @@ Both menus are dark, on-theme, with glowing green borders.
   0.5) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
   rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
   within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
-  **`fanForkTaper` (0.5)** ramps the fork chance to 0 by half-way out, so the base forks (builds the fan) but
-  the OUTER strands just extend and stay airy (owner: "beginning perfect, latter half too dense" — the taper is
-  the fix; bifurcation is exponential so without it the tips pile up). **`fanBudget` (240)** is the hard
-  ceiling. NB `fanBudget` sizes the FAN only; a play's total node bump can be larger when the dense fan sweeps
+  **`fanForkTaper` (0.5)** multiplies the fork rate PAST THE MIDPOINT (0.5 = half the branching in the outer
+  half) — the base forks at full rate (dense), the outer half thins but doesn't go bare (owner: "go back to the
+  dense look and half whatever happens after the middle"; an earlier ramp-to-zero taper made it "way too
+  thin"). **`fanBudget` (700)** is the hard ceiling (a full fan is ~400 segments — dense, matching the look the
+  owner approved). NB `fanBudget` sizes the FAN only; a play's total node bump can be larger when the dense fan sweeps
   over food piles (`colonizeReachablePiles` colonises each). `fanSpacing` (3.5) well below `minTipSpacing` lets
   the base branches pack (bigger = airier). **IMPORTANT wiring gotcha (fixed):** the fan knobs live in
   **`config.CARDS`** (next to `fanSteps`) but `growFanDirected` originally read them from `config.growth`
