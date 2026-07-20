@@ -504,6 +504,14 @@ Both menus are dark, on-theme, with glowing green borders.
   (2) ARC via a steady per-twig bend `sideStrandCurve` (0.25 rad/step) instead of running straight, and (3) are
   FEWER (`sideStrandChance` 0.6→0.4; `sideStrandMin` 1→2 so the bend has room to show). Applies to every grow
   that sprouts side-strands (directed + undirected). Verified in `lance_render.mjs`.
+  - **Owner approved (twigs-only, companions off) and asked to apply to all normal grow cards / engine
+    actions — CONFIRMED already global** (the rework is in the shared `_sproutSideStrand`, so no per-card
+    change was needed): all directed grows (Apical Drive, Rhizomorph Lance, Fruiting Vigil, Leading Cord,
+    Explorer/Turgor/Vesicle/Bulk-Flow/Rhizomorph Cable, Tropic Lunge, Questing Front) and undirected grows
+    (Hyphal Extension, Colonizing Front) carry the curved forward twigs. Verified on 3 non-Lance cards
+    (`scratchpad/grow_render.mjs`). Intentionally NOT twigged: the FAN cards (Foraging Fan / Forager Bloom —
+    they have their own organic bifurcating fan) and the PUNCH/bore cards (Appressorial Punch, Sinker
+    Rhizomorph — they thread a single strand through rock). Companion runners remain OFF everywhere.
 
 - **Foraging Fan + Forager Bloom → AIMED directional fan (was omni "every direction").** Owner: aim it like
   any other growth card and fan out 3 steps in the chosen direction ("looks like the current fan played 3× but
