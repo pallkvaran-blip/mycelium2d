@@ -1,6 +1,10 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-19 (**grow-card family:** added a paid directional
+_Living status + knowledge doc. Last updated: 2026-07-20 (**two new starter species:** added **Oyster
+Mushroom** (#3 — first/strongest energy engine the player can start with, Cord Capillary) and **Slippery
+Jack** (#4 — first/strongest phosphorus engine, Prospecting Cords) as Complete-level-1 unlocks; **Common
+Earthball** + **Bleeding Tooth** bumped to Complete level 3 (now #5/#6). Realistic FLUX portraits. See §9.
+— earlier: **grow-card family:** added a paid directional
 aimed-grow family — 4 basics (Guerrilla Runners / Turgor Thrust / Vesicle Surge / Translocation Cord) + 5
 installed engines (Explorer Cord / Turgor Line / Vesicle Supply Line / Bulk-Flow Cord / Rhizomorph Cable) —
 plus buffs so the free grows keep pace (Apical Drive→3 steps, Hyphal Extension→2, Leading Cord→3, Colonizing
@@ -481,6 +485,33 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Two new starter species + level-1/3 roster reshuffle (the "first economy engine" on-ramp).** Added two
+  brand-new gated species to `species.js`, both unlocking at **Complete level 1**:
+  - **#3 Oyster Mushroom** (`Pleurotus ostreatus`, id `pleurotus`, vibe `warm`) — opens with **Cord Capillary**
+    (`+1⚡/round`). It's the *weakest* energy engine in the whole set, but it's the player's **first** starting
+    energy engine, so at this progression point it's their strongest energy build (framing per owner). Themed as
+    a vigorous wood-rotter that "keeps the lights on." Start `8⚡/20W/7P` → installs Cord Capillary (`4⚡+2W+6P`)
+    turn 1. Hand: Cord Capillary ×1, Foraging Fan ×5, Hyphal Extension ×4, Acorn Cache ×4.
+  - **#4 Slippery Jack** (`Suillus luteus`, id `suillus`, vibe `spore`) — opens with **Prospecting Cords**
+    (`+1P / 8 rounds`), the weakest P engine but their first P engine. Mycorrhizal flavor: it **trades sugar for
+    phosphate**, so it starts energy-rich (`14⚡/22W/2P`) and spends `12⚡` to install the P engine turn 1. Hand:
+    Prospecting Cords ×1, Apical Drive ×5, Hyphal Extension ×5, Acorn Cache ×3.
+  - **Common Earthball** and **Bleeding Tooth** moved from Complete level 1 → **Complete level 3** (unchanged
+    otherwise; now picker #5 and #6, and cost **2000** Spores as the tier-2 price vs 1000). **Split Gill**
+    (level 5) untouched.
+  - **Impl note:** between-tier array order is irrelevant to the picker — it renders tier-by-tier, filtering
+    `SPECIES` by `unlock` label — so this took only 2 inserts (after Honey Fungus) + 2 `unlock`-label flips
+    (`Complete level 1`→`Complete level 3` on scleroderma/hydnellum). No card-data change (both signature engines
+    already exist). Neither new species is a `memory` species.
+  - **Art:** realistic FLUX-1.1-pro portraits matching the house style (photoreal macro, shallow DoF), generator
+    `scripts/gen_species_new.py`; options in `assets/species_options/`, winners promoted to
+    `assets/species/pleurotus-ostreatus.jpg` + `suillus-luteus.jpg`.
+  - **Verified:** live picker order via Playwright (`scratchpad/species_shot.mjs`) = #3 Oyster · #4 Slippery Jack ·
+    #5 Earthball · #6 Bleeding Tooth · #7 Split Gill; both detail cards render correct hand/resources/blurb;
+    headless install check (`scratchpad/species_install.mjs`) confirms each installs its engine turn 1. Cards
+    tests 61/0; smoke 100/1 (the one fail — "growth through an ant trail" — is **pre-existing on HEAD**,
+    unrelated). Import-leak 0, rebuilt `dist/`.
 
 - **Level-intro threat order → Ants · Trichoderma · Nematodes (trich in the middle).** Owner: reads nicer with
   the Trichoderma portrait centred. Swapped the nematode/trich rows in `main.js levelThreatList()` (the array
