@@ -495,10 +495,12 @@ Both menus are dark, on-theme, with glowing green borders.
 ## 9. Recent work log (most recent first)
 
 - **Music split into MENU vs LEVEL tracks (`render/music.js` reworked).** `backrooms-vol29` ("the backrooms
-  music vol 29") is now the dedicated **menu theme** — it **begins playback at the 0:20 mark** (skips the long
-  intro) with a **quick ~1.2s fade-in**, via a `#t=20` media-fragment hint plus a retry-seek (`forceMenuStart`)
-  that lands instantly on a range-serving host (GitHub Pages); it loops back to 0:20 (never replays the intro),
-  and plays **continuously across title → species picker** (`playMenuMusic()` is
+  music vol 29") is now the dedicated **menu theme**. Rather than seek to 0:20 at runtime (unreliable — a
+  non-range host / autoplay-blocked start can't seek forward), the **file itself was permanently trimmed**: the
+  first ~19s intro was cut and a fresh Xing/VBR header rebuilt so the duration reads correctly and it loops
+  cleanly (`scripts/trim_mp3.py`, pure-stdlib MP3 frame parser — no ffmpeg here; original preserved in git
+  history). So the menu track just plays from the top with a **quick ~1.2s fade-in**, loops, and plays
+  **continuously across title → species picker** (`playMenuMusic()` is
   idempotent — no restart when the same track is already the menu track). The moment a **level** starts, a
   RANDOM track from the OTHER three (`vol7/vol10/vol23`) takes over (`playLevelMusic()` from `begin()`); vol29
   is NEVER used in-level, and a level track keeps playing across level→level transitions (only re-picks when
