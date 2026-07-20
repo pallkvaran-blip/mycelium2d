@@ -501,9 +501,13 @@ Both menus are dark, on-theme, with glowing green borders.
   Runners/Fruiting Vigil/Vesicle Surge; Dry Rot → +Rhizomorph Lance/Turgor Thrust/Amputate; Earthball → 7 Apical
   Drive / 5 Hyphal Extension; trimmed the Oyster/Suillus/Dry-Rot blurbs. All 11 seed cleanly (headless-verified
   hand sizes + every card name resolves; `scratchpad/species_seed_check.mjs`). Cards 61/0; smoke 100/1 (pre-existing).
-  **NOTE — array reorder is cosmetic:** the SPECIES array was reordered (Earthball moved ahead of Oyster), but
-  the picker groups by **unlock tier**, so on screen Earthball still sits in the Level-3 row (5th), not 3rd. To
-  actually move a species earlier in the PICKER you must change its `unlock` tier, not its array index.
+  **Tier swap (follow-up, owner):** to actually surface Earthball at picker slot #3, its `unlock` was changed
+  `Complete level 3`→`Complete level 1` and — cascading everything back one — Slippery Jack went `Complete level
+  1`→`Complete level 3`. Net: L1 = **Earthball, Oyster** (Earthball reveals first / 1000 Spores), L3 = **Slippery
+  Jack, Bleeding Tooth** (2000). Array within-tier order already matched, so it was two `unlock` edits. Picker now
+  reads #3 Earthball · #4 Oyster · #5 Slippery Jack · #6 Bleeding Tooth · #7 Split Gill · #8 Wine Cap · #9 Violet
+  Webcap · #10 Dry Rot · #11 Artist's Conk. (Reminder: picker order = unlock tier, THEN within-tier array order;
+  the raw cross-tier array order is irrelevant to the display.)
 
 - **Species editor tool (`docs/species-editor.html`).** A standalone authoring page to review + edit the whole
   roster: per species it exposes name/latin/vibe/unlock-tier/art-slug, **starting resources (E/W/P)**, the

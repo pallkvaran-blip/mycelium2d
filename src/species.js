@@ -37,7 +37,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 3',
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
     name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
     blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
     res: { energy: 0, water: 35, phosphorus: 6 },
@@ -61,7 +61,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'suillus', vibe: 'spore', unlock: 'Complete level 1',
+    id: 'suillus', vibe: 'spore', unlock: 'Complete level 3',
     name: 'Slippery Jack', latin: 'Suillus luteus', img: 'suillus-luteus',
     blurb: 'A slick, amber-capped bolete bound in partnership with pine — a <b>mycorrhizal</b> trader that sheathes the tree\'s rootlets and ranges far through poor soil for the nutrient those roots can never reach on their own: <b>phosphate</b>. It pays for the mineral in sugar, funnelling carbon down its cords to fund the dig. Your first dependable phosphate supply, and the key that unlocks digest, defense, and the heavier grows.',
     res: { energy: 14, water: 35, phosphorus: 8 },   // opener Prospecting Cords installs for 12⚡
