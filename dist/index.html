@@ -85,6 +85,9 @@
       font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: transparent; border: 0;
       border-radius: 8px; padding: 9px 11px; cursor: pointer; text-align: left; }
     .setitem:hover { background: rgba(127,230,163,0.12); }
+    /* Force Fruiting (abandon run) — destructive, so tinted warm + separated by a hairline. */
+    .setitem-danger { color: #e58a7e; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 3px; border-radius: 0 0 8px 8px; }
+    .setitem-danger:hover { background: rgba(226,118,108,0.15); }
     .setchev { color: var(--ink-dim); font-size: 10px; }
     .settoggle { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--accent);
       background: rgba(127,230,163,0.16); border: 1px solid rgba(130,230,166,0.45); border-radius: 999px; padding: 2px 9px; }
@@ -1327,8 +1330,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "y2p6lx";
-globalThis.__BUILD__ = "local 07-20 10:21";
+window.__ASSET_VER = "12yrjkp";
+globalThis.__BUILD__ = "local 07-20 10:42";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -4699,6 +4702,29 @@ class Network {
     return false;
   }
 
+  // Would an omni food-seek grow (e.g. Hyphal Extension) actually advance? True iff a
+  // food cell above the attractor threshold sits within the sensing radius of a living,
+  // uninfected, non-side (frontier) strand — mirrors _growStep's attractor test. Used to
+  // mark such a card unplayable when there's no food in range (so it can't soft-lock a
+  // card-dry, Energy-dry player into a stall that never resolves).
+  canGrowToFood(substrate) {
+    const g = this.config.growth;
+    const sense2 = g.sensingRadius * g.sensingRadius;
+    const nodes = [];
+    for (const n of this.nodes) if (!n.infected && !n.side) nodes.push(n);
+    if (!nodes.length) return false;
+    let found = false;
+    substrate.forEachCell((cell, col, row) => {
+      if (found || !(cell.nutrient > g.attractorThreshold) || cell.hazard) return;
+      const ctr = substrate.cellCenter(col, row);
+      for (const n of nodes) {
+        const dx = ctr.x - n.x, dy = ctr.y - n.y;
+        if (dx * dx + dy * dy <= sense2) { found = true; return; }
+      }
+    });
+    return found;
+  }
+
   // How many `steps` a straight runner from `node` toward (dx,dy) could place
   // before rock/edge/surface stops it (a dry run — adds no nodes).
   _reachableSteps(substrate, node, dx, dy, steps) {
@@ -6672,6 +6698,10 @@ function chooseOffer(state, cardName) {
 function drawCost(state) {
   return Math.max(1, state.config.cards.drawCostEnergy - (state.cards.drawDiscount || 0));
 }
+// Cards whose whole effect is "grow toward food in sensing range" — unplayable when no
+// food is in range (see cardBlockedReason). Foraging Fan (radial into open ground) and the
+// directional grows (open ground) are NOT here: they still do something with no food nearby.
+const FOOD_SEEK_CARDS = new Set(['Hyphal Extension']);
 function cardBlockedReason(state, name) {
   if (state.runOver) return 'The run is over.';
   const net = state.active;
@@ -6691,6 +6721,12 @@ function cardBlockedReason(state, name) {
   }
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
+  // Food-seek grows (e.g. Hyphal Extension) only advance TOWARD food in sensing range;
+  // with none in range they'd no-op — and worse, being "playable" would stop a card-dry,
+  // Energy-dry player from ever registering a stall (soft-lock). Gate them on food-in-range.
+  if (FOOD_SEEK_CARDS.has(name) && net.canGrowToFood && !net.canGrowToFood(state.substrate)) {
+    return 'No food within sensing range.';
+  }
   return null;
 }
 function cardNeedsTarget(name) {
@@ -9778,7 +9814,7 @@ const __m_render_ui = (function () {
   const { ACTIONS, actionCost } = __m_engine_actions;
   const { SLIDERS, getByPath, setByPath } = __m_config;
   const { CARD_BY_NAME } = __m_cards_data;
-  const { cardDeckAdditions, actionUsable } = __m_engine_cards;
+  const { cardDeckAdditions, actionUsable, cardBlockedReason } = __m_engine_cards;
   const { toggleMusic, isMusicMuted } = __m_render_music;
 // =============================================================================
 // UI — HUD, action buttons, event log, dev tools, "what we're testing" panel.
@@ -9931,7 +9967,7 @@ class UI {
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     // The resource pill holds ONLY resources now; a Settings gear sits to its right and
-    // opens a menu with Event log · Music · Sensing-range lighting · Replay tutorial.
+    // opens a menu with Event log · Music · Replay tutorial · Force Fruiting (abandon run).
     hud.innerHTML =
       `<div class="hudtop">`
       + `<div class="resrow">${resRow}</div>`
@@ -9940,8 +9976,8 @@ class UI {
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
       +   `<button class="setitem" id="set-log" type="button" role="menuitem">Event log<span class="setchev">▾</span></button>`
       +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
-      +   `<button class="setitem" id="set-lighting" type="button" role="menuitemcheckbox">Sensing-range lighting<span class="settoggle" id="set-lighting-state"></span></button>`
       +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
+      +   `<button class="setitem setitem-danger" id="set-forcefruit" type="button" role="menuitem">Force Fruiting (abandon run)</button>`
       + `</div>`
       + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
     root.appendChild(hud);
@@ -10218,31 +10254,23 @@ class UI {
   // the current hand harmlessly falls back to 'all' inside _renderHandFilter.
   setHandFilter(key) { this.handFilter = key || 'all'; this._renderHand(); }
 
-  // Settings menu (gear button, top HUD): Event log · Music · Sensing-range lighting ·
-  // Replay tutorial. Mute + lighting are in-place toggles (menu stays open, state chip
-  // updates); log + replay close the menu and act. A capture-phase click-away closes it.
+  // Settings menu (gear button, top HUD): Event log · Music · Replay tutorial · Force
+  // Fruiting (abandon run). Mute is an in-place toggle (menu stays open); log + replay +
+  // force-fruit close the menu and act. A capture-phase click-away closes it.
   _wireSettings(hud) {
     const menu = this.el.settingsmenu, gear = hud.querySelector('#gearbtn');
     if (!menu || !gear) return;
     const refresh = () => {
       const ms = hud.querySelector('#set-mute-state');
       if (ms) { const on = !isMusicMuted(); ms.textContent = on ? 'On' : 'Off'; ms.classList.toggle('off', !on); }
-      const ls = hud.querySelector('#set-lighting-state');
-      const lon = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
-      if (ls) { ls.textContent = lon ? 'On' : 'Off'; ls.classList.toggle('off', !lon); }
     };
     const close = () => { menu.classList.add('hidden'); gear.setAttribute('aria-expanded', 'false'); };
     const open = () => { refresh(); menu.classList.remove('hidden'); gear.setAttribute('aria-expanded', 'true'); };
     gear.onclick = (e) => { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); };
     hud.querySelector('#set-log').onclick = (e) => { e.stopPropagation(); close(); this.toggleLog(); };
     hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
-    hud.querySelector('#set-lighting').onclick = (e) => {
-      e.stopPropagation();
-      const on = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
-      if (this.handlers.setLightingOn) this.handlers.setLightingOn(!on);
-      refresh();
-    };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
+    hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.
     if (this._onSettingsAway) document.removeEventListener('pointerdown', this._onSettingsAway, true);
     this._onSettingsAway = (e) => {
@@ -10625,17 +10653,12 @@ class UI {
     this._renderHandFilter(all);
     const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroups(g.card).some((x) => x.key === this.handFilter));
 
-    // A card is PLAYABLE if it's affordable to play right now (matches cardBlockedReason:
-    // Energy buy price, plus W/P for non-actions). Used both to grey cards and to show
-    // the "no playable cards" guidance when nothing in hand can be played.
-    const isPlayable = (c) => {
-      const isAction = c.type === 'action';
-      return net.energy >= c.buyCostEnergy
-        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
-        && !s.runOver && net.alive;
-    };
-    // Guidance banner: hand empty OR nothing affordable → tell the player their outs.
-    const anyPlayable = all.some((g) => isPlayable(g.card));
+    // A card is PLAYABLE iff the engine has no blocking reason (Energy/W/P affordability,
+    // action-install rules, AND food-in-range for food-seek grows like Hyphal Extension).
+    // Single source of truth = cardBlockedReason, so greying + the stall check agree.
+    const isPlayable = (g) => !cardBlockedReason(s, g.name);
+    // Guidance banner: hand empty OR nothing playable → tell the player their outs.
+    const anyPlayable = all.some((g) => isPlayable(g));
     if (this.el.handhint) {
       // Non-empty hand with nothing affordable (the empty-hand case shows the same
       // message inside the carousel below, so don't double it up here).
@@ -10653,7 +10676,7 @@ class UI {
       const c = g.card;
       // Action cards install for Energy only (their W/P is a per-activation cost),
       // so don't grey them for W/P you don't need to play them — matches cardBlockedReason.
-      const affordable = isPlayable(c);
+      const affordable = isPlayable(g);
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn ' + catClass(c) + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');
@@ -12988,7 +13011,7 @@ const lighting = new Lighting(CONFIG);
 // in the settings menu — off = a flat, un-dimmed scene that's much lighter on phones.
 const SETTINGS_KEY = 'mycelium.settings.v1';
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (_) { return {}; } }
-let sensingLightOn = loadSettings().lighting !== false;   // default ON
+let sensingLightOn = false;   // sensing-range lighting removed from the UI — left OFF by default
 function saveSettings() { try { const s = loadSettings(); s.lighting = sensingLightOn; localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (_) {} }
 
 let state, ui, substrateRenderer;
@@ -13185,6 +13208,19 @@ function maybeFinalizePendingWin() {
   state.winPending = false;
   if (state.active) state.active.alive = false;
   state.runOver = true;
+  presentRunOver();
+}
+
+// Force Fruiting (abandon run): end the run now. The colony is forced to fruit and spore
+// (the campaign-death path), so it runs the same celebration + run-over card (half-Spores,
+// and — for a memory species — the loadout picker). Used by the settings-menu button and
+// the __game.killColony debug hook.
+function forceFruitAbandon() {
+  if (!state || !state.active || state.runOver) return;
+  state.active.alive = false;
+  state.runOver = true;
+  state.won = false;
+  state.runResult = { won: false, died: true, turns: state.turn };
   presentRunOver();
 }
 
@@ -13648,7 +13684,7 @@ function begin(newState) {
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
-    killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
+    killColony: () => forceFruitAbandon(),
     // Tutorial hooks (used by the future "replay tutorial" button + tests).
     startTutorial: () => beginTutorial(),
     resetTutorial: () => { try { localStorage.removeItem(TUT_KEY); } catch (_) {} },
@@ -13742,8 +13778,7 @@ function expandedBounds() {
 const handlers = {
   // Settings menu (gear button, ui.js): replay the tutorial + toggle sensing-range lighting.
   onReplayTutorial: () => beginTutorial(),
-  isLightingOn: () => sensingLightOn,
-  setLightingOn: (v) => { sensingLightOn = !!v; saveSettings(); uiDirty = true; },
+  onForceFruit: () => forceFruitAbandon(),
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];

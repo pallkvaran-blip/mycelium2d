@@ -39,7 +39,7 @@ const lighting = new Lighting(CONFIG);
 // in the settings menu — off = a flat, un-dimmed scene that's much lighter on phones.
 const SETTINGS_KEY = 'mycelium.settings.v1';
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (_) { return {}; } }
-let sensingLightOn = loadSettings().lighting !== false;   // default ON
+let sensingLightOn = false;   // sensing-range lighting removed from the UI — left OFF by default
 function saveSettings() { try { const s = loadSettings(); s.lighting = sensingLightOn; localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (_) {} }
 
 let state, ui, substrateRenderer;
@@ -236,6 +236,19 @@ function maybeFinalizePendingWin() {
   state.winPending = false;
   if (state.active) state.active.alive = false;
   state.runOver = true;
+  presentRunOver();
+}
+
+// Force Fruiting (abandon run): end the run now. The colony is forced to fruit and spore
+// (the campaign-death path), so it runs the same celebration + run-over card (half-Spores,
+// and — for a memory species — the loadout picker). Used by the settings-menu button and
+// the __game.killColony debug hook.
+function forceFruitAbandon() {
+  if (!state || !state.active || state.runOver) return;
+  state.active.alive = false;
+  state.runOver = true;
+  state.won = false;
+  state.runResult = { won: false, died: true, turns: state.turn };
   presentRunOver();
 }
 
@@ -699,7 +712,7 @@ function begin(newState) {
     botToGoal,
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
-    killColony: () => { state.active.alive = false; state.runOver = true; state.won = false; state.runResult = { won: false, died: true, turns: state.turn }; presentRunOver(); },
+    killColony: () => forceFruitAbandon(),
     // Tutorial hooks (used by the future "replay tutorial" button + tests).
     startTutorial: () => beginTutorial(),
     resetTutorial: () => { try { localStorage.removeItem(TUT_KEY); } catch (_) {} },
@@ -793,8 +806,7 @@ function expandedBounds() {
 const handlers = {
   // Settings menu (gear button, ui.js): replay the tutorial + toggle sensing-range lighting.
   onReplayTutorial: () => beginTutorial(),
-  isLightingOn: () => sensingLightOn,
-  setLightingOn: (v) => { sensingLightOn = !!v; saveSettings(); uiDirty = true; },
+  onForceFruit: () => forceFruitAbandon(),
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];

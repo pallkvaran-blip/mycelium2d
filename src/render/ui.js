@@ -10,7 +10,7 @@
 import { ACTIONS, actionCost } from '../engine/actions.js';
 import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
-import { cardDeckAdditions, actionUsable } from '../engine/cards.js';
+import { cardDeckAdditions, actionUsable, cardBlockedReason } from '../engine/cards.js';
 import { toggleMusic, isMusicMuted } from './music.js';
 
 // Small self-contained line-icons for the action bar (inlined so they survive the
@@ -154,7 +154,7 @@ export class UI {
       : `<span class="res e"><span class="rk">⚡</span><span class="rv" id="hud-energy">0</span></span>`
         + `<span class="res"><span class="rk">spores</span><span class="rv" id="hud-spores">0</span></span>`;
     // The resource pill holds ONLY resources now; a Settings gear sits to its right and
-    // opens a menu with Event log · Music · Sensing-range lighting · Replay tutorial.
+    // opens a menu with Event log · Music · Replay tutorial · Force Fruiting (abandon run).
     hud.innerHTML =
       `<div class="hudtop">`
       + `<div class="resrow">${resRow}</div>`
@@ -163,8 +163,8 @@ export class UI {
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
       +   `<button class="setitem" id="set-log" type="button" role="menuitem">Event log<span class="setchev">▾</span></button>`
       +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
-      +   `<button class="setitem" id="set-lighting" type="button" role="menuitemcheckbox">Sensing-range lighting<span class="settoggle" id="set-lighting-state"></span></button>`
       +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
+      +   `<button class="setitem setitem-danger" id="set-forcefruit" type="button" role="menuitem">Force Fruiting (abandon run)</button>`
       + `</div>`
       + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
     root.appendChild(hud);
@@ -441,31 +441,23 @@ export class UI {
   // the current hand harmlessly falls back to 'all' inside _renderHandFilter.
   setHandFilter(key) { this.handFilter = key || 'all'; this._renderHand(); }
 
-  // Settings menu (gear button, top HUD): Event log · Music · Sensing-range lighting ·
-  // Replay tutorial. Mute + lighting are in-place toggles (menu stays open, state chip
-  // updates); log + replay close the menu and act. A capture-phase click-away closes it.
+  // Settings menu (gear button, top HUD): Event log · Music · Replay tutorial · Force
+  // Fruiting (abandon run). Mute is an in-place toggle (menu stays open); log + replay +
+  // force-fruit close the menu and act. A capture-phase click-away closes it.
   _wireSettings(hud) {
     const menu = this.el.settingsmenu, gear = hud.querySelector('#gearbtn');
     if (!menu || !gear) return;
     const refresh = () => {
       const ms = hud.querySelector('#set-mute-state');
       if (ms) { const on = !isMusicMuted(); ms.textContent = on ? 'On' : 'Off'; ms.classList.toggle('off', !on); }
-      const ls = hud.querySelector('#set-lighting-state');
-      const lon = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
-      if (ls) { ls.textContent = lon ? 'On' : 'Off'; ls.classList.toggle('off', !lon); }
     };
     const close = () => { menu.classList.add('hidden'); gear.setAttribute('aria-expanded', 'false'); };
     const open = () => { refresh(); menu.classList.remove('hidden'); gear.setAttribute('aria-expanded', 'true'); };
     gear.onclick = (e) => { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); };
     hud.querySelector('#set-log').onclick = (e) => { e.stopPropagation(); close(); this.toggleLog(); };
     hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
-    hud.querySelector('#set-lighting').onclick = (e) => {
-      e.stopPropagation();
-      const on = this.handlers.isLightingOn ? this.handlers.isLightingOn() : true;
-      if (this.handlers.setLightingOn) this.handlers.setLightingOn(!on);
-      refresh();
-    };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
+    hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.
     if (this._onSettingsAway) document.removeEventListener('pointerdown', this._onSettingsAway, true);
     this._onSettingsAway = (e) => {
@@ -848,17 +840,12 @@ export class UI {
     this._renderHandFilter(all);
     const filtered = this.handFilter === 'all' ? all : all.filter((g) => cardGroups(g.card).some((x) => x.key === this.handFilter));
 
-    // A card is PLAYABLE if it's affordable to play right now (matches cardBlockedReason:
-    // Energy buy price, plus W/P for non-actions). Used both to grey cards and to show
-    // the "no playable cards" guidance when nothing in hand can be played.
-    const isPlayable = (c) => {
-      const isAction = c.type === 'action';
-      return net.energy >= c.buyCostEnergy
-        && (isAction || (net.water >= c.costW && net.phosphorus >= c.costP))
-        && !s.runOver && net.alive;
-    };
-    // Guidance banner: hand empty OR nothing affordable → tell the player their outs.
-    const anyPlayable = all.some((g) => isPlayable(g.card));
+    // A card is PLAYABLE iff the engine has no blocking reason (Energy/W/P affordability,
+    // action-install rules, AND food-in-range for food-seek grows like Hyphal Extension).
+    // Single source of truth = cardBlockedReason, so greying + the stall check agree.
+    const isPlayable = (g) => !cardBlockedReason(s, g.name);
+    // Guidance banner: hand empty OR nothing playable → tell the player their outs.
+    const anyPlayable = all.some((g) => isPlayable(g));
     if (this.el.handhint) {
       // Non-empty hand with nothing affordable (the empty-hand case shows the same
       // message inside the carousel below, so don't double it up here).
@@ -876,7 +863,7 @@ export class UI {
       const c = g.card;
       // Action cards install for Energy only (their W/P is a per-activation cost),
       // so don't grey them for W/P you don't need to play them — matches cardBlockedReason.
-      const affordable = isPlayable(c);
+      const affordable = isPlayable(g);
       const pending = this.pendingCard && this.pendingCard.name === g.name;
       const armed = this.armed && this.armed.kind === 'hand' && this.armed.name === g.name;
       const cls = 'cardbtn ' + catClass(c) + (affordable ? '' : ' unaff') + (pending || armed ? ' selected' : '');

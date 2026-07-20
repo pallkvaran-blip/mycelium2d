@@ -509,6 +509,29 @@ export class Network {
     return false;
   }
 
+  // Would an omni food-seek grow (e.g. Hyphal Extension) actually advance? True iff a
+  // food cell above the attractor threshold sits within the sensing radius of a living,
+  // uninfected, non-side (frontier) strand — mirrors _growStep's attractor test. Used to
+  // mark such a card unplayable when there's no food in range (so it can't soft-lock a
+  // card-dry, Energy-dry player into a stall that never resolves).
+  canGrowToFood(substrate) {
+    const g = this.config.growth;
+    const sense2 = g.sensingRadius * g.sensingRadius;
+    const nodes = [];
+    for (const n of this.nodes) if (!n.infected && !n.side) nodes.push(n);
+    if (!nodes.length) return false;
+    let found = false;
+    substrate.forEachCell((cell, col, row) => {
+      if (found || !(cell.nutrient > g.attractorThreshold) || cell.hazard) return;
+      const ctr = substrate.cellCenter(col, row);
+      for (const n of nodes) {
+        const dx = ctr.x - n.x, dy = ctr.y - n.y;
+        if (dx * dx + dy * dy <= sense2) { found = true; return; }
+      }
+    });
+    return found;
+  }
+
   // How many `steps` a straight runner from `node` toward (dx,dy) could place
   // before rock/edge/surface stops it (a dry run — adds no nodes).
   _reachableSteps(substrate, node, dx, dy, steps) {

@@ -277,6 +277,10 @@ export function chooseOffer(state, cardName) {
 export function drawCost(state) {
   return Math.max(1, state.config.cards.drawCostEnergy - (state.cards.drawDiscount || 0));
 }
+// Cards whose whole effect is "grow toward food in sensing range" — unplayable when no
+// food is in range (see cardBlockedReason). Foraging Fan (radial into open ground) and the
+// directional grows (open ground) are NOT here: they still do something with no food nearby.
+const FOOD_SEEK_CARDS = new Set(['Hyphal Extension']);
 export function cardBlockedReason(state, name) {
   if (state.runOver) return 'The run is over.';
   const net = state.active;
@@ -296,6 +300,12 @@ export function cardBlockedReason(state, name) {
   }
   if (net.water < c.costW) return `Not enough Water (need ${c.costW}).`;
   if (net.phosphorus < c.costP) return `Not enough Phosphorus (need ${c.costP}).`;
+  // Food-seek grows (e.g. Hyphal Extension) only advance TOWARD food in sensing range;
+  // with none in range they'd no-op — and worse, being "playable" would stop a card-dry,
+  // Energy-dry player from ever registering a stall (soft-lock). Gate them on food-in-range.
+  if (FOOD_SEEK_CARDS.has(name) && net.canGrowToFood && !net.canGrowToFood(state.substrate)) {
+    return 'No food within sensing range.';
+  }
   return null;
 }
 export function cardNeedsTarget(name) {

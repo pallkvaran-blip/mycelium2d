@@ -482,6 +482,28 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Settings-menu + softlock fixes (owner batch).**
+  - **"Force Fruiting (abandon run)"** added to the gear settings menu (`ui.js` `#set-forcefruit`,
+    warm-tinted `.setitem-danger`). Wired to `main.js` handler `onForceFruit` → new `forceFruitAbandon()`
+    which ends the run via the normal campaign-death path (`presentRunOver`: forced-fruit celebration +
+    run-over card with half-Spores, and the loadout picker for a memory species). `__game.killColony` now
+    routes through the same function.
+  - **Sensing-range lighting toggle REMOVED from the menu** (owner: leave it off, no button). Menu is now
+    Event log · Music · Replay tutorial · Force Fruiting. `sensingLightOn` is hard-**false** in `main.js`
+    (was `loadSettings().lighting !== false`); the `isLightingOn`/`setLightingOn` handlers are gone. Render
+    already handles the off state (redraw colony bright, no earth aura).
+  - **Hyphal Extension no longer reads as playable with no food in range** (it grows *toward food in
+    sensing range*, so with none it no-ops — and being "playable" kept a card-dry, Energy-dry player from
+    ever registering a stall → **soft-lock**). New `Network.canGrowToFood(substrate)` (mirrors `_growStep`'s
+    attractor test: a food cell above `attractorThreshold` within `sensingRadius` of a live, uninfected,
+    non-side strand). `cardBlockedReason` now returns "No food within sensing range." for cards in the new
+    `FOOD_SEEK_CARDS` set (**Hyphal Extension** only — Foraging Fan fans into open ground, the directional
+    grows aim into open ground, so they're NOT gated). The UI hand now greys via `cardBlockedReason` (single
+    source of truth; `isPlayable(g)` = `!cardBlockedReason`), and the stall-death check (already on
+    `cardBlockedReason`) now fires correctly instead of soft-locking. Verified headless: Hyphal Extension
+    blocks with no food in range, Apical Drive / Foraging Fan stay playable. 101+61 tests green; `dist`
+    rebuilt (import-leak 0).
+
 - **New species: Split Gill (Schizophyllum commune) — a "memory" species that carries a curated
   loadout between runs.** First of a planned family (the mechanic is reusable via a `memory:true` flag).
   - **Kit:** 10⚡ / 25W, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **8 cards
