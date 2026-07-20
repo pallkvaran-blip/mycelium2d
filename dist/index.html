@@ -1328,8 +1328,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1k2zl4r";
-globalThis.__BUILD__ = "local 07-20 15:08";
+window.__ASSET_VER = "1lectfm";
+globalThis.__BUILD__ = "local 07-20 15:46";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1555,6 +1555,15 @@ const CONFIG = {
     sideStrandMax: 3,
     sideStrandSpread: 0.8,       // twigs head within ± this (radians) of the LOCAL growth heading (not fully random)
     sideStrandCurve: 0.25,       // steady per-step bend (radians) so a twig ARCS instead of running dead straight
+    // The runner that reaches into a FOOD PILE (network.js _bridgeInto): wanders with a
+    // gentle wobble but re-aims toward the food each step, so it bends TOWARD the pile
+    // (reaching for it) instead of running dead straight.
+    bridgeWobble: 0.55,          // per-step wander of the pile-runner (radians; calms near the pile)
+    bridgePull: 0.42,            // how strongly the runner re-aims at the food each step (0=drift, 1=snap straight)
+    // The mat filling a colonised pile: short curved tendrils that lean TOWARD the pile
+    // centre (into the food), not a random outward star (network.js colonizeReachablePiles).
+    matStrandSpread: 1.5,        // ± heading spread (radians) around "into the food" — wide so the cell still fills
+    matStrandCurve: 0.4,         // per-tendril bend (radians) so mat strands arc instead of spiking straight
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
@@ -5410,22 +5419,39 @@ class Network {
         .filter((i) => substrate.cells[i].colonized < 1)
         .map((i) => { const c = i % cols, r = (i - c) / cols; return { i, ctr: substrate.cellCenter(c, r) }; })
         .sort((a, b) => ((a.ctr.x - entry.x) ** 2 + (a.ctr.y - entry.y) ** 2) - ((b.ctr.x - entry.x) ** 2 + (b.ctr.y - entry.y) ** 2));
+      // Pile centroid — the mat strands lean TOWARD it (INTO the food), not out in a
+      // random spiky star. Fill each cell with a few short, gently-curved tendrils whose
+      // base heading is biased toward the centre (wide spread so the cell still fills).
+      let pcx = 0, pcy = 0;
+      for (const i of pile) { const c = i % cols, r = (i - c) / cols; const ct = substrate.cellCenter(c, r); pcx += ct.x; pcy += ct.y; }
+      pcx /= pile.length; pcy /= pile.length;
+      const matSpread = g.matStrandSpread != null ? g.matStrandSpread : 1.5;   // ± heading spread around "into the food"
+      const matCurve = g.matStrandCurve != null ? g.matStrandCurve : 0.4;      // per-tendril bend
+      const strands = Math.max(3, Math.round(burst * 0.6));                    // fewer, but each up to 2 segments
       for (const o of order) {
         if (this.nodes.length >= g.maxNodes) break;
         const parent = this.nearestNode(o.ctr.x, o.ctr.y);
         if (!parent) continue;
-        for (let b = 0; b < burst; b++) {
+        const toC = Math.atan2(pcy - o.ctr.y, pcx - o.ctr.x);                  // heading "into the food"
+        const haveC = (pcx - o.ctr.x) ** 2 + (pcy - o.ctr.y) ** 2 > 1;
+        for (let s = 0; s < strands; s++) {
           if (this.nodes.length >= g.maxNodes) break;
-          const ang = rng() * Math.PI * 2;
-          const rad = cs * (0.15 + rng() * 0.55);
-          const nx = o.ctr.x + Math.cos(ang) * rad;
-          const ny = o.ctr.y + Math.sin(ang) * rad;
-          if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) continue;
-          if (nx <= 2 || nx >= substrate.worldWidth - 2) continue;
-          const tc = substrate.cellAtWorld(nx, ny);
-          if (tc && tc.rock) continue;
-          this.addNode(nx, ny, parent).colon = true;   // mat hyphae: not a growth frontier
-          created++;
+          let ang = (haveC ? toC : rng() * Math.PI * 2) + (rng() * 2 - 1) * matSpread;
+          const bend = (rng() < 0.5 ? 1 : -1) * matCurve;   // steady per-tendril bend → an arc
+          const chain = 1 + (rng() < 0.55 ? 1 : 0);          // 1–2 segments
+          let sp = parent, cx = o.ctr.x, cy = o.ctr.y;
+          for (let k = 0; k < chain; k++) {
+            if (this.nodes.length >= g.maxNodes) break;
+            if (k > 0) ang += bend;
+            const step = cs * (0.2 + rng() * 0.4);
+            const nx = cx + Math.cos(ang) * step, ny = cy + Math.sin(ang) * step;
+            if (ny <= substrate.surfaceY + 2 || ny >= substrate.worldHeight - 2) break;
+            if (nx <= 2 || nx >= substrate.worldWidth - 2) break;
+            const tc = substrate.cellAtWorld(nx, ny);
+            if (tc && tc.rock) break;
+            sp = this.addNode(nx, ny, sp); sp.colon = true;   // mat hyphae: not a growth frontier
+            cx = nx; cy = ny; created++;
+          }
         }
         substrate.cells[o.i].colonized = 1;
       }
@@ -5433,22 +5459,36 @@ class Network {
     return created;
   }
 
-  // Plan a straight runner from `node` toward `target` (a pile cell centre) and
-  // commit it ONLY if it actually reaches the pile edge (rock in the way → it
-  // reaches nothing and adds no nodes, so a walled-off pile is never claimed and
-  // never leaks half-runners on repeat grows). Runner nodes are flagged `colon`
-  // so they don't count as the growth frontier. Returns {created, reached}.
+  // Plan a BENDY runner from `node` toward `target` (a pile cell centre) — it wanders
+  // with a gentle wobble but re-aims toward the food each step (`bridgePull`), so the
+  // bends lean TOWARD the pile (a hypha reaching for it), not away, and the wobble calms
+  // as it closes in so it always homes home. Each step tries the bendy heading first,
+  // then a dead-straight fallback toward the food, so a real gap is still threaded and a
+  // rock-walled pile still reaches nothing (never claimed, never leaks half-runners).
+  // Runner nodes are flagged `colon` (not a growth frontier). Returns {created, reached}.
   _bridgeInto(substrate, node, target) {
     const g = this.config.growth;
+    const rng = this._branchRng;
+    const seg = g.segmentLength, cs = substrate.cellSize;
+    const wob0 = g.bridgeWobble != null ? g.bridgeWobble : 0.4;   // per-step wander (radians)
+    const pull = g.bridgePull != null ? g.bridgePull : 0.5;       // re-aim toward the food each step (bends lean toward it)
     const pts = [];
     let px = node.x, py = node.y, reached = false;
-    for (let guard = 0; guard < 24; guard++) {
+    let heading = Math.atan2(target.y - py, target.x - px);
+    for (let guard = 0; guard < 30; guard++) {
       const dx = target.x - px, dy = target.y - py, dist = Math.hypot(dx, dy);
-      if (dist <= substrate.cellSize) { reached = true; break; }   // at the pile edge
-      const ux = dx / dist, uy = dy / dist;
-      px += ux * g.segmentLength; py += uy * g.segmentLength;
-      if (!this._placeOk(substrate, px, py)) break;                 // rock / edge blocks it
-      pts.push({ x: px, y: py });
+      if (dist <= cs) { reached = true; break; }                  // at the pile edge
+      const toTarget = Math.atan2(dy, dx);
+      let d = toTarget - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      const wob = wob0 * Math.max(0.15, Math.min(1, dist / (4 * cs)));   // calm the wobble as it nears the pile
+      heading += d * pull + rng.range(-wob, wob);
+      // step bendy; if that lands in rock/edge, fall back to a dead-straight step toward the food
+      let stepped = false;
+      for (const h of [heading, toTarget]) {
+        const nx = px + Math.cos(h) * seg, ny = py + Math.sin(h) * seg;
+        if (this._placeOk(substrate, nx, ny)) { px = nx; py = ny; heading = h; pts.push({ x: px, y: py }); stepped = true; break; }
+      }
+      if (!stepped) break;                                        // rock / edge blocks it
     }
     if (!reached) return { created: 0, reached: false };
     let parent = node, created = 0;

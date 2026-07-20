@@ -482,6 +482,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Substrate colonisation reads more like mycelium: bendy runner + inward-leaning mat** (`network.js
+  colonizeReachablePiles` + `_bridgeInto`). Owner: the strands reaching into food piles were too straight and
+  the bends pointed away from the food. Two changes: (1) **`_bridgeInto`** (the runner from the colony to a
+  pile) was a dead-straight line — now it WANDERS with a wobble but RE-AIMS at the food each step
+  (`bridgePull` 0.42), so the bends lean toward the pile; the wobble (`bridgeWobble` 0.55) calms as it nears,
+  and each step tries the bendy heading then a dead-straight fallback so it still threads gaps / never fails to
+  reach an in-range pile. (2) The in-pile **mat burst** was a random outward star of single straight spokes —
+  now a few short (1–2 seg) curved tendrils per cell (`matStrandCurve` 0.4) whose base heading is biased TOWARD
+  the pile centroid (`matStrandSpread` 1.5 wide so cells still fill), so the mat reaches INTO the food instead
+  of spiking outward. Node count per pile is similar (`strands ≈ entryBurst×0.6`, up to 2 nodes each). Config
+  (`config.growth`): `bridgeWobble/bridgePull/matStrandSpread/matStrandCurve`. Verified geometry
+  (`scratchpad/colonize_render.mjs`). Tests green; import-leak 0.
+
 - **Organic COMPANION strands on directed grows — TEST wired to Rhizomorph Lance only.** Owner wants normal
   grows to feel more like mycelium: an occasional runner that branches off, SHADOWS the main heading toward the
   goal for a while, then tapers off to one side. Impl: `network.js _sproutCompanionStrand(substrate, from,

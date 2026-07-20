@@ -220,6 +220,15 @@ export const CONFIG = {
     sideStrandMax: 3,
     sideStrandSpread: 0.8,       // twigs head within ± this (radians) of the LOCAL growth heading (not fully random)
     sideStrandCurve: 0.25,       // steady per-step bend (radians) so a twig ARCS instead of running dead straight
+    // The runner that reaches into a FOOD PILE (network.js _bridgeInto): wanders with a
+    // gentle wobble but re-aims toward the food each step, so it bends TOWARD the pile
+    // (reaching for it) instead of running dead straight.
+    bridgeWobble: 0.55,          // per-step wander of the pile-runner (radians; calms near the pile)
+    bridgePull: 0.42,            // how strongly the runner re-aims at the food each step (0=drift, 1=snap straight)
+    // The mat filling a colonised pile: short curved tendrils that lean TOWARD the pile
+    // centre (into the food), not a random outward star (network.js colonizeReachablePiles).
+    matStrandSpread: 1.5,        // ± heading spread (radians) around "into the food" — wide so the cell still fills
+    matStrandCurve: 0.4,         // per-tendril bend (radians) so mat strands arc instead of spiking straight
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
