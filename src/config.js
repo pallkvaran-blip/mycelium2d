@@ -419,9 +419,6 @@ export const CONFIG = {
     ambientLight: 0.62,         // unlit earth stays a visible warm brown; life adds glow (1 = lighting off)
     networkLight: 'rgba(150,255,190,1)',
     foodLight: 'rgba(255,196,120,1)',
-    foodLightRadius: 30,        // food-cache glow radius (world units) — SMALL/tight so a pile reads as a
-                                //   point of interest in the dark without a wide "field of vision" halo
-    foodLightAlpha: 0.5,        // food-cache glow strength (fades to 0 as the pile is digested)
     hazardLight: 'rgba(90,220,200,1)',
     senseLight: 'rgba(170,205,180,1)', // soft glow marking the sensed (in-range) area
     lightRadius: 64,            // base light radius (world units)

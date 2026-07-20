@@ -482,24 +482,6 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Food caches glow again — a tight warm "point of interest" so piles are visible BEFORE you grow to them.**
-  Bug report: "food piles are not visible until I grow into them, then they magically appear." Cause: the
-  food self-glow was fully removed in an earlier substrate redo (commit `eb197df`) — `foodLightPoints` was
-  left permanently empty and `spriteFood` went unused. With `ambientLight 0.62` dimming the whole earth and
-  the sensing-lighting toggle now OFF by default (so lighting adds NO local colony glow either), a distant
-  pile just sat low-contrast in the dimmed soil and only "popped" once a bright colony strand grew alongside
-  (contrast), never from any actual growth-reveal. Fix restores a self-glow but **much tighter + dimmer** than
-  the old one (which used the full `lightRadius`≈64 at alpha 0.5–0.9 and read as a "field of vision" halo):
-  `src/render/substrate.js _bakeDynamic()` now repopulates `foodLightPoints` (one per food cell; engine caches
-  ×1.15, duff ×0.82), and `src/render/lighting.js compose()` draws `spriteFood` at the new config radius
-  **`render.foodLightRadius: 30`** (world units, ~0.8 cell) / **`foodLightAlpha: 0.5`**, **ungated by the
-  sensing toggle** (food visibility is always on), each point's alpha scaled by the cell's live
-  `nutrient/maxNutrient` so the glow **fades out as the pile is digested** (matching the leaves fading).
-  Verified in isolation (`scratchpad/food_glow_iso.html` + `food_glow_shot.mjs` — imports the real
-  config/lighting/substrate modules against a synthetic scene, since the full game canvas won't boot headless
-  in this env right now): raw → dimmed-invisible → glowing-and-visible, with partly-eaten piles glowing
-  fainter. Tune via the two config knobs. Tests green; import-leak 0.
-
 - **Browser tab: title → "Mycelium", favicon → a black organic mycelium mark (dark-mode auto-inverting).**
   Title dropped the "— Phase 1" suffix. Favicon is **`assets/favicon.svg`** — an *organic radial colony*
   (8 irregular forked filaments + a centre node) hand-built as a recursive-branch SVG, **transparent**
