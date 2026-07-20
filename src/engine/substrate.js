@@ -719,7 +719,8 @@ export function generateSubstrate(config, rng) {
   {
     const rCount = rng.int(Math.max(0, s.reservoirCountMin || 0), Math.max(0, s.reservoirCountMax || 0));
     const rrMin = s.reservoirRadiusMin || 2, rrMax = s.reservoirRadiusMax || 3;
-    const BUF = Math.max(1, s.reservoirClearCells != null ? s.reservoirClearCells : 2);   // rock-free halo (cells)
+    const BUF = Math.max(1, s.reservoirClearCells != null ? s.reservoirClearCells : 2);   // lake/column/food-free halo (cells) required for PLACEMENT
+    const ROCKCLR = Math.max(BUF, s.reservoirRockClearCells != null ? s.reservoirRockClearCells : 4);   // wider radius in which BOULDERS/FORMATIONS are carved (covers rock-sprite spill)
     const resLo = startCols + 3, resHi = goalStart - 3 - summerCols;
     // Only a LAKE, a path-blocking COLUMN (drawn from `sub.rockColumns`, not per-cell), or
     // a FOOD pile can't be moved out of the way — so the disc+halo must avoid those. But
@@ -759,7 +760,7 @@ export function generateSubstrate(config, rng) {
       if (cy < 0) continue;
       const id = sub.reservoirs.length + 1;
       let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
-      const R = rad + BUF;
+      const R = rad + ROCKCLR;   // carve/clear extent (≥ the placement halo) so distant rock sprites can't spill in
       for (let dr = -R; dr <= R; dr++)
         for (let dc = -R; dc <= R; dc++) {
           const d2 = dc * dc + dr * dr;
@@ -773,7 +774,7 @@ export function generateSubstrate(config, rng) {
             c0 = Math.min(c0, cx + dc); c1 = Math.max(c1, cx + dc);
             r0 = Math.min(r0, cy + dr); r1 = Math.max(r1, cy + dr);
           } else if ((cell.rock || cell.formation) && !cell.water && !cell.reservoir && !cell.column) {
-            cell.rock = false; cell.formation = false; cell.rockFill = false;   // carve out a boulder/formation (incl. one the corridor carved but left flagged) that would spill onto the pocket
+            cell.rock = false; cell.formation = false; cell.rockFill = false;   // carve out any boulder/formation whose SPRITE would spill onto the pocket (sprites render up to ~2 cells past their cell)
           }
         }
       placedRes.push({ cx, rad });

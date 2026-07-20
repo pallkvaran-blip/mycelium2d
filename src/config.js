@@ -101,7 +101,8 @@ export const CONFIG = {
     reservoirCountMax: 3,
     reservoirRadiusMin: 2,       // blob radius in cells (small pockets)
     reservoirRadiusMax: 3,
-    reservoirClearCells: 2,      // rock/lake/food-free halo (cells) around a pocket — rock SPRITES spill ~1.5 cells past their cell, so keep them this far off
+    reservoirClearCells: 2,      // lake/column/food-free halo (cells) required around a pocket for PLACEMENT (kept modest so pockets still fit)
+    reservoirRockClearCells: 4,  // radius (cells past the pool) in which BOULDERS + FORMATIONS are carved away — must exceed the max rock-sprite spill (large boulders render ~3.3 cells / ~2-cell reach; formations overhang their footprint) or rocks visibly overlap the pool
     hazardCount: 0,              // toxic pools removed
     hazardRadiusMin: 1,
     hazardRadiusMax: 3,

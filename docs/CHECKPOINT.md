@@ -482,6 +482,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Reservoirs no longer get boulders/formations rendered on top of them.** The reservoir carve
+  (`substrate.js` 2c-iv) cleared rock cells in a halo of `reservoirClearCells` (**2**) around the pocket,
+  but that halo assumed rock sprites spill only ~1.5 cells — whereas a large boulder renders up to **3.3
+  cells** tall (`drawBoulder`: `bh = cs·(1.35 + h1²·2)`) → ~2-cell reach from its cell centre, and
+  formation sprites overhang their footprint too. So a rock cell just OUTSIDE the halo still spilled its
+  sprite onto the pool (owner screenshots). Fix: **decouple** the two concerns — keep `reservoirClearCells`
+  (2) as the lake/column/food-free halo needed for PLACEMENT (so pockets still fit), and add
+  `reservoirRockClearCells` (**4**) as the radius in which BOULDERS + FORMATIONS are carved to soil (must
+  exceed max sprite spill). The carve loop now runs to `R = rad + max(BUF, ROCKCLR)`; water teardrop is
+  unchanged (still within `rad`). Columns are structural (`sub.rockColumns`, never carved) but are already
+  avoided by the placement halo. Verified headless over 200 seeds / 405 reservoirs: **0** rock sprites of
+  any type can reach a pool — worst-case clearance margins boulder **1.67**, formation **2.47**, column
+  **0.69** cells; reservoirs still place (~2/map). 101+61 tests green; `dist` rebuilt (import-leak 0). New
+  config: `substrate.reservoirRockClearCells` (4) — lower it for tighter soil banks, raise if any rock
+  still grazes a pool.
+
 - **Lake bottoms smoothed: clip the lake art to an ELLIPSE bowl, not the per-column water depths.**
   The earlier "clip to the actual water cells" fix (`main.js drawLakes`) built the bottom of the clip
   path as a polyline through each column's integer water depth — so the bottom came out as an ugly
