@@ -39,14 +39,12 @@ export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   let upperFilter = 'all', lowerFilter = 'all';
 
   root.innerHTML =
-    '<div class="lo-panel" role="dialog" aria-label="Choose cards for your next run">' +
-      '<div class="lo-title">' + esc((species && species.name) || 'Your colony') + ' — carry cards forward</div>' +
-      '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried.</div>' +
-      '<div class="lo-caro"><div class="lo-label">Next run’s starting hand</div>' +
+    '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
+      '<div class="lo-caro"><div class="lo-label">Your starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for your next run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for this run</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-caro"><div class="lo-label">Drafted this run — click to add</div>' +
+      '<div class="lo-caro"><div class="lo-label">Drafted last run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
       '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm</button></div>' +
     '</div>';

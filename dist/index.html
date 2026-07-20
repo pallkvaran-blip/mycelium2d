@@ -1228,11 +1228,7 @@
         linear-gradient(180deg,#08110d,#050b08); color:#e6f4ec;
       font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif; padding:16px; overflow:auto; }
     #loadoutSelect *, #loadoutSelect *::before, #loadoutSelect *::after { box-sizing:border-box; }
-    .lo-panel { width:100%; max-width:1120px; display:flex; flex-direction:column; align-items:center; gap:8px; margin:auto; }
-    .lo-title { font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; font-size:clamp(18px,3.2vw,26px);
-      font-weight:600; letter-spacing:.01em; text-align:center; color:#eaf4ee; }
-    .lo-sub { font-size:13px; color:#8fb3a4; text-align:center; max-width:60ch; margin:-2px 0 2px; }
-    .lo-sub b { color:#bfe0d2; }
+    .lo-panel { width:100%; max-width:1120px; display:flex; flex-direction:column; align-items:center; gap:10px; margin:auto; }
     .lo-caro { width:100%; display:flex; flex-direction:column; gap:6px; }
     .lo-label { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7ef0c0; font-weight:700; margin:0 2px; }
     /* filter chips — same look as the in-game .handfilter row */
@@ -1330,8 +1326,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "12yrjkp";
-globalThis.__BUILD__ = "local 07-20 10:42";
+window.__ASSET_VER = "1r7slgu";
+globalThis.__BUILD__ = "local 07-20 10:55";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3124,7 +3120,7 @@ const SPECIES = [
     id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
     blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 25, phosphorus: 0 },
+    res: { energy: 10, water: 25, phosphorus: 6 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
@@ -3240,6 +3236,7 @@ function loadProgress() {
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
+  if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   return p;
 }
 function saveProgress(p) {
@@ -3306,6 +3303,19 @@ function saveLoadout(speciesId, list) {
   saveProgress(p);
   return p.loadouts[speciesId];
 }
+// The pool a memory species offers at the START of a new run: the NON-ENGINE cards it
+// DRAFTED on its last run. Recorded at run end, consumed by the start-of-run picker.
+function lastDraftsFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const l = p.lastDrafts && p.lastDrafts[speciesId];
+  return Array.isArray(l) ? l.filter((e) => e && e.name && e.count > 0) : [];
+}
+function saveLastDrafts(speciesId, list) {
+  const p = loadProgress();
+  p.lastDrafts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.lastDrafts[speciesId];
+}
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).
 function purchaseSpecies(sp, progress) {
@@ -3342,7 +3352,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -11916,14 +11926,12 @@ function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   let upperFilter = 'all', lowerFilter = 'all';
 
   root.innerHTML =
-    '<div class="lo-panel" role="dialog" aria-label="Choose cards for your next run">' +
-      '<div class="lo-title">' + esc((species && species.name) || 'Your colony') + ' — carry cards forward</div>' +
-      '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried.</div>' +
-      '<div class="lo-caro"><div class="lo-label">Next run’s starting hand</div>' +
+    '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
+      '<div class="lo-caro"><div class="lo-label">Your starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for your next run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for this run</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-caro"><div class="lo-label">Drafted this run — click to add</div>' +
+      '<div class="lo-caro"><div class="lo-label">Drafted last run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
       '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm</button></div>' +
     '</div>';
@@ -12986,7 +12994,7 @@ const __m_main = (function () {
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -13141,9 +13149,25 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
   showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
+}
+
+// A "memory" species (Split Gill) curates its starting hand at the START of a run: if it
+// drafted anything on its last run, show the loadout picker (pool = those drafts) so the
+// player hand-picks up to N cards, save the pick, then start. Other species (or a first
+// run with nothing drafted yet) just start immediately.
+function startRunWithLoadout(sp) {
+  if (sp && sp.memory) {
+    const pool = lastDraftsFor(sp.id);
+    if (pool.length) {
+      showLoadoutSelect({ species: sp, drafted: pool, fixed: sp.hand,
+        onConfirm: (picked) => { saveLoadout(sp.id, picked); startRun(); } });
+      return;
+    }
+  }
+  startRun();
 }
 
 function cardsCampaign() {
@@ -13159,19 +13183,16 @@ function effectiveSpecies(sp) {
   return lo.length ? { ...sp, hand: [...(sp.hand || []), ...lo] } : sp;
 }
 
-// At RUN END with a memory species, let the player curate next run's loadout from the
-// NON-ENGINE cards they DRAFTED this run (state.cards.runDrafted), then continue via
-// `next`. Any other case (non-memory species, or nothing drafted → keep prior loadout)
-// just continues immediately.
+// At RUN END with a memory species, REMEMBER this run's NON-ENGINE drafts
+// (state.cards.runDrafted) so the START-of-run loadout picker can offer them next time
+// this species is picked. No UI here — the curation happens at run start now. Then
+// continue via `next`.
 function runEndThen(next) {
   const sp = chosenSpecies;
-  const rd = (state && state.cards && state.cards.runDrafted) || {};
-  const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
-  if (sp && sp.memory && drafted.length) {
-    if (ui) ui.hideOverlay();
-    showLoadoutSelect({ species: sp, drafted, fixed: sp.hand,
-      onConfirm: (list) => { saveLoadout(sp.id, list); next(); } });
-    return;
+  if (sp && sp.memory && state && state.cards) {
+    const rd = state.cards.runDrafted || {};
+    const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
+    saveLastDrafts(sp.id, drafted);
   }
   next();
 }

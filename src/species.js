@@ -53,7 +53,7 @@ export const SPECIES = [
     id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
     blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 25, phosphorus: 0 },
+    res: { energy: 10, water: 25, phosphorus: 6 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
@@ -169,6 +169,7 @@ export function loadProgress() {
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
+  if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   return p;
 }
 export function saveProgress(p) {
@@ -234,6 +235,19 @@ export function saveLoadout(speciesId, list) {
   p.loadouts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
   saveProgress(p);
   return p.loadouts[speciesId];
+}
+// The pool a memory species offers at the START of a new run: the NON-ENGINE cards it
+// DRAFTED on its last run. Recorded at run end, consumed by the start-of-run picker.
+export function lastDraftsFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const l = p.lastDrafts && p.lastDrafts[speciesId];
+  return Array.isArray(l) ? l.filter((e) => e && e.name && e.count > 0) : [];
+}
+export function saveLastDrafts(speciesId, list) {
+  const p = loadProgress();
+  p.lastDrafts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.lastDrafts[speciesId];
 }
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).

@@ -504,30 +504,35 @@ Both menus are dark, on-theme, with glowing green borders.
     blocks with no food in range, Apical Drive / Foraging Fan stay playable. 101+61 tests green; `dist`
     rebuilt (import-leak 0).
 
-- **New species: Split Gill (Schizophyllum commune) — a "memory" species that carries a curated
-  loadout between runs.** First of a planned family (the mechanic is reusable via a `memory:true` flag).
-  - **Kit:** 10⚡ / 25W, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **8 cards
-    the player hand-picks at the end of each run** from the NON-ENGINE (basic+event) cards they **drafted
-    that run** (not the carried-over opener/loadout). First run is bare (6 cards) by design; builds out over runs.
-  - **Data/flow:** `species.js` — new roster entry `id:'schizophyllum'`, `memory:true`, **gated: `unlock:
-    'Complete level 5'`** (first/only species in that tier → revealed on the first level-5 clear, then
-    bought with Spores like any gated species). Loadout persisted in the progress store
-    (`mycelium.progress.v2` `loadouts:{id:[{name,count}]}`) via new `loadoutFor` / `saveLoadout`; TEMP
-    `devUnlockAll()` reveals+buys every gated species (wired to a "Dev: unlock all" button on the picker,
-    `species_select.js`). `engine/cards.js` —
+- **New species: Split Gill (Schizophyllum commune) — a "memory" species that curates its starting hand
+  at the START of each run.** First of a planned family (the mechanic is reusable via a `memory:true` flag).
+  - **Kit:** 10⚡ / 25W / **6P**, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **8
+    cards the player hand-picks WHEN STARTING a run** from the NON-ENGINE (basic+event) cards they **drafted
+    on their last run** with it. First run is bare (6 cards) by design; builds out over runs.
+  - **Data/flow (two-store, run-START selection):** `species.js` — roster entry `id:'schizophyllum'`,
+    `memory:true`, **gated `unlock:'Complete level 5'`** (first/only species in that tier → revealed on the
+    first level-5 clear, then bought with Spores). Progress store (`mycelium.progress.v2`): **`lastDrafts:
+    {id:[{name,count}]}`** = the pool a run leaves behind (its non-engine drafts), recorded at RUN END by
+    `main.js runEndThen` (no UI now); **`loadouts:{id:[…]}`** = the pick that SEEDS the run. On picking the
+    species (`main.js startRunWithLoadout`), if `lastDraftsFor(id)` is non-empty the loadout picker shows
+    (pool = last run's drafts) → `saveLoadout(id, picked)` → `startRun` → `effectiveSpecies` merges the pick
+    into the seeded hand. (Earlier iteration ran the picker at run END; moved to run START per owner — makes
+    more sense.) TEMP `devUnlockAll()` reveals+buys every gated species (picker "Dev: unlock all" button).
+    `engine/cards.js` —
     `chooseOffer` tallies non-engine drafts (by **copies**) into `state.cards.runDrafted` (carried across
     levels with the cards object; reset each run in `initCards`, which now inits `runDrafted:{}`).
-    `main.js` — `effectiveSpecies(sp)` merges the persisted loadout into the seeded hand for memory
-    species; `runEndThen(next)` gates every run-end EXIT (death "New run"/"Main menu", game-won "New run")
-    through the picker: if a memory species drafted anything, show the loadout screen, save the pick, then
-    continue. (A zero-draft run keeps the prior loadout rather than wiping it.)
+    `main.js` — `effectiveSpecies(sp)` merges the saved loadout into the seeded hand for memory species;
+    `runEndThen(next)` just **remembers** this run's drafts to `lastDrafts` at every run-end EXIT (death
+    "New run"/"Main menu", game-won "New run") — no UI. The picker is shown at run START by
+    `startRunWithLoadout`.
   - **UI:** new `src/render/loadout_select.js` (`showLoadoutSelect`, namespaced `#loadoutSelect`/`.lo-*`,
-    CSS in `index.html`). Two carousels that **REUSE the in-game hand carousel** — same `.cardbtn` faces
-    (`cardFaceHTML`/`catClass`, now exported from `ui.js`) and same `.fchip` filter bar per row
-    (`cardGroups`/`GROUP_ORDER`): UPPER = next run's hand (fixed opener **locked** + selected), LOWER =
-    drafted-this-run pool with copy counts. Single-click a lower card → move ONE copy up; click a selected
-    upper card → move it back; cap **8** copies (`MAX_PICK`; lower greys via `.unaff` at the cap); centered
-    **"Choose 8 cards for your next run"** + an X/8 counter; plain **black-&-white Confirm** button (no
+    CSS in `index.html`). No top title/subtitle (removed per owner). Two carousels that **REUSE the in-game
+    hand carousel** — same `.cardbtn` faces (`cardFaceHTML`/`catClass`, now exported from `ui.js`) and same
+    `.fchip` filter bar per row (`cardGroups`/`GROUP_ORDER`): UPPER = "Your starting hand" (fixed opener
+    **locked** + selected), LOWER = "Drafted last run" pool with copy counts. Single-click a lower card →
+    move ONE copy up; click a selected upper card → move it back; cap **8** copies (`MAX_PICK`; lower greys
+    via `.unaff` at the cap); centered
+    **"Choose 8 cards for this run"** + an X/8 counter; plain **black-&-white Confirm** button (no
     gradient/icon). The species-detail inspector (`species_select.js`) shows a 3rd **"Choose Eight"**
     placeholder card (a dashed "?" face: "Any combination of 8 basic and event cards **drafted during your
     last run**.") for memory species.

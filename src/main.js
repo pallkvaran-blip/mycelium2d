@@ -23,7 +23,7 @@ import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -169,9 +169,25 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
   showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
+    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
+}
+
+// A "memory" species (Split Gill) curates its starting hand at the START of a run: if it
+// drafted anything on its last run, show the loadout picker (pool = those drafts) so the
+// player hand-picks up to N cards, save the pick, then start. Other species (or a first
+// run with nothing drafted yet) just start immediately.
+function startRunWithLoadout(sp) {
+  if (sp && sp.memory) {
+    const pool = lastDraftsFor(sp.id);
+    if (pool.length) {
+      showLoadoutSelect({ species: sp, drafted: pool, fixed: sp.hand,
+        onConfirm: (picked) => { saveLoadout(sp.id, picked); startRun(); } });
+      return;
+    }
+  }
+  startRun();
 }
 
 function cardsCampaign() {
@@ -187,19 +203,16 @@ function effectiveSpecies(sp) {
   return lo.length ? { ...sp, hand: [...(sp.hand || []), ...lo] } : sp;
 }
 
-// At RUN END with a memory species, let the player curate next run's loadout from the
-// NON-ENGINE cards they DRAFTED this run (state.cards.runDrafted), then continue via
-// `next`. Any other case (non-memory species, or nothing drafted → keep prior loadout)
-// just continues immediately.
+// At RUN END with a memory species, REMEMBER this run's NON-ENGINE drafts
+// (state.cards.runDrafted) so the START-of-run loadout picker can offer them next time
+// this species is picked. No UI here — the curation happens at run start now. Then
+// continue via `next`.
 function runEndThen(next) {
   const sp = chosenSpecies;
-  const rd = (state && state.cards && state.cards.runDrafted) || {};
-  const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
-  if (sp && sp.memory && drafted.length) {
-    if (ui) ui.hideOverlay();
-    showLoadoutSelect({ species: sp, drafted, fixed: sp.hand,
-      onConfirm: (list) => { saveLoadout(sp.id, list); next(); } });
-    return;
+  if (sp && sp.memory && state && state.cards) {
+    const rd = state.cards.runDrafted || {};
+    const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
+    saveLastDrafts(sp.id, drafted);
   }
   next();
 }
