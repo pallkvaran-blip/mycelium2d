@@ -482,6 +482,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Card cost pills more legible on bright art.** The top-left resource-cost chips (`.cc` in
+  `index.html`) had only a faint translucent *colour* tint, so on bright card faces (Acorn Cache,
+  Sclerotial Crust, …) the cost read poorly. Added a dark base via `background-color: rgba(6,11,9,0.5)`
+  on `.cc` and moved each per-resource tint to `background-image` so the two layers compose — the dark
+  backing now carries the contrast, the colour tint still codes the resource. Dark-art cards are visually
+  unchanged. Rebuilt `dist/`.
+
 - **Grow-card family expansion + tempo rebalance (owner batch).** Rhizomorph Lance was auto-best, so
   added a paid **directional aimed-grow family** to compete with it and buffed the free grows to keep pace.
   - **Buffs:** Apical Drive **2→3** steps, Hyphal Extension **1→2** steps; their installed twins match —
