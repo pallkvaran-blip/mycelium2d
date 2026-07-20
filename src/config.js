@@ -173,8 +173,8 @@ export const CONFIG = {
     fanReach: 1.15,              // rounds = fanSteps × this (how far the front advances)
     fanRays: 5,                  // seeds spread around the aim (the base of the fan)
     fanSpread: 0.34,             // angle (radians) between adjacent base seeds
-    fanForkChance: 0.55,         // per tip per round chance to BIFURCATE (first half of the fan) — higher = denser
-    fanForkTaper: 0.125,         // PAST THE MIDPOINT the fork rate is × this (0.125 = ~eighth the branching in the outer half)
+    fanForkChance: 0.41,         // per tip per round chance to BIFURCATE (first half of the fan) — higher = denser
+    fanForkTaper: 0.21,          // PAST THE MIDPOINT the fork rate is × this (outer-half rate = fanForkChance × this)
     fanForkAngle: 0.4,           // angle (radians) the two branches spread when a tip bifurcates
     fanMaxDev: 1.2,              // clamp: keep every tip's heading within ± this of the aim (wedge half-width)
     fanSpacing: 3,               // min gap (px) between fan nodes — bigger = airier, less dense
