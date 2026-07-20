@@ -482,15 +482,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Browser tab: title → "Mycelium", favicon → a simple vector mycelium mark.** Title dropped the
-  "— Phase 1" suffix. Favicon is **`assets/favicon.svg`** — a bold, *simplified* radial mycelium (6 forked
-  branches + a centre node, one medium-teal `#1ec08f`, **transparent** background, round caps) hand-built
-  as SVG so it stays crisp and legible at 16px. (First attempt was a circular crop of the Forager Bloom
-  card art — rejected: too detailed to read when tiny, and the photo's black/feathered disc showed instead
-  of transparency.) Title + favicon are set in **`build.mjs`** (its own `<head>` template — NOT inherited
-  from `index.html`): title literal + the SVG inlined as a base64 **data URI** so `dist/index.html` is
-  self-contained; `index.html` (source) references `assets/favicon.svg`. Verified across 16–64px on light
-  AND dark tab backgrounds via a Playwright render. Rebuilt; the old `favicon.png` removed.
+- **Browser tab: title → "Mycelium", favicon → a black organic mycelium mark (dark-mode auto-inverting).**
+  Title dropped the "— Phase 1" suffix. Favicon is **`assets/favicon.svg`** — an *organic radial colony*
+  (8 irregular forked filaments + a centre node) hand-built as a recursive-branch SVG, **transparent**
+  background, round caps. **Colour = `currentColor`** driven by an in-SVG style block
+  `svg{color:#000}@media(prefers-color-scheme:dark){svg{color:#fff}}` → **black on light tabs, white on dark
+  tabs** (Chrome/Firefox honour media queries in SVG favicons; Safari falls back to black). Two rejected
+  attempts first: (1) a circular crop of the Forager Bloom card art — too detailed to read tiny + the photo's
+  black/feathered disc showed instead of transparency; (2) a teal `#1ec08f` symmetric 6-branch vector —
+  owner wanted black. Owner picked "organic colony (8 arms)" from a 5-option A–E preview grid
+  (`scratchpad/fav_black.mjs` regenerates it; A radial-6 / B organic-8 *chosen* / C hypha-tree / D dense-disc /
+  E upward-fan, each shown 16–64px on white/grey/dark). Title + favicon are set in **`build.mjs`** (its own
+  `<head>` template — NOT inherited from `index.html`): title literal + the SVG inlined as a base64 **data
+  URI** so `dist/index.html` is self-contained; `index.html` (source) references `assets/favicon.svg`.
+  Verified 16–64px on light AND dark tabs (`scratchpad/fav_verify.mjs`, `colorScheme` light/dark) — invert
+  confirmed. Rebuilt; media query survives the base64 inline.
 
 - **Settings-menu + softlock fixes (owner batch).**
   - **"Force Fruiting (abandon run)"** added to the gear settings menu (`ui.js` `#set-forcefruit`,
