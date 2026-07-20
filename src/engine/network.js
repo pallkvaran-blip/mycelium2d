@@ -288,20 +288,30 @@ export class Network {
     if (!strandNodes || !strandNodes.length) return 0;
     if (this.nodes.length >= g.maxNodes) return 0;
     const from = rng.pick(strandNodes);                 // a random point along the strand
+    // Head in the SAME GENERAL DIRECTION as the growth at this point (the local strand
+    // heading = its parent → it), offset to one side by up to `sideStrandSpread`. (Was a
+    // fully-random direction, which looked un-mycelium-like — twigs shot backwards.)
+    const par = from.parentId != null ? this.byId.get(from.parentId) : null;
+    const heading = par ? Math.atan2(from.y - par.y, from.x - par.x) : rng.range(0, Math.PI * 2);
+    const spread = g.sideStrandSpread != null ? g.sideStrandSpread : 0.8;
+    const curve = g.sideStrandCurve != null ? g.sideStrandCurve : 0.25;
     const len = forceLen != null ? forceLen : rng.int(g.sideStrandMin, g.sideStrandMax);
-    // Try a few random directions so an offshoot aimed into rock/edge still finds soil.
+    // Try a few starting offsets so an offshoot aimed into rock/edge still finds soil.
     for (let attempt = 0; attempt < 6; attempt++) {
-      const ang0 = rng.range(0, Math.PI * 2);           // a random direction
+      const ang0 = heading + rng.range(-spread, spread);   // off to a side of the growth heading
       const fx = from.x + Math.cos(ang0) * g.segmentLength;
       const fy = from.y + Math.sin(ang0) * g.segmentLength;
       if (!this._segmentClear(substrate, from.x, from.y, fx, fy)) continue;  // walled — try another heading
-      let parent = from, made = 0;
+      // A consistent per-twig turn direction makes the strand ARC (a smooth bend) instead
+      // of running dead straight — more like a real hypha curling off the cord.
+      const bend = (rng.chance(0.5) ? 1 : -1) * curve;
+      let parent = from, made = 0, ang = ang0;
       const created = [];
       for (let i = 0; i < len; i++) {
         if (this.nodes.length >= g.maxNodes) break;
-        // i=0 uses the heading we just verified clear (guaranteeing ≥1 node); later
-        // steps wobble with the usual branch jitter for an organic look.
-        const ang = ang0 + (i === 0 ? 0 : rng.range(-g.branchJitter, g.branchJitter));
+        // i=0 uses the heading we just verified clear (guaranteeing ≥1 node); later steps
+        // add the steady bend plus a little wobble so the twig curves organically.
+        if (i > 0) ang += bend + rng.range(-g.branchJitter, g.branchJitter) * 0.5;
         const nx = parent.x + Math.cos(ang) * g.segmentLength;
         const ny = parent.y + Math.sin(ang) * g.segmentLength;
         if (!this._segmentClear(substrate, parent.x, parent.y, nx, ny)) break;

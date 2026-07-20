@@ -493,10 +493,16 @@ Both menus are dark, on-theme, with glowing green borders.
   `companionMin..Max` (4..9) segments. **Only Rhizomorph Lance passes `companion=true`** (cards.js) for now —
   the other directed grows (Apical Drive, Fruiting Vigil, Leading Cord, Tropic Lunge) are unchanged pending
   owner sign-off. Config knobs (`config.growth`): `companionChance/Min/Max/Follow/Drift`. Verified geometry
-  (`scratchpad/lance_render.mjs` — white cord / blue companions / dim old side-twigs): companions shadow the
-  cord then peel off, as intended. NB the pre-existing random side-twigs (`sideStrandChance` 0.6, random
-  direction) are separate and still fire on every directed grow. Tests green; import-leak 0. If approved,
-  enable `companion=true` on the other directed-grow effects.
+  (`scratchpad/lance_render.mjs` — white cord / blue companions / dim side-twigs): companions shadow the
+  cord then peel off, as intended. Tests green; import-leak 0. If approved, enable `companion=true` on the
+  other directed-grow effects.
+
+- **`_sproutSideStrand` reworked to look more organic (ALL grows).** Owner: the random side-twigs looked "too
+  random and too straight." Now they (1) head in the SAME GENERAL DIRECTION as the local growth (heading =
+  parent→node, offset ±`sideStrandSpread` 0.8 — was a fully-random 0–2π direction that shot twigs backwards),
+  (2) ARC via a steady per-twig bend `sideStrandCurve` (0.25 rad/step) instead of running straight, and (3) are
+  FEWER (`sideStrandChance` 0.6→0.4; `sideStrandMin` 1→2 so the bend has room to show). Applies to every grow
+  that sprouts side-strands (directed + undirected). Verified in `lance_render.mjs`.
 
 - **Foraging Fan + Forager Bloom → AIMED directional fan (was omni "every direction").** Owner: aim it like
   any other growth card and fan out 3 steps in the chosen direction ("looks like the current fan played 3× but

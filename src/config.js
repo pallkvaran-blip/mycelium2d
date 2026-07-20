@@ -215,9 +215,11 @@ export const CONFIG = {
     // in a random direction. Non-recursive (side-strands don't branch again) and
     // collision-aware. Applies to every grow primitive (directional, fan, lunge,
     // undirected) — see network.js _sproutSideStrand.
-    sideStrandChance: 0.6,       // 60% per growth step
-    sideStrandMin: 1,            // side-strand length in segments (inclusive range)
+    sideStrandChance: 0.4,       // per growth step (reduced 0.6→0.4 — fewer twigs)
+    sideStrandMin: 2,            // side-strand length in segments (inclusive range; min 2 so the bend shows)
     sideStrandMax: 3,
+    sideStrandSpread: 0.8,       // twigs head within ± this (radians) of the LOCAL growth heading (not fully random)
+    sideStrandCurve: 0.25,       // steady per-step bend (radians) so a twig ARCS instead of running dead straight
     // A side-strand that rolls the FULL max length has this chance to sprout one
     // extra length-1 twig off itself (see network.js _sproutSideStrand).
     sideStrandForkChance: 0.5,
