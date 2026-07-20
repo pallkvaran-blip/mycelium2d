@@ -216,7 +216,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
 
   const wallet = root.querySelector('#ssWallet');
   function updateWallet() {
-    wallet.innerHTML = SPORE_ICON + '<span class="ss-sp-n">' + sporesBalance(progress) + '</span><span class="ss-sp-lbl">Spores</span>';
+    wallet.innerHTML = SPORE_ICON + '<span class="ss-sp-n">' + sporesBalance(progress) + '</span>';
   }
 
   const availGrid = root.querySelector('#ssAvail');
