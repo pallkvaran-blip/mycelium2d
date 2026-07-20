@@ -494,6 +494,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Species balance pass (owner, authored via the species-editor).** Roster-wide water buffs (most species now
+  **35–52 W**), P/E tweaks, and hand redesigns — Oyster → Cord Capillary + 3 Foraging Fan + **12 Turgor Thrust**;
+  Slippery Jack → Prospecting Cords + 8 Apical Drive + 6 Vesicle Surge + 3 Fruiting Vigil; Bleeding Tooth → +6
+  Rhizomorph Lance; Wine Cap → +Guerrilla Runners/Constricting Snap/Apical Drive; Violet Webcap → +Guerrilla
+  Runners/Fruiting Vigil/Vesicle Surge; Dry Rot → +Rhizomorph Lance/Turgor Thrust/Amputate; Earthball → 7 Apical
+  Drive / 5 Hyphal Extension; trimmed the Oyster/Suillus/Dry-Rot blurbs. All 11 seed cleanly (headless-verified
+  hand sizes + every card name resolves; `scratchpad/species_seed_check.mjs`). Cards 61/0; smoke 100/1 (pre-existing).
+  **NOTE — array reorder is cosmetic:** the SPECIES array was reordered (Earthball moved ahead of Oyster), but
+  the picker groups by **unlock tier**, so on screen Earthball still sits in the Level-3 row (5th), not 3rd. To
+  actually move a species earlier in the PICKER you must change its `unlock` tier, not its array index.
+
 - **Species editor tool (`docs/species-editor.html`).** A standalone authoring page to review + edit the whole
   roster: per species it exposes name/latin/vibe/unlock-tier/art-slug, **starting resources (E/W/P)**, the
   **blurb**, the **starting hand** (card-thumbnail chips with count inputs + remove, and an "add a card"

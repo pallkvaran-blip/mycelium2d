@@ -1329,8 +1329,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1njg6wt";
-globalThis.__BUILD__ = "local 07-20 18:33";
+window.__ASSET_VER = "10iamzg";
+globalThis.__BUILD__ = "local 07-20 20:15";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3141,47 +3141,46 @@ const SPECIES = [
     ],
   },
   {
-    id: 'pleurotus', vibe: 'warm', unlock: 'Complete level 1',
-    name: 'Oyster Mushroom', latin: 'Pleurotus ostreatus', img: 'pleurotus-ostreatus',
-    blurb: 'Among the fastest and most vigorous wood-rotters alive — oyster mycelium storms through a fallen log and turns dead timber straight into sugar, fruiting in shelving tiers wherever the carbon runs richest. It is a hungry, catholic feeder that spreads faster than almost anything else in the litter. This is the colony that keeps the lights on: it opens with a living <b>cord that trickles a steady current of energy</b> through the mat every round — your first real power supply, so you can afford to draw and push harder than the bare starters ever could.',
-    res: { energy: 8, water: 20, phosphorus: 7 },   // opener Cord Capillary installs for 4⚡+2W+6P → start able to build it turn 1
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 3',
+    name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
+    blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
+    res: { energy: 0, water: 35, phosphorus: 6 },
     hand: [
-      { name: 'Cord Capillary', count: 1 },
-      { name: 'Foraging Fan', count: 5 },
-      { name: 'Hyphal Extension', count: 4 },
-      { name: 'Acorn Cache', count: 4 },
-    ],
-  },
-  {
-    id: 'suillus', vibe: 'spore', unlock: 'Complete level 1',
-    name: 'Slippery Jack', latin: 'Suillus luteus', img: 'suillus-luteus',
-    blurb: 'A slick, amber-capped bolete bound in partnership with pine — a <b>mycorrhizal</b> trader that sheathes the tree\'s rootlets and ranges far through poor soil for the nutrient those roots can never reach on their own: <b>phosphate</b>. It pays for the mineral in sugar, funnelling carbon down its cords to fund the dig. It opens by spending your starting energy on a standing set of <b>prospecting cords that mine a steady drip of Phosphorus</b> — your first dependable phosphate supply, and the key that unlocks digest, defense, and the heavier grows.',
-    res: { energy: 14, water: 22, phosphorus: 2 },   // opener Prospecting Cords installs for 12⚡ (mycorrhiza trades sugar for phosphate) → start with the Energy to build it turn 1
-    hand: [
-      { name: 'Prospecting Cords', count: 1 },
-      { name: 'Apical Drive', count: 5 },
+      { name: 'Sclerotial Crust', count: 2 },
+      { name: 'Amputate', count: 2 },
+      { name: 'Apical Drive', count: 7 },
       { name: 'Hyphal Extension', count: 5 },
       { name: 'Acorn Cache', count: 3 },
     ],
   },
   {
-    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 3',
-    name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
-    blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
-    res: { energy: 0, water: 30, phosphorus: 5 },
+    id: 'pleurotus', vibe: 'warm', unlock: 'Complete level 1',
+    name: 'Oyster Mushroom', latin: 'Pleurotus ostreatus', img: 'pleurotus-ostreatus',
+    blurb: 'Among the fastest and most vigorous wood-rotters alive — oyster mycelium storms through a fallen log and turns dead timber straight into sugar, fruiting in shelving tiers wherever the carbon runs richest. It is a hungry feeder that spreads faster than almost anything else in the litter. This is the colony that keeps the lights on: it opens with a living <b>cord that trickles a steady current of energy</b> through the mat every round.',
+    res: { energy: 10, water: 35, phosphorus: 8 },   // opener Cord Capillary installs for 4⚡+2W+6P
     hand: [
-      { name: 'Sclerotial Crust', count: 2 },
-      { name: 'Amputate', count: 2 },
-      { name: 'Apical Drive', count: 5 },
-      { name: 'Hyphal Extension', count: 3 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Cord Capillary', count: 1 },
+      { name: 'Foraging Fan', count: 3 },
+      { name: 'Turgor Thrust', count: 12 },
+    ],
+  },
+  {
+    id: 'suillus', vibe: 'spore', unlock: 'Complete level 1',
+    name: 'Slippery Jack', latin: 'Suillus luteus', img: 'suillus-luteus',
+    blurb: 'A slick, amber-capped bolete bound in partnership with pine — a <b>mycorrhizal</b> trader that sheathes the tree\'s rootlets and ranges far through poor soil for the nutrient those roots can never reach on their own: <b>phosphate</b>. It pays for the mineral in sugar, funnelling carbon down its cords to fund the dig. Your first dependable phosphate supply, and the key that unlocks digest, defense, and the heavier grows.',
+    res: { energy: 14, water: 35, phosphorus: 8 },   // opener Prospecting Cords installs for 12⚡
+    hand: [
+      { name: 'Prospecting Cords', count: 1 },
+      { name: 'Apical Drive', count: 8 },
+      { name: 'Vesicle Surge', count: 6 },
+      { name: 'Fruiting Vigil', count: 3 },
     ],
   },
   {
     id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
     blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 25, phosphorus: 6 },
+    res: { energy: 10, water: 37, phosphorus: 6 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
@@ -3191,59 +3190,63 @@ const SPECIES = [
     id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 3',
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
-    res: { energy: 10, water: 20, phosphorus: 0 },   // opener Aquaporin Channels costs 10⚡ to install → start with Energy
+    res: { energy: 10, water: 40, phosphorus: 6 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
-      { name: 'Hyphal Extension', count: 5 },
-      { name: 'Apical Drive', count: 5 },
-      { name: 'Foraging Fan', count: 5 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Apical Drive', count: 6 },
+      { name: 'Hyphal Extension', count: 6 },
+      { name: 'Foraging Fan', count: 3 },
+      { name: 'Rhizomorph Lance', count: 6 },
     ],
   },
   {
     id: 'stropharia', vibe: 'warm', unlock: 'Complete level 5',
     name: 'Wine Cap', latin: 'Stropharia rugosoannulata', img: 'stropharia-rugosoannulata',
     blurb: 'The <b>"garden giant"</b> — a bulky saprotroph with a wine-red cap that rips through wood chips, straw and forest mulch faster than almost anything, turning dead matter straight into <b>sugar and mineralised nutrients</b>. Its mycelium bristles with tiny spiked cells (acanthocytes) that puncture passing nematodes and bacteria and strip them for extra nitrogen and phosphate. It opens running two engines at once — a <b>cord that trickles energy</b> and a <b>saprobic front that mineralises phosphorus</b> — a self-feeding decomposer from turn one.',
-    res: { energy: 20, water: 20, phosphorus: 8 },   // openers Cord Capillary (4⚡+2W+6P) + Mineralizing Saprobe (14⚡) → install both turn 1
+    res: { energy: 20, water: 45, phosphorus: 7 },   // openers Cord Capillary (4⚡+2W+6P) + Mineralizing Saprobe (14⚡) → install both turn 1
     hand: [
       { name: 'Cord Capillary', count: 1 },
       { name: 'Mineralizing Saprobe', count: 1 },
-      { name: 'Hyphal Extension', count: 5 },
+      { name: 'Hyphal Extension', count: 6 },
       { name: 'Foraging Fan', count: 4 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Apical Drive', count: 6 },
+      { name: 'Guerrilla Runners', count: 6 },
+      { name: 'Constricting Snap', count: 3 },
     ],
   },
   {
     id: 'cortinarius', vibe: 'spore', unlock: 'Complete level 7',
     name: 'Violet Webcap', latin: 'Cortinarius violaceus', img: 'cortinarius-violaceus',
     blurb: 'One of the few truly <b>violet</b> mushrooms — dark indigo from cap to stem — and an ectomycorrhizal partner that sheathes tree roots through damp, mossy forest floor. It mines the soil for locked-away nutrients, secreting <b>acid phosphatases that free bound phosphate</b>, and pipes <b>water and minerals</b> back to its host in trade for sugar. It opens with both taps already running: a slow, deep phosphate reserve and a steady draw of water.',
-    res: { energy: 34, water: 18, phosphorus: 8 },   // openers Phosphatase Reserve (12⚡) + Aquaporin Channels (20⚡+6P) → install both turn 1
+    res: { energy: 34, water: 45, phosphorus: 10 },   // openers Phosphatase Reserve (12⚡) + Aquaporin Channels (20⚡+6P) → install both turn 1
     hand: [
       { name: 'Phosphatase Reserve', count: 1 },
       { name: 'Aquaporin Channels', count: 1 },
-      { name: 'Apical Drive', count: 5 },
-      { name: 'Hyphal Extension', count: 5 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Apical Drive', count: 8 },
+      { name: 'Fruiting Vigil', count: 3 },
+      { name: 'Guerrilla Runners', count: 6 },
+      { name: 'Vesicle Surge', count: 4 },
     ],
   },
   {
     id: 'serpula', vibe: 'warm', unlock: 'Complete level 7',
     name: 'Dry Rot', latin: 'Serpula lacrymans', img: 'serpula-lacrymans',
-    blurb: 'The most feared timber-rotter of all — <b>"true dry rot."</b> A brown-rot fungus that crumbles wood into dry, cracked cubes for energy, it has a rare trick: it <b>translocates water along its own mycelial cords</b>, carrying moisture from damp ground into bone-dry timber so it can rot wood nothing else can reach. Its rusty, folded fruitbodies bead with watery droplets — hence <i>lacrymans</i>, "weeping." It opens piping <b>water through its cords</b> while a <b>capillary trickles energy</b> — its whole biology, in two engines.',
-    res: { energy: 26, water: 18, phosphorus: 14 },   // openers Aquaporin Channels (20⚡+6P) + Cord Capillary (4⚡+2W+6P) → install both turn 1
+    blurb: 'The most feared timber-rotter of all — <b>"true dry rot."</b> A brown-rot fungus that crumbles wood into dry, cracked cubes for energy, it has a rare trick: it <b>translocates water along its own mycelial cords</b>, carrying moisture from damp ground into bone-dry timber so it can rot wood nothing else can reach. Its rusty, folded fruitbodies bead with watery droplets — hence <i>lacrymans</i>, "weeping." It opens piping <b>water through its cords</b> while a <b>capillary trickles energy.</b>',
+    res: { energy: 26, water: 45, phosphorus: 14 },   // openers Aquaporin Channels (20⚡+6P) + Cord Capillary (4⚡+2W+6P) → install both turn 1
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
       { name: 'Cord Capillary', count: 1 },
-      { name: 'Apical Drive', count: 5 },
-      { name: 'Hyphal Extension', count: 5 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Apical Drive', count: 8 },
+      { name: 'Rhizomorph Lance', count: 6 },
+      { name: 'Turgor Thrust', count: 8 },
+      { name: 'Amputate', count: 2 },
     ],
   },
   {
     id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2,
     name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
     blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
-    res: { energy: 20, water: 25, phosphorus: 10 },
+    res: { energy: 20, water: 52, phosphorus: 16 },
     hand: [
       { name: 'Apical Drive', count: 5 },
     ],
