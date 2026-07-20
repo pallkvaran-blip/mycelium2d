@@ -13,7 +13,7 @@
 // in-game .card/.overlay UI.
 // =============================================================================
 
-import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress } from '../species.js';
+import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
 import { cardSlug, SPORE_ICON } from './ui.js';
 import { growMyceliumTitle } from './mycelium_title.js';
@@ -71,8 +71,8 @@ function cardFace(entry) {
 function chooseFiveFace() {
   return '<div class="ss-gc ss-gc-choose">' +
     '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
-    '<div class="ss-gc-name">Choose Five</div>' +
-    '<div class="ss-gc-eff">Any combination of 5 basic and action cards <b>drafted during your last run</b>.</div>' +
+    '<div class="ss-gc-name">Choose Eight</div>' +
+    '<div class="ss-gc-eff">Any combination of 8 basic and event cards <b>drafted during your last run</b>.</div>' +
   '</div>';
 }
 
@@ -196,6 +196,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
+      '<button class="ss-dev ss-dev2" id="ssDevUnlock" type="button" title="TEMP DEV: reveal + unlock every species">Dev: unlock all ▸</button>' +
       '<header class="ss-head">' +
         '<div class="ss-headrow"><h1>Select your species</h1>' +
           '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
@@ -256,6 +257,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
   updateWallet();
   renderLocked();
   root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
+  root.querySelector('#ssDevUnlock').addEventListener('click', () => { devUnlockAll(); refresh(); });
   return { hide, root };
 }
 

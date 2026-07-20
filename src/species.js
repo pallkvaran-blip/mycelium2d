@@ -50,9 +50,9 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'schizophyllum', vibe: 'aqua', unlock: null, memory: true,
+    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
-    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its namesake <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony <b>learns</b>: it always opens with its aquaporins and a fistful of driving tips, then carries forward <b>five cards you hand-pick from whatever you drafted on your last run</b> — so every attempt tunes the deck a little sharper. The first run is bare; build it out over several.',
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
     res: { energy: 10, water: 25, phosphorus: 0 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
@@ -177,6 +177,20 @@ export function saveProgress(p) {
 // "New" on the title screen: wipe all unlock progress (start from scratch).
 export function resetProgress() {
   try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {}
+}
+// TEMP DEV: reveal AND unlock (buy) every gated species — records enough clears of each
+// tier's level to reveal all its species, and marks them all purchased. For the dev
+// button on the species picker; remove for release.
+export function devUnlockAll() {
+  const p = loadProgress();
+  for (const s of SPECIES) {
+    if (!s.unlock) continue;
+    const lvl = levelFromUnlock(s.unlock);
+    if (lvl) p.clears[lvl] = Math.max(p.clears[lvl] || 0, 99);   // 99 clears → every species in the tier is revealed
+    p.purchased[s.id] = true;                                    // and bought (playable)
+  }
+  saveProgress(p);
+  return p;
 }
 export function clearsFor(progress, level) {
   return (progress && progress.clears && progress.clears[level]) || 0;

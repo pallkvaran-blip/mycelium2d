@@ -25,7 +25,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
-const MAX_PICK = 5;
+const MAX_PICK = 8;
 
 export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   const root = el('div'); root.id = 'loadoutSelect';
@@ -44,7 +44,7 @@ export function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
       '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried.</div>' +
       '<div class="lo-caro"><div class="lo-label">Next run’s starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 5 cards for your next run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for your next run</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
       '<div class="lo-caro"><div class="lo-label">Drafted this run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +

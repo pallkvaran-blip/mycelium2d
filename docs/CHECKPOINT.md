@@ -484,12 +484,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 - **New species: Split Gill (Schizophyllum commune) — a "memory" species that carries a curated
   loadout between runs.** First of a planned family (the mechanic is reusable via a `memory:true` flag).
-  - **Kit:** 10⚡ / 25W, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **5 cards
-    the player hand-picks at the end of each run** from the NON-ENGINE cards they **drafted that run**
-    (not the carried-over opener/loadout). First run is bare (6 cards) by design; it builds out over runs.
-  - **Data/flow:** `species.js` — new roster entry `id:'schizophyllum'`, `memory:true`, ungated
-    (`unlock:null`, 3rd starter); loadout persisted in the progress store (`mycelium.progress.v2`
-    `loadouts:{id:[{name,count}]}`) via new `loadoutFor` / `saveLoadout`. `engine/cards.js` —
+  - **Kit:** 10⚡ / 25W, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **8 cards
+    the player hand-picks at the end of each run** from the NON-ENGINE (basic+event) cards they **drafted
+    that run** (not the carried-over opener/loadout). First run is bare (6 cards) by design; builds out over runs.
+  - **Data/flow:** `species.js` — new roster entry `id:'schizophyllum'`, `memory:true`, **gated: `unlock:
+    'Complete level 5'`** (first/only species in that tier → revealed on the first level-5 clear, then
+    bought with Spores like any gated species). Loadout persisted in the progress store
+    (`mycelium.progress.v2` `loadouts:{id:[{name,count}]}`) via new `loadoutFor` / `saveLoadout`; TEMP
+    `devUnlockAll()` reveals+buys every gated species (wired to a "Dev: unlock all" button on the picker,
+    `species_select.js`). `engine/cards.js` —
     `chooseOffer` tallies non-engine drafts (by **copies**) into `state.cards.runDrafted` (carried across
     levels with the cards object; reset each run in `initCards`, which now inits `runDrafted:{}`).
     `main.js` — `effectiveSpecies(sp)` merges the persisted loadout into the seeded hand for memory
@@ -501,15 +504,15 @@ Both menus are dark, on-theme, with glowing green borders.
     (`cardFaceHTML`/`catClass`, now exported from `ui.js`) and same `.fchip` filter bar per row
     (`cardGroups`/`GROUP_ORDER`): UPPER = next run's hand (fixed opener **locked** + selected), LOWER =
     drafted-this-run pool with copy counts. Single-click a lower card → move ONE copy up; click a selected
-    upper card → move it back; cap **5** copies (lower greys via `.unaff` at the cap); centered **"Choose 5
-    cards for your next run"** + an X/5 counter; plain **black-&-white Confirm** button (no gradient/icon).
-    The species-detail inspector (`species_select.js`) shows a 3rd **"Choose Five"** placeholder card (a
-    dashed "?" face: "Any combination of 5 basic and action cards **drafted during your last run**.") for
-    memory species.
+    upper card → move it back; cap **8** copies (`MAX_PICK`; lower greys via `.unaff` at the cap); centered
+    **"Choose 8 cards for your next run"** + an X/8 counter; plain **black-&-white Confirm** button (no
+    gradient/icon). The species-detail inspector (`species_select.js`) shows a 3rd **"Choose Eight"**
+    placeholder card (a dashed "?" face: "Any combination of 8 basic and event cards **drafted during your
+    last run**.") for memory species.
   - **Art:** `assets/species/schizophyllum-commune.jpg` (FLUX 1.1 Pro, `scripts/gen_species_splitgill.py`,
     3 options in `assets/species_options/`, option 3 picked — clearest split gills). Registered in
     `build.mjs` module list.
-  - **Verified:** headless — persistence round-trips, merged seed = 1+5+loadout = 11 at 10⚡/25W,
+  - **Verified:** headless — persistence round-trips, merged seed = 6 fixed + loadout at 10⚡/25W,
     draft-tally records the basic (3 copies) and excludes engines; a Playwright DOM test of the loadout
     screen (mount, click-to-move, 5-cap, confirm returns the picked copies) and a real-picker Playwright
     (Split Gill is the 3rd starter, inspector shows the fixed opener, portrait loads, no errors). 101+61

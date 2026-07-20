@@ -836,6 +836,7 @@
       background:rgba(12,18,15,0.8); border:1px dashed rgba(130,230,166,0.4); border-radius:999px;
       padding:6px 13px; backdrop-filter:blur(4px); }
     .ss-dev:hover { color:var(--ss-mint-hi); border-color:var(--ss-mint); background:rgba(18,28,22,0.9); }
+    .ss-dev2 { top:50px; }   /* TEMP dev "unlock all" button, parked below Dev quick-start */
 
     /* Procedural MYCELIUM wordmark banner ABOVE the console (canvas injected by JS). */
     .ss-title { width:min(1060px,100%); height:clamp(104px,17vh,208px); flex:0 0 auto;
@@ -1320,8 +1321,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "hb0sur";
-globalThis.__BUILD__ = "local 07-20 10:12";
+window.__ASSET_VER = "y2p6lx";
+globalThis.__BUILD__ = "local 07-20 10:21";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3111,9 +3112,9 @@ const SPECIES = [
     ],
   },
   {
-    id: 'schizophyllum', vibe: 'aqua', unlock: null, memory: true,
+    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
-    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its namesake <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony <b>learns</b>: it always opens with its aquaporins and a fistful of driving tips, then carries forward <b>five cards you hand-pick from whatever you drafted on your last run</b> — so every attempt tunes the deck a little sharper. The first run is bare; build it out over several.',
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
     res: { energy: 10, water: 25, phosphorus: 0 },
     hand: [
       { name: 'Aquaporin Channels', count: 1 },
@@ -3239,6 +3240,20 @@ function saveProgress(p) {
 function resetProgress() {
   try { localStorage.removeItem(PROGRESS_KEY); } catch (_) {}
 }
+// TEMP DEV: reveal AND unlock (buy) every gated species — records enough clears of each
+// tier's level to reveal all its species, and marks them all purchased. For the dev
+// button on the species picker; remove for release.
+function devUnlockAll() {
+  const p = loadProgress();
+  for (const s of SPECIES) {
+    if (!s.unlock) continue;
+    const lvl = levelFromUnlock(s.unlock);
+    if (lvl) p.clears[lvl] = Math.max(p.clears[lvl] || 0, 99);   // 99 clears → every species in the tier is revealed
+    p.purchased[s.id] = true;                                    // and bought (playable)
+  }
+  saveProgress(p);
+  return p;
+}
 function clearsFor(progress, level) {
   return (progress && progress.clears && progress.clears[level]) || 0;
 }
@@ -3318,7 +3333,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -11518,7 +11533,7 @@ function growMyceliumTitle(container, opts = {}) {
 
 // ===================== src/render/species_select.js =====================
 const __m_render_species_select = (function () {
-  const { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress } = __m_species;
+  const { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll } = __m_species;
   const { CARD_DATA } = __m_cards_data;
   const { cardSlug, SPORE_ICON } = __m_render_ui;
   const { growMyceliumTitle } = __m_render_mycelium_title;
@@ -11591,8 +11606,8 @@ function cardFace(entry) {
 function chooseFiveFace() {
   return '<div class="ss-gc ss-gc-choose">' +
     '<div class="ss-gc-art ss-gc-q"><span class="ss-q">?</span></div>' +
-    '<div class="ss-gc-name">Choose Five</div>' +
-    '<div class="ss-gc-eff">Any combination of 5 basic and action cards <b>drafted during your last run</b>.</div>' +
+    '<div class="ss-gc-name">Choose Eight</div>' +
+    '<div class="ss-gc-eff">Any combination of 8 basic and event cards <b>drafted during your last run</b>.</div>' +
   '</div>';
 }
 
@@ -11716,6 +11731,7 @@ function showSpeciesSelect({ onPick, onDev }) {
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
       '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
+      '<button class="ss-dev ss-dev2" id="ssDevUnlock" type="button" title="TEMP DEV: reveal + unlock every species">Dev: unlock all ▸</button>' +
       '<header class="ss-head">' +
         '<div class="ss-headrow"><h1>Select your species</h1>' +
           '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
@@ -11776,6 +11792,7 @@ function showSpeciesSelect({ onPick, onDev }) {
   updateWallet();
   renderLocked();
   root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
+  root.querySelector('#ssDevUnlock').addEventListener('click', () => { devUnlockAll(); refresh(); });
   return { hide, root };
 }
 
@@ -11856,7 +11873,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const cardOf = (name) => CARD_BY_NAME[name] || { name, type: '', effect: '' };
 
-const MAX_PICK = 5;
+const MAX_PICK = 8;
 
 function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
   const root = el('div'); root.id = 'loadoutSelect';
@@ -11875,7 +11892,7 @@ function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
       '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried.</div>' +
       '<div class="lo-caro"><div class="lo-label">Next run’s starting hand</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">Choose 5 cards for your next run</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">Choose 8 cards for your next run</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
       '<div class="lo-caro"><div class="lo-label">Drafted this run — click to add</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
