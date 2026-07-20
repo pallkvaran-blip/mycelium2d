@@ -492,11 +492,12 @@ Both menus are dark, on-theme, with glowing green borders.
   UNIFORM dense fill — the earlier RECURSIVE-fork version gave sparse main branches with clumps only where it
   colonised piles, because siblings collided unevenly). A front of tips (seeded by `fanRays`/`fanSpread` around
   the aim) advances ONE segment per round toward the aim; each round a tip may **bifurcate** (`fanForkChance`
-  0.6) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
+  0.5) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
   rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
   within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
-  **`fanBudget` (600)** is the hard ceiling (a full fan is now ~500–600 nodes — very dense, spatially large,
-  and strong for a 1W basic — dial `fanBudget`/`fanReach`/`fanMaxDev` down if it's too much). `fanSpacing`
+  **`fanBudget` (300)** is the hard ceiling — the fan grows exactly up to that many segments (owner halved it
+  600 → 300; "600 was a bit much"). NB `fanBudget` sizes the FAN only; a play's total node bump can be larger
+  when the dense fan sweeps over food piles (`colonizeReachablePiles` colonises each). `fanSpacing`
   being well below `minTipSpacing` is what lets the fine branches pack (without it the fan thins out). Config
   knobs (all `config.growth`): `fanSteps/fanReach/fanRays/fanSpread/fanForkChance/fanForkAngle/fanMaxDev/
   fanSpacing/fanBudget`; old `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
