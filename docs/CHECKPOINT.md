@@ -486,16 +486,19 @@ Both menus are dark, on-theme, with glowing green borders.
   any other growth card and fan out 3 steps in the chosen direction ("looks like the current fan played 3× but
   one direction — pretty + thematic"). New effect text: Foraging Fan = "Grow 3 steps: choose a direction and
   fan out."; Forager Bloom = "Once per 6 rounds: pay 1 W to grow 3 steps, fanning out in a chosen direction."
-  Impl: new engine method **`network.js growFanDirected(substrate,rng,dx,dy,steps,startTip)`** — a RECURSIVE
-  fern (owner wanted it "fuller / more fan-like", then "triple it" toward a dense sea-fan): from the aimed
-  source tip it throws `fanRays` (4) primary limbs spread `fanSpread` (0.42 rad) around the aim; each limb
-  FORKS into `fanForks` (2) child limbs at ±`fanForkAngle` (0.42) and those fork again for `fanGens` (4)
-  generations. Limb lengths decay by `fanFalloff` (0.72) per generation and the primary length is sized so the
-  deepest path ≈ `fanSteps` (9 seg = "3 steps"); a shared node **budget `fanBudget` (220)** caps the whole fan.
-  KEY for density: the fan uses a tight **`fanSpacing` (4 px)** min-gap (well below the normal
-  `minTipSpacing`) — without it the deep fork generations get crowd-rejected and the fan collapses to a few
-  limbs (this was why "triple it" first produced no change). Each limb dodges rock (reuses the step1 helper).
-  Config knobs (all in `config.growth`): `fanSteps/fanRays/fanSpread/fanGens/fanForks/fanForkAngle/fanFalloff/
+  Impl: new engine method **`network.js growFanDirected(substrate,rng,dx,dy,steps,startTip)`**. Owner asked
+  for progressively denser fans ("fuller" → "triple it" → "much, much denser, triple it") toward a dense
+  coral/sea-fan. Final algorithm = a **BREADTH-FIRST bifurcating front** (grows like coral/dendrites, gives a
+  UNIFORM dense fill — the earlier RECURSIVE-fork version gave sparse main branches with clumps only where it
+  colonised piles, because siblings collided unevenly). A front of tips (seeded by `fanRays`/`fanSpread` around
+  the aim) advances ONE segment per round toward the aim; each round a tip may **bifurcate** (`fanForkChance`
+  0.6) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
+  rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
+  within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
+  **`fanBudget` (600)** is the hard ceiling (a full fan is now ~500–600 nodes — very dense, spatially large,
+  and strong for a 1W basic — dial `fanBudget`/`fanReach`/`fanMaxDev` down if it's too much). `fanSpacing`
+  being well below `minTipSpacing` is what lets the fine branches pack (without it the fan thins out). Config
+  knobs (all `config.growth`): `fanSteps/fanReach/fanRays/fanSpread/fanForkChance/fanForkAngle/fanMaxDev/
   fanSpacing/fanBudget`; old `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
   (press-and-drag, `target:true`, `aim:'drag'`); Forager Bloom's installed action gained
   `target/aim:'drag'/reachFn` and calls growFanDirected. `growRadial`/`fanBlockReason` are now unused (left in

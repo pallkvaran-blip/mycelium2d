@@ -166,18 +166,18 @@ export const CONFIG = {
     foodSeekSteps: 2,            // food-seek grows (Hyphal Extension / Colonizing Front): how many grow() passes per play — buffed 1→2
     lungeSegments: 15,           // Tropic Lunge: "5 steps" toward food (5 × 3)
     foragingFanCells: 3,         // (legacy omni fan — kept for reference; Foraging Fan is now directional)
-    // Foraging Fan / Forager Bloom: an AIMED RECURSIVE fern — primary rays around the aim,
-    // each limb forks into shorter child limbs over `fanGens` generations, filling a full
-    // fan. Deepest path ≈ fanSteps segments; fanBudget caps the total so it never explodes.
-    fanSteps: 9,                 // "3 steps" (3 × 3) — depth of the deepest path along the fan
-    fanRays: 4,                  // primary limbs spread around the aim (the base of the fan)
-    fanSpread: 0.42,             // angle (radians) between adjacent primary limbs
-    fanGens: 4,                  // fork generations beyond the primary limbs (0 = straight rays) — deep = dense sea-fan
-    fanForks: 2,                 // children each limb forks into (2 = fine bifurcating branches)
-    fanForkAngle: 0.42,          // angle (radians) a child limb diverges from its parent
-    fanFalloff: 0.72,            // child limb length ÷ parent (also sizes the primary limb so gens sum to fanSteps)
-    fanSpacing: 4,               // min gap (px) between fan nodes — small so fine branches pack into a dense sea-fan
-    fanBudget: 220,              // hard cap on total segments grown by one fan (keeps it full but bounded)
+    // Foraging Fan / Forager Bloom: an AIMED, BREADTH-FIRST bifurcating front (grows like
+    // coral) — a front of tips advances toward the aim and repeatedly bifurcates, filling a
+    // dense, uniform sea-fan. Spacing + rock pruning keeps it even; fanBudget is the ceiling.
+    fanSteps: 9,                 // "3 steps" (3 × 3) — base depth of the fan
+    fanReach: 1.15,              // rounds = fanSteps × this (how far the front advances)
+    fanRays: 5,                  // seeds spread around the aim (the base of the fan)
+    fanSpread: 0.34,             // angle (radians) between adjacent base seeds
+    fanForkChance: 0.6,          // per tip per round chance to BIFURCATE — higher = denser
+    fanForkAngle: 0.4,           // angle (radians) the two branches spread when a tip bifurcates
+    fanMaxDev: 1.2,              // clamp: keep every tip's heading within ± this of the aim (wedge half-width)
+    fanSpacing: 2.5,             // min gap (px) between fan nodes — tiny so fine branches pack densely
+    fanBudget: 600,              // hard cap on total segments grown by one fan (keeps it dense but bounded)
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius

@@ -390,37 +390,38 @@ export class Network {
   }
 
   // DIRECTIONAL FAN (Foraging Fan / Forager Bloom): aim a heading and fan OUTWARD in
-  // THAT direction only — but as a RECURSIVE fern, not a handful of straight rays: the
-  // source throws a few primary limbs spread around the aim, each limb FORKS into
-  // narrower child limbs, and those fork again (`fanGens` generations), so the whole
-  // thing fills into a proper fan. Each limb dodges rock (smallest deviation first) and
-  // stops when walled in or crowded, so it rounds corners and threads gaps. The deepest
-  // path is ~`steps` segments (limb lengths decay by `fanFalloff` per generation and are
-  // sized so they sum to `steps`); a node BUDGET (`fanBudget`) caps the whole fan so it
-  // stays full but never explodes. Tunables: fanRays/fanSpread/fanGens/fanForks/
-  // fanForkAngle/fanFalloff/fanBudget (config.growth).
+  // THAT direction only — grown as a BREADTH-FIRST bifurcating front, the way coral /
+  // dendrites grow, so it fills a dense uniform sea-fan (not sparse rays with clumps).
+  // A front of tips advances one segment per round toward the aim; each round a tip may
+  // BIFURCATE (`fanForkChance`) into two branches spreading ±`fanForkAngle`, and every
+  // tip's heading is clamped to within ±`fanMaxDev` of the aim so the whole thing stays a
+  // forward wedge. Tips that would land on rock or too close to existing tissue
+  // (`fanSpacing`) are simply pruned, which self-limits the density evenly. Runs
+  // `steps × fanReach` rounds (~depth), capped by a node `fanBudget`. Tunables (all
+  // config.growth): fanRays/fanSpread/fanReach/fanForkChance/fanForkAngle/fanMaxDev/
+  // fanSpacing/fanBudget.
   growFanDirected(substrate, rng, dx, dy, steps, startTip = null) {
     const g = this.config.growth;
     if (this.nodes.length >= g.maxNodes) return 0;
     const norm = Math.hypot(dx, dy) || 1; dx /= norm; dy /= norm;
     const aim = Math.atan2(dy, dx);
-    // Fine branches must be allowed to pack tightly, or the deep fork generations get
-    // crowd-rejected and the fan collapses to a few limbs. `fanSpacing` (px) is well
-    // below the normal min-tip-spacing so the sea-fan can fill in densely.
+    // Fine branches must be allowed to pack tightly, or the dense front gets crowd-rejected
+    // and the fan thins out. `fanSpacing` (px) is well below the normal min-tip-spacing.
     const spacing = g.fanSpacing != null ? g.fanSpacing : Math.max(3, g.minTipSpacing * 0.3);
     const key = (c, r) => c + ',' + r;
     const buckets = new Map();
     const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };
     for (const n of this.nodes) if (!n.infected) bucket(n);
-    // One clear segment from `start` toward `ang` (dodge rock, honour min-spacing).
+    // One clear segment from `start` toward `ang` (dodge rock, honour spacing). Returns the
+    // new node + the ACTUAL heading used (so a dodged branch keeps its new direction).
     const step1 = (start, ang) => {
       if (this.nodes.length >= g.maxNodes) return null;
       for (const off of [0, 0.28, -0.28, 0.58, -0.58, 0.9, -0.9]) {
-        const a = ang + off + rng.range(-g.branchJitter, g.branchJitter) * 0.35;
+        const a = ang + off + rng.range(-g.branchJitter, g.branchJitter) * 0.3;
         const nx = start.x + Math.cos(a) * g.segmentLength, ny = start.y + Math.sin(a) * g.segmentLength;
         if (!this._segmentClear(substrate, start.x, start.y, nx, ny)) continue;
         if (this._tooClose(nx, ny, spacing, substrate, buckets, key, 1)) continue;
-        const node = this.addNode(nx, ny, start); bucket(node); return node;
+        const node = this.addNode(nx, ny, start); bucket(node); return { node, ang: a };
       }
       return null;
     };
@@ -430,38 +431,38 @@ export class Network {
     const source = (startTip && !startTip.infected) ? startTip
       : tips.slice().sort((a, b) => (b.x * dx + b.y * dy) - (a.x * dx + a.y * dy))[0];
 
-    const gens = Math.max(0, g.fanGens != null ? g.fanGens : 2);
-    const falloff = g.fanFalloff != null ? g.fanFalloff : 0.7;
-    const forkAngle = g.fanForkAngle != null ? g.fanForkAngle : 0.5;
-    const forks = Math.max(2, g.fanForks || 2);
-    let budget = Math.max(1, g.fanBudget || 60);
-    // Base limb length so the decaying generations sum to ~`steps` along the deepest path.
-    let ratioSum = 0; for (let gi = 0; gi <= gens; gi++) ratioSum += Math.pow(falloff, gi);
-    const len0 = Math.max(2, Math.round(steps / ratioSum));
+    const forkAngle = g.fanForkAngle != null ? g.fanForkAngle : 0.4;
+    const forkChance = g.fanForkChance != null ? g.fanForkChance : 0.55;
+    const maxDev = g.fanMaxDev != null ? g.fanMaxDev : 1.15;   // wedge half-width (radians)
+    const rounds = Math.max(1, Math.round(steps * (g.fanReach != null ? g.fanReach : 1.15)));
+    let budget = Math.max(1, g.fanBudget || 700);
+    const clampDev = (h) => { let d = h - aim; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return aim + Math.max(-maxDev, Math.min(maxDev, d)); };
+
+    // Initial front: a base spread of seeds around the aim, all starting at the source.
+    const nRays = Math.max(1, g.fanRays || 5);
+    const spread = g.fanSpread != null ? g.fanSpread : 0.36;
+    let front = [];
+    { const offs = [0]; for (let k = 1; offs.length < nRays; k++) { offs.push(k * spread); if (offs.length < nRays) offs.push(-k * spread); }
+      for (const o of offs) front.push({ node: source, heading: clampDev(aim + o) }); }
 
     let created = 0;
-    // Grow one limb `len` segs toward `heading`, then FORK into `forks` children that
-    // spread ±forkAngle and recurse (each shorter). Bounded by the shared node budget.
-    const limb = (start, heading, len, gen) => {
-      let parent = start, grown = 0;
-      for (let i = 0; i < len && budget > 0; i++) {
-        const nxt = step1(parent, heading);
-        if (!nxt) break;
-        parent = nxt; grown++; created++; budget--;
+    // Advance the whole front one segment per round; each tip may bifurcate. Spacing +
+    // rock pruning keeps the density even and bounded; the budget is the hard ceiling.
+    for (let r = 0; r < rounds && budget > 0 && front.length; r++) {
+      const next = [];
+      for (const f of front) {
+        if (budget <= 0) break;
+        const headings = this._branchRng.chance(forkChance)
+          ? [clampDev(f.heading + forkAngle), clampDev(f.heading - forkAngle)]
+          : [clampDev(f.heading + this._branchRng.range(-g.branchJitter, g.branchJitter) * 0.5)];
+        for (const h of headings) {
+          if (budget <= 0) break;
+          const res = step1(f.node, h);
+          if (res) { next.push({ node: res.node, heading: res.ang }); created++; budget--; }
+        }
       }
-      if (grown === 0 || gen >= gens || budget <= 0) return;
-      const childLen = Math.max(1, Math.round(len * falloff));
-      const offs = [];
-      for (let k = 1; offs.length < forks; k++) { offs.push(k * forkAngle); if (offs.length < forks) offs.push(-k * forkAngle); }
-      for (const o of offs) { if (budget <= 0) break; limb(parent, heading + o, childLen, gen + 1); }
-    };
-
-    // Primary limbs: a base spread of rays around the aim, each a recursive fern.
-    const nRays = Math.max(1, g.fanRays || 3);
-    const spread = g.fanSpread != null ? g.fanSpread : 0.5;
-    const rays = [0];
-    for (let k = 1; rays.length < nRays; k++) { rays.push(k * spread); if (rays.length < nRays) rays.push(-k * spread); }
-    for (const off of rays) { if (budget <= 0) break; limb(source, aim + off, len0, 0); }
+      front = next;
+    }
 
     // Fanning out also fully colonises any substrate pile it brought within reach.
     created += this.colonizeReachablePiles(substrate, rng);
