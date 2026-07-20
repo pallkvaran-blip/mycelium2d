@@ -482,6 +482,10 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Level-intro threat order → Ants · Trichoderma · Nematodes (trich in the middle).** Owner: reads nicer with
+  the Trichoderma portrait centred. Swapped the nematode/trich rows in `main.js levelThreatList()` (the array
+  the level-intro screen renders in order, filtered to count > 0). Purely cosmetic.
+
 - **Substrate colonisation reads more like mycelium: bendy runner + inward-leaning mat** (`network.js
   colonizeReachablePiles` + `_bridgeInto`). Owner: the strands reaching into food piles were too straight and
   the bends pointed away from the food. Two changes: (1) **`_bridgeInto`** (the runner from the colony to a
@@ -536,16 +540,16 @@ Both menus are dark, on-theme, with glowing green borders.
   UNIFORM dense fill — the earlier RECURSIVE-fork version gave sparse main branches with clumps only where it
   colonised piles, because siblings collided unevenly). A front of tips (seeded by `fanRays`/`fanSpread` around
   the aim) advances ONE segment per round toward the aim; each round a tip may **bifurcate** (`fanForkChance`
-  0.5) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within ±`fanMaxDev` (1.2
-  rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips landing on rock or
-  within **`fanSpacing` (2.5 px, tiny)** of existing tissue are pruned, which self-limits the density evenly;
-  **`fanForkTaper` (0.125)** multiplies the fork rate PAST THE MIDPOINT (0.125 = ~eighth the branching in the outer
-  half) — the base forks at full rate (dense), the outer half thins but doesn't go bare (owner: "go back to the
-  dense look and half whatever happens after the middle"; an earlier ramp-to-zero taper made it "way too
-  thin"). **`fanBudget` (700)** is the hard ceiling (a full fan is ~400 segments — dense, matching the look the
-  owner approved). NB `fanBudget` sizes the FAN only; a play's total node bump can be larger when the dense fan sweeps
-  over food piles (`colonizeReachablePiles` colonises each). `fanSpacing` (3.5) well below `minTipSpacing` lets
-  the base branches pack (bigger = airier). **IMPORTANT wiring gotcha (fixed):** the fan knobs live in
+  0.41, first half) into two branches spreading ±`fanForkAngle` (0.4); every heading is clamped to within
+  ±`fanMaxDev` (1.2 rad) of the aim so it stays a forward wedge. Runs `fanSteps × fanReach` (~10) rounds; tips
+  landing on rock or within **`fanSpacing` (3 px, tiny)** of existing tissue are pruned, self-limiting density;
+  **`fanForkTaper` (0.21)** multiplies the fork rate PAST THE MIDPOINT (outer-half rate = fanForkChance × this)
+  — the base forks at full rate (dense), the outer half thins but doesn't go bare (owner iterated: dense →
+  "half after the middle" ×2 → then rebalanced −25% before / +25% after; an earlier ramp-to-zero taper made it
+  "way too thin"). **`fanBudget` (700)** is the hard ceiling (a full fan is a few-hundred segments — dense,
+  matching the look the owner approved). NB `fanBudget` sizes the FAN only; a play's total node bump can be
+  larger when the dense fan sweeps over food piles (`colonizeReachablePiles` colonises each). `fanSpacing`
+  well below `minTipSpacing` lets the base branches pack (bigger = airier). **IMPORTANT wiring gotcha (fixed):** the fan knobs live in
   **`config.CARDS`** (next to `fanSteps`) but `growFanDirected` originally read them from `config.growth`
   (`g.fan*`) → all `undefined` → it silently ran on the hardcoded fallbacks (budget 700 etc.), so several
   rounds of owner "half it" tuning did NOTHING in-game. Now `growFanDirected` reads them via `cf =
