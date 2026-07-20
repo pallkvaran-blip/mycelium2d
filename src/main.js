@@ -145,13 +145,17 @@ function configForLevel(level) {
   cfg.ants.nestCount = t.ants;
   cfg.nematodes.initialCount = t.nematodes;
   cfg.trichoderma.initialPatches = t.trych;
-  // Level 2 is the Trichoderma tutorial: always park one cloud on the goal approach
-  // so the player learns they need an answer to mould before they can fruit.
-  cfg.trichoderma.goalGuard = (level === 2);
+  // Level 2 is the Trichoderma gauntlet: seed BOTH clouds at two scripted map anchors
+  // (fractions of world width / soil depth) so they block the natural growth path —
+  // one shallow on the left near the colony, one deeper toward the centre — making it
+  // very hard to grow past without an answer to mould. Nudge these to move the gates.
+  cfg.trichoderma.guardAnchors = (level === 2)
+    ? [ { xFrac: 0.15, depthFrac: 0.28 }, { xFrac: 0.56, depthFrac: 0.70 } ]
+    : null;
   if (noTrich) {   // testing aid: a trich-free sandbox
     cfg.trichoderma.initialPatches = 0;
     cfg.trichoderma.respawnChance = 0;
-    cfg.trichoderma.goalGuard = false;
+    cfg.trichoderma.guardAnchors = null;
   }
   return cfg;
 }

@@ -1274,8 +1274,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1uok2eq";
-globalThis.__BUILD__ = "local 07-20 07:42";
+window.__ASSET_VER = "1kbep6n";
+globalThis.__BUILD__ = "local 07-20 08:00";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -1531,8 +1531,8 @@ const CONFIG = {
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
-    goalGuard: false,            // when true, ONE cloud always seeds in the soil at the goal approach (level-2 teaching gate — main.js configForLevel sets it); the rest roam normally
-    goalGuardBandCols: 2,        // goalGuard cloud seeds within this many columns either side of the goal-zone entrance
+    guardAnchors: null,          // optional [{xFrac,depthFrac}] map anchors (fractions of world width / soil depth) where the FIRST clouds are forced to seed (scripted gates, e.g. level 2's gauntlet — main.js configForLevel sets it per level); null → all clouds roam
+    guardAnchorRockGap: 1,       // a guardAnchor cloud keeps at least this many cells clear of rock (small → lands as close to the anchor as possible; relaxed automatically if even that has no open spot)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)
     growInfectThreshold: 0.05,   // a strand standing in a trich-field cell ≥ this is infected on the spot (growing INTO mould) — so it can't fruit/win at the goal
@@ -5531,13 +5531,15 @@ function seedTrichoderma(substrate, config, rng, network) {
   const root = network && network.root ? network.root : null;
   const clouds = [];
   const count = t.initialPatches;
-  // Level-2 teaching gate: force ONE cloud to sit in the soil at the goal approach,
-  // so the player MUST have an answer to Trichoderma before they can fruit.
+  // Scripted gate positions: seed the first clouds AT specific map anchors (fractions
+  // of world width / soil depth) so mould reliably blocks chosen growth paths — e.g.
+  // level 2's two-cloud gauntlet (main.js configForLevel). The rest roam normally.
   let placed = 0;
-  if (t.goalGuard && count > 0) {
-    const g = pickGoalGuardSpot(substrate, config, rng, t);
+  const anchors = Array.isArray(t.guardAnchors) ? t.guardAnchors : [];
+  for (let a = 0; a < anchors.length && placed < count; a++) {
+    const g = pickSpotNearAnchor(substrate, anchors[a], t);
     clouds.push(makeCloud(g.x, g.y, rng.range(t.cloudRadiusMin, t.cloudRadiusMax)));
-    placed = 1;
+    placed++;
   }
   const roam = count - placed;                                      // remaining clouds roam normally
   for (let i = 0; i < roam; i++) {
@@ -5548,29 +5550,42 @@ function seedTrichoderma(substrate, config, rng, network) {
   return clouds;
 }
 
-// Pick an OPEN (non-rock, non-food), shallow-ish spot in the columns straddling the
-// goal-zone entrance, so a goalGuard cloud parks right on the final approach.
-function pickGoalGuardSpot(substrate, config, rng, t) {
-  const cs = substrate.cellSize;
-  const goalCols = Math.max(2, (config.substrate && config.substrate.goalCols) || 6);
-  const goalStart = Math.max(1, substrate.cols - goalCols);          // first goal-zone column
-  const band = Math.max(1, t.goalGuardBandCols || 2);
-  const loC = Math.max(1, goalStart - band);                         // a little BEFORE the entrance …
-  const hiC = Math.min(substrate.cols - 2, goalStart + band);        // … to a little inside the zone
-  const loX = loC * cs, hiX = (hiC + 1) * cs;
-  // Seed in the upper soil, biased toward the surface (like findSpawnSpot), so it
-  // blocks the path a player actually takes rather than hiding on the deep floor.
-  const shallow = (substrate.rows - 1) * cs * 0.5;
-  const pickY = () => substrate.surfaceY + cs + Math.max(0, shallow - cs) * Math.pow(rng(), 1.6);
-  let ground = null;
-  for (let tries = 0; tries < 120; tries++) {
-    const x = rng.range(loX, hiX), y = pickY();
-    const c = substrate.cellAtWorld(x, y);
-    if (!c || c.rock || c.maxNutrient > 0) continue;                 // open ground only
-    if (!substrate.rockNear(substrate.colAtX(x), substrate.rowAtY(y), 3)) return { x, y };
-    if (!ground) ground = { x, y };                                  // fallback: open but rock-adjacent
-  }
-  return ground || { x: (loX + hiX) / 2, y: substrate.surfaceY + cs * 3 };
+// Find the OPEN (non-rock, non-food) cell nearest a fractional map anchor
+// { xFrac (0..1 of world width), depthFrac (0..1 of soil depth) }, so a scripted
+// gate cloud lands as close as possible to a chosen spot. Deterministic (an
+// expanding Chebyshev-ring search) → consumes no RNG, so other levels' seeds and
+// the roam clouds' placement are byte-identical to before.
+function pickSpotNearAnchor(substrate, anchor, t) {
+  const cols = substrate.cols, rows = substrate.rows;
+  const clampI = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const cx = clampI(Math.round((anchor.xFrac || 0) * (cols - 1)), 1, cols - 2);
+  const cy = clampI(Math.round((anchor.depthFrac || 0) * (rows - 1)), 0, rows - 1);
+  const gap = (t.guardAnchorRockGap != null) ? t.guardAnchorRockGap : 3;
+  const openAt = (col, row, rockGap) => {
+    if (col < 1 || col > cols - 2 || row < 0 || row > rows - 1) return false;
+    const cell = substrate.cellAt(col, row);
+    if (!cell || cell.rock || cell.maxNutrient > 0) return false;   // open ground only
+    return rockGap <= 0 || !substrate.rockNear(col, row, rockGap);
+  };
+  const nearestOpen = (rockGap) => {
+    if (openAt(cx, cy, rockGap)) return { col: cx, row: cy };
+    for (let rad = 1; rad < Math.max(cols, rows); rad++) {          // grow the ring until a cell qualifies
+      let best = null, bestD = Infinity;
+      for (let dr = -rad; dr <= rad; dr++) {
+        for (let dc = -rad; dc <= rad; dc++) {
+          if (Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;   // ring at Chebyshev distance rad
+          const col = cx + dc, row = cy + dr;
+          if (!openAt(col, row, rockGap)) continue;
+          const d = dc * dc + dr * dr;                              // nearest by Euclidean within the ring
+          if (d < bestD) { bestD = d; best = { col, row }; }
+        }
+      }
+      if (best) return best;
+    }
+    return null;
+  };
+  const hit = nearestOpen(gap) || nearestOpen(0) || { col: cx, row: cy };   // relax the rock-gap, then give up
+  return substrate.cellCenter(hit.col, hit.row);
 }
 
 // Pick an open underground spot — NOT on food/rock and (ideally) a good way from
@@ -12801,13 +12816,17 @@ function configForLevel(level) {
   cfg.ants.nestCount = t.ants;
   cfg.nematodes.initialCount = t.nematodes;
   cfg.trichoderma.initialPatches = t.trych;
-  // Level 2 is the Trichoderma tutorial: always park one cloud on the goal approach
-  // so the player learns they need an answer to mould before they can fruit.
-  cfg.trichoderma.goalGuard = (level === 2);
+  // Level 2 is the Trichoderma gauntlet: seed BOTH clouds at two scripted map anchors
+  // (fractions of world width / soil depth) so they block the natural growth path —
+  // one shallow on the left near the colony, one deeper toward the centre — making it
+  // very hard to grow past without an answer to mould. Nudge these to move the gates.
+  cfg.trichoderma.guardAnchors = (level === 2)
+    ? [ { xFrac: 0.15, depthFrac: 0.28 }, { xFrac: 0.56, depthFrac: 0.70 } ]
+    : null;
   if (noTrich) {   // testing aid: a trich-free sandbox
     cfg.trichoderma.initialPatches = 0;
     cfg.trichoderma.respawnChance = 0;
-    cfg.trichoderma.goalGuard = false;
+    cfg.trichoderma.guardAnchors = null;
   }
   return cfg;
 }

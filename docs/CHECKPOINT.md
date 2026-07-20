@@ -482,18 +482,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Level 2 = the Trichoderma tutorial: one mould cloud ALWAYS parks at the goal approach.** A
-  deliberate teaching gate (owner request) — the player learns they need an *answer to mould*
-  before they can fruit. `main.js configForLevel` sets `cfg.trichoderma.goalGuard = (level === 2)`
-  (and clears it under `#notrich`); `engine/threats.js seedTrichoderma` then places its FIRST cloud
-  via new `pickGoalGuardSpot(...)` — an open (non-rock, non-food), surface-biased spot in the columns
-  straddling the goal-zone entrance (`goalStart ± config.trichoderma.goalGuardBandCols`, default 2) —
-  and lets the remaining `initialPatches − 1` roam as before. Total cloud count is unchanged (level 2
-  is `trych:2`, so 1 gate + 1 roamer), so the level-intro "×N" still reads right. The non-guard path
-  is byte-identical to the old loop (same RNG draw order → other levels' seeds/tests unchanged).
-  New config: `trichoderma.goalGuard` (false) + `goalGuardBandCols` (2). Verified headless: the guard
-  cloud lands within ±2 cols of the goal entrance in **60/60** level-2 seeds (levels 1/3 only hit the
-  goal incidentally); 101+61 tests green; `dist` rebuilt (import-leak check 0).
+- **Level 2 = the Trichoderma gauntlet: BOTH clouds seed at two scripted map anchors.** A deliberate
+  teaching gate (owner request, positions drawn on a screenshot) — a shallow gate on the LEFT right by
+  the colony + a deeper gate CENTRE, so it's very hard to grow past without an answer to mould.
+  Generalised from the earlier single-goal-approach guard into an **anchor** system:
+  `main.js configForLevel` sets `cfg.trichoderma.guardAnchors = [{xFrac:0.15,depthFrac:0.28},
+  {xFrac:0.56,depthFrac:0.70}]` for level 2 (fractions of world width / soil depth; `null` otherwise;
+  cleared under `#notrich`). `engine/threats.js seedTrichoderma` seeds the first clouds AT those anchors
+  via new `pickSpotNearAnchor(...)` — a **deterministic expanding Chebyshev-ring** search for the nearest
+  OPEN (non-rock, non-food) cell, keeping `config.trichoderma.guardAnchorRockGap` (default **1**) cells
+  clear of rock (auto-relaxed if none), then lets the remaining `initialPatches − N` roam as before.
+  Because the search consumes **no RNG**, the roam clouds and every other level's seed are byte-identical
+  to before. Total cloud count unchanged (level 2 is `trych:2` → 2 gates, 0 roamers), so the intro "×N"
+  still reads right. New config: `trichoderma.guardAnchors` (null) + `guardAnchorRockGap` (1). Anchors
+  were calibrated from the owner's screenshot (colony + the trich cloud already visible near the goal as
+  scale refs). Verified headless: over 120 seeds the placed clouds land a mean **~3 cells** from each
+  anchor (worst ~0.13 of map-width, when rock buries the spot); a schematic SVG of a sample seed confirms
+  the left-shallow / centre-deep gauntlet vs the far-right goal meadow. 101+61 tests green; `dist` rebuilt
+  (import-leak 0). The `xFrac`/`depthFrac` numbers are one-line-tunable to nudge either gate.
 
 - **Card cost pills more legible on bright art.** The top-left resource-cost chips (`.cc` in
   `index.html`) had only a faint translucent *colour* tint, so on bright card faces (Acorn Cache,
