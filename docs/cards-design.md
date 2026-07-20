@@ -733,6 +733,30 @@ wired, in a simplified free-draft form.
 - **`test/cards.test.js`** — draft fires on a finished map pile; 3 tutorial-set choices; free add;
   player-placed piles grant nothing. (29/29 card tests; verified in-browser end-to-end.)
 
+### 18.3 Draft pool odds (CURRENT — authoritative; supersedes "tutorial set" above)
+
+Two cache types offer different pools (`engine/cards.js` `offerCardDraft` / `weightedNormalChoices`):
+
+- **NORMAL cache** (ORANGE/route + BROWN duff food piles) → offers **Basic** or **Event**. Each of the
+  **3** offered slots is an **independent weighted coin-flip: `config.cards.draftBasicWeight` = 0.6 →
+  60% Basic / 40% Event**, then a distinct random card is drawn from the winning category.
+- **ENGINE cache** (RED piles / engine caches) → offers **3 unique Engines** from the per-run pool
+  (falls back to Basics only if every engine is already drafted).
+
+**Critical, load-bearing detail:** the Basic-vs-Event split is that **FIXED weight — it does NOT
+scale with pool size.** Adding cards to a category changes the *variety within* that category (each
+specific card is diluted), **not** the 60/40 ratio. (So the grow-card family — +4 basics — did **not**
+make basics show up more often; it only made each individual basic rarer among the basic slots. To
+actually shift the ratio, change `draftBasicWeight`.)
+
+Copies granted on draft: **Basic → 3** (`draftBasicCopies`), **Event → 1**, **Engine → 1** (unique,
+removed from the pool). Basics/Events are **infinite** (repeatable across drafts); Engines are one-per-run.
+
+Odds for a normal offer of 3 (Binomial(3, 0.6), pools never run dry): **0 basics 6.4% · 1 → 28.8% ·
+2 → 43.2% · 3 → 21.6%**; ≥1 basic **93.6%**, ≥1 event **78.4%**; expected **1.8 basics + 1.2 events**.
+Live playable pools (2026-07-20): **10 basics, 15 events, 35 engines** (`displayCategory`, minus the
+`ARCHIVED` set) → a *specific* basic appears in ~18% of offers, a *specific* event in ~8%.
+
 ### 18.3 Revisit later
 - Draft pool is the whole **tutorial set** (incl. the two starter basics). Once past the tutorial,
   widen to the full collection / bias by what the pile "contained".

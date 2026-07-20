@@ -482,6 +482,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Documented the draft-pool odds (no code change).** Recorded in `cards-design.md` §18.3 the current,
+  authoritative draft mechanics after an owner question. Key load-bearing fact: the Basic-vs-Event split
+  is a **FIXED weight** (`config.cards.draftBasicWeight` = 0.6 → 60% Basic / 40% Event per slot,
+  `engine/cards.js weightedNormalChoices`) — it does **NOT** scale with pool size, so adding the grow-card
+  basics did **not** change the ratio (only diluted each specific basic). Normal offer of 3 ~ Binomial(3,
+  0.6); live playable pools = 10 basics / 15 events / 35 unique engines. To shift the ratio, change
+  `draftBasicWeight`.
+
 - **Reservoirs no longer get boulders/formations rendered on top of them.** The reservoir carve
   (`substrate.js` 2c-iv) cleared rock cells in a halo of `reservoirClearCells` (**2**) around the pocket,
   but that halo assumed rock sprites spill only ~1.5 cells — whereas a large boulder renders up to **3.3
