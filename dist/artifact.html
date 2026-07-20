@@ -1329,8 +1329,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "dzllsd";
-globalThis.__BUILD__ = "local 07-20 20:32";
+window.__ASSET_VER = "ramq9g";
+globalThis.__BUILD__ = "local 07-20 20:47";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10044,65 +10044,118 @@ function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : Math.round(v); }
 // ===================== src/render/music.js =====================
 const __m_render_music = (function () {
 // =============================================================================
-// Background music — lazy and non-blocking.
+// Background music — lazy and non-blocking. TWO contexts:
 //
-// The game boots and is fully playable BEFORE any music is fetched: initMusic()
-// is called only after the map is ready. It then streams ONE random track in
-// the background and starts it as soon as it can. Browser autoplay policy
-// usually needs the first tap/click, so we also (re)try on the first user
-// gesture. When a track ends, another random one loads — one at a time, so the
-// whole ~13 MB playlist is never force-downloaded. A persisted mute toggle lets
-// the player turn it off (and then nothing is fetched at all).
+//   • MENU  — the title screen + species picker play backrooms-vol29 ("the
+//     backrooms music vol 29"), fading IN over its first 20 seconds (full at
+//     0:20). It plays continuously across title → picker (never restarts) and
+//     loops for as long as you're in the menus.
+//   • LEVEL — the moment a level starts, a RANDOM track from the OTHER three
+//     plays; vol29 is NEVER used in-level. When one ends, another random level
+//     track loads. The track keeps playing across level→level transitions.
+//
+// The game boots fully playable before any audio is fetched. Browser autoplay
+// policy usually needs the first tap/click, so we retry on the first gesture. A
+// persisted mute toggle turns it off (and then nothing is fetched at all).
 // =============================================================================
 
-const TRACKS = [
+const MENU_TRACK = 'assets/music/backrooms-vol29.mp3';
+const LEVEL_TRACKS = [
   'assets/music/backrooms-vol7.mp3',
   'assets/music/backrooms-vol10.mp3',
   'assets/music/backrooms-vol23.mp3',
-  'assets/music/backrooms-vol29.mp3',
 ];
+const FULL_VOL = 0.32;
+const MENU_FADE_S = 20;      // vol29 fades in over its first 20 seconds (full volume at 0:20)
+const LEVEL_FADE_MS = 1400;  // a level track eases in quickly when it takes over
 
-let audio = null, muted = false, lastIdx = -1, gestureBound = false;
+let audio = null, muted = false, mode = null, lastLevelIdx = -1, gestureBound = false, fadeTimer = null;
 try { muted = localStorage.getItem('mycMuted') === '1'; } catch (e) {}
 
-// Pick a random track (never the one just played). No cache-busting version on
-// the URL — music is large and rarely changes, so let the browser cache it
-// across refreshes/deploys instead of re-downloading megabytes each time.
-function nextSrc() {
-  let i = 0;
-  if (TRACKS.length > 1) { do { i = Math.floor(Math.random() * TRACKS.length); } while (i === lastIdx); }
-  lastIdx = i;
-  return TRACKS[i];
+function stopFade() { if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; } }
+
+// vol29: ramp the volume off the track's OWN playback position, so an autoplay-
+// blocked (silent) start doesn't burn the fade, and it reaches full exactly at 0:20.
+function startMenuFade() {
+  stopFade();
+  fadeTimer = setInterval(() => {
+    if (!audio || mode !== 'menu') { stopFade(); return; }
+    const t = audio.currentTime || 0;
+    audio.volume = FULL_VOL * Math.min(1, t / MENU_FADE_S);
+    if (t >= MENU_FADE_S) stopFade();
+  }, 100);
 }
-function playNext() {
+// Generic wall-clock ramp to `to` over `ms` (eases a level track in).
+function ramp(to, ms) {
+  stopFade();
   if (!audio) return;
-  audio.src = nextSrc();
-  audio.load();
-  tryPlay();
+  const from = audio.volume, start = performance.now();
+  fadeTimer = setInterval(() => {
+    if (!audio) { stopFade(); return; }
+    const k = ms <= 0 ? 1 : Math.min(1, (performance.now() - start) / ms);
+    audio.volume = from + (to - from) * k;
+    if (k >= 1) stopFade();
+  }, 40);
+}
+
+function ensureAudio() {
+  if (audio) return;
+  audio = new Audio();
+  audio.preload = 'auto';
+  audio.volume = FULL_VOL;
+  audio.addEventListener('ended', onEnded);
+  audio.addEventListener('error', () => { if (mode === 'level') setTimeout(() => playLevelMusic(true), 4000); });
+}
+function onEnded() {
+  if (mode === 'level') playLevelMusic(true);   // next random level track (menu loops via audio.loop)
 }
 function tryPlay() {
   if (!audio || muted) return;
   const p = audio.play();
-  if (p && p.catch) p.catch(() => {});   // blocked by autoplay policy — a gesture will start it
+  if (p && p.catch) p.catch(() => {});   // autoplay-blocked → a gesture retries
 }
 function bindGesture() {
   if (gestureBound) return; gestureBound = true;
-  const kick = () => tryPlay();           // harmless passive retry; play() no-ops once already playing
+  const kick = () => tryPlay();           // harmless passive retry; no-ops once already playing
   window.addEventListener('pointerdown', kick, true);
   window.addEventListener('keydown', kick, true);
   window.addEventListener('touchend', kick, true);
 }
 
-// Start the background music system. Safe to call more than once.
-function initMusic() {
-  if (audio) return;
-  audio = new Audio();
-  audio.preload = 'auto';                 // stream in the background (the page is already rendered)
-  audio.volume = 0.32;
-  audio.addEventListener('ended', playNext);
-  audio.addEventListener('error', () => setTimeout(playNext, 5000));  // skip a track that fails to load
-  if (!muted) { playNext(); bindGesture(); }
+// Title + species picker: play vol29 (fading in over 20s). Idempotent — if it's
+// already the menu track, just keep it going (so title → picker is seamless).
+function playMenuMusic() {
+  ensureAudio(); bindGesture();
+  if (muted) return;
+  const already = mode === 'menu' && audio.src && audio.src.indexOf(MENU_TRACK) >= 0;
+  if (already) { tryPlay(); return; }
+  mode = 'menu';
+  audio.loop = true;                       // loop vol29 for as long as you're in the menus
+  audio.src = MENU_TRACK; audio.load();
+  audio.volume = 0; startMenuFade();
+  tryPlay();
 }
+
+// A level started: switch to a RANDOM level track (never vol29). If already in
+// level mode, keep the current track playing across the level transition; only
+// `force` (a track ended / errored) picks a fresh one.
+function playLevelMusic(force) {
+  ensureAudio(); bindGesture();
+  if (muted) return;
+  if (mode === 'level' && !force) { tryPlay(); return; }
+  mode = 'level';
+  audio.loop = false;
+  let i = 0;
+  if (LEVEL_TRACKS.length > 1) { do { i = Math.floor(Math.random() * LEVEL_TRACKS.length); } while (i === lastLevelIdx); }
+  lastLevelIdx = i;
+  audio.src = LEVEL_TRACKS[i]; audio.load();
+  audio.volume = 0; ramp(FULL_VOL, LEVEL_FADE_MS);
+  tryPlay();
+}
+
+// Back-compat: ensure the audio element + gesture retry exist. Actual playback is
+// driven by playMenuMusic / playLevelMusic; this no longer force-starts a track.
+function initMusic() { ensureAudio(); if (!muted) bindGesture(); }
 
 // Flip mute; persists the choice. Returns the new muted state.
 function toggleMusic() {
@@ -10110,14 +10163,14 @@ function toggleMusic() {
   try { localStorage.setItem('mycMuted', muted ? '1' : '0'); } catch (e) {}
   if (audio) {
     if (muted) audio.pause();
-    else if (!audio.src) { playNext(); bindGesture(); }  // first unmute: only now start fetching
+    else if (!audio.src) playMenuMusic();   // first unmute with nothing loaded → default to the menu track
     else tryPlay();
   }
   return muted;
 }
 function isMusicMuted() { return muted; }
 
-  return { initMusic, toggleMusic, isMusicMuted };
+  return { playMenuMusic, playLevelMusic, initMusic, toggleMusic, isMusicMuted };
 })();
 
 // ===================== src/render/ui.js =====================
@@ -13349,7 +13402,7 @@ const __m_main = (function () {
   const { showLevelIntro } = __m_render_level_intro;
   const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
-  const { initMusic } = __m_render_music;
+  const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
@@ -13504,6 +13557,7 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
+  playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
     onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
@@ -13865,6 +13919,7 @@ function backToPicker() {
 // reachable from the run-over card's "Main menu" button.
 function showMainMenu() {
   if (ui) ui.hideOverlay();
+  playMenuMusic();   // title theme: backrooms-vol29, fading in over its first 20s
   showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
@@ -14044,6 +14099,7 @@ function beginTutorial() {
 function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
+  playLevelMusic();   // a level started → swap the menu theme (vol29) for a random level track
   _runOverPresented = false;
   _runOverAt = 0;                 // reset the "let the last grow finish" defer timer
   winCele = null;                 // drop any lingering win celebration from the prior level

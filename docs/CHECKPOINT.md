@@ -494,6 +494,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Music split into MENU vs LEVEL tracks (`render/music.js` reworked).** `backrooms-vol29` ("the backrooms
+  music vol 29") is now the dedicated **menu theme** — it starts on the title screen fading IN over its first
+  **20 seconds** (full volume at 0:20; ramp driven off `audio.currentTime` so an autoplay-blocked start doesn't
+  burn the fade), loops, and plays **continuously across title → species picker** (`playMenuMusic()` is
+  idempotent — no restart when the same track is already the menu track). The moment a **level** starts, a
+  RANDOM track from the OTHER three (`vol7/vol10/vol23`) takes over (`playLevelMusic()` from `begin()`); vol29
+  is NEVER used in-level, and a level track keeps playing across level→level transitions (only re-picks when
+  the previous track ends, via the `ended` handler). New exports `playMenuMusic` / `playLevelMusic`; `initMusic`
+  is now just setup (ensure `<audio>` + gesture retry) and no longer force-plays a random track. Wired in
+  `main.js`: `showMainMenu` + `showPicker` → `playMenuMusic()`, `begin()` → `playLevelMusic()`. Verified via
+  Playwright request-logging (`scratchpad/music_verify.mjs`): title requests vol29 only; `#dev` (straight to a
+  level) requests a non-vol29 track. (Interpreted "fading it at 0:20" as a 20 s fade-IN reaching full at the
+  0:20 mark.)
+
 - **Five polish/feel tweaks (owner batch).**
   1. **Win/lose waits for the last grow to finish animating.** `presentRunOver()` now defers while
      `anyRevealing(lastTime)` is true (reusing the draft-intro reveal check), retried every frame from

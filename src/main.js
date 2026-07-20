@@ -25,7 +25,7 @@ import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
 import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
-import { initMusic } from './render/music.js';
+import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
 import { CARD_DATA } from './cards-data.js';
 
@@ -171,6 +171,7 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
+  playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
     onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
@@ -532,6 +533,7 @@ function backToPicker() {
 // reachable from the run-over card's "Main menu" button.
 function showMainMenu() {
   if (ui) ui.hideOverlay();
+  playMenuMusic();   // title theme: backrooms-vol29, fading in over its first 20s
   showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
@@ -711,6 +713,7 @@ function beginTutorial() {
 function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
+  playLevelMusic();   // a level started → swap the menu theme (vol29) for a random level track
   _runOverPresented = false;
   _runOverAt = 0;                 // reset the "let the last grow finish" defer timer
   winCele = null;                 // drop any lingering win celebration from the prior level
