@@ -46,6 +46,7 @@ const MODULES = [
   'src/render/ui.js',
   'src/render/mycelium_title.js',
   'src/render/species_select.js',
+  'src/render/loadout_select.js',
   'src/render/title_screen.js',
   'src/render/tutorial.js',
   'src/render/level_intro.js',

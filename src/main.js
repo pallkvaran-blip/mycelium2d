@@ -19,10 +19,11 @@ import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
+import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
 import { initMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -175,6 +176,32 @@ function showPicker() {
 
 function cardsCampaign() {
   return state && state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle';
+}
+
+// A "memory" species (species.js `memory:true`, e.g. Split Gill) opens with its FIXED
+// hand PLUS the loadout the player curated at the end of their last run with it. Merge
+// them for seeding; every other species is passed through unchanged.
+function effectiveSpecies(sp) {
+  if (!sp || !sp.memory) return sp;
+  const lo = loadoutFor(sp.id);                        // [{name,count}] copies chosen last run
+  return lo.length ? { ...sp, hand: [...(sp.hand || []), ...lo] } : sp;
+}
+
+// At RUN END with a memory species, let the player curate next run's loadout from the
+// NON-ENGINE cards they DRAFTED this run (state.cards.runDrafted), then continue via
+// `next`. Any other case (non-memory species, or nothing drafted → keep prior loadout)
+// just continues immediately.
+function runEndThen(next) {
+  const sp = chosenSpecies;
+  const rd = (state && state.cards && state.cards.runDrafted) || {};
+  const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
+  if (sp && sp.memory && drafted.length) {
+    if (ui) ui.hideOverlay();
+    showLoadoutSelect({ species: sp, drafted, fixed: sp.hand,
+      onConfirm: (list) => { saveLoadout(sp.id, list); next(); } });
+    return;
+  }
+  next();
 }
 
 // Snapshot the current deck + reserves to carry onto the next level.
@@ -440,7 +467,7 @@ function onLevelWon() {
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
-    showGameWon({ spores: runSpores, balance, onNewRun: backToPicker });
+    showGameWon({ spores: runSpores, balance, onNewRun: () => runEndThen(backToPicker) });
   } else {
     const snap = snapshotCarry();
     showLevelComplete({
@@ -657,7 +684,7 @@ function begin(newState) {
   //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
     if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
-    else if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    else if (chosenSpecies) initCards(state, 'species', effectiveSpecies(chosenSpecies));
     else initCards(state, 'testall');
   }
   buildRenderers();
@@ -786,10 +813,10 @@ const handlers = {
     start((Date.now() & 0x7fffffff) || 1);
   },
   onBackToPicker() {                  // death (campaign) → choose a species again from scratch
-    backToPicker();
+    runEndThen(backToPicker);         // memory species: curate next run's loadout first
   },
   onMainMenu() {                      // run-over card → back to the title screen
-    backToTitle();
+    runEndThen(backToTitle);
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing

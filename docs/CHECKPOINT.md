@@ -482,6 +482,34 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **New species: Split Gill (Schizophyllum commune) — a "memory" species that carries a curated
+  loadout between runs.** First of a planned family (the mechanic is reusable via a `memory:true` flag).
+  - **Kit:** 10⚡ / 25W, fixed opener **1× Aquaporin Channels + 5× Apical Drive**, PLUS up to **5 cards
+    the player hand-picks at the end of each run** from the NON-ENGINE cards they **drafted that run**
+    (not the carried-over opener/loadout). First run is bare (6 cards) by design; it builds out over runs.
+  - **Data/flow:** `species.js` — new roster entry `id:'schizophyllum'`, `memory:true`, ungated
+    (`unlock:null`, 3rd starter); loadout persisted in the progress store (`mycelium.progress.v2`
+    `loadouts:{id:[{name,count}]}`) via new `loadoutFor` / `saveLoadout`. `engine/cards.js` —
+    `chooseOffer` tallies non-engine drafts (by **copies**) into `state.cards.runDrafted` (carried across
+    levels with the cards object; reset each run in `initCards`, which now inits `runDrafted:{}`).
+    `main.js` — `effectiveSpecies(sp)` merges the persisted loadout into the seeded hand for memory
+    species; `runEndThen(next)` gates every run-end EXIT (death "New run"/"Main menu", game-won "New run")
+    through the picker: if a memory species drafted anything, show the loadout screen, save the pick, then
+    continue. (A zero-draft run keeps the prior loadout rather than wiping it.)
+  - **UI:** new `src/render/loadout_select.js` (`showLoadoutSelect`, namespaced `#loadoutSelect`/`.lo-*`,
+    CSS in `index.html`). Two card rows: UPPER = next run's hand (fixed opener **locked** + selected),
+    LOWER = drafted-this-run pool with copy counts. Single-click a lower card → move ONE copy up; click a
+    selected upper card → move it back; cap **5** copies (lower dims at the cap); centered **"Choose 5
+    cards for your next run"** + an X/5 counter. Card faces derive from `CARD_DATA` + `assets/cards`.
+  - **Art:** `assets/species/schizophyllum-commune.jpg` (FLUX 1.1 Pro, `scripts/gen_species_splitgill.py`,
+    3 options in `assets/species_options/`, option 3 picked — clearest split gills). Registered in
+    `build.mjs` module list.
+  - **Verified:** headless — persistence round-trips, merged seed = 1+5+loadout = 11 at 10⚡/25W,
+    draft-tally records the basic (3 copies) and excludes engines; a Playwright DOM test of the loadout
+    screen (mount, click-to-move, 5-cap, confirm returns the picked copies) and a real-picker Playwright
+    (Split Gill is the 3rd starter, inspector shows the fixed opener, portrait loads, no errors). 101+61
+    tests green; `dist` rebuilt (import-leak 0).
+
 - **Documented the draft-pool odds (no code change).** Recorded in `cards-design.md` §18.3 the current,
   authoritative draft mechanics after an owner question. Key load-bearing fact: the Basic-vs-Event split
   is a **FIXED weight** (`config.cards.draftBasicWeight` = 0.6 → 60% Basic / 40% Event per slot,

@@ -157,7 +157,8 @@ export function initCards(state, mode = 'tutorial', species = null) {
   }
 
   state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [],
-    draftable: uniqueDraftNames() };   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
+    draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
+    runDrafted: {} };                // {name: copies} of non-engine cards drafted this run (memory species loadout picker)
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -262,6 +263,9 @@ export function chooseOffer(state, cardName) {
   const copies = cat === 'basic' ? Math.max(1, (state.config.cards.draftBasicCopies || 3)) : 1;
   for (let i = 0; i < copies; i++) C.hand.push({ id: C.seq++, name: cardName });
   if (cat === 'engine' && C.draftable) { const i = C.draftable.indexOf(cardName); if (i >= 0) C.draftable.splice(i, 1); }
+  // Memory species (e.g. Split Gill): tally NON-engine drafts this run (by copies) so the
+  // run-end loadout picker can offer them. Carried across levels with the cards object.
+  if (cat !== 'engine') { if (!C.runDrafted) C.runDrafted = {}; C.runDrafted[cardName] = (C.runDrafted[cardName] || 0) + copies; }
   C.pendingOffers.shift();
   state.log(copies > 1
     ? `Drafted ${copies}× ${cardName} into your hand (free — you still pay to play them).`

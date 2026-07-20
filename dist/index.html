@@ -1209,6 +1209,52 @@
       .tut-btn { padding:8px 15px; font-size:13px; }
     }
 
+    /* ---- Run-end loadout picker (memory species, e.g. Split Gill) ----------
+       Two card rows: UPPER = next run's hand (fixed opener locked + selected),
+       LOWER = cards drafted this run. Click to move copies up/down. Namespaced
+       #loadoutSelect / .lo-*. See render/loadout_select.js. */
+    #loadoutSelect { position:fixed; inset:0; z-index:1400; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(1200px 620px at 50% -6%, rgba(126,240,192,0.07), transparent 60%),
+        linear-gradient(180deg,#08110d,#050b08); color:#e6f4ec;
+      font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif; padding:18px; overflow:auto; }
+    #loadoutSelect *, #loadoutSelect *::before, #loadoutSelect *::after { box-sizing:border-box; }
+    .lo-panel { width:100%; max-width:920px; display:flex; flex-direction:column; align-items:center; gap:12px; margin:auto; }
+    .lo-title { font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; font-size:clamp(18px,3.2vw,26px);
+      font-weight:600; letter-spacing:.01em; text-align:center; color:#eaf4ee; }
+    .lo-sub { font-size:13px; color:#8fb3a4; text-align:center; max-width:60ch; margin:-4px 0 2px; }
+    .lo-sub b { color:#bfe0d2; }
+    .lo-carowrap { width:100%; }
+    .lo-label { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7ef0c0; font-weight:700; margin:0 2px 6px; }
+    .lo-row { display:flex; gap:9px; overflow-x:auto; padding:6px 2px 10px; min-height:118px; align-items:stretch;
+      border:1px solid rgba(126,240,192,0.16); border-radius:13px; background:linear-gradient(180deg,rgba(10,18,14,0.55),rgba(6,11,9,0.7)); }
+    .lo-upper { box-shadow:inset 0 0 0 1px rgba(126,240,192,0.10); }
+    .lo-card { position:relative; flex:0 0 auto; width:92px; padding:0; border-radius:11px; overflow:hidden; cursor:pointer;
+      background:linear-gradient(158deg,#101a15,#070c0a 72%); border:2px solid rgba(130,230,166,0.42); color:#d7e6dc;
+      text-align:left; box-shadow:0 6px 16px -10px rgba(0,0,0,0.8); transition:transform .1s, border-color .1s; }
+    .lo-card:hover { transform:translateY(-3px); border-color:#7ef0c0; outline:none; }
+    .lo-art { display:block; width:100%; aspect-ratio:3/2; overflow:hidden; background:radial-gradient(circle at 50% 40%,#16241c,#060f0b); }
+    .lo-art img { width:100%; height:100%; object-fit:cover; display:block; }
+    .lo-cnt { position:absolute; top:6px; right:6px; z-index:3; font-size:12px; font-weight:800; color:#eafff4;
+      background:rgba(6,12,9,0.82); border:1px solid rgba(126,240,192,0.4); border-radius:8px; padding:0 6px; line-height:17px; }
+    .lo-type { position:absolute; top:6px; left:6px; z-index:3; font-size:8px; letter-spacing:.1em; text-transform:uppercase;
+      color:#bfe0d2; background:rgba(6,12,9,0.7); border-radius:6px; padding:1px 5px; }
+    .lo-nm { display:block; padding:5px 7px 7px; font-family:"Iowan Old Style",Palatino,Georgia,serif; font-size:11px;
+      line-height:1.15; color:#eaf4ee; }
+    .lo-lock { position:absolute; bottom:26px; right:6px; z-index:3; font-size:13px; color:#7ef0c0; text-shadow:0 1px 4px #000; }
+    .lo-card.lo-locked { cursor:default; border-color:rgba(126,240,192,0.28); opacity:0.96; }
+    .lo-card.lo-locked:hover { transform:none; border-color:rgba(126,240,192,0.28); }
+    .lo-card.lo-dim { cursor:default; opacity:0.34; filter:grayscale(0.5); }
+    .lo-card.lo-dim:hover { transform:none; border-color:rgba(130,230,166,0.42); }
+    .lo-empty { color:#8fb3a4; font-size:13px; padding:22px 12px; margin:auto; }
+    .lo-mid { display:flex; flex-direction:column; align-items:center; gap:3px; margin:2px 0; }
+    .lo-mid-txt { font-size:clamp(14px,2.4vw,18px); font-weight:700; color:#eaf4ee; letter-spacing:.01em; }
+    .lo-count { font-size:12px; font-weight:800; color:#8fb3a4; letter-spacing:.08em; }
+    .lo-count.lo-full { color:#7ef0c0; }
+    .lo-actions { margin-top:6px; }
+    .lo-btn { font:inherit; font-size:15px; font-weight:700; color:#06140d; background:linear-gradient(180deg,#8ff0c2,#4fce97);
+      border:none; border-radius:11px; padding:11px 26px; cursor:pointer; box-shadow:0 8px 20px -10px rgba(79,206,151,0.8); }
+    .lo-btn:hover { filter:brightness(1.06); }
+
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each
        campaign level's map fades in. No container / no buttons — the content
@@ -1280,8 +1326,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "of44v1";
-globalThis.__BUILD__ = "local 07-20 08:40";
+window.__ASSET_VER = "19kpwry";
+globalThis.__BUILD__ = "local 07-20 09:54";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3071,6 +3117,16 @@ const SPECIES = [
     ],
   },
   {
+    id: 'schizophyllum', vibe: 'aqua', unlock: null, memory: true,
+    name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its namesake <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony <b>learns</b>: it always opens with its aquaporins and a fistful of driving tips, then carries forward <b>five cards you hand-pick from whatever you drafted on your last run</b> — so every attempt tunes the deck a little sharper. The first run is bare; build it out over several.',
+    res: { energy: 10, water: 25, phosphorus: 0 },
+    hand: [
+      { name: 'Aquaporin Channels', count: 1 },
+      { name: 'Apical Drive', count: 5 },
+    ],
+  },
+  {
     id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
@@ -3179,6 +3235,7 @@ function loadProgress() {
   if (!p.clears) p.clears = {};
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
+  if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   return p;
 }
 function saveProgress(p) {
@@ -3214,6 +3271,22 @@ function addSpores(amount) {
 function isPurchased(sp, progress) {
   const p = progress || loadProgress();
   return !!(sp && p.purchased && p.purchased[sp.id]);
+}
+
+// --- carried loadout (memory species, e.g. Split Gill) ----------------------
+// A memory species opens with its fixed `hand` PLUS a player-curated set of cards
+// carried from the last run's DRAFTS. Stored per species id as [{name,count}]
+// (count = copies). loadoutFor returns [] when nothing is saved yet (first run).
+function loadoutFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const lo = p.loadouts && p.loadouts[speciesId];
+  return Array.isArray(lo) ? lo.filter((e) => e && e.name && e.count > 0) : [];
+}
+function saveLoadout(speciesId, list) {
+  const p = loadProgress();
+  p.loadouts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.loadouts[speciesId];
 }
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).
@@ -3251,7 +3324,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -6464,7 +6537,8 @@ function initCards(state, mode = 'tutorial', species = null) {
   }
 
   state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [],
-    draftable: uniqueDraftNames() };   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
+    draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
+    runDrafted: {} };                // {name: copies} of non-engine cards drafted this run (memory species loadout picker)
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -6569,6 +6643,9 @@ function chooseOffer(state, cardName) {
   const copies = cat === 'basic' ? Math.max(1, (state.config.cards.draftBasicCopies || 3)) : 1;
   for (let i = 0; i < copies; i++) C.hand.push({ id: C.seq++, name: cardName });
   if (cat === 'engine' && C.draftable) { const i = C.draftable.indexOf(cardName); if (i >= 0) C.draftable.splice(i, 1); }
+  // Memory species (e.g. Split Gill): tally NON-engine drafts this run (by copies) so the
+  // run-end loadout picker can offer them. Carried across levels with the cards object.
+  if (cat !== 'engine') { if (!C.runDrafted) C.runDrafted = {}; C.runDrafted[cardName] = (C.runDrafted[cardName] || 0) + copies; }
   C.pendingOffers.shift();
   state.log(copies > 1
     ? `Drafted ${copies}× ${cardName} into your hand (free — you still pay to play them).`
@@ -11746,6 +11823,123 @@ function showGameWon({ spores, balance, onNewRun }) {
   return { showSpeciesSelect, showLevelComplete, showGameWon };
 })();
 
+// ===================== src/render/loadout_select.js =====================
+const __m_render_loadout_select = (function () {
+  const { CARD_DATA } = __m_cards_data;
+  const { cardSlug } = __m_render_ui;
+// =============================================================================
+// Run-end LOADOUT picker for "memory" species (e.g. Split Gill).
+//
+// showLoadoutSelect({ species, drafted, fixed, onConfirm }) — a full-screen
+// overlay shown when a run ENDS with a memory species. Two card rows:
+//   • UPPER = next run's starting hand: the species' FIXED opener (locked) plus
+//     the copies the player selects (up to 5).
+//   • LOWER = every NON-ENGINE card DRAFTED this run, with remaining copies.
+// Single-click a lower card to move ONE copy up; single-click a selected upper
+// card to move it back down. Fixed cards can't be moved. Between the rows sits
+// "Choose 5 cards for your next run". Confirm saves the picked list.
+//
+// Card faces (art / name / count) are derived from CARD_DATA + assets/cards, so
+// data/art changes flow through automatically. Namespaced #loadoutSelect / .lo-*.
+// =============================================================================
+
+
+const CARD_BY_NAME = {};
+for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
+
+const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
+const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+const MAX_PICK = 5;
+
+function showLoadoutSelect({ species, drafted, fixed, onConfirm }) {
+  const root = el('div'); root.id = 'loadoutSelect';
+
+  // model: pool = copies drafted this run; selected = copies chosen (name -> count)
+  const pool = {};
+  for (const d of (drafted || [])) if (d && d.name && d.count > 0) pool[d.name] = (pool[d.name] || 0) + d.count;
+  const selected = {};
+  const fixedList = (fixed || []).map((f) => ({ name: f.name, count: f.count || 0 }));
+  const selCount = () => Object.keys(selected).reduce((a, n) => a + selected[n], 0);
+
+  root.innerHTML =
+    '<div class="lo-panel" role="dialog" aria-label="Choose cards for your next run">' +
+      '<div class="lo-title">' + esc((species && species.name) || 'Your colony') + ' — carry cards forward</div>' +
+      '<div class="lo-sub">Only cards you <b>drafted this run</b> can be carried. Your fixed opener is locked in.</div>' +
+      '<div class="lo-carowrap"><div class="lo-label">Next run’s starting hand</div>' +
+        '<div class="lo-row lo-upper" id="loUpper"></div></div>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">Choose 5 cards for your next run</span>' +
+        '<span class="lo-count" id="loCount"></span></div>' +
+      '<div class="lo-carowrap"><div class="lo-label">Drafted this run — click to add</div>' +
+        '<div class="lo-row lo-lower" id="loLower"></div></div>' +
+      '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm ▸</button></div>' +
+    '</div>';
+  document.body.appendChild(root);
+
+  const upper = root.querySelector('#loUpper');
+  const lower = root.querySelector('#loLower');
+  const countEl = root.querySelector('#loCount');
+
+  function tile(name, count, opts = {}) {
+    const c = CARD_BY_NAME[name] || { name, type: '', effect: '' };
+    const t = el('button', 'lo-card' + (opts.locked ? ' lo-locked' : '') + (opts.dim ? ' lo-dim' : ''));
+    t.type = 'button';
+    t.innerHTML =
+      '<span class="lo-art"><img src="' + cardImg(name) + '" alt="" onerror="this.style.display=\'none\'"></span>' +
+      (opts.locked ? '<span class="lo-lock" title="Fixed opener">◉</span>' : '') +
+      '<span class="lo-cnt">×' + count + '</span>' +
+      (c.type ? '<span class="lo-type">' + esc(c.type) + '</span>' : '') +
+      '<span class="lo-nm">' + esc(c.name) + '</span>';
+    if (opts.onClick && !opts.locked && !opts.dim) t.addEventListener('click', opts.onClick);
+    return t;
+  }
+
+  function render() {
+    // UPPER: fixed opener (locked) then the selected copies (click to remove one)
+    upper.innerHTML = '';
+    for (const f of fixedList) upper.appendChild(tile(f.name, f.count, { locked: true }));
+    for (const name of Object.keys(selected)) {
+      if (selected[name] <= 0) continue;
+      upper.appendChild(tile(name, selected[name], { onClick: () => {
+        selected[name]--; if (selected[name] <= 0) delete selected[name]; render();
+      } }));
+    }
+    // LOWER: drafted pool with REMAINING copies (dim when depleted or the pick is full)
+    lower.innerHTML = '';
+    const names = Object.keys(pool);
+    if (!names.length) { lower.appendChild(el('div', 'lo-empty', 'No non-engine cards drafted this run.')); }
+    const full = selCount() >= MAX_PICK;
+    for (const name of names) {
+      const remaining = pool[name] - (selected[name] || 0);
+      lower.appendChild(tile(name, remaining, {
+        dim: remaining <= 0 || full,
+        onClick: () => {
+          if (selCount() < MAX_PICK && (pool[name] - (selected[name] || 0)) > 0) {
+            selected[name] = (selected[name] || 0) + 1; render();
+          }
+        },
+      }));
+    }
+    const n = selCount();
+    countEl.textContent = n + ' / ' + MAX_PICK;
+    countEl.className = 'lo-count' + (n === MAX_PICK ? ' lo-full' : '');
+  }
+  render();
+
+  function hide() { root.remove(); }
+  root.querySelector('#loConfirm').addEventListener('click', () => {
+    const list = Object.keys(selected).filter((n) => selected[n] > 0).map((n) => ({ name: n, count: selected[n] }));
+    hide();
+    onConfirm && onConfirm(list);
+  });
+  return { hide, root };
+}
+
+  return { showLoadoutSelect };
+})();
+
 // ===================== src/render/title_screen.js =====================
 const __m_render_title_screen = (function () {
   const { playGrowBurst } = __m_render_sfx;
@@ -12711,10 +12905,11 @@ const __m_main = (function () {
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug } = __m_render_ui;
   const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
+  const { showLoadoutSelect } = __m_render_loadout_select;
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
   const { initMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -12876,6 +13071,32 @@ function showPicker() {
 
 function cardsCampaign() {
   return state && state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle';
+}
+
+// A "memory" species (species.js `memory:true`, e.g. Split Gill) opens with its FIXED
+// hand PLUS the loadout the player curated at the end of their last run with it. Merge
+// them for seeding; every other species is passed through unchanged.
+function effectiveSpecies(sp) {
+  if (!sp || !sp.memory) return sp;
+  const lo = loadoutFor(sp.id);                        // [{name,count}] copies chosen last run
+  return lo.length ? { ...sp, hand: [...(sp.hand || []), ...lo] } : sp;
+}
+
+// At RUN END with a memory species, let the player curate next run's loadout from the
+// NON-ENGINE cards they DRAFTED this run (state.cards.runDrafted), then continue via
+// `next`. Any other case (non-memory species, or nothing drafted → keep prior loadout)
+// just continues immediately.
+function runEndThen(next) {
+  const sp = chosenSpecies;
+  const rd = (state && state.cards && state.cards.runDrafted) || {};
+  const drafted = Object.keys(rd).filter((n) => rd[n] > 0).map((n) => ({ name: n, count: rd[n] }));
+  if (sp && sp.memory && drafted.length) {
+    if (ui) ui.hideOverlay();
+    showLoadoutSelect({ species: sp, drafted, fixed: sp.hand,
+      onConfirm: (list) => { saveLoadout(sp.id, list); next(); } });
+    return;
+  }
+  next();
 }
 
 // Snapshot the current deck + reserves to carry onto the next level.
@@ -13141,7 +13362,7 @@ function onLevelWon() {
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
-    showGameWon({ spores: runSpores, balance, onNewRun: backToPicker });
+    showGameWon({ spores: runSpores, balance, onNewRun: () => runEndThen(backToPicker) });
   } else {
     const snap = snapshotCarry();
     showLevelComplete({
@@ -13358,7 +13579,7 @@ function begin(newState) {
   //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
     if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
-    else if (chosenSpecies) initCards(state, 'species', chosenSpecies);
+    else if (chosenSpecies) initCards(state, 'species', effectiveSpecies(chosenSpecies));
     else initCards(state, 'testall');
   }
   buildRenderers();
@@ -13487,10 +13708,10 @@ const handlers = {
     start((Date.now() & 0x7fffffff) || 1);
   },
   onBackToPicker() {                  // death (campaign) → choose a species again from scratch
-    backToPicker();
+    runEndThen(backToPicker);         // memory species: curate next run's loadout first
   },
   onMainMenu() {                      // run-over card → back to the title screen
-    backToTitle();
+    runEndThen(backToTitle);
   },
   onNoTrichMap() {
     noTrich = true;                   // re-rollable Trichoderma-free sandbox for testing

@@ -50,6 +50,16 @@ export const SPECIES = [
     ],
   },
   {
+    id: 'schizophyllum', vibe: 'aqua', unlock: null, memory: true,
+    name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its namesake <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony <b>learns</b>: it always opens with its aquaporins and a fistful of driving tips, then carries forward <b>five cards you hand-pick from whatever you drafted on your last run</b> — so every attempt tunes the deck a little sharper. The first run is bare; build it out over several.',
+    res: { energy: 10, water: 25, phosphorus: 0 },
+    hand: [
+      { name: 'Aquaporin Channels', count: 1 },
+      { name: 'Apical Drive', count: 5 },
+    ],
+  },
+  {
     id: 'hydnellum', vibe: 'aqua', unlock: 'Complete level 1',
     name: 'Bleeding Tooth Fungus', latin: 'Hydnellum peckii', img: 'hydnellum-peckii',
     blurb: 'A damp-forest fungus that runs on water: it drives so much moisture through itself that it weeps bright red droplets from its cap — real <b>guttation</b>. That constant flow lets it grow almost anywhere the ground is wet, fanning out in every direction and pressing on long after drier colonies stall. Open the taps and flood the map.',
@@ -158,6 +168,7 @@ export function loadProgress() {
   if (!p.clears) p.clears = {};
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
+  if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   return p;
 }
 export function saveProgress(p) {
@@ -193,6 +204,22 @@ export function addSpores(amount) {
 export function isPurchased(sp, progress) {
   const p = progress || loadProgress();
   return !!(sp && p.purchased && p.purchased[sp.id]);
+}
+
+// --- carried loadout (memory species, e.g. Split Gill) ----------------------
+// A memory species opens with its fixed `hand` PLUS a player-curated set of cards
+// carried from the last run's DRAFTS. Stored per species id as [{name,count}]
+// (count = copies). loadoutFor returns [] when nothing is saved yet (first run).
+export function loadoutFor(speciesId, progress) {
+  const p = progress || loadProgress();
+  const lo = p.loadouts && p.loadouts[speciesId];
+  return Array.isArray(lo) ? lo.filter((e) => e && e.name && e.count > 0) : [];
+}
+export function saveLoadout(speciesId, list) {
+  const p = loadProgress();
+  p.loadouts[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.loadouts[speciesId];
 }
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).
