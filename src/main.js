@@ -105,8 +105,8 @@ function levelThreatList() {
   const s = state; if (!s) return [];
   return [
     { slug: 'ant',         label: 'Ants',        count: (s.ants || []).length },
-    { slug: 'nematode',    label: 'Nematodes',   count: (s.nematodes || []).length },
     { slug: 'trichoderma', label: 'Trichoderma', count: (s.clouds || []).length },
+    { slug: 'nematode',    label: 'Nematodes',   count: (s.nematodes || []).length },
   ].filter((t) => t.count > 0);
 }
 
