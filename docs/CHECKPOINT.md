@@ -482,24 +482,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Level 2 = the Trichoderma gauntlet: BOTH clouds seed at two scripted map anchors.** A deliberate
-  teaching gate (owner request, positions drawn on a screenshot) — a shallow gate on the LEFT right by
-  the colony + a deeper gate CENTRE, so it's very hard to grow past without an answer to mould.
-  Generalised from the earlier single-goal-approach guard into an **anchor** system:
-  `main.js configForLevel` sets `cfg.trichoderma.guardAnchors = [{xFrac:0.15,depthFrac:0.28},
-  {xFrac:0.56,depthFrac:0.70}]` for level 2 (fractions of world width / soil depth; `null` otherwise;
-  cleared under `#notrich`). `engine/threats.js seedTrichoderma` seeds the first clouds AT those anchors
-  via new `pickSpotNearAnchor(...)` — a **deterministic expanding Chebyshev-ring** search for the nearest
-  OPEN (non-rock, non-food) cell, keeping `config.trichoderma.guardAnchorRockGap` (default **1**) cells
-  clear of rock (auto-relaxed if none), then lets the remaining `initialPatches − N` roam as before.
-  Because the search consumes **no RNG**, the roam clouds and every other level's seed are byte-identical
-  to before. Total cloud count unchanged (level 2 is `trych:2` → 2 gates, 0 roamers), so the intro "×N"
-  still reads right. New config: `trichoderma.guardAnchors` (null) + `guardAnchorRockGap` (1). Anchors
-  were calibrated from the owner's screenshot (colony + the trich cloud already visible near the goal as
-  scale refs). Verified headless: over 120 seeds the placed clouds land a mean **~3 cells** from each
-  anchor (worst ~0.13 of map-width, when rock buries the spot); a schematic SVG of a sample seed confirms
-  the left-shallow / centre-deep gauntlet vs the far-right goal meadow. 101+61 tests green; `dist` rebuilt
-  (import-leak 0). The `xFrac`/`depthFrac` numbers are one-line-tunable to nudge either gate.
+- **Level 2 = the Trichoderma gauntlet: BOTH clouds seed UNDER the green goal hill.** A deliberate
+  teaching gate (owner request) — one cloud just under the hill's bottom-LEFT corner + one CENTRED under
+  the hill sitting slightly deeper, so it's very hard to fruit without an answer to mould. Clouds are
+  seeded via a scripted-**anchor** system in `engine/threats.js seedTrichoderma` (`pickSpotNearAnchor` — a
+  **deterministic expanding Chebyshev-ring** search for the nearest OPEN, non-rock, non-food cell; keeps
+  `config.trichoderma.guardAnchorRockGap`=**1** cell clear of rock, auto-relaxed if none). Consumes **no
+  RNG**, so the roam clouds and every other level's seed are byte-identical to before. Anchors support two
+  frames: world-relative `{xFrac,depthFrac}` OR **goal-hill-relative** `{goalRelX (0=hill left edge,
+  1=right), depthCells (rows below surface)}` — the goal hill is the `.goal` surface span (drawn by
+  `drawGoalBackdrop` from the first goal column to the map's right edge; `goalColSpan()` finds it). NOTE:
+  the earlier world-fraction attempt (`xFrac 0.15/0.56`) put the clouds mid-map — WRONG, because the
+  owner's reference screenshot was zoomed into the goal region; goal-hill-relative is the correct frame.
+  `main.js configForLevel` sets for level 2: `guardAnchors = [{goalRelX:0.0,depthCells:3},
+  {goalRelX:0.5,depthCells:6}]` (`null` otherwise; cleared under `#notrich`). Total cloud count unchanged
+  (level 2 is `trych:2` → 2 gates, 0 roamers), so the intro "×N" still reads right. Verified headless
+  across seeds: goal hill spans cols 59–71 (13 wide) and the clouds land at **col 59/row 3** (hill-left,
+  shallow) and **col 65/row 6** (hill-centre, deeper) — 6 cols apart, well separated. 101+61 tests green;
+  `dist` rebuilt (import-leak 0). New config: `trichoderma.guardAnchors` (null) + `guardAnchorRockGap`
+  (1). `goalRelX`/`depthCells` are one-line-tunable to nudge either gate.
 
 - **Card cost pills more legible on bright art.** The top-left resource-cost chips (`.cc` in
   `index.html`) had only a faint translucent *colour* tint, so on bright card faces (Acorn Cache,

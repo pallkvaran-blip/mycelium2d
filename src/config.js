@@ -250,7 +250,7 @@ export const CONFIG = {
     fadeTurns: 3,                // after infecting you, a cloud dies off and vanishes over this many steps (actions or end-turns)
     seedMinColonyDistFrac: 0.2,  // clouds seed in OPEN ground at least this fraction of the map-width from the colony, so they visibly creep IN toward food/you
     respawnChance: 0.12,         // per action, chance a faded cloud is replaced by a fresh one creeping in (keeps the threat present)
-    guardAnchors: null,          // optional [{xFrac,depthFrac}] map anchors (fractions of world width / soil depth) where the FIRST clouds are forced to seed (scripted gates, e.g. level 2's gauntlet — main.js configForLevel sets it per level); null → all clouds roam
+    guardAnchors: null,          // optional list of scripted-gate anchors where the FIRST clouds are forced to seed (e.g. level 2's gauntlet — main.js configForLevel sets it per level); null → all clouds roam. Each anchor is EITHER world-relative {xFrac,depthFrac} (fractions of width / soil depth) OR goal-hill-relative {goalRelX (0=hill left edge,1=right), depthCells (rows below surface)}
     guardAnchorRockGap: 1,       // a guardAnchor cloud keeps at least this many cells clear of rock (small → lands as close to the anchor as possible; relaxed automatically if even that has no open spot)
     // --- network infection (a cloud's edge touching you turns strands green) ---
     contactChance: 1.0,          // edge touch = infection, immediately (Melanize gives a chance to resist)

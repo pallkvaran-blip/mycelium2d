@@ -58,16 +58,38 @@ export function seedTrichoderma(substrate, config, rng, network) {
   return clouds;
 }
 
-// Find the OPEN (non-rock, non-food) cell nearest a fractional map anchor
-// { xFrac (0..1 of world width), depthFrac (0..1 of soil depth) }, so a scripted
-// gate cloud lands as close as possible to a chosen spot. Deterministic (an
-// expanding Chebyshev-ring search) → consumes no RNG, so other levels' seeds and
-// the roam clouds' placement are byte-identical to before.
+// The inclusive [lo,hi] column span of the goal hill (surface cells flagged .goal
+// — the summery zone drawn by drawGoalBackdrop from the first goal column to the
+// map's right edge). null if there is no goal zone (e.g. puzzle mode).
+function goalColSpan(substrate) {
+  const s = substrate.surface || [];
+  let lo = -1, hi = -1;
+  for (let c = 0; c < substrate.cols; c++) {
+    if (s[c] && s[c].goal) { if (lo < 0) lo = c; hi = c; }
+  }
+  return lo < 0 ? null : { lo, hi };
+}
+
+// Find the OPEN (non-rock, non-food) cell nearest a scripted gate anchor, given as
+// EITHER a world-fraction anchor { xFrac (0..1 of width), depthFrac (0..1 of soil
+// depth) } OR a GOAL-HILL-relative anchor { goalRelX (0=hill left edge, 1=right
+// edge), depthCells (rows below the surface) } — the latter lets level 2 park clouds
+// "under the green hill" regardless of where the goal zone lands. Deterministic (an
+// expanding Chebyshev-ring search) → consumes no RNG, so other levels' seeds and the
+// roam clouds' placement are byte-identical to before.
 function pickSpotNearAnchor(substrate, anchor, t) {
   const cols = substrate.cols, rows = substrate.rows;
   const clampI = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const cx = clampI(Math.round((anchor.xFrac || 0) * (cols - 1)), 1, cols - 2);
-  const cy = clampI(Math.round((anchor.depthFrac || 0) * (rows - 1)), 0, rows - 1);
+  let cx, cy;
+  if (anchor.goalRelX != null || anchor.depthCells != null) {
+    const span = goalColSpan(substrate) || { lo: cols - 6, hi: cols - 2 };
+    cx = clampI(Math.round(span.lo + (anchor.goalRelX || 0) * (span.hi - span.lo)), 1, cols - 2);
+    cy = clampI(Math.round(anchor.depthCells != null ? anchor.depthCells
+                          : (anchor.depthFrac || 0) * (rows - 1)), 0, rows - 1);
+  } else {
+    cx = clampI(Math.round((anchor.xFrac || 0) * (cols - 1)), 1, cols - 2);
+    cy = clampI(Math.round((anchor.depthFrac || 0) * (rows - 1)), 0, rows - 1);
+  }
   const gap = (t.guardAnchorRockGap != null) ? t.guardAnchorRockGap : 3;
   const openAt = (col, row, rockGap) => {
     if (col < 1 || col > cols - 2 || row < 0 || row > rows - 1) return false;
