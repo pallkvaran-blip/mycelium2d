@@ -494,6 +494,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Species editor tool (`docs/species-editor.html`).** A standalone authoring page to review + edit the whole
+  roster: per species it exposes name/latin/vibe/unlock-tier/art-slug, **starting resources (E/W/P)**, the
+  **blurb**, the **starting hand** (card-thumbnail chips with count inputs + remove, and an "add a card"
+  picker), and **order** (▲▼ move buttons); memory species also show `memPick`/`memEngines`. It **live-imports**
+  `../src/species.js` (SPECIES/LOCKED_TIERS/unlockCost) and `../src/cards-data.js` at runtime (ES modules), so
+  it never goes stale — unlike `card-editor.html`, which inlines its data. Edits persist to localStorage;
+  toolbar exports a ready-to-paste `export const SPECIES = […]` block (strings via `JSON.stringify` → valid
+  JS), a human-readable change summary, or JSON. **Local-only tool** (relative `../src` + `../assets`): serve
+  the repo root and open `/docs/species-editor.html` — NOT wired into `build.mjs`/`dist` (would need src/assets
+  alongside). Verified via Playwright (`scratchpad/species_editor_verify.mjs`): 11 species load in order,
+  portraits + 41 hand chips render, export contains all ids + the conk's memory fields, reorder works.
+
 - **Final species — Artist's Conk (`Ganoderma applanatum`), the upgraded MEMORY colony (Complete level 10).**
   Like Split Gill it curates its opening hand from the LAST run's drafts — but bigger, and now with engines:
   **pick up to 15 basic/event cards + 2 engine cards** drafted last run (two independent caps), plus a fixed

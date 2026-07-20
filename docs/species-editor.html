@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Species editor</title>
+<style>
+:root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
+  --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --water:#6cc7ff; --phos:#c79bff; --edit:#ffd76a; }
+*{box-sizing:border-box}
+html,body{margin:0;max-width:100%;overflow-x:hidden}
+body{color:var(--ink);font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  background:radial-gradient(1100px 460px at 26% -8%,rgba(126,240,192,.06),transparent 60%),
+    radial-gradient(900px 460px at 92% 4%,rgba(255,185,94,.05),transparent 55%),linear-gradient(180deg,var(--bg),var(--bg2));min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:22px 16px 160px}
+.eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--mint);font-weight:700;margin:0 0 6px}
+h1{font-size:26px;line-height:1.12;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
+.lede{color:var(--dim);font-size:13px;max-width:86ch;line-height:1.55;margin:0 0 4px}
+.lede b{color:var(--ink)} .lede code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+.tools{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:16px 0 10px;position:sticky;top:0;z-index:20;
+  padding:10px 0;background:linear-gradient(180deg,var(--bg) 72%,transparent)}
+.btn{font:inherit;font-size:13px;font-weight:700;border-radius:10px;padding:9px 13px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.btn:hover{border-color:var(--mint)}
+.btn.primary{background:linear-gradient(180deg,#12271e,#0c1c15);border-color:rgba(126,240,192,.4);color:var(--mint)}
+.btn.warn{border-color:rgba(255,120,120,.4);color:#ffb0b0}
+.count{margin-left:auto;font-size:12px;color:var(--dim)} .count b{color:var(--edit)}
+/* species card */
+.sp{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 15px 16px;margin:0 0 14px;
+  box-shadow:0 14px 40px -26px rgba(0,0,0,.7);position:relative}
+.sp.changed{border-color:rgba(255,215,106,.55);box-shadow:0 0 0 1px rgba(255,215,106,.22),0 14px 40px -26px rgba(0,0,0,.7)}
+.sp-top{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.ord{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:44px}
+.ord .n{font-size:20px;font-weight:800;color:var(--mint)}
+.ord button{width:34px;height:26px;font-size:14px;line-height:1;border-radius:7px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);cursor:pointer}
+.ord button:hover:not(:disabled){border-color:var(--mint)} .ord button:disabled{opacity:.3;cursor:default}
+.portrait{flex:0 0 auto;width:116px;height:150px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#0a120e}
+.ident{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:7px}
+.namein{font:inherit;font-size:19px;font-weight:800;letter-spacing:-.01em;border-radius:8px;padding:6px 9px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.latinin{font:inherit;font-size:13px;font-style:italic;border-radius:8px;padding:5px 9px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.metarow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld label{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.fld input,.fld select{font:inherit;font-size:13px;border-radius:8px;padding:6px 8px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.fld input:focus,.fld select:focus,.namein:focus,.latinin:focus,textarea:focus{outline:none;border-color:var(--mint)}
+.fld.res input{width:64px;text-align:center;font-weight:700}
+.res.e input{color:var(--amber)} .res.w input{color:var(--water)} .res.p input{color:var(--phos)}
+.badge{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+.badge.mem{color:#04140d;background:var(--mint);border-color:transparent}
+.cost{font-size:11.5px;color:var(--dim)} .cost b{color:var(--ink)}
+.fl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px}
+textarea.blurb{width:100%;font:inherit;font-size:13px;line-height:1.5;border-radius:9px;padding:9px 11px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);resize:vertical;min-height:74px}
+.dot{position:absolute;top:12px;right:14px;font-size:10.5px;font-weight:800;color:var(--edit);opacity:0}
+.sp.changed .dot{opacity:1}
+/* hand */
+.hand{display:flex;gap:9px;flex-wrap:wrap;align-items:stretch}
+.chip{width:104px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:5px;position:relative}
+.chip.eng{border-color:rgba(255,185,94,.45)}
+.chip .thumb{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:6px;background:#0a120e}
+.chip .nm{font-size:10.5px;font-weight:700;line-height:1.15;min-height:26px}
+.chip .tp{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.chip .tp.eng{color:var(--amber)}
+.chip .row{display:flex;align-items:center;gap:5px}
+.chip .row label{font-size:9px;color:var(--dim)}
+.chip .cnt{width:46px;font:inherit;font-size:13px;font-weight:700;text-align:center;border-radius:6px;padding:4px;background:var(--bg2);border:1px solid var(--line);color:var(--ink)}
+.chip .rm{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:6px;border:1px solid var(--line);background:rgba(8,12,10,.8);color:#ffb0b0;font-size:13px;line-height:1;cursor:pointer}
+.chip .rm:hover{border-color:#ffb0b0}
+.addcard{width:104px;display:flex;flex-direction:column;gap:5px;justify-content:center;border:1px dashed var(--line);border-radius:10px;padding:7px}
+.addcard select{font:inherit;font-size:11px;border-radius:6px;padding:5px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.addcard button{font:inherit;font-size:11px;font-weight:700;border-radius:6px;padding:5px;background:var(--panel);border:1px solid rgba(126,240,192,.4);color:var(--mint);cursor:pointer}
+.handmeta{font-size:11px;color:var(--dim);margin:6px 0 0}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(3,6,4,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal.open{display:flex}
+.sheet{width:min(900px,100%);max-height:82vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.sheet h3{margin:0 0 8px;font-size:16px}
+.sheet textarea{flex:1;width:100%;min-height:340px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.45;border-radius:9px;padding:11px;background:var(--bg2);border:1px solid var(--line);color:var(--ink);resize:none;white-space:pre}
+.sheet .r{display:flex;gap:9px;justify-content:flex-end;margin-top:10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--mint);color:#04140d;font-weight:800;font-size:13px;padding:9px 16px;border-radius:999px;opacity:0;transition:.25s;z-index:60}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.err{background:#2a0e0e;border:1px solid #6b2a2a;color:#ffcaca;border-radius:10px;padding:12px 14px;font-size:13px;margin:14px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Mycelium</p>
+  <h1>Species editor</h1>
+  <p class="lede">Review and edit every starter species — <b>description, starting resources, starting hand, and order</b>.
+    Loads the live roster from <code>src/species.js</code>. Edits are kept in your browser; when you're happy, hit
+    <b>Export species.js array</b> (or <b>Copy change summary</b>) and hand it back to apply. Nothing here writes to disk.</p>
+  <p class="lede">Serve the repo root over HTTP and open this at <code>/docs/species-editor.html</code> (e.g. <code>python3 -m http.server</code>).</p>
+
+  <div class="tools">
+    <button class="btn primary" id="btnExport">Export species.js array</button>
+    <button class="btn" id="btnSummary">Copy change summary</button>
+    <button class="btn" id="btnJson">Download JSON</button>
+    <button class="btn warn" id="btnRevert">Revert all to file</button>
+    <span class="count"><b id="mChanged">0</b> edited · <span id="mOrder"></span></span>
+  </div>
+
+  <div id="root"></div>
+</div>
+
+<div class="modal" id="modal"><div class="sheet">
+  <h3 id="sheetTitle">Export</h3>
+  <textarea id="out" readonly></textarea>
+  <div class="r"><button class="btn" id="btnMcopy">Copy</button><button class="btn" id="btnMclose">Close</button></div>
+</div></div>
+<div class="toast" id="toast">Copied</div>
+
+<script type="module">
+import { SPECIES, LOCKED_TIERS, unlockCost } from '../src/species.js';
+import { CARD_DATA } from '../src/cards-data.js';
+
+const KEY = 'mycelium.speciesEditor.v1';
+const cardSlug = (name) => String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const CARD_BY_NAME = {}; for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
+const CARD_NAMES = CARD_DATA.map((c) => c.name).sort((a, b) => a.localeCompare(b));
+const isEngineCard = (name) => { const c = CARD_BY_NAME[name]; return !!c && (c.type === 'engine' || c.displayCategory === 'engine'); };
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// tier options for the unlock <select>
+const TIERS = LOCKED_TIERS.map((t) => t.label).filter((l) => /level/i.test(l));
+
+// ---- model (deep clone of live SPECIES; restored from localStorage if id-set matches) ----
+const ORIGINAL = SPECIES.map(clone);
+function clone(s) {
+  return { id: s.id, vibe: s.vibe || 'cool', unlock: s.unlock == null ? null : s.unlock,
+    memory: !!s.memory, memPick: s.memPick == null ? null : (s.memPick | 0), memEngines: s.memEngines == null ? null : (s.memEngines | 0),
+    name: s.name || '', latin: s.latin || '', img: s.img || '', blurb: s.blurb || '',
+    res: { energy: (s.res && s.res.energy) | 0, water: (s.res && s.res.water) | 0, phosphorus: (s.res && s.res.phosphorus) | 0 },
+    hand: (s.hand || []).map((h) => ({ name: h.name, count: h.count | 0 })) };
+}
+const idsOf = (list) => list.map((s) => s.id).slice().sort().join(',');
+let model;
+try {
+  const saved = JSON.parse(localStorage.getItem(KEY));
+  if (saved && Array.isArray(saved) && idsOf(saved) === idsOf(ORIGINAL)) model = saved.map(clone);
+} catch (_) {}
+if (!model) model = ORIGINAL.map(clone);
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(model)); } catch (_) {} };
+
+const origById = {}; for (const s of ORIGINAL) origById[s.id] = s;
+const norm = (s) => JSON.stringify({ v: s.vibe, u: s.unlock, m: s.memory, mp: s.memPick, me: s.memEngines, n: s.name, l: s.latin, i: s.img, b: s.blurb, r: s.res, h: s.hand });
+const isChanged = (s) => norm(s) !== norm(origById[s.id]);
+const orderChanged = () => model.map((s) => s.id).join(',') !== ORIGINAL.map((s) => s.id).join(',');
+
+const root = document.getElementById('root');
+const speciesImg = (img) => '../assets/species/' + img + '.jpg';
+const cardImg = (name) => '../assets/cards/' + cardSlug(name) + '.jpg';
+
+function handMeta(s) {
+  const cards = s.hand.reduce((a, h) => a + (isEngineCard(h.name) ? 0 : h.count), 0);
+  const eng = s.hand.reduce((a, h) => a + (isEngineCard(h.name) ? h.count : 0), 0);
+  return cards + ' cards' + (eng ? ' · ' + eng + ' engine' + (eng > 1 ? 's' : '') : '');
+}
+
+function render() {
+  root.innerHTML = '';
+  model.forEach((s, i) => root.appendChild(renderSpecies(s, i)));
+  refreshMetrics();
+}
+
+function renderSpecies(s, i) {
+  const sec = document.createElement('section');
+  sec.className = 'sp' + (isChanged(s) ? ' changed' : '');
+  sec.dataset.id = s.id;
+  const cost = s.unlock ? unlockCost(s) : 0;
+  const tierOpts = ['<option value="">Starter (always unlocked)</option>']
+    .concat(TIERS.map((t) => `<option value="${esc(t)}"${s.unlock === t ? ' selected' : ''}>${esc(t)}</option>`)).join('');
+  const vibeOpts = ['cool', 'warm', 'aqua', 'spore'].map((v) => `<option value="${v}"${s.vibe === v ? ' selected' : ''}>${v}</option>`).join('');
+  sec.innerHTML =
+    '<span class="dot">● edited</span>' +
+    '<div class="sp-top">' +
+      '<div class="ord"><span class="n">' + (i + 1) + '</span>' +
+        '<button data-act="up"' + (i === 0 ? ' disabled' : '') + ' title="Move up">▲</button>' +
+        '<button data-act="down"' + (i === model.length - 1 ? ' disabled' : '') + ' title="Move down">▼</button></div>' +
+      '<img class="portrait" src="' + esc(speciesImg(s.img)) + '" alt="" onerror="this.style.opacity=.15">' +
+      '<div class="ident">' +
+        '<input class="namein" data-f="name" value="' + esc(s.name) + '" placeholder="Common name">' +
+        '<input class="latinin" data-f="latin" value="' + esc(s.latin) + '" placeholder="Latin name">' +
+        '<div class="metarow">' +
+          '<div class="fld"><label>Vibe</label><select data-f="vibe">' + vibeOpts + '</select></div>' +
+          '<div class="fld"><label>Unlock tier</label><select data-f="unlock">' + tierOpts + '</select></div>' +
+          '<div class="fld" style="flex:1 1 140px"><label>Art slug (assets/species/…)</label><input data-f="img" value="' + esc(s.img) + '"></div>' +
+          (s.memory ? '<span class="badge mem">Memory</span>' : '') +
+        '</div>' +
+        '<div class="metarow">' +
+          '<div class="fld res e"><label>⚡ Energy</label><input type="number" data-f="res.energy" value="' + s.res.energy + '"></div>' +
+          '<div class="fld res w"><label>💧 Water</label><input type="number" data-f="res.water" value="' + s.res.water + '"></div>' +
+          '<div class="fld res p"><label>✦ Phosphorus</label><input type="number" data-f="res.phosphorus" value="' + s.res.phosphorus + '"></div>' +
+          (s.memory ? '<div class="fld"><label>Pick cards</label><input type="number" data-f="memPick" value="' + (s.memPick == null ? 8 : s.memPick) + '"></div>' +
+                      '<div class="fld"><label>Pick engines</label><input type="number" data-f="memEngines" value="' + (s.memEngines == null ? 0 : s.memEngines) + '"></div>' : '') +
+          '<span class="cost">' + (s.unlock ? 'Unlock: <b>' + cost + '</b> Spores' : '<b>Starter</b>') + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<label class="fl">Description (blurb — HTML allowed, e.g. &lt;b&gt;…&lt;/b&gt;)</label>' +
+    '<textarea class="blurb" data-f="blurb">' + esc(s.blurb) + '</textarea>' +
+    '<label class="fl">Starting hand</label>' +
+    '<div class="hand"></div>' +
+    '<div class="handmeta">' + esc(handMeta(s)) + '</div>';
+
+  // order buttons
+  sec.querySelector('[data-act="up"]').onclick = () => move(i, -1);
+  sec.querySelector('[data-act="down"]').onclick = () => move(i, 1);
+
+  // field bindings (mutate model live, no re-render → keeps focus)
+  sec.querySelectorAll('[data-f]').forEach((inp) => {
+    const f = inp.dataset.f;
+    const commit = () => {
+      let v = inp.value;
+      if (inp.type === 'number') v = (v === '' ? 0 : parseInt(v, 10)) || 0;
+      if (f === 'unlock') v = v === '' ? null : v;
+      if (f === 'res.energy') s.res.energy = v; else if (f === 'res.water') s.res.water = v; else if (f === 'res.phosphorus') s.res.phosphorus = v;
+      else if (f === 'memPick') s.memPick = v; else if (f === 'memEngines') s.memEngines = v;
+      else s[f] = v;
+      persist();
+      sec.classList.toggle('changed', isChanged(s));
+      if (f === 'img') sec.querySelector('.portrait').src = speciesImg(s.img);
+      refreshMetrics();
+    };
+    inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', commit);
+  });
+
+  renderHand(sec.querySelector('.hand'), s, sec);
+  return sec;
+}
+
+function renderHand(box, s, sec) {
+  box.innerHTML = '';
+  s.hand.forEach((h, hi) => {
+    const eng = isEngineCard(h.name);
+    const chip = document.createElement('div'); chip.className = 'chip' + (eng ? ' eng' : '');
+    chip.innerHTML =
+      '<button class="rm" title="Remove">✕</button>' +
+      '<img class="thumb" src="' + esc(cardImg(h.name)) + '" alt="" onerror="this.style.opacity=.12">' +
+      '<div class="nm">' + esc(h.name) + '</div>' +
+      '<div class="tp' + (eng ? ' eng' : '') + '">' + esc((CARD_BY_NAME[h.name] && (CARD_BY_NAME[h.name].displayCategory || CARD_BY_NAME[h.name].type)) || '?') + '</div>' +
+      '<div class="row"><label>×</label><input class="cnt" type="number" min="0" value="' + h.count + '"></div>';
+    chip.querySelector('.rm').onclick = () => { s.hand.splice(hi, 1); persist(); rerenderCard(s, sec); };
+    chip.querySelector('.cnt').addEventListener('input', (e) => {
+      h.count = (e.target.value === '' ? 0 : parseInt(e.target.value, 10)) || 0; persist();
+      sec.classList.toggle('changed', isChanged(s)); sec.querySelector('.handmeta').textContent = handMeta(s); refreshMetrics();
+    });
+    box.appendChild(chip);
+  });
+  // add-card control
+  const add = document.createElement('div'); add.className = 'addcard';
+  add.innerHTML = '<label style="font-size:9px;color:var(--dim)">Add a card</label>' +
+    '<select>' + CARD_NAMES.map((n) => '<option value="' + esc(n) + '">' + esc(n) + (isEngineCard(n) ? ' ⚙' : '') + '</option>').join('') + '</select>' +
+    '<button type="button">+ Add</button>';
+  add.querySelector('button').onclick = () => {
+    const name = add.querySelector('select').value;
+    const ex = s.hand.find((h) => h.name === name);
+    if (ex) ex.count += 1; else s.hand.push({ name, count: 1 });
+    persist(); rerenderCard(s, sec);
+  };
+  box.appendChild(add);
+}
+
+// Re-render just one species card in place (used after structural hand edits).
+function rerenderCard(s, sec) {
+  const i = model.indexOf(s);
+  const fresh = renderSpecies(s, i);
+  sec.replaceWith(fresh);
+  refreshMetrics();
+}
+
+function move(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= model.length) return;
+  const [x] = model.splice(i, 1); model.splice(j, 0, x);
+  persist(); render();
+}
+
+function refreshMetrics() {
+  document.getElementById('mChanged').textContent = model.filter(isChanged).length;
+  document.getElementById('mOrder').innerHTML = orderChanged() ? '<b>order changed</b>' : 'order unchanged';
+}
+
+// ---- serialize to a src/species.js SPECIES array literal ----
+function serialize() {
+  const L = ['export const SPECIES = ['];
+  for (const s of model) {
+    L.push('  {');
+    let l1 = '    id: ' + JSON.stringify(s.id) + ', vibe: ' + JSON.stringify(s.vibe) + ', unlock: ' + (s.unlock == null ? 'null' : JSON.stringify(s.unlock));
+    if (s.memory) { l1 += ', memory: true'; if (s.memPick != null) l1 += ', memPick: ' + (s.memPick | 0); if (s.memEngines != null) l1 += ', memEngines: ' + (s.memEngines | 0); }
+    L.push(l1 + ',');
+    L.push('    name: ' + JSON.stringify(s.name) + ', latin: ' + JSON.stringify(s.latin) + ', img: ' + JSON.stringify(s.img) + ',');
+    L.push('    blurb: ' + JSON.stringify(s.blurb) + ',');
+    L.push('    res: { energy: ' + (s.res.energy | 0) + ', water: ' + (s.res.water | 0) + ', phosphorus: ' + (s.res.phosphorus | 0) + ' },');
+    L.push('    hand: [');
+    for (const h of s.hand) L.push('      { name: ' + JSON.stringify(h.name) + ', count: ' + (h.count | 0) + ' },');
+    L.push('    ],');
+    L.push('  },');
+  }
+  L.push('];');
+  return L.join('\n');
+}
+
+function summary() {
+  const L = ['# Species edits', ''];
+  if (orderChanged()) { L.push('## Order changed'); L.push('New order: ' + model.map((s, i) => (i + 1) + '. ' + s.name).join('  ·  ')); L.push(''); }
+  let any = orderChanged();
+  for (const s of model) {
+    const o = origById[s.id]; if (!o || !isChanged(s)) continue; any = true;
+    L.push('## ' + s.name + ' (' + s.id + ')');
+    for (const [f, lbl] of [['name', 'name'], ['latin', 'latin'], ['img', 'art slug'], ['vibe', 'vibe'], ['unlock', 'unlock'], ['memPick', 'pick cards'], ['memEngines', 'pick engines']])
+      if (String(o[f]) !== String(s[f])) L.push('- ' + lbl + ': ' + JSON.stringify(o[f]) + ' → ' + JSON.stringify(s[f]));
+    for (const k of ['energy', 'water', 'phosphorus']) if (o.res[k] !== s.res[k]) L.push('- ' + k + ': ' + o.res[k] + ' → ' + s.res[k]);
+    if (o.blurb !== s.blurb) { L.push('- blurb:'); L.push('    FROM: ' + o.blurb); L.push('    TO:   ' + s.blurb); }
+    if (JSON.stringify(o.hand) !== JSON.stringify(s.hand)) {
+      L.push('- hand: ' + o.hand.map((h) => h.count + '× ' + h.name).join(', '));
+      L.push('    →     ' + s.hand.map((h) => h.count + '× ' + h.name).join(', '));
+    }
+    L.push('');
+  }
+  if (!any) L.push('(no changes yet)');
+  return L.join('\n');
+}
+
+// ---- toolbar ----
+const modal = document.getElementById('modal'), out = document.getElementById('out'), toast = document.getElementById('toast');
+function ping(m) { toast.textContent = m || 'Copied'; toast.classList.add('on'); setTimeout(() => toast.classList.remove('on'), 1300); }
+function openSheet(title, text) { document.getElementById('sheetTitle').textContent = title; out.value = text; modal.classList.add('open'); }
+function copy(text, m) {
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => ping(m), () => ping(m));
+  else { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch (_) {} t.remove(); ping(m); }
+}
+document.getElementById('btnExport').onclick = () => { const t = serialize(); openSheet('Paste this over the SPECIES array in src/species.js', t); copy(t, 'species.js array copied'); };
+document.getElementById('btnSummary').onclick = () => { const t = summary(); openSheet('Change summary', t); copy(t, 'Summary copied'); };
+document.getElementById('btnJson').onclick = () => {
+  const blob = new Blob([JSON.stringify(model, null, 2) + '\n'], { type: 'application/json' });
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'species.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); ping('species.json downloaded');
+};
+document.getElementById('btnRevert').onclick = () => {
+  if (!confirm('Discard all edits and reload the roster from src/species.js?')) return;
+  try { localStorage.removeItem(KEY); } catch (_) {}
+  model = ORIGINAL.map(clone); persist(); render(); ping('Reverted to file');
+};
+document.getElementById('btnMcopy').onclick = () => copy(out.value, 'Copied');
+document.getElementById('btnMclose').onclick = () => modal.classList.remove('open');
+modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+
+render();
+</script>
+</body>
+</html>
