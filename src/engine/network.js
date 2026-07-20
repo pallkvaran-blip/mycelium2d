@@ -404,7 +404,10 @@ export class Network {
     if (this.nodes.length >= g.maxNodes) return 0;
     const norm = Math.hypot(dx, dy) || 1; dx /= norm; dy /= norm;
     const aim = Math.atan2(dy, dx);
-    const spacing = Math.max(4, g.minTipSpacing * 0.55);   // relaxed so a packed frontier can still push out
+    // Fine branches must be allowed to pack tightly, or the deep fork generations get
+    // crowd-rejected and the fan collapses to a few limbs. `fanSpacing` (px) is well
+    // below the normal min-tip-spacing so the sea-fan can fill in densely.
+    const spacing = g.fanSpacing != null ? g.fanSpacing : Math.max(3, g.minTipSpacing * 0.3);
     const key = (c, r) => c + ',' + r;
     const buckets = new Map();
     const bucket = (n) => { const k = key(substrate.colAtX(n.x), substrate.rowAtY(n.y)); let b = buckets.get(k); if (!b) buckets.set(k, (b = [])); b.push(n); };

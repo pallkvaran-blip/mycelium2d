@@ -170,13 +170,14 @@ export const CONFIG = {
     // each limb forks into shorter child limbs over `fanGens` generations, filling a full
     // fan. Deepest path ≈ fanSteps segments; fanBudget caps the total so it never explodes.
     fanSteps: 9,                 // "3 steps" (3 × 3) — depth of the deepest path along the fan
-    fanRays: 3,                  // primary limbs spread around the aim (the base of the fan)
-    fanSpread: 0.5,              // angle (radians) between adjacent primary limbs
-    fanGens: 2,                  // fork generations beyond the primary limbs (0 = straight rays)
-    fanForks: 2,                 // children each limb forks into
-    fanForkAngle: 0.5,           // angle (radians) a child limb diverges from its parent
-    fanFalloff: 0.7,             // child limb length ÷ parent (also sizes the primary limb so gens sum to fanSteps)
-    fanBudget: 60,               // hard cap on total segments grown by one fan (keeps it full but bounded)
+    fanRays: 4,                  // primary limbs spread around the aim (the base of the fan)
+    fanSpread: 0.42,             // angle (radians) between adjacent primary limbs
+    fanGens: 4,                  // fork generations beyond the primary limbs (0 = straight rays) — deep = dense sea-fan
+    fanForks: 2,                 // children each limb forks into (2 = fine bifurcating branches)
+    fanForkAngle: 0.42,          // angle (radians) a child limb diverges from its parent
+    fanFalloff: 0.72,            // child limb length ÷ parent (also sizes the primary limb so gens sum to fanSteps)
+    fanSpacing: 4,               // min gap (px) between fan nodes — small so fine branches pack into a dense sea-fan
+    fanBudget: 220,              // hard cap on total segments grown by one fan (keeps it full but bounded)
     amputateRadius: 50,          // Amputate / Severing Cords: remove mycelium within this world radius
     snapRadius: 55,              // Constricting Snap: catch the nearest nematode within this radius
     toxocystRadius: 65,          // Toxocyst Burst / Array: paralyse every nematode within this radius

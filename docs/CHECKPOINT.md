@@ -487,14 +487,16 @@ Both menus are dark, on-theme, with glowing green borders.
   one direction — pretty + thematic"). New effect text: Foraging Fan = "Grow 3 steps: choose a direction and
   fan out."; Forager Bloom = "Once per 6 rounds: pay 1 W to grow 3 steps, fanning out in a chosen direction."
   Impl: new engine method **`network.js growFanDirected(substrate,rng,dx,dy,steps,startTip)`** — a RECURSIVE
-  fern (owner wanted it "fuller / more fan-like", not just straight rays): from the aimed source tip it throws
-  `fanRays` (3) primary limbs spread `fanSpread` (0.5 rad) around the aim; each limb FORKS into `fanForks` (2)
-  child limbs at ±`fanForkAngle` (0.5) and those fork again for `fanGens` (2) generations. Limb lengths decay
-  by `fanFalloff` (0.7) per generation and the primary length is sized so the deepest path ≈ `fanSteps` (9 seg
-  = "3 steps"); a shared node **budget `fanBudget` (60)** caps the whole fan so it stays full but never
-  explodes. Each limb dodges rock + honours min-spacing (reuses the step1 helper). Config knobs (all in
-  `config.growth`): `fanSteps/fanRays/fanSpread/fanGens/fanForks/fanForkAngle/fanFalloff/fanBudget`; old
-  `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
+  fern (owner wanted it "fuller / more fan-like", then "triple it" toward a dense sea-fan): from the aimed
+  source tip it throws `fanRays` (4) primary limbs spread `fanSpread` (0.42 rad) around the aim; each limb
+  FORKS into `fanForks` (2) child limbs at ±`fanForkAngle` (0.42) and those fork again for `fanGens` (4)
+  generations. Limb lengths decay by `fanFalloff` (0.72) per generation and the primary length is sized so the
+  deepest path ≈ `fanSteps` (9 seg = "3 steps"); a shared node **budget `fanBudget` (220)** caps the whole fan.
+  KEY for density: the fan uses a tight **`fanSpacing` (4 px)** min-gap (well below the normal
+  `minTipSpacing`) — without it the deep fork generations get crowd-rejected and the fan collapses to a few
+  limbs (this was why "triple it" first produced no change). Each limb dodges rock (reuses the step1 helper).
+  Config knobs (all in `config.growth`): `fanSteps/fanRays/fanSpread/fanGens/fanForks/fanForkAngle/fanFalloff/
+  fanSpacing/fanBudget`; old `foragingFanCells` kept as a legacy note. `cards.js`: Foraging Fan is now `directional((s)=>fanSteps, …)`
   (press-and-drag, `target:true`, `aim:'drag'`); Forager Bloom's installed action gained
   `target/aim:'drag'/reachFn` and calls growFanDirected. `growRadial`/`fanBlockReason` are now unused (left in
   place). Verified in a real run (Playwright): playing it grows a rich branching fan in the aimed direction that
