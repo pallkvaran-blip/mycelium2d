@@ -1,6 +1,11 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-21 (**music = menu vs level tracks** + a mobile
+_Living status + knowledge doc. Last updated: 2026-07-21 (**per-species starting level**: higher-tier
+species begin their run deeper in the campaign instead of always level 1 — fixed at the unlock level for
+most (Slippery Jack/Bleeding Tooth 3 · Wine Cap 5 · Violet Webcap/Dry Rot 7), and a player-adjustable
+"Lvl: X" stepper for the memory colonies (Split Gill 2–5, Artist's Conk 3–10); the picker's "Complete
+level N" row headers now show "Starts on level N" far-right. See §9. — earlier: **music = menu vs level
+tracks** + a mobile
 autoplay-unlock hardening pass: `backrooms-vol29` is the title/species-picker theme (its intro was
 **permanently trimmed** so it plays from 0:20 with a quick fade-in and loops), a random one of vol7/10/23
 takes over the moment a level starts, and the first-tap unlock now retries across pointer/touch/click/keydown
@@ -501,6 +506,33 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Per-species STARTING LEVEL (higher tiers skip the early grind).** A species now begins its run on a
+  campaign level tied to its tier instead of always level 1. **Fixed-start species open on their unlock
+  level:** Slippery Jack / Bleeding Tooth → **3**, Wine Cap → **5**, Violet Webcap / Dry Rot → **7** (the
+  L1 species + the two ungated starters stay on **1**). The two **memory colonies get a player-adjustable
+  range**, dialled in with a **"Lvl: X" − / + stepper next to the Start game button**: **Split Gill 2–5**
+  (default 5), **Artist's Conk 3–10** (default 10) — the toggle only ever dials DOWN from the tier level.
+  Each tier row on the picker shows the start level far-right on its **"Complete level N"** header
+  ("Complete level 3 ──── Starts on level 3"; starter/L1 rows in mint, gated tiers dimmed; the communal
+  "?" row shows none). Implementation:
+  - `species.js`: new optional `startLevelMin`/`startLevelMax` on a species (only Split Gill + Conk set
+    them) + exports `startLevelRange(sp)` → `{min,max,adjustable}` and `defaultStartLevel(sp)` (fixed =
+    unlock level; adjustable = unlock level clamped into the range). No field needed for fixed species.
+  - `render/species_select.js`: the 'start' inspector builds the stepper for adjustable species (clamped,
+    − / + disabled at the ends) and carries the chosen level through `onStart(lvl)` → `onPick(sp, lvl)`;
+    a `startTag(level)` badge is appended after the `.ss-rule` on every real tier-row header.
+  - `main.js onPick(sp, startLevel)`: sets `currentLevel = max(1, startLevel)` before seeding, so
+    `configForLevel` scales threats to that level and `begin()` stamps `state.level`. Winning still
+    advances `currentLevel+1` up to `MAX_LEVEL`.
+  - `docs/species-editor.html`: `clone`/`norm`/`serialize` preserve + emit the two fields (with editable
+    "Start lvl min/max" inputs in the memory block) so an edit-export-paste can't silently strip them.
+  - **Consequences (intentional):** starting above level 1 **skips the first-run tutorial** (it only fires
+    at `currentLevel === 1`) and pays `sporesForLevel(startLevel)` (=100×level) per clear. CSS `.ss-startlvl`
+    + `.ss-lvlstep`/`.ss-lvlpm`/`.ss-lvllbl` (index.html, on-theme B&W). Verified via Playwright
+    (`scratchpad/startlevel_verify.mjs`): row badges 1/1/3/5/7/10 + blank communal; Split Gill stepper
+    clamps 2–5 (default 5), Conk 3–10 (default 10), Wine Cap has none; editor exports both ranges
+    (`scratchpad/editor_startlevel_check.mjs`). Cards 61/0; smoke 100/1 (pre-existing ant-trail).
 
 - **Campaign extended to 100 levels (`species.js`).** `MAX_LEVEL` 11 → **100**. The `LEVEL_THREATS`
   table still hand-authors the early curve (levels 1..11, unchanged); `threatsForLevel` now COMPUTES

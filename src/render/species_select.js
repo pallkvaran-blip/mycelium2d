@@ -13,7 +13,7 @@
 // in-game .card/.overlay UI.
 // =============================================================================
 
-import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll } from '../species.js';
+import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
 import { cardSlug, SPORE_ICON } from './ui.js';
 import { growMyceliumTitle } from './mycelium_title.js';
@@ -33,6 +33,10 @@ const RI = {
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Far-right badge on a tier-row header ("Complete level N  ————  Starts on level N")
+// telling the player which campaign level a colony from that tier begins its run on.
+const startTag = (level) => '<span class="ss-startlvl">Starts on level ' + level + '</span>';
 
 // The shiny-spore currency chip (wallet balance / cost badges).
 const sporeChip = (n, cls) => '<span class="ss-spores' + (cls ? ' ' + cls : '') + '">' + SPORE_ICON +
@@ -133,9 +137,31 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
-    actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button><button class="ss-btn primary" id="ssIStart">Start game</button>';
+    // Which campaign level this colony begins on. Fixed for most species; the memory
+    // colonies (Split Gill 2–5, Artist's Conk 3–10) get a "Lvl: X" stepper the player
+    // dials in right next to Start game. onStart carries the chosen level to onPick.
+    const range = startLevelRange(species);
+    let lvl = defaultStartLevel(species);
+    const stepper = range.adjustable
+      ? '<div class="ss-lvlstep" title="Which campaign level this colony starts on">' +
+          '<button type="button" class="ss-lvlpm" id="ssILvlDn" aria-label="Lower start level">−</button>' +
+          '<span class="ss-lvllbl">Lvl: <b id="ssILvlN">' + lvl + '</b></span>' +
+          '<button type="button" class="ss-lvlpm" id="ssILvlUp" aria-label="Raise start level">+</button>' +
+        '</div>'
+      : '';
+    actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Cancel</button>' + stepper +
+      '<button class="ss-btn primary" id="ssIStart">Start game</button>';
     actions.querySelector('#ssICancel').onclick = ins.close;
-    actions.querySelector('#ssIStart').onclick = () => { ins.close(); opts.onStart && opts.onStart(); };
+    actions.querySelector('#ssIStart').onclick = () => { ins.close(); opts.onStart && opts.onStart(lvl); };
+    if (range.adjustable) {
+      const nEl = actions.querySelector('#ssILvlN');
+      const dn = actions.querySelector('#ssILvlDn'), up = actions.querySelector('#ssILvlUp');
+      const set = (v) => { lvl = Math.max(range.min, Math.min(range.max, v)); nEl.textContent = lvl;
+        dn.disabled = lvl <= range.min; up.disabled = lvl >= range.max; };
+      dn.onclick = () => set(lvl - 1);
+      up.onclick = () => set(lvl + 1);
+      set(lvl);
+    }
   } else if (opts.mode === 'locked') {
     actions.innerHTML = '<button class="ss-btn ghost" id="ssICancel">Close</button><button class="ss-btn primary is-locked" disabled>Locked · ' + esc(species.unlock) + '</button>';
     actions.querySelector('#ssICancel').onclick = ins.close;
@@ -209,7 +235,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
       '</header>' +
       '<div class="ss-body">' +
         '<section class="ss-section">' +
-          '<div class="ss-rowlabel"><span class="ss-lk">Starter species</span><span class="ss-rule"></span></div>' +
+          '<div class="ss-rowlabel"><span class="ss-lk">Starter species</span><span class="ss-rule"></span>' + startTag(1) + '</div>' +
           '<div class="ss-grid" id="ssAvail"></div>' +
         '</section>' +
         '<div id="ssLocked"></div>' +
@@ -229,7 +255,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
   for (const s of SPECIES) {
     if (s.unlock) continue;   // gated species stay in their tier row below, even once unlocked
     availGrid.appendChild(speciesCard(s, { locked: false, onClick: () =>
-      openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
+      openSpeciesDetail(s, { mode: 'start', onStart: (lvl) => { hide(); onPick && onPick(s, lvl); } }) }));
   }
 
   const lockedRows = root.querySelector('#ssLocked');
@@ -238,7 +264,8 @@ export function showSpeciesSelect({ onPick, onDev }) {
     for (const row of LOCKED_TIERS) {
       const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
       const label = el('div', 'ss-rowlabel ss-locked-label');
-      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>';
+      const rowLvl = levelFromUnlock(row.label);   // "Complete level N" → N; communal "?" row → null
+      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>' + (rowLvl ? startTag(rowLvl) : '');
       const grid = el('div', 'ss-grid');
       const tier = SPECIES.filter((s) => s.unlock === row.label);
       for (const s of tier) {
@@ -247,7 +274,7 @@ export function showSpeciesSelect({ onPick, onDev }) {
         if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard()); continue; }
         if (isPlayable(s, progress)) {
           grid.appendChild(speciesCard(s, { locked: false, onClick: () =>
-            openSpeciesDetail(s, { mode: 'start', onStart: () => { hide(); onPick && onPick(s); } }) }));
+            openSpeciesDetail(s, { mode: 'start', onStart: (lvl) => { hide(); onPick && onPick(s, lvl); } }) }));
         } else {
           grid.appendChild(speciesCard(s, { locked: true, cost: unlockCost(s), onClick: () =>
             openSpeciesDetail(s, { mode: 'purchase', onBuy: refresh }) }));

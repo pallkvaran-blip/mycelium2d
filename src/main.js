@@ -173,7 +173,7 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 function showPicker() {
   playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
-    onPick: (sp) => { chosenSpecies = sp; currentLevel = 1; carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
+    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }

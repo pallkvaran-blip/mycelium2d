@@ -73,7 +73,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true,
+    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
     blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
     res: { energy: 10, water: 37, phosphorus: 6 },
@@ -139,7 +139,7 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2,
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2, startLevelMin: 3, startLevelMax: 10,
     name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
     blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
     res: { energy: 20, water: 52, phosphorus: 16 },
@@ -215,6 +215,32 @@ export function sporesForLevel(level) {
 export function levelFromUnlock(label) {
   const m = /(\d+)/.exec(label || '');
   return m ? +m[1] : null;
+}
+
+// Which campaign level a species BEGINS its run on. Higher-tier species skip the
+// early grind: a fixed-start species opens on its unlock level (ungated → level 1).
+// A "choose your start" species (the memory colonies) instead exposes a range
+// [startLevelMin, startLevelMax] the player dials in next to the Start button.
+//   Slippery Jack / Bleeding Tooth → 3 · Wine Cap → 5 · Violet Webcap / Dry Rot → 7
+//   Split Gill → adjustable 2–5 · Artist's Conk → adjustable 3–10
+// Returns { min, max, adjustable }.
+export function startLevelRange(sp) {
+  if (sp && sp.startLevelMin != null && sp.startLevelMax != null) {
+    const min = Math.max(1, sp.startLevelMin | 0);
+    const max = Math.max(min, sp.startLevelMax | 0);
+    return { min, max, adjustable: max > min };
+  }
+  const lvl = levelFromUnlock(sp && sp.unlock) || 1;
+  return { min: lvl, max: lvl, adjustable: false };
+}
+// The level a species starts on by default. Fixed species = their only level;
+// adjustable species default to their unlock level (the high end of the range),
+// clamped into the allowed range — so the toggle only ever DIALS DOWN from there.
+export function defaultStartLevel(sp) {
+  const r = startLevelRange(sp);
+  if (!r.adjustable) return r.min;
+  const u = levelFromUnlock(sp && sp.unlock) || r.max;
+  return Math.max(r.min, Math.min(r.max, u));
 }
 
 // The ordered unlock-tier levels, from LOCKED_TIERS — e.g. [1, 3, 5, 7, 10].

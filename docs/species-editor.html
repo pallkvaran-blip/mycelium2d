@@ -149,6 +149,7 @@ const ORIGINAL = SPECIES.map(clone);
 function clone(s) {
   return { id: s.id, vibe: s.vibe || 'cool', unlock: s.unlock == null ? null : s.unlock,
     memory: !!s.memory, memPick: s.memPick == null ? null : (s.memPick | 0), memEngines: s.memEngines == null ? null : (s.memEngines | 0),
+    startLevelMin: s.startLevelMin == null ? null : (s.startLevelMin | 0), startLevelMax: s.startLevelMax == null ? null : (s.startLevelMax | 0),
     name: s.name || '', latin: s.latin || '', img: s.img || '', blurb: s.blurb || '',
     res: { energy: (s.res && s.res.energy) | 0, water: (s.res && s.res.water) | 0, phosphorus: (s.res && s.res.phosphorus) | 0 },
     hand: (s.hand || []).map((h) => ({ name: h.name, count: h.count | 0 })) };
@@ -163,7 +164,7 @@ if (!model) model = ORIGINAL.map(clone);
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(model)); } catch (_) {} };
 
 const origById = {}; for (const s of ORIGINAL) origById[s.id] = s;
-const norm = (s) => JSON.stringify({ v: s.vibe, u: s.unlock, m: s.memory, mp: s.memPick, me: s.memEngines, n: s.name, l: s.latin, i: s.img, b: s.blurb, r: s.res, h: s.hand });
+const norm = (s) => JSON.stringify({ v: s.vibe, u: s.unlock, m: s.memory, mp: s.memPick, me: s.memEngines, slmin: s.startLevelMin, slmax: s.startLevelMax, n: s.name, l: s.latin, i: s.img, b: s.blurb, r: s.res, h: s.hand });
 const isChanged = (s) => norm(s) !== norm(origById[s.id]);
 const orderChanged = () => model.map((s) => s.id).join(',') !== ORIGINAL.map((s) => s.id).join(',');
 
@@ -212,7 +213,9 @@ function renderSpecies(s, i) {
           '<div class="fld res w"><label>💧 Water</label><input type="number" data-f="res.water" value="' + s.res.water + '"></div>' +
           '<div class="fld res p"><label>✦ Phosphorus</label><input type="number" data-f="res.phosphorus" value="' + s.res.phosphorus + '"></div>' +
           (s.memory ? '<div class="fld"><label>Pick cards</label><input type="number" data-f="memPick" value="' + (s.memPick == null ? 8 : s.memPick) + '"></div>' +
-                      '<div class="fld"><label>Pick engines</label><input type="number" data-f="memEngines" value="' + (s.memEngines == null ? 0 : s.memEngines) + '"></div>' : '') +
+                      '<div class="fld"><label>Pick engines</label><input type="number" data-f="memEngines" value="' + (s.memEngines == null ? 0 : s.memEngines) + '"></div>' +
+                      '<div class="fld"><label>Start lvl min</label><input type="number" data-f="startLevelMin" value="' + (s.startLevelMin == null ? '' : s.startLevelMin) + '"></div>' +
+                      '<div class="fld"><label>Start lvl max</label><input type="number" data-f="startLevelMax" value="' + (s.startLevelMax == null ? '' : s.startLevelMax) + '"></div>' : '') +
           '<span class="cost">' + (s.unlock ? 'Unlock: <b>' + cost + '</b> Spores' : '<b>Starter</b>') + '</span>' +
         '</div>' +
       '</div>' +
@@ -308,6 +311,8 @@ function serialize() {
     L.push('  {');
     let l1 = '    id: ' + JSON.stringify(s.id) + ', vibe: ' + JSON.stringify(s.vibe) + ', unlock: ' + (s.unlock == null ? 'null' : JSON.stringify(s.unlock));
     if (s.memory) { l1 += ', memory: true'; if (s.memPick != null) l1 += ', memPick: ' + (s.memPick | 0); if (s.memEngines != null) l1 += ', memEngines: ' + (s.memEngines | 0); }
+    if (s.startLevelMin != null) l1 += ', startLevelMin: ' + (s.startLevelMin | 0);
+    if (s.startLevelMax != null) l1 += ', startLevelMax: ' + (s.startLevelMax | 0);
     L.push(l1 + ',');
     L.push('    name: ' + JSON.stringify(s.name) + ', latin: ' + JSON.stringify(s.latin) + ', img: ' + JSON.stringify(s.img) + ',');
     L.push('    blurb: ' + JSON.stringify(s.blurb) + ',');
@@ -328,7 +333,7 @@ function summary() {
   for (const s of model) {
     const o = origById[s.id]; if (!o || !isChanged(s)) continue; any = true;
     L.push('## ' + s.name + ' (' + s.id + ')');
-    for (const [f, lbl] of [['name', 'name'], ['latin', 'latin'], ['img', 'art slug'], ['vibe', 'vibe'], ['unlock', 'unlock'], ['memPick', 'pick cards'], ['memEngines', 'pick engines']])
+    for (const [f, lbl] of [['name', 'name'], ['latin', 'latin'], ['img', 'art slug'], ['vibe', 'vibe'], ['unlock', 'unlock'], ['memPick', 'pick cards'], ['memEngines', 'pick engines'], ['startLevelMin', 'start lvl min'], ['startLevelMax', 'start lvl max']])
       if (String(o[f]) !== String(s[f])) L.push('- ' + lbl + ': ' + JSON.stringify(o[f]) + ' → ' + JSON.stringify(s[f]));
     for (const k of ['energy', 'water', 'phosphorus']) if (o.res[k] !== s.res[k]) L.push('- ' + k + ': ' + o.res[k] + ' → ' + s.res[k]);
     if (o.blurb !== s.blurb) { L.push('- blurb:'); L.push('    FROM: ' + o.blurb); L.push('    TO:   ' + s.blurb); }
