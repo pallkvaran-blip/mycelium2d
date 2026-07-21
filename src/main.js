@@ -714,7 +714,6 @@ function beginTutorial() {
 function begin(newState) {
   state = newState;
   if (state.mode !== 'puzzle') state.level = currentLevel;
-  playLevelMusic();   // a level started → swap the menu theme (vol29) for a random level track
   _runOverPresented = false;
   _runOverAt = 0;                 // reset the "let the last grow finish" defer timer
   winCele = null;                 // drop any lingering win celebration from the prior level
@@ -809,6 +808,10 @@ function begin(newState) {
   // first map also waits for art to load — see the loadAssets() boot below), so it
   // never fades in half-drawn or on a blank canvas.
   if (assetsReady) _revealPending = true;
+  // Swap the menu theme (vol29) for a random level track LAST — after the one-time
+  // seeding/render setup above — so the fast fade-out (a wall-clock ramp) isn't starved
+  // by that synchronous work and can ease out smoothly instead of cutting off sharply.
+  playLevelMusic();
 }
 
 function buildRenderers() {

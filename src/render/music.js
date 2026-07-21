@@ -22,23 +22,26 @@ const LEVEL_TRACKS = [
   'assets/music/backrooms-vol23.mp3',
 ];
 const FULL_VOL = 0.32;
-const MENU_FADE_MS = 1200;   // quick fade-in for the (already intro-trimmed) menu track
-const LEVEL_FADE_MS = 1400;  // a level track eases in quickly when it takes over
+const MENU_FADE_MS = 1200;      // quick fade-in for the (already intro-trimmed) menu track
+const MENU_FADE_OUT_MS = 550;   // fast fade-OUT of the menu theme when a level takes over (was a hard cut)
+const LEVEL_FADE_MS = 1400;     // a level track eases in quickly when it takes over
 
 let audio = null, muted = false, mode = null, lastLevelIdx = -1, gestureBound = false, fadeTimer = null;
 try { muted = localStorage.getItem('mycMuted') === '1'; } catch (e) {}
 
 function stopFade() { if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; } }
-// Wall-clock ramp to `to` over `ms` (eases a track in).
-function ramp(to, ms) {
+// Wall-clock ramp to `to` over `ms` (eases a track in/out). onDone (optional) fires ONCE
+// when the ramp reaches its target — but NOT if a new ramp interrupts it (stopFade just
+// clears the timer), so a superseded fade never triggers its follow-up.
+function ramp(to, ms, onDone) {
   stopFade();
-  if (!audio) return;
+  if (!audio) { if (onDone) onDone(); return; }
   const from = audio.volume, start = performance.now();
   fadeTimer = setInterval(() => {
     if (!audio) { stopFade(); return; }
     const k = ms <= 0 ? 1 : Math.min(1, (performance.now() - start) / ms);
     audio.volume = from + (to - from) * k;
-    if (k >= 1) stopFade();
+    if (k >= 1) { stopFade(); if (onDone) onDone(); }
   }, 40);
 }
 
@@ -85,19 +88,27 @@ export function playMenuMusic() {
 
 // A level started: switch to a RANDOM level track (never vol29). If already in level
 // mode, keep the current track playing across the level transition; only `force`
-// (a track ended / errored) picks a fresh one.
+// (a track ended / errored) picks a fresh one. The menu theme is playing when the FIRST
+// level starts (from the picker) — swapping the src instantly would cut it off sharply,
+// so we fade it OUT fast first, then swap to the level track and fade THAT in.
 export function playLevelMusic(force) {
   ensureAudio(); bindGesture();
   if (muted) return;
   if (mode === 'level' && !force) { tryPlay(); return; }
   mode = 'level';
-  audio.loop = false;
-  let i = 0;
-  if (LEVEL_TRACKS.length > 1) { do { i = Math.floor(Math.random() * LEVEL_TRACKS.length); } while (i === lastLevelIdx); }
-  lastLevelIdx = i;
-  audio.src = LEVEL_TRACKS[i]; audio.load();
-  audio.volume = 0; ramp(FULL_VOL, LEVEL_FADE_MS);
-  tryPlay();
+  const startTrack = () => {
+    audio.loop = false;
+    let i = 0;
+    if (LEVEL_TRACKS.length > 1) { do { i = Math.floor(Math.random() * LEVEL_TRACKS.length); } while (i === lastLevelIdx); }
+    lastLevelIdx = i;
+    audio.src = LEVEL_TRACKS[i]; audio.load();
+    audio.volume = 0; ramp(FULL_VOL, LEVEL_FADE_MS);
+    tryPlay();
+  };
+  // If the menu theme is currently audible, fade it out fast, THEN swap in the level track.
+  const menuAudible = audio.src && audio.src.indexOf(MENU_TRACK) >= 0 && !audio.paused && audio.volume > 0.001;
+  if (menuAudible) ramp(0, MENU_FADE_OUT_MS, startTrack);
+  else startTrack();
 }
 
 // Back-compat: ensure the audio element + gesture retry exist. Actual playback is

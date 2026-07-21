@@ -510,6 +510,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Menu → level music now FADES OUT fast (was a hard cut).** Starting the first level swapped the single
+  `<audio>` element's `src` instantly, which killed the menu theme (vol29) mid-note. `playLevelMusic()` now,
+  when the menu theme is audible, first ramps its volume to 0 over **`MENU_FADE_OUT_MS` = 550 ms**, THEN
+  swaps to the random level track and fades THAT in (`LEVEL_FADE_MS`). `ramp()` gained an optional `onDone`
+  callback (fires only when a fade reaches its target, never when a newer fade supersedes it) to sequence
+  the out→swap→in. Also moved the `playLevelMusic()` call from the TOP of `main.js begin()` to the END —
+  after the one-time `initCards`/`buildRenderers`/`resize` — so the wall-clock fade ramp isn't starved by
+  that synchronous work. Verified via Playwright with a small viewport (so the headless software renderer
+  doesn't peg the CPU and starve the sampler): vol29 ramps 0.29→0.035, swaps to vol7, which eases 0→0.32
+  (`scratchpad/music_fadeout_verify.mjs`). (Full-size headless can't show it — software rendering pegs the
+  main thread; real GPU-accelerated devices fade smoothly.) Cards 61/0; smoke 100/1 (pre-existing ant-trail).
+
 - **Boot LOADING SCREEN — preload + decode everything up front (kills in-game pop-in).** The game used to
   reveal the menu immediately and load art lazily, so card faces / species portraits / threat portraits
   popped in on screen. Now a minimal overlay (`render/loading.js`, `#loadscreen`) shows a **small centered
