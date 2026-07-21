@@ -37,6 +37,14 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 // Far-right badge on a tier-row header ("Complete level N  ————  Starts on level N")
 // telling the player which campaign level a colony from that tier begins its run on.
 const startTag = (level) => '<span class="ss-startlvl">Starts on level ' + level + '</span>';
+// The span of start levels across a tier's species → "3" (all fixed / equal) or "2-5"
+// (a memory colony can dial it down): min of every species' min, max of every max.
+function tierStartRange(list) {
+  let lo = Infinity, hi = -Infinity;
+  for (const s of list) { const r = startLevelRange(s); lo = Math.min(lo, r.min); hi = Math.max(hi, r.max); }
+  if (!isFinite(lo)) return null;
+  return lo === hi ? String(lo) : (lo + '-' + hi);
+}
 
 // The shiny-spore currency chip (wallet balance / cost badges).
 const sporeChip = (n, cls) => '<span class="ss-spores' + (cls ? ' ' + cls : '') + '">' + SPORE_ICON +
@@ -264,10 +272,14 @@ export function showSpeciesSelect({ onPick, onDev }) {
     for (const row of LOCKED_TIERS) {
       const sec = el('section', 'ss-section' + (row.communal ? ' ss-communal' : ''));
       const label = el('div', 'ss-rowlabel ss-locked-label');
-      const rowLvl = levelFromUnlock(row.label);   // "Complete level N" → N; communal "?" row → null
-      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>' + (rowLvl ? startTag(rowLvl) : '');
-      const grid = el('div', 'ss-grid');
       const tier = SPECIES.filter((s) => s.unlock === row.label);
+      // Far-right badge: the span of start levels this tier's species can begin on — a single
+      // level for fixed tiers ("3"), a range where a memory colony dials it ("2-5" for the L5
+      // tier = Split Gill 2-5 + Wine Cap 5; "3-10" for the L10 tier = Artist's Conk). Communal
+      // "?" tier has no species yet → falls back to its unlock level, or nothing if unlabelled.
+      const rangeStr = tier.length ? tierStartRange(tier) : (levelFromUnlock(row.label) || null);
+      label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>' + (rangeStr ? startTag(rangeStr) : '');
+      const grid = el('div', 'ss-grid');
       for (const s of tier) {
         // Not yet revealed → stays a "?"; revealed+bought → playable; revealed but
         // unbought → a viewable Locked card with a Spore price (opens the buy sheet).

@@ -513,9 +513,10 @@ Both menus are dark, on-theme, with glowing green borders.
   L1 species + the two ungated starters stay on **1**). The two **memory colonies get a player-adjustable
   range**, dialled in with a **"Lvl: X" − / + stepper next to the Start game button**: **Split Gill 2–5**
   (default 5), **Artist's Conk 3–10** (default 10) — the toggle only ever dials DOWN from the tier level.
-  Each tier row on the picker shows the start level far-right on its **"Complete level N"** header
-  ("Complete level 3 ──── Starts on level 3"; starter/L1 rows in mint, gated tiers dimmed; the communal
-  "?" row shows none). Implementation:
+  Each tier row on the picker shows the tier's start-level SPAN far-right on its **"Complete level N"**
+  header — a single level for fixed tiers ("Complete level 3 ──── Starts on level 3") and a RANGE where a
+  memory colony can dial it ("Complete level 5 ──── Starts on level 2-5"; "Complete level 10 ──── Starts on
+  level 3-10"). Starter/L1 rows in mint, gated tiers dimmed; the communal "?" row shows none. Implementation:
   - `species.js`: new optional `startLevelMin`/`startLevelMax` on a species (only Split Gill + Conk set
     them) + exports `startLevelRange(sp)` → `{min,max,adjustable}` and `defaultStartLevel(sp)` (fixed =
     unlock level; adjustable = unlock level clamped into the range). No field needed for fixed species.
@@ -530,7 +531,7 @@ Both menus are dark, on-theme, with glowing green borders.
   - **Consequences (intentional):** starting above level 1 **skips the first-run tutorial** (it only fires
     at `currentLevel === 1`) and pays `sporesForLevel(startLevel)` (=100×level) per clear. CSS `.ss-startlvl`
     + `.ss-lvlstep`/`.ss-lvlpm`/`.ss-lvllbl` (index.html, on-theme B&W). Verified via Playwright
-    (`scratchpad/startlevel_verify.mjs`): row badges 1/1/3/5/7/10 + blank communal; Split Gill stepper
+    (`scratchpad/startlevel_verify.mjs`): row badges 1/1/3/**2-5**/7/**3-10** + blank communal; Split Gill stepper
     clamps 2–5 (default 5), Conk 3–10 (default 10), Wine Cap has none; editor exports both ranges
     (`scratchpad/editor_startlevel_check.mjs`). Cards 61/0; smoke 100/1 (pre-existing ant-trail).
 
