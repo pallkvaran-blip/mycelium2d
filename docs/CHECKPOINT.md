@@ -1,6 +1,14 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-20 (**final species — Artist's Conk** (Ganoderma
+_Living status + knowledge doc. Last updated: 2026-07-21 (**music = menu vs level tracks** + a mobile
+autoplay-unlock hardening pass: `backrooms-vol29` is the title/species-picker theme (its intro was
+**permanently trimmed** so it plays from 0:20 with a quick fade-in and loops), a random one of vol7/10/23
+takes over the moment a level starts, and the first-tap unlock now retries across pointer/touch/click/keydown
+on both window+document with a wall-clock volume ramp so it can't stick at 0. See §9. NOTE: a device on
+system mute stays silent regardless — that was the "no music on my phone" report, not a code bug. — earlier:
+the **species-editor balance pass** + **five feel tweaks** (win/lose waits for the last grow, no Dev:tutorial
+button, darker enemy sight, grow-into-mould infection burst, Artist's Conk "?" title → `15+2`). See §9. —
+earlier: **final species — Artist's Conk** (Ganoderma
 applanatum, Complete level 10): the upgraded "memory" colony — curate **15 basic/event cards + 2 engine
 cards** from your last run (two separate caps) plus a fixed 5× Apical Drive. Extends the Split-Gill memory
 system with an engine-draft pool. Picker roster is now full through level 10. See §9. — earlier:
@@ -508,8 +516,15 @@ Both menus are dark, on-theme, with glowing green borders.
   is now just setup (ensure `<audio>` + gesture retry) and no longer force-plays a random track. Wired in
   `main.js`: `showMainMenu` + `showPicker` → `playMenuMusic()`, `begin()` → `playLevelMusic()`. Verified via
   Playwright request-logging (`scratchpad/music_verify.mjs`): title requests vol29 only; `#dev` (straight to a
-  level) requests a non-vol29 track. (Interpreted "fading it at 0:20" as a 20 s fade-IN reaching full at the
-  0:20 mark.)
+  level) requests a non-vol29 track.
+  - **Mobile autoplay-unlock hardening (follow-up).** A "no music on my phone" report turned out to be the
+    **device's system mute switch** (OS-level — no web code can override it), but the unlock path was hardened
+    anyway: `bindGesture()` now retries `tryPlay()` across `pointerdown / pointerup / touchstart / touchend /
+    click / keydown` on BOTH `window` (capture) and `document` (iOS is picky about which event counts), and
+    `playMenuMusic()` eases in on a **wall-clock `ramp()`** timer rather than waiting on a `'playing'` event, so
+    the volume always reaches full even if that event never fires. Desktop-verified (`scratchpad/music_final.mjs`).
+    The in-game **Music** toggle (`mycMuted` in localStorage, `ui.js set-mute`) is per-device and can also
+    silence one device independently of the code.
 
 - **Five polish/feel tweaks (owner batch).**
   1. **Win/lose waits for the last grow to finish animating.** `presentRunOver()` now defers while

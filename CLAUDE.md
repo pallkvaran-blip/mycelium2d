@@ -41,6 +41,26 @@ node --test test/               # smoke + card tests
   token in env (`REPLICATE_API_TOKEN`). Examples: `scripts/gen_*.py`.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
+- **Music (`src/render/music.js`):** menu vs level split — `backrooms-vol29` is the
+  title/picker theme (`playMenuMusic()`), a random one of vol7/10/23 plays in levels
+  (`playLevelMusic()`, wired from `begin()`). vol29's intro is **permanently trimmed** so
+  it starts at 0:20; if you re-trim an MP3, rebuild the Xing/VBR header
+  (`scripts/trim_mp3.py`) or the duration/loop breaks. Autoplay needs a user gesture, so
+  the first tap retries `play()`; a device on **system mute** (OS-level) or the in-game
+  **Music** toggle (`mycMuted` localStorage) silences it independently of the code.
+
+## Species picker roster (recent — CHECKPOINT §9 has details)
+
+- Full through level 10 (11 species). Picker order = **unlock tier, then within-tier
+  array order** (raw cross-tier array order is irrelevant to display). Current order:
+  Copper Marasmius · Honey Armillaria · Common Earthball (L1) · Oyster (L1) · Slippery
+  Jack (L3) · Bleeding Tooth (L3) · Split Gill (L5) · Wine Cap (L5) · Violet Webcap (L7)
+  · Dry Rot (L7) · Artist's Conk (L10). Split Gill + Artist's Conk are **memory species**
+  (`memory:true`, curated hand from last run's drafts; Conk adds a `memEngines` engine cap).
+- **Species editor:** `docs/species-editor.html` (hosted at `<site>/species-editor.html`)
+  is the authoring tool for descriptions / starting hand / resources / order — it
+  live-imports `src/species.js` + `src/cards-data.js` (or reads a baked `#injectedData`
+  tag in the built copy). Exports a paste-ready `export const SPECIES = […]` block.
 
 ## Start-of-run species picker (recent — CHECKPOINT §9 has details)
 
