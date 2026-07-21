@@ -74,8 +74,10 @@ node --test test/               # smoke + card tests
   **Dev quick-start** button (or `#dev`) runs the old `testall` scaffold (300 E/W/P + 5×
   every card). `docs/species-select.html` is a FROZEN standalone design mock (inlined
   data/images) — the in-game picker is the living version.
-- **Campaign (CHECKPOINT §9):** a run is 11 procedural levels; only threat counts scale per level
-  (`species.js LEVEL_THREATS`, applied by `main.js configForLevel`). Winning carries deck+resources
+- **Campaign (CHECKPOINT §9):** a run is 100 procedural levels (`MAX_LEVEL`); only threat counts scale per
+  level — nematodes = Trichoderma = level #, ant nests climb but cap at `MAX_ANT_NESTS`=8 (levels 1–11 keep
+  the hand-authored `species.js LEVEL_THREATS` table, 12+ computed by `threatsForLevel`; applied by
+  `main.js configForLevel`). Winning carries deck+resources
   to the next level (`snapshotCarry`/`applyCarry`); death → picker. Finishing a level pays **Spores**
   (`sporesForLevel` = 100 × level) into a persistent wallet (localStorage `mycelium.progress.v2` =
   `{clears:{level:n}, spores:N, purchased:{id:true}}`). Species unlock in **two steps**:

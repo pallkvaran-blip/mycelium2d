@@ -162,12 +162,22 @@ export const LOCKED_TIERS = [
 
 // =============================================================================
 // Campaign: a run is a ladder of levels 1..MAX_LEVEL. Maps stay procedural; the
-// only per-level scaling is the number of each threat present (owner-specified).
-// Beat MAX_LEVEL to win the game.
+// only per-level scaling is the number of each threat present. Beat MAX_LEVEL to
+// win the game.
+//
+// Scaling rule (see threatsForLevel): nematodes and Trichoderma always equal the
+// level number; ant nests keep climbing but never exceed MAX_ANT_NESTS. Levels
+// 1..11 keep their hand-authored ant curve (LEVEL_THREATS below); level 12 and up
+// are computed so the ladder can run all the way to 100 without a 100-row table.
 // =============================================================================
-export const MAX_LEVEL = 11;
+export const MAX_LEVEL = 100;
+
+// Ant nests never exceed this, however deep the run goes.
+export const MAX_ANT_NESTS = 8;
 
 // index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
+// This is the AUTHORED early curve (levels 1..11); deeper levels are computed by
+// threatsForLevel (nematodes = trych = level, ants ramp on to the MAX_ANT_NESTS cap).
 export const LEVEL_THREATS = [
   null,
   { ants: 1, nematodes: 1,  trych: 1 },   // 1
@@ -183,8 +193,17 @@ export const LEVEL_THREATS = [
   { ants: 6, nematodes: 11, trych: 11 },  // 11
 ];
 
+// Ant nests for a computed (level >= 12) level: continue the authored curve's
+// gentle climb (~+1 every 4 levels from level 11's 6) and cap at MAX_ANT_NESTS.
+//   L12–14 → 6, L15–18 → 7, L19+ → 8 (capped).
+function antsForLevel(level) {
+  return Math.min(MAX_ANT_NESTS, 6 + Math.floor((level - 11) / 4));
+}
+
 export function threatsForLevel(level) {
-  return LEVEL_THREATS[level] || LEVEL_THREATS[LEVEL_THREATS.length - 1];
+  const lvl = Math.max(1, level | 0);
+  if (lvl < LEVEL_THREATS.length) return LEVEL_THREATS[lvl];   // authored early curve (1..11)
+  return { ants: antsForLevel(lvl), nematodes: lvl, trych: lvl };
 }
 
 // Spores earned for finishing a level: 100 for level 1, 200 for level 2, and so on.

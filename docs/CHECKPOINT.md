@@ -502,6 +502,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Campaign extended to 100 levels (`species.js`).** `MAX_LEVEL` 11 → **100**. The `LEVEL_THREATS`
+  table still hand-authors the early curve (levels 1..11, unchanged); `threatsForLevel` now COMPUTES
+  anything past it so no 100-row table is needed: **nematodes = Trichoderma = level number** (as before),
+  and **ant nests keep climbing but cap at `MAX_ANT_NESTS` = 8** (new const). Ant continuation from L11's
+  6: ~+1 every 4 levels → L12–14 = 6, L15–18 = 7, **L19+ = 8 (capped)**. Spore income is unchanged
+  (`sporesForLevel` = 100 × level, already a formula, so it keeps scaling to 10 000 at L100). Only the
+  win gate (`main.js` `cleared >= MAX_LEVEL`) and the (already display-unused) `maxLevel` prop consume
+  `MAX_LEVEL`, so no UI/HUD change was needed. `dist/` rebuilt.
 - **Music split into MENU vs LEVEL tracks (`render/music.js` reworked).** `backrooms-vol29` ("the backrooms
   music vol 29") is now the dedicated **menu theme**. Rather than seek to 0:20 at runtime (unreliable — a
   non-range host / autoplay-blocked start can't seek forward), the **file itself was permanently trimmed**: the
