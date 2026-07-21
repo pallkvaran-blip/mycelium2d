@@ -510,14 +510,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Release prep: removed the visible DEV buttons.** Dropped the species-picker "Dev quick-start" (`#ssDev`)
-  and "Dev: unlock all" (`#ssDevUnlock`) buttons from `species_select.js`, and gated the in-game "Dev: win
-  level" (`#devWin`, `main.js updateDevWinBtn`) behind `config.dev.enabled` (false for release). The dev
-  cheats/sliders panel was already `config.dev.enabled`-gated (off); the title "Dev: tutorial" button was
-  already un-passed (`onDevTutorial` unused). Kept the INVISIBLE `window.__game` hook (incl. `winLevel()`,
-  `devUnlockAll` still exported) so tests/self-play + the `#dev`/`#tutorial` URL hashes still work. Packaged
-  an itch build (`dist/index.html` + `assets/` only, no editor/tool HTML) as a ~22 MB zip with index.html at
-  the root. Cards 61/0; smoke 100/1 (pre-existing ant-trail).
+- **Dev buttons: removed for the itch release build, then restored for continued dev.** An itch HTML build
+  was packaged with the visible dev affordances stripped — the species-picker "Dev quick-start" (`#ssDev`) /
+  "Dev: unlock all" (`#ssDevUnlock`) and the in-game "Dev: win level" (`#devWin`). That removal was then
+  **reverted** so they're back in the working tree for building the campaign. **Release procedure for future
+  builds:** before cutting a public zip, strip those three (drop the two `species_select.js` picker buttons +
+  their listeners; gate `main.js updateDevWinBtn` behind `config.dev.enabled`, which is already false). The
+  dev cheats/sliders panel is already `config.dev.enabled`-gated (off), and the title "Dev: tutorial" button
+  is already un-passed. The itch zip = `dist/index.html` + `assets/` only (index.html at the zip root; no
+  editor/tool HTML), ~22 MB.
 
 - **Menu → level music now FADES OUT fast (was a hard cut).** Starting the first level swapped the single
   `<audio>` element's `src` instantly, which killed the menu theme (vol29) mid-note. `playLevelMusic()` now,
