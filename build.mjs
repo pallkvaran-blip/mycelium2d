@@ -12,7 +12,7 @@
 // would do). Imports are rewired to read from the registry; exports are
 // collected from each closure's return value. No runtime module loading.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync, readdirSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, cpSync, readdirSync, statSync, rmSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, posix } from 'path';
 
@@ -50,6 +50,7 @@ const MODULES = [
   'src/render/title_screen.js',
   'src/render/tutorial.js',
   'src/render/level_intro.js',
+  'src/render/loading.js',
   'src/main.js',
 ];
 
@@ -156,10 +157,15 @@ writeFileSync(R('dist/artifact.html'), body);
 
 // Copy the image-asset folder (textures/sprites + manifest) alongside the build
 // so the deployed page can load them at runtime. Optional — the game runs fine
-// with no assets folder at all.
+// with no assets folder at all. We SKIP the authoring-candidate folders (*_options,
+// card_art_archive) — the runtime never fetches them (nothing in manifest.json or the
+// UI references them), so they'd only bloat the deploy (~36MB). Source assets/ is
+// untouched; only the dist copy is slimmed.
+const SKIP_ASSET_DIR = /(?:^|[\/\\])(?:[^\/\\]*_options|card_art_archive)(?:[\/\\]|$)/;
 if (existsSync(R('assets'))) {
-  cpSync(R('assets'), R('dist/assets'), { recursive: true });
-  console.log('Copied assets/ -> dist/assets/');
+  rmSync(R('dist/assets'), { recursive: true, force: true });   // clean slate so trimmed folders don't linger
+  cpSync(R('assets'), R('dist/assets'), { recursive: true, filter: (src) => !SKIP_ASSET_DIR.test(src) });
+  console.log('Copied assets/ -> dist/assets/ (authoring candidates excluded)');
 }
 
 // Publish the standalone card cost/description editor alongside the game so it's

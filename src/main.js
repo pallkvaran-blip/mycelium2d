@@ -24,9 +24,10 @@ import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
 import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } from './species.js';
-import { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } from './render/assets.js';
+import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } from './render/assets.js';
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
+import { showLoading } from './render/loading.js';
 import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
@@ -3437,24 +3438,48 @@ function drawAimLine(time) {
 // (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
 // isolation. The matching buttons switch modes at any time.
 setupInput();
-// Preload art assets, then invalidate the per-map caches that gate on assets
-// (rock formations + surface props) — they may have been computed empty on the
-// first frame before the async load finished.
-loadAssets().then(() => {
+// Route to the boot destination (menu / picker / a hash shortcut). Deferred behind the
+// loading screen's "Click" so the game always opens on a fully-decoded frame.
+function enterGame() {
+  if (location.hash === '#puzzle') startPuzzle();
+  else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
+  else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+  else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
+  else showMainMenu();
+}
+
+// Boot loading screen. Preload + DECODE everything up front — canvas sprites (loadAssets)
+// PLUS every DOM image the UI will show (each card face, species portrait, threat portrait,
+// the spore icon) — behind a minimal % counter, so nothing pops in lazily once you're
+// playing. A small "Click" then enters the game; that click is also the user gesture that
+// unlocks audio autoplay. URLs use the SAME cache-bust query the UI requests (assetUrl), so
+// the decoded copy is the one actually used — the spore icon has no query, matching SPORE_ICON.
+const _load = showLoading();
+const _bootImgs = [].concat(
+  CARD_DATA.map((c) => assetUrl('assets/cards/' + cardSlug(c.name) + '.jpg')),
+  SPECIES.map((s) => assetUrl('assets/species/' + s.img + '.jpg')),
+  ['ant', 'trichoderma', 'nematode'].map((s) => assetUrl('assets/tutorial/' + s + '.jpg')),
+  ['assets/spores/spore-print.png'],
+);
+let _aDone = 0, _aTot = 0, _iDone = 0, _iTot = _bootImgs.length, _bootEntered = false;
+function _bootProgress() {
+  const tot = _aTot + _iTot, dn = _aDone + _iDone;
+  _load.setProgress(tot ? (dn / tot) * 100 : 0);
+}
+// Everything decoded (or the safety net fired): rebuild the asset-gated caches, then show
+// "Click" and wait for the tap before entering the game.
+function _bootReady() {
+  if (_bootEntered) return; _bootEntered = true;
   uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
   if (substrateRenderer) substrateRenderer.rebake();
   assetsReady = true;
   _revealPending = true;   // first map: fade in after the first art-complete frame draws
-  initMusic();   // only NOW start streaming a random track — game art loads first
-  initSfx();     // decode the grow SFX in the background so the first grow has sound
-});
-// Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
-setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
-// Warm the card-face image cache so drafts / the hand don't pop in one by one.
-preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
-if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
-else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
-else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
-else showMainMenu();
+  _load.ready(() => { initMusic(); initSfx(); _load.destroy(); enterGame(); });
+}
+Promise.all([
+  loadAssets('assets/', (d, t) => { _aDone = d; _aTot = t; _bootProgress(); }),
+  preloadImages(_bootImgs, (d, t) => { _iDone = d; _iTot = t; _bootProgress(); }),
+]).then(_bootReady);
+// Safety net: never trap the player on the loader if a fetch hangs.
+setTimeout(_bootReady, 12000);
 requestAnimationFrame(frame);

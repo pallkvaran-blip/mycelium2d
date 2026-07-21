@@ -28,6 +28,18 @@
     #ui { position: fixed; inset: 0; pointer-events: none; }
     #ui > * { pointer-events: auto; }
 
+    /* Boot loading screen: opaque void, a tiny centered white % counter, then "Click". */
+    #loadscreen { position: fixed; inset: 0; z-index: 3000; background: #05070d;
+      display: flex; align-items: center; justify-content: center; opacity: 1;
+      transition: opacity .45s ease; -webkit-tap-highlight-color: transparent; }
+    #loadscreen.ld-out { opacity: 0; pointer-events: none; }
+    #loadscreen.ld-ready { cursor: pointer; }
+    .ld-pct { font: 600 13px/1 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      letter-spacing: .18em; color: rgba(255,255,255,.72); user-select: none; -webkit-user-select: none; }
+    #loadscreen.ld-ready .ld-pct { letter-spacing: .34em; text-transform: uppercase;
+      animation: ldPulse 1.9s ease-in-out infinite; }
+    @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
       border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px);
       box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
@@ -1348,8 +1360,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "osxegj";
-globalThis.__BUILD__ = "local 07-21 07:19";
+window.__ASSET_VER = "ms60mh";
+globalThis.__BUILD__ = "local 07-21 07:41";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -8535,14 +8547,18 @@ const _patterns = new Map(); // key -> CanvasPattern (cached)
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 
 // Fetch the manifest and preload every listed image. Resolves once all images
-// have settled (loaded OR failed) so a missing file never blocks boot.
-function loadAssets(basePath = 'assets/') {
+// have settled (loaded OR failed) so a missing file never blocks boot. Optional
+// onProgress(done, total) fires as each image settles (for the boot loading %).
+function loadAssets(basePath = 'assets/', onProgress) {
   return fetch(basePath + 'manifest.json' + VER)
     .then((r) => (r.ok ? r.json() : { assets: [] }))
     .catch(() => ({ assets: [] }))
     .then((m) => {
       const list = (m && m.assets) || [];
-      return Promise.all(list.map((a) => loadOne(basePath, a)));
+      const total = list.length; let done = 0;
+      if (!total) { onProgress && onProgress(0, 0); return; }
+      const bump = () => { onProgress && onProgress(++done, total); };
+      return Promise.all(list.map((a) => loadOne(basePath, a).then(bump)));
     })
     .catch(() => {});
 }
@@ -8557,12 +8573,25 @@ function loadOne(basePath, a) {
   });
 }
 
-// Warm the browser cache with the card-face JPGs so they don't pop in one by one
-// when a draft offer or the hand carousel first shows them. These are DOM <img>
-// (drawn by ui.js), not canvas assets — so we just prime the HTTP cache with the
-// SAME urls ui.js uses (no version query, matching cardArt()). Fire-and-forget.
-function preloadCardArt(slugs, basePath = 'assets/cards/') {
-  for (const slug of slugs) { const img = new Image(); img.src = basePath + slug + '.jpg'; }
+// Append the deploy cache-bust query so a preloaded url is byte-identical to the one
+// the UI later requests — otherwise the preloaded copy just sits unused in cache.
+function assetUrl(path) { return path + VER; }
+
+// Decode a list of DOM-image urls up front (used by the boot loading screen so no card
+// face / species portrait / threat portrait pops in mid-game). Resolves per-image on
+// load OR error — a missing file never stalls boot; onProgress(done,total) fires as each
+// settles. Uses img.decode() so the first on-screen paint carries no decode jank.
+function preloadImages(urls, onProgress) {
+  const total = urls.length; let done = 0;
+  const bump = () => { onProgress && onProgress(++done, total); };
+  if (!total) { onProgress && onProgress(0, 0); return Promise.resolve(); }
+  return Promise.all(urls.map((u) => new Promise((resolve) => {
+    const img = new Image();
+    const finish = () => { bump(); resolve(); };
+    img.onload = () => { (img.decode ? img.decode() : Promise.reject()).then(finish, finish); };
+    img.onerror = finish;
+    img.src = u;
+  })));
 }
 
 function hasAsset(key) { return !!(REG[key] && REG[key].ready); }
@@ -8578,7 +8607,7 @@ function pattern(ctx, key) {
   return p;
 }
 
-  return { loadAssets, preloadCardArt, hasAsset, asset, assetMeta, pattern };
+  return { loadAssets, assetUrl, preloadImages, hasAsset, asset, assetMeta, pattern };
 })();
 
 // ===================== src/render/substrate.js =====================
@@ -10273,6 +10302,11 @@ const RES_ICON = {
 // matching how the picker references its card/species images.
 const SPORE_ICON = '<img class="spore-ic" src="assets/spores/spore-print.png" alt="" aria-hidden="true">';
 
+// Deploy cache-bust query (build injects globalThis.__ASSET_VER; '' in dev). Kept in sync
+// with the picker + the boot preloader so all three request the SAME card-face url — else
+// a preloaded/decoded copy sits unused and the hand card faces pop in on first draw.
+const CARD_VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+
 // Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
 // the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
 // many devices (Android) and ignores `color`, so it could never be reliably red.
@@ -11725,7 +11759,7 @@ function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/
 // through. Loaded eagerly (not lazy) and preloaded at boot (main.js) so the faces
 // don't pop in one by one when a draft or the hand opens.
 function cardArt(name) {
-  return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
+  return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg${CARD_VER}" alt="" onerror="this.style.display='none'"></span>`;
 }
 // Card -> filter groups. A card can belong to SEVERAL filters. Two kinds of tag:
 //  • a VERB tag (what you DO with the card) that partitions every card, so nothing
@@ -13477,6 +13511,55 @@ function showLevelIntro(opts) {
   return { showLevelIntro };
 })();
 
+// ===================== src/render/loading.js =====================
+const __m_render_loading = (function () {
+// =============================================================================
+// Boot loading screen (#loadscreen / .ld-*).
+//
+// A deliberately minimal overlay: a small, centered, white % counter while ALL
+// art decodes up front (canvas sprites + every card / species / threat portrait
+// + the spore icon), so nothing pops in lazily once you're playing. When ready
+// the counter becomes a small centered "Click" — and that click doubles as the
+// user gesture browsers require before audio can start.
+//
+//   const ld = showLoading();
+//   ld.setProgress(pct);         // 0..100
+//   ld.ready(() => { ...enter... });   // swap % → "Click", resolve on tap
+//   ld.destroy();                // fade out + remove
+// =============================================================================
+
+function showLoading() {
+  const root = document.createElement('div');
+  root.id = 'loadscreen';
+  root.innerHTML = '<div class="ld-pct" id="ldPct">0%</div>';
+  document.body.appendChild(root);
+  const pctEl = root.querySelector('#ldPct');
+  let armed = false, shown = 0;
+
+  function setProgress(pct) {
+    if (armed) return;   // once "Click" is showing, stop overwriting it with numbers
+    const p = Math.max(0, Math.min(100, Math.round(pct || 0)));
+    if (p < shown) return;   // monotonic — the two progress sources settle at different
+    shown = p;               // times, so ignore any transient backward tick
+    pctEl.textContent = p + '%';
+  }
+  // Everything is decoded: show the "Click" prompt and resolve `onClick` on the first
+  // tap/click anywhere on the screen (which also unlocks audio autoplay).
+  function ready(onClick) {
+    if (armed) return; armed = true;
+    pctEl.textContent = 'Click';
+    root.classList.add('ld-ready');
+    const go = () => { root.removeEventListener('click', go); onClick && onClick(); };
+    root.addEventListener('click', go);
+  }
+  function destroy() { root.classList.add('ld-out'); setTimeout(() => { try { root.remove(); } catch (_) {} }, 450); }
+
+  return { setProgress, ready, destroy, root };
+}
+
+  return { showLoading };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -13496,9 +13579,10 @@ const __m_main = (function () {
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
   const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } = __m_species;
-  const { loadAssets, hasAsset, asset, pattern, assetMeta, preloadCardArt } = __m_render_assets;
+  const { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } = __m_render_assets;
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
+  const { showLoading } = __m_render_loading;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
@@ -16918,26 +17002,50 @@ function drawAimLine(time) {
 // (or "#ants") boots a Trichoderma-free sandbox for testing the ants in
 // isolation. The matching buttons switch modes at any time.
 setupInput();
-// Preload art assets, then invalidate the per-map caches that gate on assets
-// (rock formations + surface props) — they may have been computed empty on the
-// first frame before the async load finished.
-loadAssets().then(() => {
+// Route to the boot destination (menu / picker / a hash shortcut). Deferred behind the
+// loading screen's "Click" so the game always opens on a fully-decoded frame.
+function enterGame() {
+  if (location.hash === '#puzzle') startPuzzle();
+  else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
+  else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+  else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
+  else showMainMenu();
+}
+
+// Boot loading screen. Preload + DECODE everything up front — canvas sprites (loadAssets)
+// PLUS every DOM image the UI will show (each card face, species portrait, threat portrait,
+// the spore icon) — behind a minimal % counter, so nothing pops in lazily once you're
+// playing. A small "Click" then enters the game; that click is also the user gesture that
+// unlocks audio autoplay. URLs use the SAME cache-bust query the UI requests (assetUrl), so
+// the decoded copy is the one actually used — the spore icon has no query, matching SPORE_ICON.
+const _load = showLoading();
+const _bootImgs = [].concat(
+  CARD_DATA.map((c) => assetUrl('assets/cards/' + cardSlug(c.name) + '.jpg')),
+  SPECIES.map((s) => assetUrl('assets/species/' + s.img + '.jpg')),
+  ['ant', 'trichoderma', 'nematode'].map((s) => assetUrl('assets/tutorial/' + s + '.jpg')),
+  ['assets/spores/spore-print.png'],
+);
+let _aDone = 0, _aTot = 0, _iDone = 0, _iTot = _bootImgs.length, _bootEntered = false;
+function _bootProgress() {
+  const tot = _aTot + _iTot, dn = _aDone + _iDone;
+  _load.setProgress(tot ? (dn / tot) * 100 : 0);
+}
+// Everything decoded (or the safety net fired): rebuild the asset-gated caches, then show
+// "Click" and wait for the tap before entering the game.
+function _bootReady() {
+  if (_bootEntered) return; _bootEntered = true;
   uiDirty = true; _rockState = null; _formState = null; _propState = null; _mtnState = null; _cityState = null; _lakeState = null;
   if (substrateRenderer) substrateRenderer.rebake();
   assetsReady = true;
   _revealPending = true;   // first map: fade in after the first art-complete frame draws
-  initMusic();   // only NOW start streaming a random track — game art loads first
-  initSfx();     // decode the grow SFX in the background so the first grow has sound
-});
-// Safety net: if the manifest fetch hangs, reveal anyway rather than sit blank.
-setTimeout(() => { if (!assetsReady) { assetsReady = true; _revealPending = true; } initMusic(); initSfx(); }, 4000);
-// Warm the card-face image cache so drafts / the hand don't pop in one by one.
-preloadCardArt(CARD_DATA.map((c) => cardSlug(c.name)));
-if (location.hash === '#puzzle') startPuzzle();
-else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
-else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
-else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
-else showMainMenu();
+  _load.ready(() => { initMusic(); initSfx(); _load.destroy(); enterGame(); });
+}
+Promise.all([
+  loadAssets('assets/', (d, t) => { _aDone = d; _aTot = t; _bootProgress(); }),
+  preloadImages(_bootImgs, (d, t) => { _iDone = d; _iTot = t; _bootProgress(); }),
+]).then(_bootReady);
+// Safety net: never trap the player on the loader if a fetch hangs.
+setTimeout(_bootReady, 12000);
 requestAnimationFrame(frame);
 
   return {  };

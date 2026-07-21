@@ -27,6 +27,18 @@
     #ui { position: fixed; inset: 0; pointer-events: none; }
     #ui > * { pointer-events: auto; }
 
+    /* Boot loading screen: opaque void, a tiny centered white % counter, then "Click". */
+    #loadscreen { position: fixed; inset: 0; z-index: 3000; background: #05070d;
+      display: flex; align-items: center; justify-content: center; opacity: 1;
+      transition: opacity .45s ease; -webkit-tap-highlight-color: transparent; }
+    #loadscreen.ld-out { opacity: 0; pointer-events: none; }
+    #loadscreen.ld-ready { cursor: pointer; }
+    .ld-pct { font: 600 13px/1 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      letter-spacing: .18em; color: rgba(255,255,255,.72); user-select: none; -webkit-user-select: none; }
+    #loadscreen.ld-ready .ld-pct { letter-spacing: .34em; text-transform: uppercase;
+      animation: ldPulse 1.9s ease-in-out infinite; }
+    @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
       border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px);
       box-shadow: 0 6px 24px rgba(0,0,0,0.4); }

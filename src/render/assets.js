@@ -24,14 +24,18 @@ const _patterns = new Map(); // key -> CanvasPattern (cached)
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 
 // Fetch the manifest and preload every listed image. Resolves once all images
-// have settled (loaded OR failed) so a missing file never blocks boot.
-export function loadAssets(basePath = 'assets/') {
+// have settled (loaded OR failed) so a missing file never blocks boot. Optional
+// onProgress(done, total) fires as each image settles (for the boot loading %).
+export function loadAssets(basePath = 'assets/', onProgress) {
   return fetch(basePath + 'manifest.json' + VER)
     .then((r) => (r.ok ? r.json() : { assets: [] }))
     .catch(() => ({ assets: [] }))
     .then((m) => {
       const list = (m && m.assets) || [];
-      return Promise.all(list.map((a) => loadOne(basePath, a)));
+      const total = list.length; let done = 0;
+      if (!total) { onProgress && onProgress(0, 0); return; }
+      const bump = () => { onProgress && onProgress(++done, total); };
+      return Promise.all(list.map((a) => loadOne(basePath, a).then(bump)));
     })
     .catch(() => {});
 }
@@ -46,12 +50,25 @@ function loadOne(basePath, a) {
   });
 }
 
-// Warm the browser cache with the card-face JPGs so they don't pop in one by one
-// when a draft offer or the hand carousel first shows them. These are DOM <img>
-// (drawn by ui.js), not canvas assets — so we just prime the HTTP cache with the
-// SAME urls ui.js uses (no version query, matching cardArt()). Fire-and-forget.
-export function preloadCardArt(slugs, basePath = 'assets/cards/') {
-  for (const slug of slugs) { const img = new Image(); img.src = basePath + slug + '.jpg'; }
+// Append the deploy cache-bust query so a preloaded url is byte-identical to the one
+// the UI later requests — otherwise the preloaded copy just sits unused in cache.
+export function assetUrl(path) { return path + VER; }
+
+// Decode a list of DOM-image urls up front (used by the boot loading screen so no card
+// face / species portrait / threat portrait pops in mid-game). Resolves per-image on
+// load OR error — a missing file never stalls boot; onProgress(done,total) fires as each
+// settles. Uses img.decode() so the first on-screen paint carries no decode jank.
+export function preloadImages(urls, onProgress) {
+  const total = urls.length; let done = 0;
+  const bump = () => { onProgress && onProgress(++done, total); };
+  if (!total) { onProgress && onProgress(0, 0); return Promise.resolve(); }
+  return Promise.all(urls.map((u) => new Promise((resolve) => {
+    const img = new Image();
+    const finish = () => { bump(); resolve(); };
+    img.onload = () => { (img.decode ? img.decode() : Promise.reject()).then(finish, finish); };
+    img.onerror = finish;
+    img.src = u;
+  })));
 }
 
 export function hasAsset(key) { return !!(REG[key] && REG[key].ready); }

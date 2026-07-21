@@ -1,6 +1,9 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-21 (**per-species starting level**: higher-tier
+_Living status + knowledge doc. Last updated: 2026-07-21 (**boot loading screen**: all art is now
+preloaded + decoded behind a minimal centered "%"→"Click" overlay before the game opens, so nothing pops
+in lazily mid-play (the "Click" also unlocks audio); the dist deploy was slimmed 61 MB→~22 MB by excluding
+unused authoring-candidate folders. See §9. — earlier: **per-species starting level**: higher-tier
 species begin their run deeper in the campaign instead of always level 1 — fixed at the unlock level for
 most (Slippery Jack/Bleeding Tooth 3 · Wine Cap 5 · Violet Webcap/Dry Rot 7), and a player-adjustable
 "Lvl: X" stepper for the memory colonies (Split Gill 2–5, Artist's Conk 3–10); the picker's "Complete
@@ -506,6 +509,29 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Boot LOADING SCREEN — preload + decode everything up front (kills in-game pop-in).** The game used to
+  reveal the menu immediately and load art lazily, so card faces / species portraits / threat portraits
+  popped in on screen. Now a minimal overlay (`render/loading.js`, `#loadscreen`) shows a **small centered
+  white % counter** while ALL art is fetched AND `img.decode()`'d up front, then a **small centered "Click"**
+  — that click both dismisses the loader and serves as the **user gesture that unlocks audio autoplay** (so
+  music starts reliably, including mobile). What's preloaded: canvas sprites (`loadAssets`, now with an
+  `onProgress` callback) **+** every card face, every species portrait, the 3 threat portraits, and the
+  spore icon (`preloadImages`, new). The menu/picker/hash-route is deferred behind the click via a new
+  `enterGame()` in `main.js` (`frame()` already idles on null state, so the loop just sits behind the
+  opaque overlay); a **12s safety net** enters anyway if a fetch hangs. The `%` is **monotonic** (the two
+  progress sources settle at different times, so backward ticks are ignored).
+  - **URL unification (was a latent bug):** the boot preload, the in-game hand (`ui.js cardArt`), and the
+    picker (`species_select cardImg`) now ALL request the same cache-bust `?v=` card-face url — previously
+    `cardArt` had no query, so the picker's decoded copies sat unused and the hand still popped in (and
+    in-game card art ignored the deploy version). The spore icon keeps its no-query url; the preload matches.
+  - **Dist deploy slimmed 61 MB → ~22 MB:** `build.mjs` now EXCLUDES the authoring-candidate folders
+    (`assets/*_options`, `card_art_archive`) from the `dist/assets` copy — nothing in `manifest.json` or the
+    UI ever fetched them, so they were pure deploy bloat. Source `assets/` is untouched; the version hash
+    (top-level files only) is unaffected. (`rmSync` the dist copy first so trimmed folders don't linger.)
+  - Verified via Playwright (`scratchpad/loadscreen_verify.mjs`): % climbs 0→…→Click, menu hidden until the
+    click, loader dismisses + menu enters on click, zero page errors; dist has 0 `_options` folders. New
+    module registered in `build.mjs` file list. CSS `#loadscreen`/`.ld-pct` (index.html). Cards 61/0; smoke 100/1.
 
 - **Per-species STARTING LEVEL (higher tiers skip the early grind).** A species now begins its run on a
   campaign level tied to its tier instead of always level 1. **Fixed-start species open on their unlock

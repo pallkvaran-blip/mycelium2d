@@ -40,6 +40,11 @@ const RES_ICON = {
 // matching how the picker references its card/species images.
 export const SPORE_ICON = '<img class="spore-ic" src="assets/spores/spore-print.png" alt="" aria-hidden="true">';
 
+// Deploy cache-bust query (build injects globalThis.__ASSET_VER; '' in dev). Kept in sync
+// with the picker + the boot preloader so all three request the SAME card-face url — else
+// a preloaded/decoded copy sits unused and the hand card faces pop in on first draw.
+const CARD_VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
+
 // Pickaxe glyph for the Actions dock. Inline SVG (not the ⛏ emoji) so it survives
 // the bundle AND honours CSS `color` — the emoji renders as a fixed-colour glyph on
 // many devices (Android) and ignores `color`, so it could never be reliably red.
@@ -1492,7 +1497,7 @@ export function cardSlug(name) { return String(name).toLowerCase().replace(/[^a-
 // through. Loaded eagerly (not lazy) and preloaded at boot (main.js) so the faces
 // don't pop in one by one when a draft or the hand opens.
 function cardArt(name) {
-  return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg" alt="" onerror="this.style.display='none'"></span>`;
+  return `<span class="cart"><img class="caimg" draggable="false" src="assets/cards/${cardSlug(name)}.jpg${CARD_VER}" alt="" onerror="this.style.display='none'"></span>`;
 }
 // Card -> filter groups. A card can belong to SEVERAL filters. Two kinds of tag:
 //  • a VERB tag (what you DO with the card) that partitions every card, so nothing
