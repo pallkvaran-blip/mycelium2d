@@ -510,6 +510,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep: removed the visible DEV buttons.** Dropped the species-picker "Dev quick-start" (`#ssDev`)
+  and "Dev: unlock all" (`#ssDevUnlock`) buttons from `species_select.js`, and gated the in-game "Dev: win
+  level" (`#devWin`, `main.js updateDevWinBtn`) behind `config.dev.enabled` (false for release). The dev
+  cheats/sliders panel was already `config.dev.enabled`-gated (off); the title "Dev: tutorial" button was
+  already un-passed (`onDevTutorial` unused). Kept the INVISIBLE `window.__game` hook (incl. `winLevel()`,
+  `devUnlockAll` still exported) so tests/self-play + the `#dev`/`#tutorial` URL hashes still work. Packaged
+  an itch build (`dist/index.html` + `assets/` only, no editor/tool HTML) as a ~22 MB zip with index.html at
+  the root. Cards 61/0; smoke 100/1 (pre-existing ant-trail).
+
 - **Menu → level music now FADES OUT fast (was a hard cut).** Starting the first level swapped the single
   `<audio>` element's `src` instantly, which killed the menu theme (vol29) mid-note. `playLevelMusic()` now,
   when the menu theme is audible, first ramps its volume to 0 over **`MENU_FADE_OUT_MS` = 550 ms**, THEN
