@@ -73,12 +73,11 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
+    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2, startLevelMin: 3, startLevelMax: 10,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
-    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 37, phosphorus: 6 },
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. The most seasoned colony you can field: it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
+    res: { energy: 20, water: 52, phosphorus: 16 },
     hand: [
-      { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
     ],
   },
@@ -139,11 +138,12 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2, startLevelMin: 3, startLevelMax: 10,
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
     name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
-    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
-    res: { energy: 20, water: 52, phosphorus: 16 },
+    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. This colony learns: it lets you <b>hand-pick cards you drafted during your last run</b>. Be warned: your first run may be a little rough.',
+    res: { energy: 10, water: 37, phosphorus: 6 },
     hand: [
+      { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
     ],
   },

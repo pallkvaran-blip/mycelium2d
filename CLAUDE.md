@@ -10,6 +10,26 @@ visible Dev buttons (see the release-prep commits + CHECKPOINT §9), `node build
 **`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and the
 `*-editor.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON, mobile-friendly ON, 1280×720).
 
+## ⚠️ SESSION HANDOFF (2026-07-22) — PUSH THE PENDING WORK FIRST
+
+The previous session's env-runner credentials **regressed mid-turn**, which blocked BOTH commit-signing
+(0-byte `/home/claude/.ssh/commit_signing_key.pub`, `/tmp/code-sign` returns no signature) AND the git-proxy
+push (`http://local_proxy@127.0.0.1:41729` → `Unauthorized`, `GIT_ASKPASS` empty). A fresh session should
+re-provision those creds. **FIRST ACTIONS this session:**
+1. `git log --oneline origin/claude/mycelium-phase-1-build-urvq5e..HEAD` — see the unpushed commit(s).
+2. If present + unsigned: `git config user.email noreply@anthropic.com && git config user.name Claude`,
+   then `git commit --amend --no-edit --reset-author` (re-signs when the signer is healthy).
+3. `git push origin claude/mycelium-phase-1-build-urvq5e` (remote may need
+   `git remote set-url origin https://github.com/pallkvaran-blip/mycelium2d.git` — insteadOf routes it to
+   the local proxy). Retry per the git-ops backoff if it's a network blip.
+4. Then re-cut the itch zip (§ SHIPPED) and hand it to the owner.
+
+**What the unpushed commit contains** (verified working locally, just not pushed): all 11 species portraits
+swapped to real iNaturalist photos + full 11-entry Credits list + **Split Gill ↔ Artist's Conk role swap**.
+If the local commit is GONE (fresh clone with no unpushed commits), the work must be redone — full recovery
+spec (photo URLs + artists, crop recipe, swap details) is in **CHECKPOINT §9 top entry**. Delete this
+handoff block once the push has landed.
+
 ## Read these first (authoritative — don't re-derive)
 
 - **`docs/CHECKPOINT.md`** — the living memory: architecture, file map, UI/interaction
@@ -76,10 +96,16 @@ node --test test/               # smoke + card tests
 
 - Full through level 10 (11 species). Picker order = **unlock tier, then within-tier
   array order** (raw cross-tier array order is irrelevant to display). Current order:
-  Copper Marasmius · Honey Armillaria · Common Earthball (L1) · Oyster (L1) · Slippery
-  Jack (L3) · Bleeding Tooth (L3) · Split Gill (L5) · Wine Cap (L5) · Violet Webcap (L7)
-  · Dry Rot (L7) · Artist's Conk (L10). Split Gill + Artist's Conk are **memory species**
-  (`memory:true`, curated hand from last run's drafts; Conk adds a `memEngines` engine cap).
+  Fairy Ring Champignon · Honey Fungus · Common Earthball (L1) · Oyster (L1) · Slippery
+  Jack (L3) · Bleeding Tooth (L3) · Wine Cap (L5) · Artist's Conk (L5) · Violet Webcap (L7)
+  · Dry Rot (L7) · **Split Gill (L10)**. Split Gill + Artist's Conk are **memory species**
+  (`memory:true`, curated hand from last run's drafts). **Split Gill is now the top-tier L10
+  prize** (`memPick:15` + `memEngines:2` engine cap); Artist's Conk is the simpler L5 memory
+  colony (default 8-card pick, no engine cap) — their tiers/hands/resources were swapped.
+- All 11 species portraits are **real CC-licensed iNaturalist photos** (`assets/species/<img>.jpg`,
+  560×720), credited in the title-screen Credits popup (`render/credits.js`). Regenerate/replace via a
+  URL + `curl --cacert /root/.ccr/ca-bundle.crt` → `scratchpad/reshape.py` cover-crop (pasted images
+  aren't written to disk in this env).
 - **Species editor:** `docs/species-editor.html` (hosted at `<site>/species-editor.html`)
   is the authoring tool for descriptions / starting hand / resources / order — it
   live-imports `src/species.js` + `src/cards-data.js` (or reads a baked `#injectedData`

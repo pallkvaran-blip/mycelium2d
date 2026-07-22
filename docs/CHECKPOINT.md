@@ -517,6 +517,40 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **All 11 species portraits → real photos; Credits lists all 11; Split Gill ↔ Artist's Conk role swap.**
+  Replaced every AI portrait with a real CC-licensed iNaturalist photo (owner-supplied URLs + photographers),
+  cover-cropped 560×720 (`scratchpad/reshape_all.py`; Dry Rot reframed with a zoom to drop a "leave for
+  trap" note). `render/credits.js` `PHOTO_CREDITS` now lists all 11 (name · latin → linked artist), incl.
+  a Cyrillic name. **Species swap:** Split Gill (`schizophyllum`) and Artist's Conk (`ganoderma`) traded
+  `{unlock, memPick, memEngines, startLevelMin/Max, res, hand}` + blurb memory-clause — Split Gill is now
+  the **L10 top prize** (memPick 15 + memEngines 2, res 20/52/16, hand 5× Apical, start 3–10), Artist's Conk
+  the **L5** simpler memory colony (default 8 pick, res 10/37/6, hand Aquaporin + 5× Apical, start 2–5).
+  Identity (id/name/latin/img/vibe) kept; memory system is data-driven (no id special-casing) so the swap is
+  pure data. LOCKED_TIERS counts unchanged (L5=2, L10=1). Verified via Playwright: picker portraits, both
+  detail cards (Split Gill shows 15+2 @ L10, Conk shows Choose 8 @ L5), credits 11+music.
+  **⚠️ NOT PUSHED (env regression):** this commit is local-only + unsigned — the session's env-runner creds
+  broke mid-turn (git-proxy `Unauthorized`; 0-byte signing key). A fresh session must push it (see CLAUDE.md
+  handoff block). **Recovery spec if the local commit is lost** — redownload each (`curl --cacert
+  /root/.ccr/ca-bundle.crt <url> -o x`), cover-crop 560×720 (`scratchpad/reshape_all.py`; Dry Rot uses
+  zoom=1.5/fy=0.92 to drop a "leave for trap" note), copy to `assets/species/<img>.jpg`, and set
+  `credits.js PHOTO_CREDITS` (name · latin → artist + `inaturalist.org/people/<handle>`):
+  - Fairy Ring Champignon / Marasmius oreades — David Harbour / david3613 — photos/140237375/original.jpeg
+  - Honey Fungus / Armillaria ostoyae — Jenn Wren / jennwren — photos/332141087/original.jpg
+  - Common Earthball / Scleroderma citrinum — Will Kuhn / willkuhn — photos/163759592/original.jpeg
+  - Oyster Mushroom / Pleurotus ostreatus — Павлик Лисицын / lisopavlik — photos/442323380/original.jpeg
+  - Slippery Jack / Suillus luteus — Daniel Seth Jackson / stonescottages — photos/228147257/original.jpeg
+  - Bleeding Tooth Fungus / Hydnellum peckii — Morten Ross / morten — photos/110612066/original.jpg
+  - Split Gill / Schizophyllum commune — Alan Rockefeller / alan_rockefeller — photos/356956707/original.jpg
+  - Wine Cap / Stropharia rugosoannulata — Hector Hind / rotceh_dnih — photos/419536157/original.jpeg
+  - Violet Webcap / Cortinarius violaceus — Alan Rockefeller / alan_rockefeller — photos/587984783/original.jpg
+  - Dry Rot / Serpula lacrymans — David Orlovich / davidorlovich — photos/619091268/original.jpg
+  - Artist's Conk / Ganoderma applanatum — Derek / calloftheloon — photos/6069315/original.jpeg
+  (base URL: `https://inaturalist-open-data.s3.amazonaws.com/`). Swap: Split Gill gets
+  `unlock:'Complete level 10', memPick:15, memEngines:2, startLevelMin:3,startLevelMax:10, res{20,52,16},
+  hand[Apical Drive×5]`; Artist's Conk gets `unlock:'Complete level 5', (no memPick/memEngines),
+  startLevelMin:2,startLevelMax:5, res{10,37,6}, hand[Aquaporin Channels×1, Apical Drive×5]` — plus each
+  blurb's memory clause swapped.
+
 - **Credits button + popup (title screen).** New `render/credits.js` (`showCredits`) + a plain-white
   **"Credits"** text button bottom-right of the title (`.ts-credits`, mirrors the centered `.ts-hs` High
   Scores button; wired via `showTitleScreen({onCredits})` → `main.js`). Opens a B&W popup reusing the
