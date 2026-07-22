@@ -587,7 +587,10 @@ function devWinLevel() {
 function updateDevWinBtn() {
   let btn = document.getElementById('devWin');
   const ui0 = document.getElementById('ui');
-  if (!cardsCampaign()) { if (btn) btn.style.display = 'none'; return; }
+  // Dev-only shortcut, gated behind the dev flag (off for release) so it never shows in
+  // the shipped game. The window.__game.winLevel() hook stays available for tests.
+  const devOn = !!(state && state.config && state.config.dev && state.config.dev.enabled);
+  if (!devOn || !cardsCampaign()) { if (btn) btn.style.display = 'none'; return; }
   if (!btn && ui0) {
     btn = document.createElement('button'); btn.id = 'devWin'; btn.type = 'button';
     btn.textContent = 'Dev: win level ▸';

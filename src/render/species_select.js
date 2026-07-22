@@ -235,8 +235,6 @@ export function showSpeciesSelect({ onPick, onDev }) {
   root.innerHTML =
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
-      '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
-      '<button class="ss-dev ss-dev2" id="ssDevUnlock" type="button" title="TEMP DEV: reveal + unlock every species">Dev: unlock all ▸</button>' +
       '<header class="ss-head">' +
         '<div class="ss-headrow"><h1>Select your species</h1>' +
           '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
@@ -301,8 +299,6 @@ export function showSpeciesSelect({ onPick, onDev }) {
 
   updateWallet();
   renderLocked();
-  root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
-  root.querySelector('#ssDevUnlock').addEventListener('click', () => { devUnlockAll(); refresh(); });
   return { hide, root };
 }
 

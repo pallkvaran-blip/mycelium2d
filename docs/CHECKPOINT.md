@@ -510,6 +510,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep (again): removed the visible DEV buttons + cut a fresh itch zip.** Re-applied the same
+  removal as the earlier release-prep pass (later reverted for campaign dev): dropped the species-picker
+  "Dev quick-start" (`#ssDev`) + "Dev: unlock all" (`#ssDevUnlock`) from `species_select.js`, and re-gated
+  the in-game "Dev: win level" (`#devWin`, `main.js updateDevWinBtn`) behind `config.dev.enabled` (false).
+  Title "Dev: tutorial" stays un-passed (`onDevTutorial` unused). INVISIBLE `window.__game` hook (incl.
+  `winLevel()`) kept for tests. Verified via Playwright: no `#tsDevTut`/`#ssDev`/`#ssDevUnlock`/`#devWin`
+  render, hook intact. Packaged the itch build as `index.html` (bundled `dist/index.html`) + `assets/` at
+  the zip root (no editor/tool HTML), ~22 MB / 165 files. Cards 61/0; smoke pre-existing ant-trail only.
+
 - **Level-intro title is now the procedural mycelium wordmark ("LEVEL ONE", …).** `render/level_intro.js`
   no longer prints plain "Level N" — it spells the level in words (`levelWord()` handles 1..100:
   ONE…NINETEEN, TWENTY…NINETY [+ ones], ONE HUNDRED; numeral fallback outside) and grows
