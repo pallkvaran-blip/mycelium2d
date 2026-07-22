@@ -9,3 +9,6 @@ dist/_*.png
 
 # scratchpad working dir (verification scripts, screenshots — never committed)
 scratchpad/
+
+# itch.io build artifacts (regenerable via `node build.mjs` + zip — never committed)
+*.zip
