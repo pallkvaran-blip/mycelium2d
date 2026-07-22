@@ -4,6 +4,12 @@
 Vanilla HTML + `<canvas>` + **ES modules**, no framework. Hosted (auto-deploys on
 push to the dev branch): https://pallkvaran-blip.github.io/mycelium2d/
 
+**SHIPPED** — first public release is live on **itch.io** (free HTML5 build; Survival mode; global
+Supabase leaderboard on). Release marketing/copy is owner-driven. To cut a fresh itch zip: remove the
+visible Dev buttons (see the release-prep commits + CHECKPOINT §9), `node build.mjs`, then zip
+**`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and the
+`*-editor.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON, mobile-friendly ON, 1280×720).
+
 ## Read these first (authoritative — don't re-derive)
 
 - **`docs/CHECKPOINT.md`** — the living memory: architecture, file map, UI/interaction
@@ -50,6 +56,14 @@ node --test test/               # smoke + card tests
   token in env (`REPLICATE_API_TOKEN`). Examples: `scripts/gen_*.py`.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
+- **First-run tutorial fires ONCE PER BROWSER** (localStorage `mycelium.tutorial.v1`), armed only by **New**
+  (not Old) and marked seen the instant level 1 starts. itch reuses one game subdomain across re-uploads, so
+  a browser that touched an earlier build won't see it again — that's the "tutorial didn't play on itch"
+  non-bug. Replay via gear menu → "Replay tutorial". Full detail in CHECKPOINT §10.
+- **`growMyceliumTitle(container,{word})` (`render/mycelium_title.js`) is the reusable wordmark** — title
+  screen, high-scores heading, species picker, and the level intro (`.li-level`, spelled "LEVEL ONE"…).
+  It sizes to its container (`min(H·0.72, width-cap)`), so resize the container to scale it; box metrics
+  race the font load, so `await document.fonts.ready` when measuring in Playwright. See CHECKPOINT §10.
 - **Music (`src/render/music.js`):** menu vs level split — `backrooms-vol29` is the
   title/picker theme (`playMenuMusic()`), a random one of vol7/10/23 plays in levels
   (`playLevelMusic()`, wired from `begin()`). vol29's intro is **permanently trimmed** so

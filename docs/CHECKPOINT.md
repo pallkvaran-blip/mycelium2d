@@ -1,6 +1,13 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-21 (**boot loading screen**: all art is now
+_Living status + knowledge doc. Last updated: 2026-07-22 (**SHIPPED — first public release on itch.io**
+(free HTML5 build; global Supabase leaderboard live). Launch-polish pass since: hand tray capped at ~40%
+screen height on short screens via container-query card scaling (no distortion); title New/Old captions
+tucked against the letters; **HIGH SCORES** heading enlarged + close-✕ halved; the level-intro title now
+grows as the procedural mycelium wordmark ("LEVEL ONE" … "LEVEL ONE HUNDRED"); visible Dev buttons removed
+again for the release zip (invisible `window.__game` hook kept). itch build = `index.html` + `assets/` at the
+zip root, no editor/tool HTML, ~22 MB. See §9. NOTE the **first-run tutorial is once-per-browser** — see
+§10. — earlier: **boot loading screen**: all art is now
 preloaded + decoded behind a minimal centered "%"→"Click" overlay before the game opens, so nothing pops
 in lazily mid-play (the "Click" also unlocks audio); the dist deploy was slimmed 61 MB→~22 MB by excluding
 unused authoring-candidate folders. See §9. — earlier: **per-species starting level**: higher-tier
@@ -2728,6 +2735,27 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 10. Known caveats / watch-items
+
+- **First-run tutorial is ONCE-PER-BROWSER (localStorage `mycelium.tutorial.v1`), and marked seen the
+  INSTANT level 1 starts.** `main.js`: `onNew` arms `tutorialPending = !tutorialSeen()`; `begin()` calls
+  `markTutorialSeen()` at line ~818 — *before* the tutorial is even visible (it's deferred behind the level
+  intro). So (a) it only arms from **New**, never **Old/continue**; (b) any prior start — even a few-second
+  one that never reached the tutorial — consumes the flag. On **itch this bites**: itch reuses the SAME
+  game-hosting subdomain across re-uploads, so a browser that touched an earlier upload already has the flag
+  set and the new build correctly skips the tutorial. This was the "tutorial didn't play on my first itch
+  play" report — NOT a bug (verified end-to-end with fresh localStorage: New→pick→dismiss level intro →
+  `#tutorial` appears, flag flips to "1"). Replay it via the gear/settings menu → **"Replay tutorial"**
+  (`onReplayTutorial`, ungated) or clear site storage / private window. If a localStorage read throws
+  (sandboxed iframe/private mode), `tutorialSeen()` returns false → tutorial fires EVERY time, never never.
+
+- **`growMyceliumTitle` (reusable wordmark) is sized by its CONTAINER, and races the font load.** Used in 4
+  places now — title screen, high-scores heading (`.hs-title-myc`), species picker, and the level intro
+  (`.li-level`). `titleSize = min(H·0.72, (W·0.9)/(len·0.62))`, so the wordmark grows to fit and the way to
+  make it bigger/smaller is to resize the CONTAINER (height usually the binding constraint). When verifying
+  in Playwright, box metrics flip during font load (the custom serif's `normal` line-height ≈1.0 vs the
+  fallback's ≈1.26) — `await document.fonts.ready` and, for anything measuring the title-screen buttons,
+  poll until the metric settles. Growth is RAF-based (holds when done); in `prefers-reduced-motion` it grows
+  synchronously (can stall headless) — the level-intro screenshots run WITHOUT reduced-motion.
 
 - **`#dev` quick-start CRASHES headless Chromium in this env.** The dev scaffold (`initCards(state,'testall')`
   = 300 E/W/P + 5× every card) hard-crashes the page ~0.5s after load in Playwright (no pageerror; browser
