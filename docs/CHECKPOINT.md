@@ -510,6 +510,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **High-scores polish.** Title-screen "High Scores" is now **plain clickable white text** (small, no
+  button/pill chrome; `.ts-hs`), and the leaderboard heading renders "HIGH SCORES" as the **procedural
+  mycelium wordmark** (`growMyceliumTitle` into a `.hs-title-myc` container, destroyed on close) instead of
+  plain text — matches the title screen. Supabase URL/anon key wired in + verified live (read + insert +
+  level-cap reject all confirmed via curl against the real project).
+
 - **High scores went GLOBAL (Supabase, `net_scores.js`).** The board can now be a shared leaderboard instead
   of per-device. `net_scores.js` talks straight to Supabase's PostgREST from the browser (no server code):
   `fetchGlobalBoards()` = two GETs (weekly = `created_at=gte.<7d>`, all-time; both `order=level.desc,created_at.asc&limit=10`);

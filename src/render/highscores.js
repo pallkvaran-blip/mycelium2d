@@ -14,6 +14,7 @@
 
 import { weeklyBoard, allTimeBoard, recordScore, beatsBoard } from '../highscores.js';
 import { scoresEnabled, fetchGlobalBoards, submitGlobalScore } from '../net_scores.js';
+import { growMyceliumTitle } from './mycelium_title.js';
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -43,7 +44,7 @@ export function showHighScores({ onClose } = {}) {
   root.innerHTML =
     '<div class="hs-card" role="dialog" aria-label="High scores">' +
       '<button class="hs-close" id="hsClose" type="button" aria-label="Close">✕</button>' +
-      '<h2 class="hs-title">High Scores</h2>' +
+      '<div class="hs-title-myc" id="hsTitleMyc" role="img" aria-label="High Scores"></div>' +
       '<div class="hs-note" id="hsNote"></div>' +
       '<div class="hs-tabs">' +
         '<button class="hs-tab hs-on" id="hsTabWeek" type="button">Weekly</button>' +
@@ -52,6 +53,7 @@ export function showHighScores({ onClose } = {}) {
       '<div class="hs-board" id="hsBoard"></div>' +
     '</div>';
   document.body.appendChild(root);
+  const myc = growMyceliumTitle(root.querySelector('#hsTitleMyc'), { word: 'HIGH SCORES' });
   const boardEl = root.querySelector('#hsBoard'), note = root.querySelector('#hsNote');
   const tabW = root.querySelector('#hsTabWeek'), tabA = root.querySelector('#hsTabAll');
   let global = null, tab = 'week';
@@ -64,7 +66,7 @@ export function showHighScores({ onClose } = {}) {
   tabW.onclick = () => { tab = 'week'; render(); };
   tabA.onclick = () => { tab = 'all'; render(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  function close() { document.removeEventListener('keydown', onKey); root.remove(); onClose && onClose(); }
+  function close() { document.removeEventListener('keydown', onKey); try { myc.destroy(); } catch (_) {} root.remove(); onClose && onClose(); }
   root.querySelector('#hsClose').onclick = close;
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
   document.addEventListener('keydown', onKey);
