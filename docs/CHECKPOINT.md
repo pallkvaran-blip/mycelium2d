@@ -564,7 +564,10 @@ Both menus are dark, on-theme, with glowing green borders.
   button/pill chrome; `.ts-hs`), and the leaderboard heading renders "HIGH SCORES" as the **procedural
   mycelium wordmark** (`growMyceliumTitle` into a `.hs-title-myc` container, destroyed on close) instead of
   plain text — matches the title screen. Supabase URL/anon key wired in + verified live (read + insert +
-  level-cap reject all confirmed via curl against the real project).
+  level-cap reject all confirmed via curl against the real project). Later sizing pass: the wordmark's size
+  is capped by its container height (`titleSize = min(H·0.72, …)`), so `.hs-title-myc` height was raised
+  48→84px to let it grow to the card-width limit (~52px, was ~34px); the close **✕** (`.hs-close`) was
+  halved to 16×16 / 8px (flex-centred) so it's a small corner mark.
 
 - **High scores went GLOBAL (Supabase, `net_scores.js`).** The board can now be a shared leaderboard instead
   of per-device. `net_scores.js` talks straight to Supabase's PostgREST from the browser (no server code):
