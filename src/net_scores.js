@@ -10,8 +10,8 @@
 // real secret). Leave both empty to disable the global board (the local board is used).
 // =============================================================================
 
-const SUPABASE_URL = '';        // e.g. 'https://abcdefgh.supabase.co'
-const SUPABASE_ANON_KEY = '';   // the PUBLIC anon key (safe to expose), NOT service_role
+const SUPABASE_URL = 'https://daebrdzdoewpuedhxwud.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhZWJyZHpkb2V3cHVlZGh4d3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NzcwNDAsImV4cCI6MjEwMDI1MzA0MH0.sOYQLy4_IedoR3mEX_-kxheXvRUYt3N4evxz_wUU8Uw';   // PUBLIC anon key (safe to expose), NOT service_role
 
 // Runtime override (handy for testing / setting creds without a rebuild).
 function cfg() {
