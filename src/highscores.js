@@ -39,6 +39,8 @@ export function weeklyBoard(t) {
 
 // A board has room (< 10) → any score gets in; otherwise you must BEAT its lowest.
 function makesBoard(board, level) { return board.length < MAX || level > board[board.length - 1].level; }
+// Pure form (used to qualify against a fetched GLOBAL board, not just the local one).
+export function beatsBoard(entries, level) { return makesBoard(Array.isArray(entries) ? entries : [], level | 0); }
 
 // True if `level` would place in the top 10 of the weekly OR all-time board.
 export function qualifies(level, t) {

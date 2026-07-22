@@ -57,6 +57,7 @@
     .hs-close:hover { background: #1a1a1a; }
     .hs-title { margin: 0 0 4px; font-size: 20px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
     .hs-sub { margin: 6px 0 14px; font-size: 13px; color: #cfcfcf; }
+    .hs-note { margin: 2px 0 4px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8f8f8f; }
     .hs-tabs { display: flex; gap: 8px; justify-content: center; margin: 14px 0 16px; }
     .hs-tab { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
       padding: 7px 14px; border-radius: 999px; background: #000; border: 1px solid rgba(255,255,255,.4); color: #bdbdbd; cursor: pointer; }
@@ -1403,8 +1404,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "6s3uid";
-globalThis.__BUILD__ = "local 07-22 04:10";
+window.__ASSET_VER = "1wtovcm";
+globalThis.__BUILD__ = "local 07-22 04:21";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3644,6 +3645,8 @@ function weeklyBoard(t) {
 
 // A board has room (< 10) → any score gets in; otherwise you must BEAT its lowest.
 function makesBoard(board, level) { return board.length < MAX || level > board[board.length - 1].level; }
+// Pure form (used to qualify against a fetched GLOBAL board, not just the local one).
+function beatsBoard(entries, level) { return makesBoard(Array.isArray(entries) ? entries : [], level | 0); }
 
 // True if `level` would place in the top 10 of the weekly OR all-time board.
 function qualifies(level, t) {
@@ -3671,7 +3674,86 @@ function recordScore({ name, level, species, speciesName }) {
   return { ts, weekly: weeklyBoard(ts), allTime: allTimeBoard() };
 }
 
-  return { loadScores, allTimeBoard, weeklyBoard, qualifies, recordScore };
+  return { loadScores, allTimeBoard, weeklyBoard, beatsBoard, qualifies, recordScore };
+})();
+
+// ===================== src/net_scores.js =====================
+const __m_net_scores = (function () {
+// =============================================================================
+// Global leaderboard backend — Supabase (PostgREST). The browser talks to the auto
+// REST API directly; there is no server code to run. Reads are public; inserts are
+// public but sanity-capped by a row-level-security policy (see docs/leaderboard-setup.md).
+//
+// ── SETUP ────────────────────────────────────────────────────────────────────
+// Paste your project's URL + PUBLIC anon key below (or set globalThis.MYCELIUM_SUPABASE
+// = {url, anonKey} before the bundle loads). The anon key is designed to be exposed in
+// client code — it's safe to commit. NEVER put the service_role key here (that one is a
+// real secret). Leave both empty to disable the global board (the local board is used).
+// =============================================================================
+
+const SUPABASE_URL = '';        // e.g. 'https://abcdefgh.supabase.co'
+const SUPABASE_ANON_KEY = '';   // the PUBLIC anon key (safe to expose), NOT service_role
+
+// Runtime override (handy for testing / setting creds without a rebuild).
+function cfg() {
+  const g = (typeof globalThis !== 'undefined' && globalThis.MYCELIUM_SUPABASE) || null;
+  return { url: (g && g.url) || SUPABASE_URL, anonKey: (g && g.anonKey) || SUPABASE_ANON_KEY };
+}
+function scoresEnabled() { const c = cfg(); return !!(c.url && c.anonKey); }
+
+const REST = () => cfg().url.replace(/\/+$/, '') + '/rest/v1/scores';
+function headers(extra) {
+  const c = cfg();
+  return Object.assign({ apikey: c.anonKey, Authorization: 'Bearer ' + c.anonKey, 'Content-Type': 'application/json' }, extra || {});
+}
+async function fetchT(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms || 4500);
+  try { return await fetch(url, Object.assign({ signal: ctrl.signal }, opts || {})); }
+  finally { clearTimeout(timer); }
+}
+
+// One board (top 10). weekOnly filters to the rolling last 7 days. Returns normalized
+// [{name, level, speciesName, ts}] or null on any failure (caller falls back to local).
+async function getBoard(weekOnly) {
+  const p = new URLSearchParams();
+  p.set('select', 'name,level,species_name,created_at');
+  p.set('order', 'level.desc,created_at.asc');
+  p.set('limit', '10');
+  if (weekOnly) p.set('created_at', 'gte.' + new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());
+  const r = await fetchT(REST() + '?' + p.toString(), { headers: headers() });
+  if (!r || !r.ok) return null;
+  const rows = await r.json();
+  if (!Array.isArray(rows)) return null;
+  return rows.map((e) => ({ name: e.name, level: e.level | 0, speciesName: e.species_name || '', ts: Date.parse(e.created_at) || 0 }));
+}
+
+// Fetch both boards; null if the backend is unreachable (→ local fallback).
+async function fetchGlobalBoards() {
+  if (!scoresEnabled()) return null;
+  try {
+    const [weekly, allTime] = await Promise.all([getBoard(true), getBoard(false)]);
+    if (!weekly || !allTime) return null;
+    return { weekly, allTime };
+  } catch (_) { return null; }
+}
+
+// Post one qualifying score. Returns true on success (best-effort; failure → local only).
+async function submitGlobalScore({ name, level, species, speciesName }) {
+  if (!scoresEnabled()) return false;
+  try {
+    const body = JSON.stringify({
+      name: (String(name || '').trim() || 'Anon').slice(0, 14),
+      level: level | 0,
+      species: species || '',
+      species_name: speciesName || '',
+    });
+    const r = await fetchT(REST(), { method: 'POST', headers: headers({ Prefer: 'return=minimal' }), body });
+    return !!(r && r.ok);
+  } catch (_) { return false; }
+}
+
+  return { scoresEnabled, fetchGlobalBoards, submitGlobalScore };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -13696,28 +13778,34 @@ function showLoading() {
 
 // ===================== src/render/highscores.js =====================
 const __m_render_highscores = (function () {
-  const { weeklyBoard, allTimeBoard, recordScore } = __m_highscores;
+  const { weeklyBoard, allTimeBoard, recordScore, beatsBoard } = __m_highscores;
+  const { scoresEnabled, fetchGlobalBoards, submitGlobalScore } = __m_net_scores;
 // =============================================================================
 // High-scores overlays (plain black & white). Namespaced #hsOverlay / .hs-*.
 //
-//   showHighScores({onClose})            — the leaderboard (Weekly / All-Time tabs,
-//                                          top 10 each: rank · name · level · species).
-//   promptHighScoreEntry({level, species,
-//     speciesName, onDone})              — shown at run end when the run cracks the top
-//                                          10: enter a name → records it → shows the
-//                                          board with your fresh row highlighted → Continue.
+//   showHighScores({onClose})   — the leaderboard (Weekly / All-Time tabs, top 10 each:
+//                                 rank · name · level · species). Shows the GLOBAL board
+//                                 when a backend is configured (net_scores.js), else the
+//                                 local per-device board; falls back to local if offline.
+//   maybeHighScore({level, species, speciesName, onDone})
+//                               — called at run end: checks the (global or local) top 10;
+//                                 if the run qualifies, prompts for a name, records it
+//                                 (locally always + globally when enabled), shows the
+//                                 board, then fires onDone (→ the run-over card).
 // =============================================================================
 
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const cleanName = (s) => (String(s == null ? '' : s).trim() || 'Anon').slice(0, 14);
+const localBoards = () => ({ weekly: weeklyBoard(), allTime: allTimeBoard() });
 
-// A top-10 table for one board; `hi` (a ts) highlights the just-added row.
+// A top-10 table for one board; `hi` = {name, level} highlights matching row(s).
 function boardTable(entries, hi) {
-  if (!entries.length) return '<div class="hs-empty">No scores yet — be the first.</div>';
+  if (!entries || !entries.length) return '<div class="hs-empty">No scores yet — be the first.</div>';
   let rows = '';
   entries.forEach((e, i) => {
-    const on = (hi && e.ts === hi) ? ' hs-hi' : '';
+    const on = (hi && e.name === hi.name && (e.level | 0) === (hi.level | 0)) ? ' hs-hi' : '';
     rows += '<tr class="hs-row' + on + '">' +
       '<td class="hs-rank">' + (i + 1) + '</td>' +
       '<td class="hs-name">' + esc(e.name) + '</td>' +
@@ -13736,6 +13824,7 @@ function showHighScores({ onClose } = {}) {
     '<div class="hs-card" role="dialog" aria-label="High scores">' +
       '<button class="hs-close" id="hsClose" type="button" aria-label="Close">✕</button>' +
       '<h2 class="hs-title">High Scores</h2>' +
+      '<div class="hs-note" id="hsNote"></div>' +
       '<div class="hs-tabs">' +
         '<button class="hs-tab hs-on" id="hsTabWeek" type="button">Weekly</button>' +
         '<button class="hs-tab" id="hsTabAll" type="button">All-Time</button>' +
@@ -13743,27 +13832,40 @@ function showHighScores({ onClose } = {}) {
       '<div class="hs-board" id="hsBoard"></div>' +
     '</div>';
   document.body.appendChild(root);
-  const boardEl = root.querySelector('#hsBoard');
+  const boardEl = root.querySelector('#hsBoard'), note = root.querySelector('#hsNote');
   const tabW = root.querySelector('#hsTabWeek'), tabA = root.querySelector('#hsTabAll');
-  function show(which) {
-    tabW.classList.toggle('hs-on', which === 'week');
-    tabA.classList.toggle('hs-on', which === 'all');
-    boardEl.innerHTML = boardTable(which === 'week' ? weeklyBoard() : allTimeBoard());
+  let global = null, tab = 'week';
+  function render() {
+    const src = global || localBoards();
+    boardEl.innerHTML = boardTable(tab === 'week' ? src.weekly : src.allTime);
+    tabW.classList.toggle('hs-on', tab === 'week');
+    tabA.classList.toggle('hs-on', tab === 'all');
   }
+  tabW.onclick = () => { tab = 'week'; render(); };
+  tabA.onclick = () => { tab = 'all'; render(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   function close() { document.removeEventListener('keydown', onKey); root.remove(); onClose && onClose(); }
-  tabW.onclick = () => show('week');
-  tabA.onclick = () => show('all');
   root.querySelector('#hsClose').onclick = close;
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
   document.addEventListener('keydown', onKey);
-  show('week');
+
+  if (scoresEnabled()) {
+    note.textContent = 'Global';
+    boardEl.innerHTML = '<div class="hs-empty">Loading…</div>';
+    fetchGlobalBoards().then((g) => {
+      if (g) { global = g; note.textContent = 'Global'; }
+      else { global = null; note.textContent = 'Offline — showing your local scores'; }
+      render();
+    });
+  } else {
+    note.textContent = '';
+    render();
+  }
   return { close, root };
 }
 
-// Run cracked the top 10 → collect a name, record the score, then show the board with the
-// new row highlighted and a Continue that fires onDone (proceeds to the run-over card).
-function promptHighScoreEntry({ level, species, speciesName, onDone } = {}) {
+// The name-entry → board view shown when a run qualifies (internal to maybeHighScore).
+function showEntry({ level, species, speciesName, isGlobal, onDone }) {
   const root = el('div', 'hs-wrap'); root.id = 'hsOverlay';
   root.innerHTML =
     '<div class="hs-card" role="dialog" aria-label="New high score">' +
@@ -13774,25 +13876,33 @@ function promptHighScoreEntry({ level, species, speciesName, onDone } = {}) {
         '<input class="hs-input" id="hsName" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">' +
         '<button class="hs-btn" id="hsSave" type="button">Save</button>' +
       '</div>' +
+      '<div class="hs-note" id="hsNote" style="display:none"></div>' +
       '<div class="hs-board" id="hsBoard" style="display:none"></div>' +
       '<button class="hs-btn hs-cont" id="hsCont" type="button" style="display:none">Continue</button>' +
     '</div>';
   document.body.appendChild(root);
   const input = root.querySelector('#hsName');
   const done = () => { root.remove(); onDone && onDone(); };
-  let saved = false;
-  function save() {
-    if (saved) return; saved = true;
-    const { ts } = recordScore({ name: input.value, level, species, speciesName });
+  let saving = false;
+  async function save() {
+    if (saving) return; saving = true;
+    const name = cleanName(input.value);
+    recordScore({ name, level, species, speciesName });   // local always (offline history + fallback)
+    let list, noteTxt = '';
+    if (isGlobal) {
+      const ok = await submitGlobalScore({ name, level, species, speciesName });
+      const g = ok ? await fetchGlobalBoards() : null;
+      if (g) { list = g.weekly.some((e) => e.name === name && (e.level | 0) === (level | 0)) ? g.weekly : g.allTime; noteTxt = 'Global'; }
+      else { list = weeklyBoard(); noteTxt = 'Saved locally — the global board is unreachable right now.'; }
+    } else {
+      list = weeklyBoard();
+    }
     root.querySelector('#hsHead').textContent = 'You made the board';
     root.querySelector('#hsSub').style.display = 'none';
     root.querySelector('#hsEntry').style.display = 'none';
-    // Show whichever board holds the fresh entry (weekly usually; all-time if it only
-    // placed there), with its row highlighted.
-    const wk = weeklyBoard();
-    const list = wk.some((e) => e.ts === ts) ? wk : allTimeBoard();
+    if (noteTxt) { const n = root.querySelector('#hsNote'); n.textContent = noteTxt; n.style.display = ''; }
     const boardEl = root.querySelector('#hsBoard');
-    boardEl.innerHTML = boardTable(list, ts);
+    boardEl.innerHTML = boardTable(list, { name, level });
     boardEl.style.display = '';
     const cont = root.querySelector('#hsCont'); cont.style.display = ''; cont.onclick = done;
   }
@@ -13802,7 +13912,22 @@ function promptHighScoreEntry({ level, species, speciesName, onDone } = {}) {
   return { root };
 }
 
-  return { showHighScores, promptHighScoreEntry };
+// Run ended: qualify against the GLOBAL board (if a backend is configured and reachable)
+// or the LOCAL board, prompt + record when it cracks the top 10, then fire onDone.
+function maybeHighScore({ level, species, speciesName, onDone } = {}) {
+  const done = onDone || (() => {});
+  const decide = (boards, isGlobal) => {
+    if (!(beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level))) { done(); return; }
+    showEntry({ level, species, speciesName, isGlobal, onDone: done });
+  };
+  if (scoresEnabled()) {
+    fetchGlobalBoards().then((g) => { g ? decide(g, true) : decide(localBoards(), false); });
+  } else {
+    decide(localBoards(), false);
+  }
+}
+
+  return { showHighScores, maybeHighScore };
 })();
 
 // ===================== src/main.js =====================
@@ -13828,8 +13953,7 @@ const __m_main = (function () {
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
   const { showLoading } = __m_render_loading;
-  const { qualifies } = __m_highscores;
-  const { showHighScores, promptHighScoreEntry } = __m_render_highscores;
+  const { showHighScores, maybeHighScore } = __m_render_highscores;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
@@ -14114,10 +14238,10 @@ function presentRunOver() {
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
     // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
-    // top 10, prompt for a name (records it) before the run-over card. Only real species
-    // runs score (dev/testall runs have no chosenSpecies).
-    if (cardsCampaign() && r.died && chosenSpecies && qualifies(currentLevel)) {
-      promptHighScoreEntry({
+    // top 10 (global board when configured, else local), prompt for a name + record it
+    // before the run-over card. Only real species runs score (dev/testall have no species).
+    if (cardsCampaign() && r.died && chosenSpecies) {
+      maybeHighScore({
         level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name,
         onDone: () => ui.showOverlay(r),
       });

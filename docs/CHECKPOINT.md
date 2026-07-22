@@ -510,6 +510,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **High scores went GLOBAL (Supabase, `net_scores.js`).** The board can now be a shared leaderboard instead
+  of per-device. `net_scores.js` talks straight to Supabase's PostgREST from the browser (no server code):
+  `fetchGlobalBoards()` = two GETs (weekly = `created_at=gte.<7d>`, all-time; both `order=level.desc,created_at.asc&limit=10`);
+  `submitGlobalScore()` = a POST with the anon key. Config lives in two consts at the top of `net_scores.js`
+  (URL + PUBLIC anon key — safe to commit; gated by RLS) OR `globalThis.MYCELIUM_SUPABASE` at runtime; empty
+  = disabled → local board. `render/highscores.js` is now global-aware: `showHighScores` shows the global
+  board with a "Global" note (falls back to local + "Offline" note on fetch failure); `maybeHighScore`
+  (replaces the old direct qualify+prompt) fetches the live board, qualifies via `beatsBoard` (new pure
+  export from `highscores.js`), prompts, then records **locally always + globally when enabled**. Local
+  `highscores.js` is retained as the offline fallback + history. Setup is documented in
+  **`docs/leaderboard-setup.md`** (create table + read/insert RLS policies with a level≤100 sanity cap; paste
+  URL+anon key; rebuild). Caveat: client-submitted scores are inherently spoofable (RLS caps the absurd).
+  **Build fix:** `build.mjs`'s `EXPORT_DECL_RE` now matches `export async function` (it didn't — the two
+  async exports silently weren't registered → "fetchGlobalBoards is not a function" until fixed). Verified
+  via Playwright against a stateful mock PostgREST: GET populates the board (CORS ok), a qualifying death
+  POSTs the right snake_case body, the re-fetch shows the new row; and the disabled path still uses local.
+
 - **High scores — local WEEKLY + ALL-TIME top 10 (`highscores.js` + `render/highscores.js`).** A run's score
   is the campaign LEVEL it reached; on death, if it cracks the top 10 of EITHER board the player is prompted
   for a name (before the run-over card), then sees the board with their fresh row highlighted. A small plain

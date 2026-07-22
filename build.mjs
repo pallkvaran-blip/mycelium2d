@@ -25,6 +25,7 @@ const MODULES = [
   'src/cards-data.js',
   'src/species.js',
   'src/highscores.js',
+  'src/net_scores.js',
   'src/engine/rng.js',
   'src/engine/substrate.js',
   'src/engine/network.js',
@@ -68,7 +69,7 @@ function resolveSpec(fromFile, spec) {
 }
 
 const IMPORT_RE = /^\s*import\s*\{([^}]*)\}\s*from\s*['"](.+?)['"];?\s*$/;
-const EXPORT_DECL_RE = /^\s*export\s+(?:const|let|var|function|class)\s+([A-Za-z0-9_$]+)/;
+const EXPORT_DECL_RE = /^\s*export\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z0-9_$]+)/;
 
 function transform(file) {
   const src = readFileSync(R(file), 'utf8');
