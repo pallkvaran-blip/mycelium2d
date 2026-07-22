@@ -23,7 +23,7 @@ const PHOTO_CREDITS = [
   { label: 'Split Gill &middot; <i>Schizophyllum commune</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
   { label: 'Wine Cap &middot; <i>Stropharia rugosoannulata</i>', name: 'Hector Hind', url: 'https://www.inaturalist.org/people/rotceh_dnih' },
   { label: 'Violet Webcap &middot; <i>Cortinarius violaceus</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
-  { label: 'Dry Rot &middot; <i>Serpula lacrymans</i>', name: 'David Orlovich', url: 'https://www.inaturalist.org/people/davidorlovich' },
+  { label: 'Dry Rot &middot; <i>Serpula lacrymans</i>', name: "L'Agence Du Bois", url: 'https://lagencedubois.fr/' },
   { label: 'Artist\'s Conk &middot; <i>Ganoderma applanatum</i>', name: 'Derek', url: 'https://www.inaturalist.org/people/calloftheloon' },
 ];
 const MUSIC_CREDITS = [

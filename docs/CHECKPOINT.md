@@ -517,6 +517,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dry Rot photo replaced (owner-supplied).** Swapped `assets/species/serpula-lacrymans.jpg` for a vivid
+  orange-pored *Serpula lacrymans* shot from **L'Agence Du Bois** (`https://lagencedubois.fr/`,
+  `wp-content/uploads/2024/10/serpula-lacrymans.jpg.webp`). Source is 750×1000 (aspect 0.75 ≈ our 560×720
+  0.778), so it's a near-1:1 crop (full width, ~36px trimmed off height, 1.34× downscale = sharp). Earlier
+  iNaturalist crop (David Orlovich) was too zoomed-in/grainy. `render/credits.js` Dry Rot line updated to
+  L'Agence Du Bois. Rebuilt + verified in the built game.
+
 - **All 11 species portraits → real photos; Credits lists all 11; Split Gill ↔ Artist's Conk role swap.**
   Replaced every AI portrait with a real CC-licensed iNaturalist photo (owner-supplied URLs + photographers),
   cover-cropped 560×720 (`scratchpad/reshape_all.py`; Dry Rot reframed with a zoom to drop a "leave for
@@ -545,7 +552,7 @@ Both menus are dark, on-theme, with glowing green borders.
   - Split Gill / Schizophyllum commune — Alan Rockefeller / alan_rockefeller — photos/356956707/original.jpg
   - Wine Cap / Stropharia rugosoannulata — Hector Hind / rotceh_dnih — photos/419536157/original.jpeg
   - Violet Webcap / Cortinarius violaceus — Alan Rockefeller / alan_rockefeller — photos/587984783/original.jpg
-  - Dry Rot / Serpula lacrymans — David Orlovich / davidorlovich — photos/619091268/original.jpg
+  - Dry Rot / Serpula lacrymans — **REPLACED** (see below); was David Orlovich / davidorlovich (iNat 619091268)
   - Artist's Conk / Ganoderma applanatum — Derek / calloftheloon — photos/6069315/original.jpeg
   (base URL: `https://inaturalist-open-data.s3.amazonaws.com/`). Swap: Split Gill gets
   `unlock:'Complete level 10', memPick:15, memEngines:2, startLevelMin:3,startLevelMax:10, res{20,52,16},
