@@ -76,10 +76,16 @@ node --test test/               # smoke + card tests
 
 - Full through level 10 (11 species). Picker order = **unlock tier, then within-tier
   array order** (raw cross-tier array order is irrelevant to display). Current order:
-  Copper Marasmius · Honey Armillaria · Common Earthball (L1) · Oyster (L1) · Slippery
-  Jack (L3) · Bleeding Tooth (L3) · Split Gill (L5) · Wine Cap (L5) · Violet Webcap (L7)
-  · Dry Rot (L7) · Artist's Conk (L10). Split Gill + Artist's Conk are **memory species**
-  (`memory:true`, curated hand from last run's drafts; Conk adds a `memEngines` engine cap).
+  Fairy Ring Champignon · Honey Fungus · Common Earthball (L1) · Oyster (L1) · Slippery
+  Jack (L3) · Bleeding Tooth (L3) · Wine Cap (L5) · Artist's Conk (L5) · Violet Webcap (L7)
+  · Dry Rot (L7) · **Split Gill (L10)**. Split Gill + Artist's Conk are **memory species**
+  (`memory:true`, curated hand from last run's drafts). **Split Gill is now the top-tier L10
+  prize** (`memPick:15` + `memEngines:2` engine cap); Artist's Conk is the simpler L5 memory
+  colony (default 8-card pick, no engine cap) — their tiers/hands/resources were swapped.
+- All 11 species portraits are **real CC-licensed iNaturalist photos** (`assets/species/<img>.jpg`,
+  560×720), credited in the title-screen Credits popup (`render/credits.js`). Regenerate/replace via a
+  URL + `curl --cacert /root/.ccr/ca-bundle.crt` → `scratchpad/reshape.py` cover-crop (pasted images
+  aren't written to disk in this env).
 - **Species editor:** `docs/species-editor.html` (hosted at `<site>/species-editor.html`)
   is the authoring tool for descriptions / starting hand / resources / order — it
   live-imports `src/species.js` + `src/cards-data.js` (or reads a baked `#injectedData`

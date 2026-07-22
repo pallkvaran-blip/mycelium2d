@@ -1444,8 +1444,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "18jgxk0";
-globalThis.__BUILD__ = "local 07-22 12:57";
+window.__ASSET_VER = "lii6ma";
+globalThis.__BUILD__ = "local 07-22 13:45";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3293,12 +3293,11 @@ const SPECIES = [
     ],
   },
   {
-    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
+    id: 'schizophyllum', vibe: 'aqua', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2, startLevelMin: 3, startLevelMax: 10,
     name: 'Split Gill', latin: 'Schizophyllum commune', img: 'schizophyllum-commune',
-    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. This colony learns: allowing you to <b>hand-pick cards drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 37, phosphorus: 6 },
+    blurb: 'The most widely distributed mushroom on Earth and the most genetically promiscuous — over <b>20,000 mating types</b>, endlessly adaptable. Its <b>split gills</b> fold shut to ride out drought and reopen the moment damp returns. The most seasoned colony you can field: it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
+    res: { energy: 20, water: 52, phosphorus: 16 },
     hand: [
-      { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
     ],
   },
@@ -3359,11 +3358,12 @@ const SPECIES = [
     ],
   },
   {
-    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 10', memory: true, memPick: 15, memEngines: 2, startLevelMin: 3, startLevelMax: 10,
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
     name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
-    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. The most seasoned colony you can field — it opens with just five runners, but lets you <b>hand-pick 15 cards and 2 engines you drafted last run</b> and carry them into this one.',
-    res: { energy: 20, water: 52, phosphorus: 16 },
+    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. This colony learns: it lets you <b>hand-pick cards you drafted during your last run</b>. Be warned: your first run may be a little rough.',
+    res: { energy: 10, water: 37, phosphorus: 6 },
     hand: [
+      { name: 'Aquaporin Channels', count: 1 },
       { name: 'Apical Drive', count: 5 },
     ],
   },
@@ -14012,8 +14012,17 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 
 // {label} — what the credit is for; {name}/{url} — the artist + their page.
 const PHOTO_CREDITS = [
+  { label: 'Fairy Ring Champignon &middot; <i>Marasmius oreades</i>', name: 'David Harbour', url: 'https://www.inaturalist.org/people/david3613' },
+  { label: 'Honey Fungus &middot; <i>Armillaria ostoyae</i>', name: 'Jenn Wren', url: 'https://www.inaturalist.org/people/jennwren' },
+  { label: 'Common Earthball &middot; <i>Scleroderma citrinum</i>', name: 'Will Kuhn', url: 'https://www.inaturalist.org/people/willkuhn' },
+  { label: 'Oyster Mushroom &middot; <i>Pleurotus ostreatus</i>', name: 'Павлик Лисицын', url: 'https://www.inaturalist.org/people/lisopavlik' },
   { label: 'Slippery Jack &middot; <i>Suillus luteus</i>', name: 'Daniel Seth Jackson', url: 'https://www.inaturalist.org/people/stonescottages' },
   { label: 'Bleeding Tooth Fungus &middot; <i>Hydnellum peckii</i>', name: 'Morten Ross', url: 'https://www.inaturalist.org/people/morten' },
+  { label: 'Split Gill &middot; <i>Schizophyllum commune</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
+  { label: 'Wine Cap &middot; <i>Stropharia rugosoannulata</i>', name: 'Hector Hind', url: 'https://www.inaturalist.org/people/rotceh_dnih' },
+  { label: 'Violet Webcap &middot; <i>Cortinarius violaceus</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
+  { label: 'Dry Rot &middot; <i>Serpula lacrymans</i>', name: 'David Orlovich', url: 'https://www.inaturalist.org/people/davidorlovich' },
+  { label: 'Artist\'s Conk &middot; <i>Ganoderma applanatum</i>', name: 'Derek', url: 'https://www.inaturalist.org/people/calloftheloon' },
 ];
 const MUSIC_CREDITS = [
   { label: 'Soundtrack', name: 'Sascha Ende', url: 'https://ende.app/en' },

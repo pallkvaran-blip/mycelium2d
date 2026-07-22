@@ -14,8 +14,17 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 
 // {label} — what the credit is for; {name}/{url} — the artist + their page.
 const PHOTO_CREDITS = [
+  { label: 'Fairy Ring Champignon &middot; <i>Marasmius oreades</i>', name: 'David Harbour', url: 'https://www.inaturalist.org/people/david3613' },
+  { label: 'Honey Fungus &middot; <i>Armillaria ostoyae</i>', name: 'Jenn Wren', url: 'https://www.inaturalist.org/people/jennwren' },
+  { label: 'Common Earthball &middot; <i>Scleroderma citrinum</i>', name: 'Will Kuhn', url: 'https://www.inaturalist.org/people/willkuhn' },
+  { label: 'Oyster Mushroom &middot; <i>Pleurotus ostreatus</i>', name: 'Павлик Лисицын', url: 'https://www.inaturalist.org/people/lisopavlik' },
   { label: 'Slippery Jack &middot; <i>Suillus luteus</i>', name: 'Daniel Seth Jackson', url: 'https://www.inaturalist.org/people/stonescottages' },
   { label: 'Bleeding Tooth Fungus &middot; <i>Hydnellum peckii</i>', name: 'Morten Ross', url: 'https://www.inaturalist.org/people/morten' },
+  { label: 'Split Gill &middot; <i>Schizophyllum commune</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
+  { label: 'Wine Cap &middot; <i>Stropharia rugosoannulata</i>', name: 'Hector Hind', url: 'https://www.inaturalist.org/people/rotceh_dnih' },
+  { label: 'Violet Webcap &middot; <i>Cortinarius violaceus</i>', name: 'Alan Rockefeller', url: 'https://www.inaturalist.org/people/alan_rockefeller' },
+  { label: 'Dry Rot &middot; <i>Serpula lacrymans</i>', name: 'David Orlovich', url: 'https://www.inaturalist.org/people/davidorlovich' },
+  { label: 'Artist\'s Conk &middot; <i>Ganoderma applanatum</i>', name: 'Derek', url: 'https://www.inaturalist.org/people/calloftheloon' },
 ];
 const MUSIC_CREDITS = [
   { label: 'Soundtrack', name: 'Sascha Ende', url: 'https://ende.app/en' },
