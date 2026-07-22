@@ -14,9 +14,26 @@
 // removed — main.js uses it to kick off any deferred first-run tutorial.
 // =============================================================================
 
+import { growMyceliumTitle } from './mycelium_title.js';
+
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+// Level number spelled out in words (the wordmark reads "LEVEL ONE", "LEVEL TWO",
+// … up to "LEVEL ONE HUNDRED"). Falls back to the numeral outside 1..100.
+const LI_ONES = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+const LI_TEENS = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+const LI_TENS = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+function levelWord(n) {
+  n = n | 0;
+  if (n <= 0) return String(n);
+  if (n === 100) return 'ONE HUNDRED';
+  if (n < 10) return LI_ONES[n];
+  if (n < 20) return LI_TEENS[n - 10];
+  if (n < 100) { const t = (n / 10) | 0, o = n % 10; return LI_TENS[t] + (o ? ' ' + LI_ONES[o] : ''); }
+  return String(n);
+}
 
 export function showLevelIntro(opts) {
   const level = (opts && opts.level) || 1;
@@ -25,7 +42,12 @@ export function showLevelIntro(opts) {
 
   const root = el('div'); root.id = 'levelIntro';
   const inner = el('div', 'li-inner');
-  inner.appendChild(el('div', 'li-level', 'Level ' + level));
+  // The level title is the procedural mycelium wordmark ("LEVEL ONE", …), grown
+  // once when the card appears (mirrors the title screen / high-scores heading).
+  const titleWrap = el('div', 'li-level');
+  titleWrap.setAttribute('role', 'img');
+  titleWrap.setAttribute('aria-label', 'Level ' + level);
+  inner.appendChild(titleWrap);
 
   const row = el('div', 'li-threats');
   for (const th of threats) {
@@ -46,6 +68,11 @@ export function showLevelIntro(opts) {
   root.appendChild(inner);
   document.body.appendChild(root);
 
+  // Grow the "LEVEL <word>" wordmark now the container is in the DOM and sized.
+  let myc = null;
+  try { myc = growMyceliumTitle(titleWrap, { word: 'LEVEL ' + levelWord(level) }); } catch (_) {}
+  const killMyc = () => { try { myc && myc.destroy(); } catch (_) {} myc = null; };
+
   let alive = true;
   function unbind() {
     root.removeEventListener('click', dismiss);
@@ -61,6 +88,7 @@ export function showLevelIntro(opts) {
     let removed = false;
     const finishOut = () => {
       if (removed) return; removed = true;
+      killMyc();
       root.remove();
       try { onDone && onDone(); } catch (_) {}
     };
@@ -73,6 +101,7 @@ export function showLevelIntro(opts) {
     if (!alive && !root.isConnected) return;
     alive = false;
     unbind();
+    killMyc();
     root.remove();
   }
   const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss(); };

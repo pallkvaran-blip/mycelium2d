@@ -510,6 +510,15 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Level-intro title is now the procedural mycelium wordmark ("LEVEL ONE", …).** `render/level_intro.js`
+  no longer prints plain "Level N" — it spells the level in words (`levelWord()` handles 1..100:
+  ONE…NINETEEN, TWENTY…NINETY [+ ones], ONE HUNDRED; numeral fallback outside) and grows
+  `growMyceliumTitle(titleWrap, { word: 'LEVEL ' + levelWord(level) })` into the `.li-level` box
+  (`width:min(720px,92vw); height:clamp(84px,14vh,128px)` — the wordmark auto-sizes to `min(H·0.72,
+  width-cap)`, ~80px for short names). The controller is torn down (`killMyc`) on both dismiss-fade
+  (`finishOut`) and programmatic `destroy()`; container keeps a `role=img` + `aria-label="Level N"` for
+  accessibility. Reuses the existing `mycelium_title.js` module (already bundled) — no build.mjs change.
+
 - **Desktop hand tray capped at ~40% height on short screens (no card distortion).** On screens shorter
   than ~740px the whole hand tray was eating too much of the map. The hand card (`.cardbtn`) is now
   `width: min(172px, calc(28.5vh - 39px))` and a **query container** (`container-type: inline-size`); every

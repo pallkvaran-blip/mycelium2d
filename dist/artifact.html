@@ -1374,9 +1374,9 @@
       gap:clamp(26px,5.2vh,56px); text-align:center;
       opacity:0; transform:translateY(12px); transition:opacity .8s ease, transform .8s ease; }
     #levelIntro.li-in .li-inner { opacity:1; transform:none; }
-    .li-level { font-family:var(--serif); font-weight:600; color:#fff; line-height:1;
-      font-size:clamp(40px,8.2vw,80px); letter-spacing:.012em;
-      text-shadow:0 0 30px rgba(255,255,255,0.28); }
+    /* Level title is the procedural mycelium wordmark ("LEVEL ONE", …); it grows to
+       fill this box (size = min of height·0.72 and a width-derived cap). */
+    .li-level { width:min(720px,92vw); height:clamp(84px,14vh,128px); }
     .li-threats { display:flex; align-items:flex-start; justify-content:center;
       gap:clamp(16px,4.4vw,46px); flex-wrap:wrap; }
     .li-threat { display:flex; flex-direction:column; align-items:center; gap:clamp(10px,1.6vh,16px); }
@@ -1428,8 +1428,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "5krs0n";
-globalThis.__BUILD__ = "local 07-22 07:54";
+window.__ASSET_VER = "1rbx7j8";
+globalThis.__BUILD__ = "local 07-22 07:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -13685,6 +13685,7 @@ function startTutorial(deps) {
 
 // ===================== src/render/level_intro.js =====================
 const __m_render_level_intro = (function () {
+  const { growMyceliumTitle } = __m_render_mycelium_title;
 // =============================================================================
 // LEVEL INTRO — a full-screen BLACK card shown at the start of every campaign
 // level, BEFORE the map fades in. It announces "Level N" and the threats waiting
@@ -13701,9 +13702,25 @@ const __m_render_level_intro = (function () {
 // removed — main.js uses it to kick off any deferred first-run tutorial.
 // =============================================================================
 
+
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+// Level number spelled out in words (the wordmark reads "LEVEL ONE", "LEVEL TWO",
+// … up to "LEVEL ONE HUNDRED"). Falls back to the numeral outside 1..100.
+const LI_ONES = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+const LI_TEENS = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+const LI_TENS = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+function levelWord(n) {
+  n = n | 0;
+  if (n <= 0) return String(n);
+  if (n === 100) return 'ONE HUNDRED';
+  if (n < 10) return LI_ONES[n];
+  if (n < 20) return LI_TEENS[n - 10];
+  if (n < 100) { const t = (n / 10) | 0, o = n % 10; return LI_TENS[t] + (o ? ' ' + LI_ONES[o] : ''); }
+  return String(n);
+}
 
 function showLevelIntro(opts) {
   const level = (opts && opts.level) || 1;
@@ -13712,7 +13729,12 @@ function showLevelIntro(opts) {
 
   const root = el('div'); root.id = 'levelIntro';
   const inner = el('div', 'li-inner');
-  inner.appendChild(el('div', 'li-level', 'Level ' + level));
+  // The level title is the procedural mycelium wordmark ("LEVEL ONE", …), grown
+  // once when the card appears (mirrors the title screen / high-scores heading).
+  const titleWrap = el('div', 'li-level');
+  titleWrap.setAttribute('role', 'img');
+  titleWrap.setAttribute('aria-label', 'Level ' + level);
+  inner.appendChild(titleWrap);
 
   const row = el('div', 'li-threats');
   for (const th of threats) {
@@ -13733,6 +13755,11 @@ function showLevelIntro(opts) {
   root.appendChild(inner);
   document.body.appendChild(root);
 
+  // Grow the "LEVEL <word>" wordmark now the container is in the DOM and sized.
+  let myc = null;
+  try { myc = growMyceliumTitle(titleWrap, { word: 'LEVEL ' + levelWord(level) }); } catch (_) {}
+  const killMyc = () => { try { myc && myc.destroy(); } catch (_) {} myc = null; };
+
   let alive = true;
   function unbind() {
     root.removeEventListener('click', dismiss);
@@ -13748,6 +13775,7 @@ function showLevelIntro(opts) {
     let removed = false;
     const finishOut = () => {
       if (removed) return; removed = true;
+      killMyc();
       root.remove();
       try { onDone && onDone(); } catch (_) {}
     };
@@ -13760,6 +13788,7 @@ function showLevelIntro(opts) {
     if (!alive && !root.isConnected) return;
     alive = false;
     unbind();
+    killMyc();
     root.remove();
   }
   const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') dismiss(); };
