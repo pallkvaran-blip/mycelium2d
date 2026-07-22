@@ -526,9 +526,11 @@ Both menus are dark, on-theme, with glowing green borders.
   link (opens in a new tab inside the itch iframe). Data lives in `credits.js` (`PHOTO_CREDITS`/`MUSIC_CREDITS`):
   Slippery Jack → Daniel Seth Jackson (inat/stonescottages), Bleeding Tooth → Morten Ross (inat/morten),
   Soundtrack → Sascha Ende (ende.app). New module added to `build.mjs`. Verified via Playwright.
-  **PENDING:** the actual portrait swaps for `suillus-luteus.jpg` + `hydnellum-peckii.jpg` (real licensed
-  photos replacing the AI art) — awaiting the image files/URLs from the owner (pasted images aren't written
-  to disk in this env). Portraits are 560×720; crop-to-cover on arrival, then ship credits+photos together.
+  **Portraits swapped in:** `suillus-luteus.jpg` (Daniel Seth Jackson) + `hydnellum-peckii.jpg` (Morten
+  Ross) now use real CC-licensed iNaturalist photos, cover-cropped 560×720 (`scratchpad/reshape.py`) — the
+  AI-accuracy-complaint fix. Verified both render in the picker detail. Gotcha: **pasted images aren't
+  written to disk in this env** — get a URL and `curl --cacert /root/.ccr/ca-bundle.crt` it (owner supplied
+  the two inaturalist-open-data S3 links).
 
 - **Release prep (again): removed the visible DEV buttons + cut a fresh itch zip.** Re-applied the same
   removal as the earlier release-prep pass (later reverted for campaign dev): dropped the species-picker
