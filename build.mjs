@@ -54,6 +54,7 @@ const MODULES = [
   'src/render/level_intro.js',
   'src/render/loading.js',
   'src/render/highscores.js',
+  'src/render/credits.js',
   'src/main.js',
 ];
 

@@ -44,7 +44,23 @@
       font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
       color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
     #titleScreen .ts-hs:hover { opacity: 1; text-decoration: underline; }
-    #hsOverlay.hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
+    /* Credits — same plain white text button as High Scores, parked bottom-right. */
+    #titleScreen .ts-credits { position: absolute; right: 14px; bottom: 14px; z-index: 6;
+      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-credits:hover { opacity: 1; text-decoration: underline; }
+    /* Credits popup — reuses the B&W .hs-card shell; left-aligned credit rows with linked names. */
+    .cr-card { text-align: left; }
+    .cr-title { text-align: center; margin: 0 0 4px; }
+    .cr-sec { margin: 16px 0 0; }
+    .cr-head { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8f8f8f; margin: 0 0 6px; }
+    .cr-row { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px; }
+    .cr-what { color: #cfcfcf; }
+    .cr-what i { font-style: italic; }
+    .cr-who { color: #fff; font-weight: 700; text-decoration: underline; white-space: nowrap; cursor: pointer; }
+    .cr-who:hover { text-decoration: none; }
+    .hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
       display: flex; align-items: center; justify-content: center; padding: 20px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent; }

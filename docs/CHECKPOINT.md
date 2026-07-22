@@ -517,6 +517,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Credits button + popup (title screen).** New `render/credits.js` (`showCredits`) + a plain-white
+  **"Credits"** text button bottom-right of the title (`.ts-credits`, mirrors the centered `.ts-hs` High
+  Scores button; wired via `showTitleScreen({onCredits})` → `main.js`). Opens a B&W popup reusing the
+  `.hs-wrap`/`.hs-card` shell — **the wrap positioning rule was made class-based** (`#hsOverlay.hs-wrap` →
+  `.hs-wrap`) so both overlays share the full-screen fixed backdrop (the id-scoped version left the credits
+  overlay unstyled). Sections "Species photography" + "Music"; each row's artist NAME is a `target="_blank"`
+  link (opens in a new tab inside the itch iframe). Data lives in `credits.js` (`PHOTO_CREDITS`/`MUSIC_CREDITS`):
+  Slippery Jack → Daniel Seth Jackson (inat/stonescottages), Bleeding Tooth → Morten Ross (inat/morten),
+  Soundtrack → Sascha Ende (ende.app). New module added to `build.mjs`. Verified via Playwright.
+  **PENDING:** the actual portrait swaps for `suillus-luteus.jpg` + `hydnellum-peckii.jpg` (real licensed
+  photos replacing the AI art) — awaiting the image files/URLs from the owner (pasted images aren't written
+  to disk in this env). Portraits are 560×720; crop-to-cover on arrival, then ship credits+photos together.
+
 - **Release prep (again): removed the visible DEV buttons + cut a fresh itch zip.** Re-applied the same
   removal as the earlier release-prep pass (later reverted for campaign dev): dropped the species-picker
   "Dev quick-start" (`#ssDev`) + "Dev: unlock all" (`#ssDevUnlock`) from `species_select.js`, and re-gated

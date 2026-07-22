@@ -29,6 +29,7 @@ import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
 import { showLoading } from './render/loading.js';
 import { showHighScores, checkHighScore, recordHighScore } from './render/highscores.js';
+import { showCredits } from './render/credits.js';
 import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
@@ -560,6 +561,7 @@ function showMainMenu() {
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
     onHighScores: () => showHighScores({}),
+    onCredits: () => showCredits({}),
   });
 }
 

@@ -45,7 +45,23 @@
       font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
       color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
     #titleScreen .ts-hs:hover { opacity: 1; text-decoration: underline; }
-    #hsOverlay.hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
+    /* Credits — same plain white text button as High Scores, parked bottom-right. */
+    #titleScreen .ts-credits { position: absolute; right: 14px; bottom: 14px; z-index: 6;
+      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
+      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-credits:hover { opacity: 1; text-decoration: underline; }
+    /* Credits popup — reuses the B&W .hs-card shell; left-aligned credit rows with linked names. */
+    .cr-card { text-align: left; }
+    .cr-title { text-align: center; margin: 0 0 4px; }
+    .cr-sec { margin: 16px 0 0; }
+    .cr-head { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8f8f8f; margin: 0 0 6px; }
+    .cr-row { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,.08); font-size: 13px; }
+    .cr-what { color: #cfcfcf; }
+    .cr-what i { font-style: italic; }
+    .cr-who { color: #fff; font-weight: 700; text-decoration: underline; white-space: nowrap; cursor: pointer; }
+    .cr-who:hover { text-decoration: none; }
+    .hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
       display: flex; align-items: center; justify-content: center; padding: 20px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
       -webkit-tap-highlight-color: transparent; }
@@ -1434,8 +1450,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "byu5c1";
-globalThis.__BUILD__ = "local 07-22 08:08";
+window.__ASSET_VER = "8vjuru";
+globalThis.__BUILD__ = "local 07-22 10:56";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12843,7 +12859,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
+function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -12885,6 +12901,13 @@ function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
     const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
     root.appendChild(hsBtn);
     hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
+  }
+
+  // Matching plain "Credits" button, parked bottom-right.
+  if (onCredits) {
+    const crBtn = el('button', 'ts-credits', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
+    root.appendChild(crBtn);
+    crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
   }
 
   const canvas = root.querySelector('#tsCanvas');
@@ -13973,6 +13996,60 @@ function recordHighScore({ name, level, species, speciesName, isGlobal }) {
   return { showHighScores, checkHighScore, recordHighScore };
 })();
 
+// ===================== src/render/credits.js =====================
+const __m_render_credits = (function () {
+// =============================================================================
+// CREDITS overlay — title-screen "Credits" button. Plain black & white popup
+// (mirrors the high-scores card shell: black card, white border, small ✕).
+// Lists the species-photo credits + the music credit; each artist NAME is a
+// link that opens in a new tab (works inside the itch iframe via target=_blank).
+//
+//   showCredits({ onClose }) → { close }
+//
+// Credit data lives here (small + specific). When a species portrait is swapped
+// for a real licensed photo, add its line to PHOTO_CREDITS below.
+// =============================================================================
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+
+// {label} — what the credit is for; {name}/{url} — the artist + their page.
+const PHOTO_CREDITS = [
+  { label: 'Slippery Jack &middot; <i>Suillus luteus</i>', name: 'Daniel Seth Jackson', url: 'https://www.inaturalist.org/people/stonescottages' },
+  { label: 'Bleeding Tooth Fungus &middot; <i>Hydnellum peckii</i>', name: 'Morten Ross', url: 'https://www.inaturalist.org/people/morten' },
+];
+const MUSIC_CREDITS = [
+  { label: 'Soundtrack', name: 'Sascha Ende', url: 'https://ende.app/en' },
+];
+
+function row(c) {
+  return '<div class="cr-row"><span class="cr-what">' + c.label + '</span>'
+    + '<a class="cr-who" href="' + c.url + '" target="_blank" rel="noopener noreferrer">' + c.name + '</a></div>';
+}
+function section(title, list) {
+  return '<div class="cr-sec"><div class="cr-head">' + title + '</div>' + list.map(row).join('') + '</div>';
+}
+
+function showCredits({ onClose } = {}) {
+  const root = el('div', 'hs-wrap'); root.id = 'crOverlay';
+  root.innerHTML =
+    '<div class="hs-card cr-card" role="dialog" aria-label="Credits">' +
+      '<button class="hs-close" id="crClose" type="button" aria-label="Close">✕</button>' +
+      '<h2 class="hs-title cr-title">Credits</h2>' +
+      section('Species photography', PHOTO_CREDITS) +
+      section('Music', MUSIC_CREDITS) +
+    '</div>';
+  document.body.appendChild(root);
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  function close() { document.removeEventListener('keydown', onKey); root.remove(); if (onClose) onClose(); }
+  root.querySelector('#crClose').onclick = close;
+  root.addEventListener('click', (e) => { if (e.target === root) close(); });   // click backdrop to dismiss
+  document.addEventListener('keydown', onKey);
+  return { close };
+}
+
+  return { showCredits };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -13997,6 +14074,7 @@ const __m_main = (function () {
   const { initSfx } = __m_render_sfx;
   const { showLoading } = __m_render_loading;
   const { showHighScores, checkHighScore, recordHighScore } = __m_render_highscores;
+  const { showCredits } = __m_render_credits;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
@@ -14537,6 +14615,7 @@ function showMainMenu() {
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
     onHighScores: () => showHighScores({}),
+    onCredits: () => showCredits({}),
   });
 }
 

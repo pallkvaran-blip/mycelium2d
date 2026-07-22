@@ -20,7 +20,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
+export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -62,6 +62,13 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores
     const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
     root.appendChild(hsBtn);
     hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
+  }
+
+  // Matching plain "Credits" button, parked bottom-right.
+  if (onCredits) {
+    const crBtn = el('button', 'ts-credits', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
+    root.appendChild(crBtn);
+    crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
   }
 
   const canvas = root.querySelector('#tsCanvas');
