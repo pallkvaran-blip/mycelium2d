@@ -517,6 +517,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep (again): removed the visible DEV buttons + cut a fresh itch zip.** Re-applied the release
+  removal (the "Dev buttons restored" entry below was for hosted-build dev; now reversed for the itch cut):
+  dropped the species-picker "Dev quick-start" (`#ssDev`) + "Dev: unlock all" (`#ssDevUnlock`) from
+  `species_select.js`, and re-gated the in-game "Dev: win level" (`#devWin`, `main.js updateDevWinBtn`)
+  behind `config.dev.enabled` (false for release). Title "Dev: tutorial" stays un-passed (`onDevTutorial`
+  unused). INVISIBLE `window.__game` hook (incl. `winLevel()`) kept for tests. Verified via Playwright: no
+  `#tsDevTut`/`#ssDev`/`#ssDevUnlock`/`#devWin` render, hook intact, and the packaged zip boots + runs a
+  level error-free. Packaged `dist/index.html` (as `index.html`) + `dist/assets/` at the zip root (no
+  editor/artifact HTML), ~22 MB. This zip includes the all-real 11-species photos (incl. the L'Agence Du
+  Bois Dry Rot) + the Split Gill ↔ Artist's Conk swap.
+
 - **Dry Rot photo replaced (owner-supplied).** Swapped `assets/species/serpula-lacrymans.jpg` for a vivid
   orange-pored *Serpula lacrymans* shot from **L'Agence Du Bois** (`https://lagencedubois.fr/`,
   `wp-content/uploads/2024/10/serpula-lacrymans.jpg.webp`). Source is 750×1000 (aspect 0.75 ≈ our 560×720
