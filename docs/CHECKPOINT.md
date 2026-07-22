@@ -510,6 +510,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **High-score name entry moved INLINE into the run-over card (no separate popup).** The qualifying-run name
+  entry is now a section inside `ui.showOverlay` (the "Your run has ended" card) instead of its own overlay:
+  "You reached level N as X — a top 10 run." + a name input + a **Save** button. Pressing **Save** records
+  the score (local always + global when enabled) and the button relabels to **View**; pressing **View** opens
+  the normal high-scores list (`showHighScores`). No exclamation marks. Wiring: `render/highscores.js` dropped
+  `maybeHighScore`/`showEntry` for **`checkHighScore()`** (async → returns a qualify context or null) +
+  **`recordHighScore()`**; `main.js finish()` calls `checkHighScore` then `ui.showOverlay(r, hs)`; `ui.js`
+  renders the inline block from `hs` callbacks (no new import → build order untouched). Verified via Playwright
+  (local + mock-backend): inline entry coexists with New run/Main menu, Save→View→list, Save POSTs the right
+  body to the backend. CSS `.ov-hs`. Cards 61/0; smoke 100/1 (pre-existing).
+
 - **High-scores polish.** Title-screen "High Scores" is now **plain clickable white text** (small, no
   button/pill chrome; `.ts-hs`), and the leaderboard heading renders "HIGH SCORES" as the **procedural
   mycelium wordmark** (`growMyceliumTitle` into a `.hs-title-myc` container, destroyed on close) instead of

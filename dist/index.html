@@ -75,6 +75,7 @@
     .hs-row.hs-hi td { background: #fff; color: #000; }
     .hs-row.hs-hi .hs-rank, .hs-row.hs-hi .hs-sp { color: #333; }
     .hs-empty { padding: 26px 0; color: #8f8f8f; font-size: 13px; }
+    .ov-hs { margin: 8px 0 2px; }   /* inline high-score entry inside the run-over card */
     .hs-entry { display: flex; gap: 8px; justify-content: center; margin: 6px 0 4px; }
     .hs-input { flex: 1 1 auto; max-width: 240px; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 10px;
       background: #000; border: 1px solid #fff; color: #fff; text-align: center; }
@@ -1404,8 +1405,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "klz5sj";
-globalThis.__BUILD__ = "local 07-22 04:48";
+window.__ASSET_VER = "1sclgas";
+globalThis.__BUILD__ = "local 07-22 04:56";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -11150,7 +11151,7 @@ class UI {
     }, 2600);
   }
 
-  showOverlay(result) {
+  showOverlay(result, hs) {
     this._hideCardPopup();   // a card preview must never sit over the run-over screen
     const o = this.el.overlay;
     o.classList.remove('hidden');
@@ -11199,11 +11200,22 @@ class UI {
     const sporeLine = (result && result.runSpores != null)
       ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
       : '';
+    // Inline high-score entry (only when this run cracked the top 10 — hs supplied). Save
+    // records the score and turns into View, which opens the full high-scores list.
+    const hsBlock = hs ? `
+        <div class="ov-hs">
+          <p class="dim small">You reached level <b>${hs.level | 0}</b>${hs.speciesName ? ` as <b>${hs.speciesName}</b>` : ''} — a top 10 run.</p>
+          <div class="hs-entry">
+            <input class="hs-input" id="ov-hs-name" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">
+            <button class="hs-btn" id="ov-hs-save" type="button">Save</button>
+          </div>
+        </div>` : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
         <h1>${title}</h1>
         <p>${body}</p>
         ${sporeLine}
+        ${hsBlock}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
           : campaignDeath ? `<div class="ctrl deathctrl">${pickerBtn}${menuBtn}</div>`
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
@@ -11216,6 +11228,19 @@ class UI {
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
     const mn = o.querySelector('#overlay-menu');
     if (mn) mn.onclick = () => this.handlers.onMainMenu();
+    // Inline high-score entry: Save records the score then becomes View → the full list.
+    if (hs) {
+      const nm = o.querySelector('#ov-hs-name'), sv = o.querySelector('#ov-hs-save');
+      let saved = false;
+      const doSave = () => {
+        if (saved || !sv) return; saved = true;
+        sv.disabled = true; if (nm) nm.disabled = true;
+        Promise.resolve(hs.onSave(nm ? nm.value : '')).then(() => { sv.textContent = 'View'; sv.disabled = false; });
+      };
+      if (sv) sv.onclick = () => { if (!saved) doSave(); else hs.onView && hs.onView(); };
+      if (nm) nm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !saved) doSave(); });
+      setTimeout(() => { try { if (nm) nm.focus(); } catch (_) {} }, 60);
+    }
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 
@@ -13788,11 +13813,12 @@ const __m_render_highscores = (function () {
 //                                 rank · name · level · species). Shows the GLOBAL board
 //                                 when a backend is configured (net_scores.js), else the
 //                                 local per-device board; falls back to local if offline.
-//   maybeHighScore({level, species, speciesName, onDone})
-//                               — called at run end: checks the (global or local) top 10;
-//                                 if the run qualifies, prompts for a name, records it
-//                                 (locally always + globally when enabled), shows the
-//                                 board, then fires onDone (→ the run-over card).
+//   checkHighScore({level, species, speciesName}) → Promise<ctx | null>
+//                               — at run end, does the level reached crack the (global or
+//                                 local) top 10? ctx feeds the INLINE entry on the run-over
+//                                 card (ui.showOverlay); null = didn't qualify.
+//   recordHighScore({name, level, species, speciesName, isGlobal}) → Promise
+//                               — persist a submitted score (local always + global when enabled).
 // =============================================================================
 
 
@@ -13866,70 +13892,31 @@ function showHighScores({ onClose } = {}) {
   return { close, root };
 }
 
-// The name-entry → board view shown when a run qualifies (internal to maybeHighScore).
-function showEntry({ level, species, speciesName, isGlobal, onDone }) {
-  const root = el('div', 'hs-wrap'); root.id = 'hsOverlay';
-  root.innerHTML =
-    '<div class="hs-card" role="dialog" aria-label="New high score">' +
-      '<h2 class="hs-title" id="hsHead">Top 10!</h2>' +
-      '<p class="hs-sub" id="hsSub">You reached <b>level ' + (level | 0) + '</b>' +
-        (speciesName ? (' as <b>' + esc(speciesName) + '</b>') : '') + '.</p>' +
-      '<div class="hs-entry" id="hsEntry">' +
-        '<input class="hs-input" id="hsName" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">' +
-        '<button class="hs-btn" id="hsSave" type="button">Save</button>' +
-      '</div>' +
-      '<div class="hs-note" id="hsNote" style="display:none"></div>' +
-      '<div class="hs-board" id="hsBoard" style="display:none"></div>' +
-      '<button class="hs-btn hs-cont" id="hsCont" type="button" style="display:none">Continue</button>' +
-    '</div>';
-  document.body.appendChild(root);
-  const input = root.querySelector('#hsName');
-  const done = () => { root.remove(); onDone && onDone(); };
-  let saving = false;
-  async function save() {
-    if (saving) return; saving = true;
-    const name = cleanName(input.value);
-    recordScore({ name, level, species, speciesName });   // local always (offline history + fallback)
-    let list, noteTxt = '';
-    if (isGlobal) {
-      const ok = await submitGlobalScore({ name, level, species, speciesName });
-      const g = ok ? await fetchGlobalBoards() : null;
-      if (g) { list = g.weekly.some((e) => e.name === name && (e.level | 0) === (level | 0)) ? g.weekly : g.allTime; noteTxt = 'Global'; }
-      else { list = weeklyBoard(); noteTxt = 'Saved locally — the global board is unreachable right now.'; }
-    } else {
-      list = weeklyBoard();
-    }
-    root.querySelector('#hsHead').textContent = 'You made the board';
-    root.querySelector('#hsSub').style.display = 'none';
-    root.querySelector('#hsEntry').style.display = 'none';
-    if (noteTxt) { const n = root.querySelector('#hsNote'); n.textContent = noteTxt; n.style.display = ''; }
-    const boardEl = root.querySelector('#hsBoard');
-    boardEl.innerHTML = boardTable(list, { name, level });
-    boardEl.style.display = '';
-    const cont = root.querySelector('#hsCont'); cont.style.display = ''; cont.onclick = done;
-  }
-  root.querySelector('#hsSave').onclick = save;
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
-  setTimeout(() => { try { input.focus(); } catch (_) {} }, 50);
-  return { root };
-}
-
-// Run ended: qualify against the GLOBAL board (if a backend is configured and reachable)
-// or the LOCAL board, prompt + record when it cracks the top 10, then fire onDone.
-function maybeHighScore({ level, species, speciesName, onDone } = {}) {
-  const done = onDone || (() => {});
+// Does a finished run (level reached) crack the top 10? Resolves to a context object
+// {level, species, speciesName, isGlobal} when it qualifies, else null. Qualifies against
+// the GLOBAL board when a backend is configured + reachable, otherwise the LOCAL board.
+// The name entry itself is rendered INLINE in the run-over overlay (ui.showOverlay), not
+// as a separate popup — this only decides whether to offer it.
+function checkHighScore({ level, species, speciesName }) {
   const decide = (boards, isGlobal) => {
-    if (!(beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level))) { done(); return; }
-    showEntry({ level, species, speciesName, isGlobal, onDone: done });
+    const q = beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level);
+    return q ? { level, species, speciesName, isGlobal } : null;
   };
   if (scoresEnabled()) {
-    fetchGlobalBoards().then((g) => { g ? decide(g, true) : decide(localBoards(), false); });
-  } else {
-    decide(localBoards(), false);
+    return fetchGlobalBoards().then((g) => (g ? decide(g, true) : decide(localBoards(), false)));
   }
+  return Promise.resolve(decide(localBoards(), false));
 }
 
-  return { showHighScores, maybeHighScore };
+// Persist a submitted score: locally always (offline history + fallback), plus the global
+// board when this run qualified against it. Resolves once done.
+function recordHighScore({ name, level, species, speciesName, isGlobal }) {
+  const nm = cleanName(name);
+  recordScore({ name: nm, level, species, speciesName });
+  return isGlobal ? submitGlobalScore({ name: nm, level, species, speciesName }).then(() => {}) : Promise.resolve();
+}
+
+  return { showHighScores, checkHighScore, recordHighScore };
 })();
 
 // ===================== src/main.js =====================
@@ -13955,7 +13942,7 @@ const __m_main = (function () {
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
   const { showLoading } = __m_render_loading;
-  const { showHighScores, maybeHighScore } = __m_render_highscores;
+  const { showHighScores, checkHighScore, recordHighScore } = __m_render_highscores;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
@@ -14240,13 +14227,15 @@ function presentRunOver() {
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
     // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
-    // top 10 (global board when configured, else local), prompt for a name + record it
-    // before the run-over card. Only real species runs score (dev/testall have no species).
+    // top 10 (global board when configured, else local), the run-over card shows an inline
+    // name-entry (Save → View → the board). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
-      maybeHighScore({
-        level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name,
-        onDone: () => ui.showOverlay(r),
-      });
+      checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
+        .then((hs) => ui.showOverlay(r, hs ? {
+          level: hs.level, speciesName: hs.speciesName,
+          onSave: (name) => recordHighScore({ name, level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }),
+          onView: () => showHighScores({}),
+        } : null));
       return;
     }
     ui.showOverlay(r);

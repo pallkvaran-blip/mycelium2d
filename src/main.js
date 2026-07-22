@@ -28,7 +28,7 @@ import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImage
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
 import { showLoading } from './render/loading.js';
-import { showHighScores, maybeHighScore } from './render/highscores.js';
+import { showHighScores, checkHighScore, recordHighScore } from './render/highscores.js';
 import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
@@ -304,13 +304,15 @@ function presentRunOver() {
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
     // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
-    // top 10 (global board when configured, else local), prompt for a name + record it
-    // before the run-over card. Only real species runs score (dev/testall have no species).
+    // top 10 (global board when configured, else local), the run-over card shows an inline
+    // name-entry (Save → View → the board). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
-      maybeHighScore({
-        level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name,
-        onDone: () => ui.showOverlay(r),
-      });
+      checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
+        .then((hs) => ui.showOverlay(r, hs ? {
+          level: hs.level, speciesName: hs.speciesName,
+          onSave: (name) => recordHighScore({ name, level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }),
+          onView: () => showHighScores({}),
+        } : null));
       return;
     }
     ui.showOverlay(r);

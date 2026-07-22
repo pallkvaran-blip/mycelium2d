@@ -679,7 +679,7 @@ export class UI {
     }, 2600);
   }
 
-  showOverlay(result) {
+  showOverlay(result, hs) {
     this._hideCardPopup();   // a card preview must never sit over the run-over screen
     const o = this.el.overlay;
     o.classList.remove('hidden');
@@ -728,11 +728,22 @@ export class UI {
     const sporeLine = (result && result.runSpores != null)
       ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
       : '';
+    // Inline high-score entry (only when this run cracked the top 10 — hs supplied). Save
+    // records the score and turns into View, which opens the full high-scores list.
+    const hsBlock = hs ? `
+        <div class="ov-hs">
+          <p class="dim small">You reached level <b>${hs.level | 0}</b>${hs.speciesName ? ` as <b>${hs.speciesName}</b>` : ''} — a top 10 run.</p>
+          <div class="hs-entry">
+            <input class="hs-input" id="ov-hs-name" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">
+            <button class="hs-btn" id="ov-hs-save" type="button">Save</button>
+          </div>
+        </div>` : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
         <h1>${title}</h1>
         <p>${body}</p>
         ${sporeLine}
+        ${hsBlock}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
           : campaignDeath ? `<div class="ctrl deathctrl">${pickerBtn}${menuBtn}</div>`
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
@@ -745,6 +756,19 @@ export class UI {
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
     const mn = o.querySelector('#overlay-menu');
     if (mn) mn.onclick = () => this.handlers.onMainMenu();
+    // Inline high-score entry: Save records the score then becomes View → the full list.
+    if (hs) {
+      const nm = o.querySelector('#ov-hs-name'), sv = o.querySelector('#ov-hs-save');
+      let saved = false;
+      const doSave = () => {
+        if (saved || !sv) return; saved = true;
+        sv.disabled = true; if (nm) nm.disabled = true;
+        Promise.resolve(hs.onSave(nm ? nm.value : '')).then(() => { sv.textContent = 'View'; sv.disabled = false; });
+      };
+      if (sv) sv.onclick = () => { if (!saved) doSave(); else hs.onView && hs.onView(); };
+      if (nm) nm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !saved) doSave(); });
+      setTimeout(() => { try { if (nm) nm.focus(); } catch (_) {} }, 60);
+    }
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 

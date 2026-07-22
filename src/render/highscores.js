@@ -5,11 +5,12 @@
 //                                 rank · name · level · species). Shows the GLOBAL board
 //                                 when a backend is configured (net_scores.js), else the
 //                                 local per-device board; falls back to local if offline.
-//   maybeHighScore({level, species, speciesName, onDone})
-//                               — called at run end: checks the (global or local) top 10;
-//                                 if the run qualifies, prompts for a name, records it
-//                                 (locally always + globally when enabled), shows the
-//                                 board, then fires onDone (→ the run-over card).
+//   checkHighScore({level, species, speciesName}) → Promise<ctx | null>
+//                               — at run end, does the level reached crack the (global or
+//                                 local) top 10? ctx feeds the INLINE entry on the run-over
+//                                 card (ui.showOverlay); null = didn't qualify.
+//   recordHighScore({name, level, species, speciesName, isGlobal}) → Promise
+//                               — persist a submitted score (local always + global when enabled).
 // =============================================================================
 
 import { weeklyBoard, allTimeBoard, recordScore, beatsBoard } from '../highscores.js';
@@ -86,65 +87,26 @@ export function showHighScores({ onClose } = {}) {
   return { close, root };
 }
 
-// The name-entry → board view shown when a run qualifies (internal to maybeHighScore).
-function showEntry({ level, species, speciesName, isGlobal, onDone }) {
-  const root = el('div', 'hs-wrap'); root.id = 'hsOverlay';
-  root.innerHTML =
-    '<div class="hs-card" role="dialog" aria-label="New high score">' +
-      '<h2 class="hs-title" id="hsHead">Top 10!</h2>' +
-      '<p class="hs-sub" id="hsSub">You reached <b>level ' + (level | 0) + '</b>' +
-        (speciesName ? (' as <b>' + esc(speciesName) + '</b>') : '') + '.</p>' +
-      '<div class="hs-entry" id="hsEntry">' +
-        '<input class="hs-input" id="hsName" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">' +
-        '<button class="hs-btn" id="hsSave" type="button">Save</button>' +
-      '</div>' +
-      '<div class="hs-note" id="hsNote" style="display:none"></div>' +
-      '<div class="hs-board" id="hsBoard" style="display:none"></div>' +
-      '<button class="hs-btn hs-cont" id="hsCont" type="button" style="display:none">Continue</button>' +
-    '</div>';
-  document.body.appendChild(root);
-  const input = root.querySelector('#hsName');
-  const done = () => { root.remove(); onDone && onDone(); };
-  let saving = false;
-  async function save() {
-    if (saving) return; saving = true;
-    const name = cleanName(input.value);
-    recordScore({ name, level, species, speciesName });   // local always (offline history + fallback)
-    let list, noteTxt = '';
-    if (isGlobal) {
-      const ok = await submitGlobalScore({ name, level, species, speciesName });
-      const g = ok ? await fetchGlobalBoards() : null;
-      if (g) { list = g.weekly.some((e) => e.name === name && (e.level | 0) === (level | 0)) ? g.weekly : g.allTime; noteTxt = 'Global'; }
-      else { list = weeklyBoard(); noteTxt = 'Saved locally — the global board is unreachable right now.'; }
-    } else {
-      list = weeklyBoard();
-    }
-    root.querySelector('#hsHead').textContent = 'You made the board';
-    root.querySelector('#hsSub').style.display = 'none';
-    root.querySelector('#hsEntry').style.display = 'none';
-    if (noteTxt) { const n = root.querySelector('#hsNote'); n.textContent = noteTxt; n.style.display = ''; }
-    const boardEl = root.querySelector('#hsBoard');
-    boardEl.innerHTML = boardTable(list, { name, level });
-    boardEl.style.display = '';
-    const cont = root.querySelector('#hsCont'); cont.style.display = ''; cont.onclick = done;
-  }
-  root.querySelector('#hsSave').onclick = save;
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
-  setTimeout(() => { try { input.focus(); } catch (_) {} }, 50);
-  return { root };
-}
-
-// Run ended: qualify against the GLOBAL board (if a backend is configured and reachable)
-// or the LOCAL board, prompt + record when it cracks the top 10, then fire onDone.
-export function maybeHighScore({ level, species, speciesName, onDone } = {}) {
-  const done = onDone || (() => {});
+// Does a finished run (level reached) crack the top 10? Resolves to a context object
+// {level, species, speciesName, isGlobal} when it qualifies, else null. Qualifies against
+// the GLOBAL board when a backend is configured + reachable, otherwise the LOCAL board.
+// The name entry itself is rendered INLINE in the run-over overlay (ui.showOverlay), not
+// as a separate popup — this only decides whether to offer it.
+export function checkHighScore({ level, species, speciesName }) {
   const decide = (boards, isGlobal) => {
-    if (!(beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level))) { done(); return; }
-    showEntry({ level, species, speciesName, isGlobal, onDone: done });
+    const q = beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level);
+    return q ? { level, species, speciesName, isGlobal } : null;
   };
   if (scoresEnabled()) {
-    fetchGlobalBoards().then((g) => { g ? decide(g, true) : decide(localBoards(), false); });
-  } else {
-    decide(localBoards(), false);
+    return fetchGlobalBoards().then((g) => (g ? decide(g, true) : decide(localBoards(), false)));
   }
+  return Promise.resolve(decide(localBoards(), false));
+}
+
+// Persist a submitted score: locally always (offline history + fallback), plus the global
+// board when this run qualified against it. Resolves once done.
+export function recordHighScore({ name, level, species, speciesName, isGlobal }) {
+  const nm = cleanName(name);
+  recordScore({ name: nm, level, species, speciesName });
+  return isGlobal ? submitGlobalScore({ name: nm, level, species, speciesName }).then(() => {}) : Promise.resolve();
 }
