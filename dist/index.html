@@ -871,7 +871,11 @@
     #titleScreen .ts-act { position:relative; display:inline-flex; }
     #titleScreen .ts-actions > .ts-act:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-act:last-child { justify-self:start; }
-    #titleScreen .ts-cap { position:absolute; left:50%; bottom:100%; transform:translateX(-50%); margin-bottom:2px;
+    /* Sits just above the LETTERS, not the button box: NEW/OLD carry a band of leading + a ~0.19em
+       ink gap above the caps, so bottom:100% floated the caption well clear of the glyphs. bottom:84%
+       of the button-height containing block tucks the caption's baseline right against the cap tops
+       (~3px), and being a percentage it scales with the font across the clamp range. */
+    #titleScreen .ts-cap { position:absolute; left:50%; bottom:84%; transform:translateX(-50%); margin-bottom:0;
       white-space:nowrap; pointer-events:none; font-size:clamp(8px,1.15vw,11px); letter-spacing:.06em;
       text-transform:none; font-weight:400; color:rgba(219,233,223,0.30); }
     #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
@@ -1429,8 +1433,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1oh8m9k";
-globalThis.__BUILD__ = "local 07-22 07:01";
+window.__ASSET_VER = "1pertmf";
+globalThis.__BUILD__ = "local 07-22 07:44";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
