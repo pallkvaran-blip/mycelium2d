@@ -1399,8 +1399,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "109w4xh";
-globalThis.__BUILD__ = "local 07-22 05:15";
+window.__ASSET_VER = "zko3hg";
+globalThis.__BUILD__ = "local 07-22 05:23";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -14020,6 +14020,11 @@ function revealMap() {
   canvas.style.opacity = '1';         // animate 0 -> 1
 }
 
+// Instantly hide the game canvas (no fade) — used when entering the title / picker so a
+// stale map from a finished run can't flash through as a menu overlay fades in. begin()
+// re-reveals it via revealMap() for the next run.
+function hideCanvas() { if (canvas) { canvas.style.transition = 'none'; canvas.style.opacity = '0'; } }
+
 // The threats seeded into the CURRENT map, as the intro's roster (count > 0 only).
 // Counts come from the live state (== the per-level LEVEL_THREATS seed, before any
 // tick), so it always reflects what's actually on the map — incl. a trich-free run.
@@ -14090,6 +14095,7 @@ function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 
 // Show the start-of-run picker (also used on death → back to picker).
 function showPicker() {
+  hideCanvas();      // never let a finished run's map show behind the picker
   playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
     onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
@@ -14464,6 +14470,7 @@ function backToPicker() {
 // reachable from the run-over card's "Main menu" button.
 function showMainMenu() {
   if (ui) ui.hideOverlay();
+  hideCanvas();      // hide any finished-run map so the title's fade-out to the picker doesn't flash it
   playMenuMusic();   // title theme: backrooms-vol29, fading in over its first 20s
   showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).

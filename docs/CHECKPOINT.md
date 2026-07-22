@@ -510,6 +510,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fixed the map "flash" when leaving a run for the picker.** `#titleScreen` has an opaque bg, so while
+  it's up the game canvas is hidden — but pressing New/**Old** fades the title's opacity to 0 over ~0.55s,
+  which briefly revealed the game `#game` canvas behind it still holding the FINISHED run's map at opacity 1
+  (revealed by `revealMap`), then the picker covered it — a one-frame flash of the old map. Fix: a
+  `hideCanvas()` helper (transition-none `opacity:0`) called at the top of `showMainMenu` and `showPicker`,
+  so entering the title/picker instantly hides any stale map; `begin()`→`revealMap()` re-reveals it for the
+  next run. Verified via Playwright: canvas opacity is 0 on the title and 1 during a run.
+
 - **Species prices raised (steeper unlock curve).** Replaced the old `1000·2^rank` doubling
   (1000/2000/4000/8000/16000) with an explicit per-tier map — **`TIER_COST` in `species.js`: L1 1 000 ·
   L3 5 000 · L5 10 000 · L7 25 000 · L10 50 000** — so the top species are a real grind rather than a few
