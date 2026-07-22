@@ -615,7 +615,24 @@
       transition: transform .08s, box-shadow .08s, border-color .08s; }
     .cardbtn.cat-engine, .offercard.cat-engine { --cacc: 226,118,108; --chi: 244,158,148; --cink: #e58a7e; }
     .cardbtn.cat-event,  .offercard.cat-event  { --cacc: 240,166,94;  --chi: 255,200,150; --cink: #f0aa62; }
-    .cardbtn { width: 172px; flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+    /* Desktop hand card: never wider than 172px (today's size), but on SHORT screens it
+       shrinks so the whole hand tray caps at ~40% of the screen height, giving the map more
+       room. The tray = card + ~55px of fixed chrome (filter-chip row + padding), so to hold
+       tray ≤ 40vh we cap card height at 40vh−55px; card_w = card_h·5/7 ⇒ 28.5vh−39px. The
+       172px lock kicks in ~740px tall, so today-sized screens and larger keep full cards and
+       the tray shrinks below 40% there. It's a query container; the internals below are sized
+       in cqw (% of the card's own width) so the whole card scales UNIFORMLY — pixel-identical
+       at 172px, no distortion. */
+    .cardbtn { width: min(172px, calc(28.5vh - 39px)); container-type: inline-size;
+      flex: 0 0 auto; align-self: flex-start; scroll-snap-align: center; }
+    .cardbtn .cart { margin: 3.49cqw 3.49cqw 0;
+      border-radius: 5.81cqw 5.81cqw 17.44cqw 17.44cqw / 5.81cqw 5.81cqw 9.3cqw 9.3cqw; }
+    .cardbtn .pips { top: 6.98cqw; left: 6.98cqw; gap: 2.33cqw; }
+    .cardbtn .cplate { padding: 2.91cqw 5.23cqw 1.16cqw; }
+    .cardbtn .cplate .cn { font-size: 7.85cqw; }
+    .cardbtn .cplate .ct { font-size: 4.65cqw; }
+    .cardbtn .crules { margin: 1.16cqw 4.07cqw 4.65cqw; padding: 2.91cqw 4.65cqw; font-size: 5.81cqw; }
+    .cardbtn .cc { font-size: 5.81cqw; padding: 0.58cqw 2.91cqw; }
     .cardbtn:hover:not(.unaff), .offercard:hover { border-color: rgba(var(--chi),0.85);
       box-shadow: 0 0 14px -1px rgba(var(--cacc),0.7), inset 0 0 0 1px rgba(var(--cacc),0.28), 0 10px 22px -9px rgba(0,0,0,0.85); }
     .offercard:hover { transform: translateY(-3px); }

@@ -510,6 +510,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Desktop hand tray capped at ~40% height on short screens (no card distortion).** On screens shorter
+  than ~740px the whole hand tray was eating too much of the map. The hand card (`.cardbtn`) is now
+  `width: min(172px, calc(28.5vh - 39px))` and a **query container** (`container-type: inline-size`); every
+  internal (`.cart` margin/radius, `.pips`, `.cplate` padding, `.cn`/`.ct`/`.crules`/`.cc` font-sizes) is
+  re-expressed in **cqw** (each = original-px ÷ 1.72), so the whole card scales UNIFORMLY — pixel-identical
+  at 172px, no distortion. The tray = card + ~55px fixed chrome (filter-chip row + padding); capping card
+  height at 40vh−55px ⇒ card_w ≤ 28.5vh−39px, which locks 172px at ~740px tall. Result (Playwright,
+  1200-wide): 620px→tray 40.0% (card 138×193), 720px→40.0% (166×233), 1000px→tray 30% (card locked 172×241,
+  "less, as it is now"); aspect stays 5/7 (0.714) throughout. `container-type: inline-size` does NOT contain
+  the block axis, so `aspect-ratio: 5/7` still drives height. Phone/landscape media queries (max-width 760 /
+  max-height 520) still override with their own widths, unchanged.
+
 - **Title screen: tiny faint captions above Survival New/Old.** "start a new game" above **New**,
   "continue last game" above **Old** (lowercase, ~10px, faint grey). Each button is wrapped in a `.ts-act`
   span so a `.ts-cap` can float absolutely above it (doesn't disturb the 3-col grid or `positionMenu`
