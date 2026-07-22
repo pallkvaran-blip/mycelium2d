@@ -510,6 +510,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Title screen: tiny faint captions above Survival New/Old.** "start a new game" above **New**,
+  "continue last game" above **Old** (lowercase, ~10px, faint grey). Each button is wrapped in a `.ts-act`
+  span so a `.ts-cap` can float absolutely above it (doesn't disturb the 3-col grid or `positionMenu`
+  height math); the grid's `justify-self` end/start was re-applied to the `.ts-act` wrappers. Only the
+  active Survival row; the grayed Campaign row is untouched.
+
 - **Fixed the map "flash" when leaving a run for the picker.** `#titleScreen` has an opaque bg, so while
   it's up the game canvas is hidden — but pressing New/**Old** fades the title's opacity to 0 over ~0.55s,
   which briefly revealed the game `#game` canvas behind it still holding the FINISHED run's map at opacity 1

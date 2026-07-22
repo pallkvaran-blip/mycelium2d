@@ -849,6 +849,13 @@
       column-gap:clamp(20px,4vw,64px); width:min(820px,92vw); margin:0 auto; }
     #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
+    /* Survival New/Old are wrapped in .ts-act so a tiny faint caption can float above each. */
+    #titleScreen .ts-act { position:relative; display:inline-flex; }
+    #titleScreen .ts-actions > .ts-act:first-child { justify-self:end; }
+    #titleScreen .ts-actions > .ts-act:last-child { justify-self:start; }
+    #titleScreen .ts-cap { position:absolute; left:50%; bottom:100%; transform:translateX(-50%); margin-bottom:2px;
+      white-space:nowrap; pointer-events:none; font-size:clamp(8px,1.15vw,11px); letter-spacing:.06em;
+      text-transform:none; font-weight:400; color:rgba(219,233,223,0.30); }
     #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
     /* Campaign in the centre column, CENTRED on the NEW/OLD midline (matching SURVIVAL
        in the top row); "coming soon" is tucked directly beneath it (absolute, so it

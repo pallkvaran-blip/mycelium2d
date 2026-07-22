@@ -29,9 +29,9 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores
     '<div class="ts-menu">' +
       '<div class="ts-block ts-top">' +
         '<div class="ts-actions">' +
-          '<button class="ts-btn" id="tsNew" type="button">New</button>' +
+          '<span class="ts-act"><span class="ts-cap">start a new game</span><button class="ts-btn" id="tsNew" type="button">New</button></span>' +
           '<div class="ts-mode">Survival</div>' +
-          '<button class="ts-btn" id="tsCont" type="button">Old</button>' +
+          '<span class="ts-act"><span class="ts-cap">continue last game</span><button class="ts-btn" id="tsCont" type="button">Old</button></span>' +
         '</div>' +
       '</div>' +
       '<div class="ts-block ts-bottom">' +

@@ -850,6 +850,13 @@
       column-gap:clamp(20px,4vw,64px); width:min(820px,92vw); margin:0 auto; }
     #titleScreen .ts-actions > .ts-btn:first-child { justify-self:end; }
     #titleScreen .ts-actions > .ts-btn:last-child { justify-self:start; }
+    /* Survival New/Old are wrapped in .ts-act so a tiny faint caption can float above each. */
+    #titleScreen .ts-act { position:relative; display:inline-flex; }
+    #titleScreen .ts-actions > .ts-act:first-child { justify-self:end; }
+    #titleScreen .ts-actions > .ts-act:last-child { justify-self:start; }
+    #titleScreen .ts-cap { position:absolute; left:50%; bottom:100%; transform:translateX(-50%); margin-bottom:2px;
+      white-space:nowrap; pointer-events:none; font-size:clamp(8px,1.15vw,11px); letter-spacing:.06em;
+      text-transform:none; font-weight:400; color:rgba(219,233,223,0.30); }
     #titleScreen .ts-actions > .ts-mode, #titleScreen .ts-actions > .ts-modewrap { justify-self:center; }
     /* Campaign in the centre column, CENTRED on the NEW/OLD midline (matching SURVIVAL
        in the top row); "coming soon" is tucked directly beneath it (absolute, so it
@@ -1405,8 +1412,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "zko3hg";
-globalThis.__BUILD__ = "local 07-22 05:23";
+window.__ASSET_VER = "mobzyb";
+globalThis.__BUILD__ = "local 07-22 06:00";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12827,9 +12834,9 @@ function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
     '<div class="ts-menu">' +
       '<div class="ts-block ts-top">' +
         '<div class="ts-actions">' +
-          '<button class="ts-btn" id="tsNew" type="button">New</button>' +
+          '<span class="ts-act"><span class="ts-cap">start a new game</span><button class="ts-btn" id="tsNew" type="button">New</button></span>' +
           '<div class="ts-mode">Survival</div>' +
-          '<button class="ts-btn" id="tsCont" type="button">Old</button>' +
+          '<span class="ts-act"><span class="ts-cap">continue last game</span><button class="ts-btn" id="tsCont" type="button">Old</button></span>' +
         '</div>' +
       '</div>' +
       '<div class="ts-block ts-bottom">' +
