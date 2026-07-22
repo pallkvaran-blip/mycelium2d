@@ -517,6 +517,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dev buttons restored (post-release, for dev on the hosted build).** Reversed the visible-button part
+  of the release-prep pass: the species picker again renders "Dev quick-start" (`#ssDev`) + "Dev: unlock
+  all" (`#ssDevUnlock`) (`species_select.js`), and the in-game "Dev: win level" (`#devWin`,
+  `main.js updateDevWinBtn`) is back to plain `cardsCampaign()` gating (the `config.dev.enabled` gate is
+  gone again). CSS for all three was never removed, so no style changes. Verified via Playwright in the
+  built game: both picker buttons render, quick-start enters a run with `#devWin` showing, and clicking it
+  wins the level (spore payout + reveal overlay). Cards test green; smoke = pre-existing ant-trail FAIL
+  only. REMEMBER for the next itch cut: re-remove these (this entry's inverse — see the release-prep
+  entries below + §Release in CLAUDE.md).
+
 - **Credits button + popup (title screen).** New `render/credits.js` (`showCredits`) + a plain-white
   **"Credits"** text button bottom-right of the title (`.ts-credits`, mirrors the centered `.ts-hs` High
   Scores button; wired via `showTitleScreen({onCredits})` → `main.js`). Opens a B&W popup reusing the
