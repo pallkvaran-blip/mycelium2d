@@ -1399,8 +1399,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1sclgas";
-globalThis.__BUILD__ = "local 07-22 04:56";
+window.__ASSET_VER = "109w4xh";
+globalThis.__BUILD__ = "local 07-22 05:15";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3423,21 +3423,21 @@ function tierLevels() {
   return LOCKED_TIERS.map((t) => levelFromUnlock(t.label)).filter((n) => n).sort((a, b) => a - b);
 }
 
-// Spore price to buy a revealed species: it DOUBLES per unlock tier, starting at
-// UNLOCK_TIER_BASE for the FIRST gated tier (revealed after level 1):
-//   after lvl 1 → 1000, lvl 3 → 2000, lvl 5 → 4000, lvl 7 → 8000, lvl 10 → 16000, …
-// A species' tier RANK is its unlock level's position among the successive tier
-// levels. All species in a tier share that tier's price. Explicit `sp.cost` overrides.
-const UNLOCK_TIER_BASE = 1000;
+// Spore price to buy a revealed species, keyed by the tier's unlock LEVEL:
+//   L1 → 1 000 · L3 → 5 000 · L5 → 10 000 · L7 → 25 000 · L10 → 50 000.
+// All species in a tier share its price; explicit `sp.cost` overrides. An off-tier level
+// falls back to the nearest defined tier at or below it.
+const TIER_COST = { 1: 1000, 3: 5000, 5: 10000, 7: 25000, 10: 50000 };
 function unlockCost(sp) {
   if (!sp || !sp.unlock) return 0;
   if (sp.cost != null) return sp.cost;
   const lvl = levelFromUnlock(sp.unlock);
   if (!lvl) return 0;
-  const levels = tierLevels();
-  let rank = levels.indexOf(lvl);
-  if (rank < 0) rank = levels.filter((l) => l < lvl).length;   // off-tier level → rank by how many tiers precede it
-  return UNLOCK_TIER_BASE * Math.pow(2, rank);
+  if (TIER_COST[lvl] != null) return TIER_COST[lvl];
+  const levels = Object.keys(TIER_COST).map(Number).sort((a, b) => a - b);   // off-tier: nearest tier ≤ lvl
+  let cost = TIER_COST[levels[0]];
+  for (const l of levels) if (l <= lvl) cost = TIER_COST[l];
+  return cost;
 }
 
 // Species pinned to a tier level, in roster (unlock) order. Order matters: the
@@ -3594,7 +3594,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/highscores.js =====================

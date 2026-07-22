@@ -122,16 +122,17 @@ if (_inj && _inj.SPECIES) {
   SPECIES = sp.SPECIES; LOCKED_TIERS = sp.LOCKED_TIERS; CARD_DATA = cd.CARD_DATA; ASSET = '../assets/';
 }
 // unlockCost reimplemented here (mirrors src/species.js) so no runtime import is needed.
-const UNLOCK_TIER_BASE = 1000;
+const TIER_COST = { 1: 1000, 3: 5000, 5: 10000, 7: 25000, 10: 50000 };
 const levelFromUnlock = (label) => { const m = /(\d+)/.exec(label || ''); return m ? +m[1] : null; };
-const tierLevels = () => LOCKED_TIERS.map((t) => levelFromUnlock(t.label)).filter((n) => n).sort((a, b) => a - b);
 function unlockCost(sp) {
   if (!sp || !sp.unlock) return 0;
   if (sp.cost != null) return sp.cost;
   const lvl = levelFromUnlock(sp.unlock); if (!lvl) return 0;
-  const levels = tierLevels(); let rank = levels.indexOf(lvl);
-  if (rank < 0) rank = levels.filter((l) => l < lvl).length;
-  return UNLOCK_TIER_BASE * Math.pow(2, rank);
+  if (TIER_COST[lvl] != null) return TIER_COST[lvl];
+  const levels = Object.keys(TIER_COST).map(Number).sort((a, b) => a - b);
+  let cost = TIER_COST[levels[0]];
+  for (const l of levels) if (l <= lvl) cost = TIER_COST[l];
+  return cost;
 }
 
 const KEY = 'mycelium.speciesEditor.v1';

@@ -510,6 +510,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Species prices raised (steeper unlock curve).** Replaced the old `1000·2^rank` doubling
+  (1000/2000/4000/8000/16000) with an explicit per-tier map — **`TIER_COST` in `species.js`: L1 1 000 ·
+  L3 5 000 · L5 10 000 · L7 25 000 · L10 50 000** — so the top species are a real grind rather than a few
+  runs. `unlockCost` now looks up `TIER_COST[unlockLevel]` (explicit `sp.cost` still overrides; off-tier
+  levels fall back to the nearest tier ≤ level). Mirrored in `docs/species-editor.html`'s reimplementation.
+  For reference, a run that reaches level 7 banks ≈ 2 450 Spores (clears 1–6 = 2 100, die on 7 = +350), so
+  at that rate: L1 ≈ 1 run · L3 ≈ 2 · L5 ≈ 5 · L7 ≈ 11 · L10 ≈ 21 (and the L7/L10 tiers additionally require
+  actually *clearing* levels 7/10 to reveal, not just reaching them). `UNLOCK_TIER_BASE`/`tierLevels`-rank
+  logic removed from the cost path.
+
 - **High-score name entry moved INLINE into the run-over card (no separate popup).** The qualifying-run name
   entry is now a section inside `ui.showOverlay` (the "Your run has ended" card) instead of its own overlay:
   "You reached level N as X — a top 10 run." + a name input + a **Save** button. Pressing **Save** records
