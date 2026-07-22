@@ -39,6 +39,49 @@
       animation: ldPulse 1.9s ease-in-out infinite; }
     @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 
+    /* High scores — plain black & white (leaderboard + name-entry). */
+    #titleScreen .ts-hs { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 6;
+      font: 600 12px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+      color: #fff; background: #000; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 8px 16px;
+      cursor: pointer; opacity: .82; -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-hs:hover { opacity: 1; background: #151515; border-color: #fff; }
+    #hsOverlay.hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent; }
+    .hs-card { position: relative; width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #000; border: 1px solid #fff; border-radius: 14px; padding: 26px 22px 22px; text-align: center; }
+    .hs-close { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 999px;
+      background: #000; border: 1px solid #fff; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+    .hs-close:hover { background: #1a1a1a; }
+    .hs-title { margin: 0 0 4px; font-size: 20px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .hs-sub { margin: 6px 0 14px; font-size: 13px; color: #cfcfcf; }
+    .hs-tabs { display: flex; gap: 8px; justify-content: center; margin: 14px 0 16px; }
+    .hs-tab { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      padding: 7px 14px; border-radius: 999px; background: #000; border: 1px solid rgba(255,255,255,.4); color: #bdbdbd; cursor: pointer; }
+    .hs-tab.hs-on { background: #fff; color: #000; border-color: #fff; }
+    .hs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hs-table th { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #8f8f8f; font-weight: 700;
+      text-align: left; padding: 0 8px 8px; border-bottom: 1px solid rgba(255,255,255,.25); }
+    .hs-table th:first-child { width: 26px; }
+    .hs-table th:nth-child(3) { text-align: right; }
+    .hs-row td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.08); text-align: left; vertical-align: middle; }
+    .hs-rank { color: #8f8f8f; font-variant-numeric: tabular-nums; }
+    .hs-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    .hs-lvl { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .hs-sp { color: #cfcfcf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+    .hs-row.hs-hi td { background: #fff; color: #000; }
+    .hs-row.hs-hi .hs-rank, .hs-row.hs-hi .hs-sp { color: #333; }
+    .hs-empty { padding: 26px 0; color: #8f8f8f; font-size: 13px; }
+    .hs-entry { display: flex; gap: 8px; justify-content: center; margin: 6px 0 4px; }
+    .hs-input { flex: 1 1 auto; max-width: 240px; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 10px;
+      background: #000; border: 1px solid #fff; color: #fff; text-align: center; }
+    .hs-input::placeholder { color: #777; }
+    .hs-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 18px; border-radius: 10px;
+      background: #fff; color: #000; border: 1px solid #fff; cursor: pointer; }
+    .hs-btn:hover { background: #e6e6e6; }
+    .hs-cont { display: block; width: 100%; margin-top: 16px; }
+
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
       border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px);
       box-shadow: 0 6px 24px rgba(0,0,0,0.4); }

@@ -510,6 +510,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **High scores — local WEEKLY + ALL-TIME top 10 (`highscores.js` + `render/highscores.js`).** A run's score
+  is the campaign LEVEL it reached; on death, if it cracks the top 10 of EITHER board the player is prompted
+  for a name (before the run-over card), then sees the board with their fresh row highlighted. A small plain
+  B&W **"High Scores"** button sits centred at the bottom of the title screen (`title_screen.js` new
+  `onHighScores`; wired in `main.js showMainMenu`). Boards show **rank · name · level · species**.
+  - **Storage is per-device** (`localStorage` key `mycelium.highscores.v1`) — this is a static browser game
+    with **no backend**, so there's no shared/global leaderboard; this is the local foundation for one.
+    `qualifies(level)` = would place in weekly (rolling 7-day) OR all-time top 10; `recordScore()` prunes to
+    last-week ∪ all-time-top-60 so storage stays bounded. Data layer has no DOM (unit-tested in node).
+  - `main.js finish()` (death path only, `cardsCampaign() && r.died && chosenSpecies`) calls
+    `promptHighScoreEntry({level, species, speciesName, onDone: ()=>ui.showOverlay(r)})`; dev/testall runs
+    (no `chosenSpecies`) don't score. Overlays namespaced `#hsOverlay`/`.hs-*`, plain B&W (index.html CSS).
+  - **GOTCHA (cost me a boot-breaking bundle):** `build.mjs`'s import stripper does NOT support aliased
+    imports — `import { x as y }` leaks `as` into the bundle and throws "Unexpected identifier 'as'". Use a
+    plain `import { x }`. Both new modules were added to the `build.mjs` file list. Verified end-to-end via
+    Playwright: title button → empty board; death → name prompt → save → highlighted row → Continue →
+    run-over card; entry persists with the right species. Cards 61/0; smoke 100/1 (pre-existing ant-trail).
+
 - **Dev buttons: removed for the itch release build, then restored for continued dev.** An itch HTML build
   was packaged with the visible dev affordances stripped — the species-picker "Dev quick-start" (`#ssDev`) /
   "Dev: unlock all" (`#ssDevUnlock`) and the in-game "Dev: win level" (`#devWin`). That removal was then

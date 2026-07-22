@@ -24,6 +24,7 @@ const MODULES = [
   'src/config.js',
   'src/cards-data.js',
   'src/species.js',
+  'src/highscores.js',
   'src/engine/rng.js',
   'src/engine/substrate.js',
   'src/engine/network.js',
@@ -51,6 +52,7 @@ const MODULES = [
   'src/render/tutorial.js',
   'src/render/level_intro.js',
   'src/render/loading.js',
+  'src/render/highscores.js',
   'src/main.js',
 ];
 

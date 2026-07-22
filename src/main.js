@@ -28,6 +28,8 @@ import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImage
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
 import { showLoading } from './render/loading.js';
+import { qualifies } from './highscores.js';
+import { showHighScores, promptHighScoreEntry } from './render/highscores.js';
 import { CARD_DATA } from './cards-data.js';
 
 const canvas = document.getElementById('game');
@@ -302,6 +304,16 @@ function presentRunOver() {
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
+    // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
+    // top 10, prompt for a name (records it) before the run-over card. Only real species
+    // runs score (dev/testall runs have no chosenSpecies).
+    if (cardsCampaign() && r.died && chosenSpecies && qualifies(currentLevel)) {
+      promptHighScoreEntry({
+        level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name,
+        onDone: () => ui.showOverlay(r),
+      });
+      return;
+    }
     ui.showOverlay(r);
   };
   // A WIN in card mode earns the fruiting celebration on the RIGHT goal meadow; a campaign
@@ -539,6 +551,7 @@ function showMainMenu() {
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
+    onHighScores: () => showHighScores({}),
   });
 }
 

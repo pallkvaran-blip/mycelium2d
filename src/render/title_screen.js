@@ -20,7 +20,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-export function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
+export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -55,6 +55,13 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
       'color:#e6b45c; background:rgba(24,26,18,0.7); border:1px dashed rgba(230,180,92,0.6);' +
       'border-radius:8px; padding:7px 12px; cursor:pointer; letter-spacing:.02em; backdrop-filter:blur(4px);';
     root.appendChild(devBtn);
+  }
+
+  // Small, plain B&W "High Scores" button centred at the very bottom of the title.
+  if (onHighScores) {
+    const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
+    root.appendChild(hsBtn);
+    hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
   }
 
   const canvas = root.querySelector('#tsCanvas');

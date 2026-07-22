@@ -34,6 +34,49 @@
       animation: ldPulse 1.9s ease-in-out infinite; }
     @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 
+    /* High scores — plain black & white (leaderboard + name-entry). */
+    #titleScreen .ts-hs { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 6;
+      font: 600 12px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+      color: #fff; background: #000; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; padding: 8px 16px;
+      cursor: pointer; opacity: .82; -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-hs:hover { opacity: 1; background: #151515; border-color: #fff; }
+    #hsOverlay.hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent; }
+    .hs-card { position: relative; width: min(440px, 94vw); max-height: 90vh; overflow-y: auto;
+      background: #000; border: 1px solid #fff; border-radius: 14px; padding: 26px 22px 22px; text-align: center; }
+    .hs-close { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border-radius: 999px;
+      background: #000; border: 1px solid #fff; color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+    .hs-close:hover { background: #1a1a1a; }
+    .hs-title { margin: 0 0 4px; font-size: 20px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .hs-sub { margin: 6px 0 14px; font-size: 13px; color: #cfcfcf; }
+    .hs-tabs { display: flex; gap: 8px; justify-content: center; margin: 14px 0 16px; }
+    .hs-tab { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      padding: 7px 14px; border-radius: 999px; background: #000; border: 1px solid rgba(255,255,255,.4); color: #bdbdbd; cursor: pointer; }
+    .hs-tab.hs-on { background: #fff; color: #000; border-color: #fff; }
+    .hs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hs-table th { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #8f8f8f; font-weight: 700;
+      text-align: left; padding: 0 8px 8px; border-bottom: 1px solid rgba(255,255,255,.25); }
+    .hs-table th:first-child { width: 26px; }
+    .hs-table th:nth-child(3) { text-align: right; }
+    .hs-row td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.08); text-align: left; vertical-align: middle; }
+    .hs-rank { color: #8f8f8f; font-variant-numeric: tabular-nums; }
+    .hs-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+    .hs-lvl { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .hs-sp { color: #cfcfcf; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+    .hs-row.hs-hi td { background: #fff; color: #000; }
+    .hs-row.hs-hi .hs-rank, .hs-row.hs-hi .hs-sp { color: #333; }
+    .hs-empty { padding: 26px 0; color: #8f8f8f; font-size: 13px; }
+    .hs-entry { display: flex; gap: 8px; justify-content: center; margin: 6px 0 4px; }
+    .hs-input { flex: 1 1 auto; max-width: 240px; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 10px;
+      background: #000; border: 1px solid #fff; color: #fff; text-align: center; }
+    .hs-input::placeholder { color: #777; }
+    .hs-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 18px; border-radius: 10px;
+      background: #fff; color: #000; border: 1px solid #fff; cursor: pointer; }
+    .hs-btn:hover { background: #e6e6e6; }
+    .hs-cont { display: block; width: 100%; margin-top: 16px; }
+
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
       border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px);
       box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
@@ -1354,8 +1397,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "19842oo";
-globalThis.__BUILD__ = "local 07-21 12:24";
+window.__ASSET_VER = "6s3uid";
+globalThis.__BUILD__ = "local 07-22 04:10";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3550,6 +3593,79 @@ function newlyRevealedByClear(level, progressBefore) {
 }
 
   return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, UNLOCK_TIER_BASE, unlockCost, tierSpecies, loadProgress, saveProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+})();
+
+// ===================== src/highscores.js =====================
+const __m_highscores = (function () {
+// =============================================================================
+// High scores — local (per-device) top-10 boards, WEEKLY + ALL-TIME.
+//
+// A run's score is the campaign LEVEL it reached before being overrun. Scores are
+// kept in localStorage as a flat list of {name, level, species, speciesName, ts};
+// the two boards are derived on read:
+//   • ALL-TIME — the best 10 levels ever recorded on this device.
+//   • WEEKLY   — the best 10 from the last 7 days (rolling window).
+// A run QUALIFIES for name entry if it would place in the top 10 of EITHER board.
+//
+// NOTE: this is a static browser game with no backend, so scores are per-device —
+// each player sees their own machine's board. A shared/global leaderboard would
+// need a server; this file is the local foundation for that.
+// =============================================================================
+
+const KEY = 'mycelium.highscores.v1';
+const MAX = 10;                       // top-N per board
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const RETAIN = 60;                    // cap stored entries: last week + all-time top RETAIN
+
+function now() { return Date.now(); }
+
+function loadScores() {
+  try { const p = JSON.parse(localStorage.getItem(KEY)); return (p && Array.isArray(p.entries)) ? p.entries : []; }
+  catch (_) { return []; }
+}
+function saveScores(entries) {
+  try { localStorage.setItem(KEY, JSON.stringify({ entries })); } catch (_) {}
+}
+
+// Highest level first; on a tie the EARLIER run ranks above (you got there first).
+function ranked(list) { return list.slice().sort((a, b) => (b.level - a.level) || (a.ts - b.ts)); }
+
+function allTimeBoard() { return ranked(loadScores()).slice(0, MAX); }
+function weeklyBoard(t) {
+  const cut = (t || now()) - WEEK_MS;
+  return ranked(loadScores().filter((e) => e.ts >= cut)).slice(0, MAX);
+}
+
+// A board has room (< 10) → any score gets in; otherwise you must BEAT its lowest.
+function makesBoard(board, level) { return board.length < MAX || level > board[board.length - 1].level; }
+
+// True if `level` would place in the top 10 of the weekly OR all-time board.
+function qualifies(level, t) {
+  const lvl = level | 0;
+  return makesBoard(weeklyBoard(t), lvl) || makesBoard(allTimeBoard(), lvl);
+}
+
+// Record a finished run. Returns the new boards (+ the entry's ts, for highlighting).
+function recordScore({ name, level, species, speciesName }) {
+  const ts = now();
+  const entry = {
+    name: (String(name || '').trim() || 'Anon').slice(0, 14),
+    level: level | 0,
+    species: species || '',
+    speciesName: speciesName || '',
+    ts,
+  };
+  const entries = loadScores();
+  entries.push(entry);
+  // Prune so storage stays bounded: keep everything from the last week (for the weekly
+  // board) PLUS the all-time top RETAIN (so an old record is never lost).
+  const cut = ts - WEEK_MS;
+  const keepTop = new Set(ranked(entries).slice(0, RETAIN));
+  saveScores(entries.filter((e) => e.ts >= cut || keepTop.has(e)));
+  return { ts, weekly: weeklyBoard(ts), allTime: allTimeBoard() };
+}
+
+  return { loadScores, allTimeBoard, weeklyBoard, qualifies, recordScore };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -12589,7 +12705,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
+function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -12624,6 +12740,13 @@ function showTitleScreen({ onNew, onContinue, onDevTutorial }) {
       'color:#e6b45c; background:rgba(24,26,18,0.7); border:1px dashed rgba(230,180,92,0.6);' +
       'border-radius:8px; padding:7px 12px; cursor:pointer; letter-spacing:.02em; backdrop-filter:blur(4px);';
     root.appendChild(devBtn);
+  }
+
+  // Small, plain B&W "High Scores" button centred at the very bottom of the title.
+  if (onHighScores) {
+    const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
+    root.appendChild(hsBtn);
+    hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
   }
 
   const canvas = root.querySelector('#tsCanvas');
@@ -13565,6 +13688,117 @@ function showLoading() {
   return { showLoading };
 })();
 
+// ===================== src/render/highscores.js =====================
+const __m_render_highscores = (function () {
+  const { weeklyBoard, allTimeBoard, recordScore } = __m_highscores;
+// =============================================================================
+// High-scores overlays (plain black & white). Namespaced #hsOverlay / .hs-*.
+//
+//   showHighScores({onClose})            — the leaderboard (Weekly / All-Time tabs,
+//                                          top 10 each: rank · name · level · species).
+//   promptHighScoreEntry({level, species,
+//     speciesName, onDone})              — shown at run end when the run cracks the top
+//                                          10: enter a name → records it → shows the
+//                                          board with your fresh row highlighted → Continue.
+// =============================================================================
+
+
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// A top-10 table for one board; `hi` (a ts) highlights the just-added row.
+function boardTable(entries, hi) {
+  if (!entries.length) return '<div class="hs-empty">No scores yet — be the first.</div>';
+  let rows = '';
+  entries.forEach((e, i) => {
+    const on = (hi && e.ts === hi) ? ' hs-hi' : '';
+    rows += '<tr class="hs-row' + on + '">' +
+      '<td class="hs-rank">' + (i + 1) + '</td>' +
+      '<td class="hs-name">' + esc(e.name) + '</td>' +
+      '<td class="hs-lvl">' + (e.level | 0) + '</td>' +
+      '<td class="hs-sp">' + esc(e.speciesName || '—') + '</td>' +
+    '</tr>';
+  });
+  return '<table class="hs-table"><thead><tr><th></th><th>Name</th><th>Lvl</th><th>Species</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+}
+
+// The leaderboard overlay (title-screen "High Scores" button).
+function showHighScores({ onClose } = {}) {
+  const root = el('div', 'hs-wrap'); root.id = 'hsOverlay';
+  root.innerHTML =
+    '<div class="hs-card" role="dialog" aria-label="High scores">' +
+      '<button class="hs-close" id="hsClose" type="button" aria-label="Close">✕</button>' +
+      '<h2 class="hs-title">High Scores</h2>' +
+      '<div class="hs-tabs">' +
+        '<button class="hs-tab hs-on" id="hsTabWeek" type="button">Weekly</button>' +
+        '<button class="hs-tab" id="hsTabAll" type="button">All-Time</button>' +
+      '</div>' +
+      '<div class="hs-board" id="hsBoard"></div>' +
+    '</div>';
+  document.body.appendChild(root);
+  const boardEl = root.querySelector('#hsBoard');
+  const tabW = root.querySelector('#hsTabWeek'), tabA = root.querySelector('#hsTabAll');
+  function show(which) {
+    tabW.classList.toggle('hs-on', which === 'week');
+    tabA.classList.toggle('hs-on', which === 'all');
+    boardEl.innerHTML = boardTable(which === 'week' ? weeklyBoard() : allTimeBoard());
+  }
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  function close() { document.removeEventListener('keydown', onKey); root.remove(); onClose && onClose(); }
+  tabW.onclick = () => show('week');
+  tabA.onclick = () => show('all');
+  root.querySelector('#hsClose').onclick = close;
+  root.addEventListener('click', (e) => { if (e.target === root) close(); });
+  document.addEventListener('keydown', onKey);
+  show('week');
+  return { close, root };
+}
+
+// Run cracked the top 10 → collect a name, record the score, then show the board with the
+// new row highlighted and a Continue that fires onDone (proceeds to the run-over card).
+function promptHighScoreEntry({ level, species, speciesName, onDone } = {}) {
+  const root = el('div', 'hs-wrap'); root.id = 'hsOverlay';
+  root.innerHTML =
+    '<div class="hs-card" role="dialog" aria-label="New high score">' +
+      '<h2 class="hs-title" id="hsHead">Top 10!</h2>' +
+      '<p class="hs-sub" id="hsSub">You reached <b>level ' + (level | 0) + '</b>' +
+        (speciesName ? (' as <b>' + esc(speciesName) + '</b>') : '') + '.</p>' +
+      '<div class="hs-entry" id="hsEntry">' +
+        '<input class="hs-input" id="hsName" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">' +
+        '<button class="hs-btn" id="hsSave" type="button">Save</button>' +
+      '</div>' +
+      '<div class="hs-board" id="hsBoard" style="display:none"></div>' +
+      '<button class="hs-btn hs-cont" id="hsCont" type="button" style="display:none">Continue</button>' +
+    '</div>';
+  document.body.appendChild(root);
+  const input = root.querySelector('#hsName');
+  const done = () => { root.remove(); onDone && onDone(); };
+  let saved = false;
+  function save() {
+    if (saved) return; saved = true;
+    const { ts } = recordScore({ name: input.value, level, species, speciesName });
+    root.querySelector('#hsHead').textContent = 'You made the board';
+    root.querySelector('#hsSub').style.display = 'none';
+    root.querySelector('#hsEntry').style.display = 'none';
+    // Show whichever board holds the fresh entry (weekly usually; all-time if it only
+    // placed there), with its row highlighted.
+    const wk = weeklyBoard();
+    const list = wk.some((e) => e.ts === ts) ? wk : allTimeBoard();
+    const boardEl = root.querySelector('#hsBoard');
+    boardEl.innerHTML = boardTable(list, ts);
+    boardEl.style.display = '';
+    const cont = root.querySelector('#hsCont'); cont.style.display = ''; cont.onclick = done;
+  }
+  root.querySelector('#hsSave').onclick = save;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  setTimeout(() => { try { input.focus(); } catch (_) {} }, 50);
+  return { root };
+}
+
+  return { showHighScores, promptHighScoreEntry };
+})();
+
 // ===================== src/main.js =====================
 const __m_main = (function () {
   const { CONFIG } = __m_config;
@@ -13588,6 +13822,8 @@ const __m_main = (function () {
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
   const { showLoading } = __m_render_loading;
+  const { qualifies } = __m_highscores;
+  const { showHighScores, promptHighScoreEntry } = __m_render_highscores;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
 // main.js — wiring (A9).
@@ -13871,6 +14107,16 @@ function presentRunOver() {
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
+    // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
+    // top 10, prompt for a name (records it) before the run-over card. Only real species
+    // runs score (dev/testall runs have no chosenSpecies).
+    if (cardsCampaign() && r.died && chosenSpecies && qualifies(currentLevel)) {
+      promptHighScoreEntry({
+        level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name,
+        onDone: () => ui.showOverlay(r),
+      });
+      return;
+    }
     ui.showOverlay(r);
   };
   // A WIN in card mode earns the fruiting celebration on the RIGHT goal meadow; a campaign
@@ -14108,6 +14354,7 @@ function showMainMenu() {
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
     onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
+    onHighScores: () => showHighScores({}),
   });
 }
 

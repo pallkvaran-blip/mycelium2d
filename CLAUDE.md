@@ -39,6 +39,8 @@ node --test test/               # smoke + card tests
   2–3, never 4 (times out); spawn the `http.server` in the SAME node process as the run.
 - **New `src/*.js` module → add it to the `build.mjs` file list** (the explicit array near the
   top) or it won't be bundled and the game breaks on the missing symbol.
+- **No aliased imports.** `build.mjs`'s import stripper doesn't handle `import { x as y }` — the
+  `as` leaks into the bundle and throws "Unexpected identifier 'as'". Use plain `import { x }`.
 - **Boot = loading screen (`render/loading.js`).** All art is fetched + `img.decode()`'d up front
   (`loadAssets` onProgress + `preloadImages`) behind a "%"→"Click" overlay; the menu is deferred to that
   click (`main.js enterGame()`), which also unlocks audio. Card-face urls carry the deploy `?v=` query in
