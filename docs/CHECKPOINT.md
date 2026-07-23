@@ -517,6 +517,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep: Dev buttons removed again + fresh itch zip.** Reversed the "Dev buttons RE-ENABLED" entry
+  below: set `config.dev.enabled: false` and removed the species-picker `#ssDev`/`#ssDevUnlock` buttons +
+  listeners from `species_select.js`. This re-hides the cheats/sliders panel, "Dev: win level", and the
+  picker quick-start/unlock-all (title "Dev: tutorial" was never wired). Invisible `window.__game` hook kept
+  for tests. Verified release-clean via `scratchpad/verify-nodev.mjs`; zip = `dist/index.html` (as
+  `index.html`) + `dist/assets/` at the root, ~22 MB. This build carries the Artist's Conk⇄Earthball swap +
+  the Earthball refund migration + the death-cause tracking.
 - **Roster: Artist's Conk ⇄ Common Earthball tier swap — Artist's Conk is now the #3 first-reveal (L1).**
   Owner wants a new player to have "something exciting to work towards right away", so **Artist's Conk**
   (the memory colony) moved from L5 to **L1**, taking the #3 picker slot (first-revealed on the first
