@@ -146,9 +146,9 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
-    // Which campaign level this colony begins on. Fixed for most species; the memory
-    // colonies (Split Gill 2–5, Artist's Conk 3–10) get a "Lvl: X" stepper the player
-    // dials in right next to Start game. onStart carries the chosen level to onPick.
+    // Which campaign level this colony begins on. Fixed for most species; an adjustable-start
+    // colony (Split Gill, 3–10) gets a "Lvl: X" stepper the player dials in right next to
+    // Start game. onStart carries the chosen level to onPick.
     const range = startLevelRange(species);
     let lvl = defaultStartLevel(species);
     const stepper = range.adjustable

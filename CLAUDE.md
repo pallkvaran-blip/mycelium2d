@@ -76,12 +76,14 @@ node --test test/               # smoke + card tests
 
 - Full through level 10 (11 species). Picker order = **unlock tier, then within-tier
   array order** (raw cross-tier array order is irrelevant to display). Current order:
-  Fairy Ring Champignon · Honey Fungus · Common Earthball (L1) · Oyster (L1) · Slippery
-  Jack (L3) · Bleeding Tooth (L3) · Wine Cap (L5) · Artist's Conk (L5) · Violet Webcap (L7)
+  Fairy Ring Champignon · Honey Fungus · **Artist's Conk (L1)** · Oyster (L1) · Slippery
+  Jack (L3) · Bleeding Tooth (L3) · Wine Cap (L5) · **Earthball (L5)** · Violet Webcap (L7)
   · Dry Rot (L7) · **Split Gill (L10)**. Split Gill + Artist's Conk are **memory species**
-  (`memory:true`, curated hand from last run's drafts). **Split Gill is now the top-tier L10
-  prize** (`memPick:15` + `memEngines:2` engine cap); Artist's Conk is the simpler L5 memory
-  colony (default 8-card pick, no engine cap) — their tiers/hands/resources were swapped.
+  (`memory:true`, curated hand from last run's drafts). **Split Gill is the top-tier L10
+  prize** (`memPick:15` + `memEngines:2` engine cap); **Artist's Conk is now the L1 FIRST-REVEAL
+  memory colony** (default 8-card pick, no engine cap, fixed level-1 start) — deliberately the
+  first thing a new player unlocks, as an early "something exciting to work towards". Its old L5
+  slot went to **Earthball** (renamed from "Common Earthball"), now an L5 fixed-start species.
 - All 11 species portraits are **real, CC-licensed photos** (`assets/species/<img>.jpg`, 560×720) from a
   MIX of sources — iNaturalist, **Wikimedia Commons** (Fairy Ring Champignon = Thomas Pruß, CC BY-SA 3.0),
   and **Flickr** (Honey Fungus = stu7009, CC BY-SA 2.0) — credited in the title-screen Credits popup

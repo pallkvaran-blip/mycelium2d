@@ -38,16 +38,12 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 1',
-    name: 'Common Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
-    blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
-    res: { energy: 0, water: 35, phosphorus: 6 },
+    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 1', memory: true,
+    name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
+    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. This colony learns: it lets you <b>hand-pick cards you drafted during your last run</b>. Be warned: your first run may be a little rough.',
+    res: { energy: 10, water: 35, phosphorus: 0 },
     hand: [
-      { name: 'Sclerotial Crust', count: 2 },
-      { name: 'Amputate', count: 2 },
-      { name: 'Apical Drive', count: 7 },
-      { name: 'Hyphal Extension', count: 5 },
-      { name: 'Acorn Cache', count: 3 },
+      { name: 'Apical Drive', count: 5 },
     ],
   },
   {
@@ -139,13 +135,17 @@ export const SPECIES = [
     ],
   },
   {
-    id: 'ganoderma', vibe: 'cool', unlock: 'Complete level 5', memory: true, startLevelMin: 2, startLevelMax: 5,
-    name: "Artist's Conk", latin: 'Ganoderma applanatum', img: 'ganoderma-applanatum',
-    blurb: 'A woody perennial bracket that lives for years on end, laying down a fresh layer of spore-tubes every season — so its whole body becomes a stacked <b>archive of seasons past</b>. Its chalk-white underside bruises dark at the faintest touch and keeps the mark forever, which is why foragers etch drawings into it: a fungus that literally <b>remembers</b>. This colony learns: it lets you <b>hand-pick cards you drafted during your last run</b>. Be warned: your first run may be a little rough.',
-    res: { energy: 10, water: 37, phosphorus: 6 },
+    id: 'scleroderma', vibe: 'spore', unlock: 'Complete level 5',
+    name: 'Earthball', latin: 'Scleroderma citrinum', img: 'scleroderma-citrinum',
+    blurb: 'A tough, chemically defended fungus whose name means <b>"hard skin"</b> — it seals itself inside a thick, warty, leathery rind and holds ground instead of racing for it. It walls off and severs any tissue that rot or grazers reach, so infection never spreads. Where other colonies spend everything on speed, the earthball digs in: slow, armoured and stubborn.',
+    res: { energy: 15, water: 35, phosphorus: 12 },
     hand: [
+      { name: 'Sclerotial Crust', count: 2 },
+      { name: 'Amputate', count: 2 },
+      { name: 'Apical Drive', count: 7 },
       { name: 'Aquaporin Channels', count: 1 },
-      { name: 'Apical Drive', count: 5 },
+      { name: 'Rhizomorph Lance', count: 12 },
+      { name: 'Melanized Wall', count: 1 },
     ],
   },
 ];
@@ -222,8 +222,8 @@ export function levelFromUnlock(label) {
 // early grind: a fixed-start species opens on its unlock level (ungated → level 1).
 // A "choose your start" species (the memory colonies) instead exposes a range
 // [startLevelMin, startLevelMax] the player dials in next to the Start button.
-//   Slippery Jack / Bleeding Tooth → 3 · Wine Cap → 5 · Violet Webcap / Dry Rot → 7
-//   Split Gill → adjustable 2–5 · Artist's Conk → adjustable 3–10
+//   Slippery Jack / Bleeding Tooth → 3 · Wine Cap / Earthball → 5 · Violet Webcap / Dry Rot → 7
+//   Split Gill → adjustable 3–10 · Artist's Conk → fixed level 1 (memory colony, first reveal)
 // Returns { min, max, adjustable }.
 export function startLevelRange(sp) {
   if (sp && sp.startLevelMin != null && sp.startLevelMax != null) {

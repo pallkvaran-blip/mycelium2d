@@ -517,6 +517,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Roster: Artist's Conk ⇄ Common Earthball tier swap — Artist's Conk is now the #3 first-reveal (L1).**
+  Owner wants a new player to have "something exciting to work towards right away", so **Artist's Conk**
+  (the memory colony) moved from L5 to **L1**, taking the #3 picker slot (first-revealed on the first
+  level-1 clear). It stays `memory: true` (default 8-pick, no engine cap) but is now a **fixed level-1
+  start** (removed `startLevelMin/Max`, so no "Lvl:" stepper). Its hand dropped **Aquaporin Channels**
+  (now just Apical Drive ×5) and its starting **Phosphorus 6→0**, **Water 37→35** (Energy 10 kept).
+  **Common Earthball → renamed "Earthball"**, moved into Artist's Conk's old **L5** slot (#8, `unlock:
+  'Complete level 5'`). Its hand dropped **Hyphal Extension + Acorn Cache** and gained **Rhizomorph Lance
+  ×12, Aquaporin Channels ×1, Melanized Wall ×1** (kept Sclerotial Crust ×2 / Amputate ×2 / Apical Drive
+  ×7); resources **Energy 0→15, Phosphorus 6→12** (Water 35 kept). Implemented as an **in-place block swap**
+  in `species.js` (each species took the other's array slot), so within-tier order + reveal staggering fall
+  out correctly with no other species touched. Spore costs follow tier: Artist's Conk L1 = 1 000, Earthball
+  L5 = 10 000. Verified: `scratchpad/verify-roster.mjs` (data/order/reveal) + `scratchpad/verify-picker-ui.mjs`
+  (built game: picker order #1–#11, both detail views, Earthball seeds a L5 run with the new deck). NB the
+  Earthball blurb still reads "holds ground instead of racing" while its new hand is more aggressive
+  (12 lances) — left as-is; revisit if it grates.
 - **Dev buttons RE-ENABLED for owner testing (NOT release-clean — strip before the next itch cut).** Reversed
   the ee5977b release removal: restored the species-picker "Dev quick-start" (`#ssDev`) + "Dev: unlock all"
   (`#ssDevUnlock`) in `species_select.js`, and set `config.dev.enabled: true` — which brings back BOTH the
