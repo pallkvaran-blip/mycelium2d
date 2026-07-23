@@ -315,7 +315,7 @@ function deathText(cause) {
   };
   const title = titles[cause] || 'Your run has ended';
   const sub = cause === 'abandon'
-    ? 'You ended the run before reaching the goal, sporing before reaching the east.'
+    ? 'You ended the run, sporing before reaching the east.'
     : 'Your colony was forced to fruit and spore before reaching the east.';
   return { title, sub };
 }

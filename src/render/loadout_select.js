@@ -93,7 +93,7 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
   const caroPool = '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
     '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>';
   const midBlock = poolTop
-    ? '<div class="lo-mid"><span class="lo-count lo-count-big" id="loCount"></span></div>'
+    ? '<div class="lo-mid lo-mid-death"><span class="lo-count lo-count-big" id="loCount"></span></div>'
     : '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span><span class="lo-count" id="loCount"></span></div>';
   const actionsBlock = '<div class="lo-actions">' +
     (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +

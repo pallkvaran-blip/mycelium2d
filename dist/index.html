@@ -1390,8 +1390,10 @@
     .lo-h-spores .spore-ic { width:17px; height:17px; flex:0 0 auto; filter:brightness(0) invert(1); }
     .lo-h-instr { margin:14px auto 0; max-width:620px; font-size:clamp(14px,2.1vw,17px); font-weight:700; color:#eaf4ee; }
     .lo-h-note { font-weight:600; color:#8fb3a4; font-size:0.85em; white-space:nowrap; }
-    /* bigger count for the death carry ("0 / 3") */
+    /* bigger count for the death carry ("0 / 3"), dropped down to sit centered in the gap
+       between the two carousel frames (the picks carousel's label sits below it). */
     .lo-count-big { font-size:clamp(18px,3vw,24px); }
+    .lo-mid-death { margin:20px 0 4px; }
 
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each
@@ -1464,8 +1466,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1eqyyvc";
-globalThis.__BUILD__ = "local 07-23 20:40";
+window.__ASSET_VER = "kkiazv";
+globalThis.__BUILD__ = "local 07-23 20:59";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12059,9 +12061,10 @@ function summarizeEngines(engines) {
       if (cad > 1) g.cad += amt; else g.steady += amt;
       const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), raw: e.name, amt: 0, n: 0, cad, left: cad };
       row.amt += amt; row.n += 1;
-      // Rounds until this producer next fires (soonest across any duplicates).
-      // `_et` counts ticks since its last payout, so `cad - _et` rounds remain.
-      if (cad > 1) row.left = Math.min(row.left, cad - (e._et || 0));
+      // Cadence lights. Most producers count DOWN (rounds remaining until payout = `cad - _et`,
+      // soonest across duplicates). The Aquifer Tap counts UP instead — the lights FILL as it
+      // charges, so touching one water source shows 1 light next round, not `cad - 1`.
+      if (cad > 1) row.left = e._waterSource ? (e._et || 0) : Math.min(row.left, cad - (e._et || 0));
       g.rows.set(key, row);
     } else if (e.digEvery) {
       out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });
@@ -12856,7 +12859,7 @@ function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEn
   const caroPool = '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
     '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>';
   const midBlock = poolTop
-    ? '<div class="lo-mid"><span class="lo-count lo-count-big" id="loCount"></span></div>'
+    ? '<div class="lo-mid lo-mid-death"><span class="lo-count lo-count-big" id="loCount"></span></div>'
     : '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span><span class="lo-count" id="loCount"></span></div>';
   const actionsBlock = '<div class="lo-actions">' +
     (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
@@ -14521,7 +14524,7 @@ function deathText(cause) {
   };
   const title = titles[cause] || 'Your run has ended';
   const sub = cause === 'abandon'
-    ? 'You ended the run before reaching the goal, sporing before reaching the east.'
+    ? 'You ended the run, sporing before reaching the east.'
     : 'Your colony was forced to fruit and spore before reaching the east.';
   return { title, sub };
 }

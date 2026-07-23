@@ -1417,9 +1417,10 @@ function summarizeEngines(engines) {
       if (cad > 1) g.cad += amt; else g.steady += amt;
       const key = e.name + '|' + cad, row = g.rows.get(key) || { name: escapeHtml(e.name), raw: e.name, amt: 0, n: 0, cad, left: cad };
       row.amt += amt; row.n += 1;
-      // Rounds until this producer next fires (soonest across any duplicates).
-      // `_et` counts ticks since its last payout, so `cad - _et` rounds remain.
-      if (cad > 1) row.left = Math.min(row.left, cad - (e._et || 0));
+      // Cadence lights. Most producers count DOWN (rounds remaining until payout = `cad - _et`,
+      // soonest across duplicates). The Aquifer Tap counts UP instead — the lights FILL as it
+      // charges, so touching one water source shows 1 light next round, not `cad - 1`.
+      if (cad > 1) row.left = e._waterSource ? (e._et || 0) : Math.min(row.left, cad - (e._et || 0));
       g.rows.set(key, row);
     } else if (e.digEvery) {
       out.timed.push({ name: escapeHtml(e.name), raw: e.name, every: e.digEvery, left: Math.max(0, e.digEvery - (e._t || 0)) });

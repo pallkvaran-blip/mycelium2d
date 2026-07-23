@@ -517,6 +517,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Aquifer Tap cadence lights count UP; death-screen polish.** The Aquifer Tap (water-source trickle)
+  cadence meter now FILLS as it charges — touch one source → 1 light next round (was `cad − _et`, which read
+  as 2). Only that engine flips (special-cased on `e._waterSource` in `ui.js summarizeEngines`); every other
+  producer still counts down (rounds-remaining). Also: abandon/force-fruit subtitle → "You ended the run,
+  sporing before reaching the east."; the death-screen "0 / N" counter dropped into the gap so it sits
+  centered between the two carousel frames (`.lo-mid-death`). Verified `scratchpad/verify-tweaks.mjs`.
 - **Death screen redesign + carry bumped to 3 + levels cleared.** Carry is now **3 + (levels cleared this
   run)** (was 2; deliberately generous, tune later). The screen (`main.js showDeathCarry` + `loadout_select.js`
   `layout:'death'`) reordered: cause-matched **title** (`deathText(cause)` — "You ran out of water/energy/
