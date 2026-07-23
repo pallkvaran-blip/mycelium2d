@@ -82,10 +82,16 @@ node --test test/               # smoke + card tests
   (`memory:true`, curated hand from last run's drafts). **Split Gill is now the top-tier L10
   prize** (`memPick:15` + `memEngines:2` engine cap); Artist's Conk is the simpler L5 memory
   colony (default 8-card pick, no engine cap) — their tiers/hands/resources were swapped.
-- All 11 species portraits are **real CC-licensed iNaturalist photos** (`assets/species/<img>.jpg`,
-  560×720), credited in the title-screen Credits popup (`render/credits.js`). Regenerate/replace via a
-  URL + `curl --cacert /root/.ccr/ca-bundle.crt` → `scratchpad/reshape.py` cover-crop (pasted images
-  aren't written to disk in this env).
+- All 11 species portraits are **real, CC-licensed photos** (`assets/species/<img>.jpg`, 560×720) from a
+  MIX of sources — iNaturalist, **Wikimedia Commons** (Fairy Ring Champignon = Thomas Pruß, CC BY-SA 3.0),
+  and **Flickr** (Honey Fungus = stu7009, CC BY-SA 2.0) — credited in the title-screen Credits popup
+  (`render/credits.js`). **Verify each source's licence before use:** CC BY / BY-SA / CC0 permit commercial
+  use + cropping; AVOID **NC** (we may monetise) and **ND** (we crop every photo). Replace via a URL +
+  `curl --cacert /root/.ccr/ca-bundle.crt` → a PIL cover-crop (pasted images aren't written to disk in this
+  env). **Card vs detail framing:** the grid card shows only the MIDDLE BAND of the portrait (`object-fit:
+  cover` into a 16:10 box ≈ rows 185–535 of 720); the detail view shows the FULL portrait. Optional
+  per-species `species.js cardPos` (e.g. Fairy Ring `'center 20%'`) sets the card image's `object-position`
+  so a subject near the photo's top isn't cropped in the card without touching the detail view (`speciesCard`).
 - **Species editor:** `docs/species-editor.html` (hosted at `<site>/species-editor.html`)
   is the authoring tool for descriptions / starting hand / resources / order — it
   live-imports `src/species.js` + `src/cards-data.js` (or reads a baked `#injectedData`

@@ -517,6 +517,34 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Starter-species photos re-sourced (confirmed CC) + reframed; Honey Fungus → *Armillaria mellea*.**
+  After a licence review (owner asked "does CC mean we can use it?" — answer: depends on the variant + use;
+  we CROP everything so **ND** is out, and we may monetise so **NC** is risky; CC BY / BY-SA / CC0 are safe),
+  the two starters moved to confirmed-CC sources: **Fairy Ring Champignon** → Thomas Pruß, Wikimedia Commons
+  `Feldschwindling_02.jpg` (3072×2304, **CC BY-SA 3.0**); **Honey Fungus** → stu7009, Flickr photo
+  `50428394696` (1024×746, **CC BY-SA 2.0**). Both BY-SA → commercial + cropping OK with attribution;
+  `credits.js` links updated (Commons user page / Flickr profile). Honey Fungus **species renamed
+  `Armillaria ostoyae` → `Armillaria mellea`** to match the photo (`species.js` latin + credits label);
+  blurb reworded so the "largest living organism on Earth" fact is attributed to the **genus** (the Oregon
+  giant is A. ostoyae, not mellea) — rhizomorph/long-range-predator framing kept. Image filename stays
+  `armillaria-ostoyae.jpg` (internal key; not renamed). Dry Rot LEFT as the L'Agence Du Bois photo per owner
+  (company-site source, licence unconfirmed — flagged, owner declined to change). **NEW per-species card
+  framing — `species.js cardPos`:** the grid card shows only the MIDDLE BAND of the 560×720 portrait
+  (`object-fit:cover` into a 16:10 box ≈ rows 185–535); `cardPos` (Fairy Ring `'center 20%'`) sets that card
+  img's `object-position` via `speciesCard()` so a subject near the photo's top isn't cropped in the card
+  WITHOUT touching the full-portrait detail view. Fairy Ring detail = full-height max-zoom-out crop. Cut a
+  fresh itch zip (22 MB, boots + runs a level clean, no dev buttons).
+
+- **Leaderboard: Monthly + All-Time (Weekly dropped)** while the game builds traction. `highscores.js`
+  `WEEK_MS`→`MONTH_MS` (rolling 30 days), `weeklyBoard`→`monthlyBoard`; `net_scores.js` global query filters
+  `created_at >= now-30d` and returns `{monthly, allTime}`; `render/highscores.js` tabs = "Monthly" (default)
+  + "All-Time"; `docs/leaderboard-setup.md` updated. Existing Supabase rows untouched.
+
+- **Run-over + New Game popup polish.** Run-over card: the **"TOP 10 SCORE" badge + "High Scores" link now sit
+  BELOW** the New run / Main menu buttons (`ui.js` showOverlay). New Game name popup: the erase-progress
+  warning moved to the **bottom** of the dialog (`title_screen.js`). Also `.gitignore` now excludes `*.zip`
+  (itch build artifact).
+
 - **High-score name entry moved from the death card to New Game.** You now type your display name in a
   black-and-white popup when you press **New** on the title (`render/title_screen.js` `newGameDialog`, which
   also folds in the erase-progress warning when there's saved progress; pre-filled with your last name via
