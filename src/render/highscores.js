@@ -1,7 +1,7 @@
 // =============================================================================
 // High-scores overlays (plain black & white). Namespaced #hsOverlay / .hs-*.
 //
-//   showHighScores({onClose})   — the leaderboard (Weekly / All-Time tabs, top 10 each:
+//   showHighScores({onClose})   — the leaderboard (Monthly / All-Time tabs, top 10 each:
 //                                 rank · name · level · species). Shows the GLOBAL board
 //                                 when a backend is configured (net_scores.js), else the
 //                                 local per-device board; falls back to local if offline.
@@ -13,14 +13,14 @@
 //                               — persist a submitted score (local always + global when enabled).
 // =============================================================================
 
-import { weeklyBoard, allTimeBoard, recordScore, beatsBoard } from '../highscores.js';
+import { monthlyBoard, allTimeBoard, recordScore, beatsBoard } from '../highscores.js';
 import { scoresEnabled, fetchGlobalBoards, submitGlobalScore } from '../net_scores.js';
 import { growMyceliumTitle } from './mycelium_title.js';
 
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const cleanName = (s) => (String(s == null ? '' : s).trim() || 'Anon').slice(0, 14);
-const localBoards = () => ({ weekly: weeklyBoard(), allTime: allTimeBoard() });
+const localBoards = () => ({ monthly: monthlyBoard(), allTime: allTimeBoard() });
 
 // A top-10 table for one board; `hi` = {name, level} highlights matching row(s).
 function boardTable(entries, hi) {
@@ -48,7 +48,7 @@ export function showHighScores({ onClose } = {}) {
       '<div class="hs-title-myc" id="hsTitleMyc" role="img" aria-label="High Scores"></div>' +
       '<div class="hs-note" id="hsNote"></div>' +
       '<div class="hs-tabs">' +
-        '<button class="hs-tab hs-on" id="hsTabWeek" type="button">Weekly</button>' +
+        '<button class="hs-tab hs-on" id="hsTabMonth" type="button">Monthly</button>' +
         '<button class="hs-tab" id="hsTabAll" type="button">All-Time</button>' +
       '</div>' +
       '<div class="hs-board" id="hsBoard"></div>' +
@@ -56,15 +56,15 @@ export function showHighScores({ onClose } = {}) {
   document.body.appendChild(root);
   const myc = growMyceliumTitle(root.querySelector('#hsTitleMyc'), { word: 'HIGH SCORES' });
   const boardEl = root.querySelector('#hsBoard'), note = root.querySelector('#hsNote');
-  const tabW = root.querySelector('#hsTabWeek'), tabA = root.querySelector('#hsTabAll');
-  let global = null, tab = 'week';
+  const tabM = root.querySelector('#hsTabMonth'), tabA = root.querySelector('#hsTabAll');
+  let global = null, tab = 'month';
   function render() {
     const src = global || localBoards();
-    boardEl.innerHTML = boardTable(tab === 'week' ? src.weekly : src.allTime);
-    tabW.classList.toggle('hs-on', tab === 'week');
+    boardEl.innerHTML = boardTable(tab === 'month' ? src.monthly : src.allTime);
+    tabM.classList.toggle('hs-on', tab === 'month');
     tabA.classList.toggle('hs-on', tab === 'all');
   }
-  tabW.onclick = () => { tab = 'week'; render(); };
+  tabM.onclick = () => { tab = 'month'; render(); };
   tabA.onclick = () => { tab = 'all'; render(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   function close() { document.removeEventListener('keydown', onKey); try { myc.destroy(); } catch (_) {} root.remove(); onClose && onClose(); }
@@ -94,7 +94,7 @@ export function showHighScores({ onClose } = {}) {
 // as a separate popup — this only decides whether to offer it.
 export function checkHighScore({ level, species, speciesName }) {
   const decide = (boards, isGlobal) => {
-    const q = beatsBoard(boards.weekly, level) || beatsBoard(boards.allTime, level);
+    const q = beatsBoard(boards.monthly, level) || beatsBoard(boards.allTime, level);
     return q ? { level, species, speciesName, isGlobal } : null;
   };
   if (scoresEnabled()) {

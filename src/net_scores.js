@@ -32,14 +32,14 @@ async function fetchT(url, opts, ms) {
   finally { clearTimeout(timer); }
 }
 
-// One board (top 10). weekOnly filters to the rolling last 7 days. Returns normalized
+// One board (top 10). monthOnly filters to the rolling last 30 days. Returns normalized
 // [{name, level, speciesName, ts}] or null on any failure (caller falls back to local).
-async function getBoard(weekOnly) {
+async function getBoard(monthOnly) {
   const p = new URLSearchParams();
   p.set('select', 'name,level,species_name,created_at');
   p.set('order', 'level.desc,created_at.asc');
   p.set('limit', '10');
-  if (weekOnly) p.set('created_at', 'gte.' + new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());
+  if (monthOnly) p.set('created_at', 'gte.' + new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString());
   const r = await fetchT(REST() + '?' + p.toString(), { headers: headers() });
   if (!r || !r.ok) return null;
   const rows = await r.json();
@@ -51,9 +51,9 @@ async function getBoard(weekOnly) {
 export async function fetchGlobalBoards() {
   if (!scoresEnabled()) return null;
   try {
-    const [weekly, allTime] = await Promise.all([getBoard(true), getBoard(false)]);
-    if (!weekly || !allTime) return null;
-    return { weekly, allTime };
+    const [monthly, allTime] = await Promise.all([getBoard(true), getBoard(false)]);
+    if (!monthly || !allTime) return null;
+    return { monthly, allTime };
   } catch (_) { return null; }
 }
 

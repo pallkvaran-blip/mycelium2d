@@ -84,7 +84,7 @@ never breaks.
 - **Scores are client-submitted, so they're spoofable.** The RLS caps stop absurd values
   (level > 100, over-long names), but a determined player could still POST a legit-looking
   score via devtools. That's inherent to any backend-less browser game; fine for a fun board.
-- **Weekly** = a rolling last-7-days window (derived at query time). **All-Time** = every row.
+- **Monthly** = a rolling last-30-days window (derived at query time). **All-Time** = every row.
 - Want to reset or moderate? Delete rows in the Supabase **Table Editor** (or run
   `delete from public.scores where ...` in the SQL editor).
 - Optional hardening later: a Supabase **Edge Function** could add per-IP rate limiting or a

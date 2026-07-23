@@ -1,11 +1,11 @@
 // =============================================================================
-// High scores — local (per-device) top-10 boards, WEEKLY + ALL-TIME.
+// High scores — local (per-device) top-10 boards, MONTHLY + ALL-TIME.
 //
 // A run's score is the campaign LEVEL it reached before being overrun. Scores are
 // kept in localStorage as a flat list of {name, level, species, speciesName, ts};
 // the two boards are derived on read:
 //   • ALL-TIME — the best 10 levels ever recorded on this device.
-//   • WEEKLY   — the best 10 from the last 7 days (rolling window).
+//   • MONTHLY  — the best 10 from the last 30 days (rolling window).
 // A run QUALIFIES for name entry if it would place in the top 10 of EITHER board.
 //
 // NOTE: this is a static browser game with no backend, so scores are per-device —
@@ -15,8 +15,8 @@
 
 const KEY = 'mycelium.highscores.v1';
 const MAX = 10;                       // top-N per board
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const RETAIN = 60;                    // cap stored entries: last week + all-time top RETAIN
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;   // "monthly" = rolling last 30 days
+const RETAIN = 60;                    // cap stored entries: last month + all-time top RETAIN
 
 function now() { return Date.now(); }
 
@@ -43,8 +43,8 @@ function saveScores(entries) {
 function ranked(list) { return list.slice().sort((a, b) => (b.level - a.level) || (a.ts - b.ts)); }
 
 export function allTimeBoard() { return ranked(loadScores()).slice(0, MAX); }
-export function weeklyBoard(t) {
-  const cut = (t || now()) - WEEK_MS;
+export function monthlyBoard(t) {
+  const cut = (t || now()) - MONTH_MS;
   return ranked(loadScores().filter((e) => e.ts >= cut)).slice(0, MAX);
 }
 
@@ -53,10 +53,10 @@ function makesBoard(board, level) { return board.length < MAX || level > board[b
 // Pure form (used to qualify against a fetched GLOBAL board, not just the local one).
 export function beatsBoard(entries, level) { return makesBoard(Array.isArray(entries) ? entries : [], level | 0); }
 
-// True if `level` would place in the top 10 of the weekly OR all-time board.
+// True if `level` would place in the top 10 of the monthly OR all-time board.
 export function qualifies(level, t) {
   const lvl = level | 0;
-  return makesBoard(weeklyBoard(t), lvl) || makesBoard(allTimeBoard(), lvl);
+  return makesBoard(monthlyBoard(t), lvl) || makesBoard(allTimeBoard(), lvl);
 }
 
 // Record a finished run. Returns the new boards (+ the entry's ts, for highlighting).
@@ -71,10 +71,10 @@ export function recordScore({ name, level, species, speciesName }) {
   };
   const entries = loadScores();
   entries.push(entry);
-  // Prune so storage stays bounded: keep everything from the last week (for the weekly
+  // Prune so storage stays bounded: keep everything from the last month (for the monthly
   // board) PLUS the all-time top RETAIN (so an old record is never lost).
-  const cut = ts - WEEK_MS;
+  const cut = ts - MONTH_MS;
   const keepTop = new Set(ranked(entries).slice(0, RETAIN));
   saveScores(entries.filter((e) => e.ts >= cut || keepTop.has(e)));
-  return { ts, weekly: weeklyBoard(ts), allTime: allTimeBoard() };
+  return { ts, monthly: monthlyBoard(ts), allTime: allTimeBoard() };
 }

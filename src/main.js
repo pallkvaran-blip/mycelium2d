@@ -311,7 +311,7 @@ function presentRunOver() {
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
-    // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
+    // High score: a run ends on death — if the LEVEL reached cracks the monthly/all-time
     // top 10 (global board when configured, else local), record it automatically under the
     // name the player entered at New Game, and flag it on the run-over card ("Top 10 score"
     // + a High Scores link). Only real species runs score (dev/testall have none).
