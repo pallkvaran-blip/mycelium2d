@@ -741,10 +741,10 @@ export class UI {
         <h1>${title}</h1>
         <p>${body}</p>
         ${sporeLine}
-        ${hsBlock}
         ${won || puzzle ? `<div class="ctrl" style="justify-content:center">${puzzleBtn}${randomBtn}</div>`
           : campaignDeath ? `<div class="ctrl deathctrl">${pickerBtn}${menuBtn}</div>`
           : `<p class="dim small">In the full game these spores would seed the next generation. Phase 1 ends here.</p>${randomBtn}`}
+        ${hsBlock}
       </div>`;
     const rb = o.querySelector('#overlay-restart');
     if (rb) rb.onclick = () => this.handlers.onRestart();
