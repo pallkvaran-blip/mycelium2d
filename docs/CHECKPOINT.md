@@ -517,6 +517,14 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **New tactical event card: "Decoy Cache"** (70th card). Tap any spot within the colony's sensing range to
+  drop a small nut cache worth exactly **1⚡** (`sub.deposit(x,y,substrateSmall,1,1)`); costs **2 Energy**.
+  It lures threats — placed food redirects ant harvest + draws worms — so you can pull them off the colony or
+  bunch them onto a trap. `EFFECTS['Decoy Cache'] = targeted(...)` in `engine/cards.js`: validates the tap is
+  within `growth.sensingRadius` of the nearest node, snaps to open soil, rejects out-of-sight/no-soil (no
+  cost, card kept). Authored in `docs/cards.json` → regen `cards-data.js` → auto-joins the event draft pool.
+  **No art yet** (graceful no-image fallback; Replicate token absent this session). Verified
+  `scratchpad/verify-decoy.mjs`. See cards-design.md §25.
 - **Aquifer Tap now taps each source ONCE; separate SFX toggle in Settings.**
   - **Water source = ONE tap per source, but a persistent faucet.** A source, on first contact, is TAPPED for
     the rest of the map and keeps charging over `WATER_SOURCE_EVERY` (3) rounds and paying +1 Water per tapped

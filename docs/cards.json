@@ -1493,5 +1493,28 @@
     "tutorial": false,
     "startCopies": 0,
     "displayCategory": "engine"
+  },
+  {
+    "name": "Decoy Cache",
+    "type": "event",
+    "category": "lure",
+    "displayCategory": "event",
+    "buyCostEnergy": 2,
+    "buyCostPhosphorus": 0,
+    "playCostEnergy": 0,
+    "playCostWater": 0,
+    "playCostPhosphorus": 0,
+    "effect": "Drop a 1⚡ food cache anywhere in sight — lures ants and worms to it.",
+    "produces": "",
+    "timing": "any",
+    "repayRounds": 0,
+    "axis": "tempo",
+    "threat": "all",
+    "targeting": "radius",
+    "flavor": "A knot of sugar-rich hyphae, left deliberately exposed — bait for the hungry things in the dark.",
+    "notes": "NEW tactical EVENT (lure). targeted() point-placement: tap a spot within the colony's sensing range to drop a small nut cache worth exactly 1 energy total. Food redirects ant harvest targets and draws nematodes, so it pulls threats off the colony or bunches them (e.g. onto a Constricting Ring trap). Rejects taps out of sight or with no open soil. Cost: 2 Energy, no W/P. familyKey control.",
+    "familyKey": "control",
+    "tutorial": false,
+    "startCopies": 0
   }
 ]

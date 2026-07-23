@@ -1245,6 +1245,24 @@ export const CARD_DATA = [
   "family": "installs",
   "tutorial": false,
   "startCopies": 0
+ },
+ {
+  "name": "Decoy Cache",
+  "type": "event",
+  "category": "lure",
+  "displayCategory": "event",
+  "buyCostEnergy": 2,
+  "buyP": 0,
+  "costW": 0,
+  "costP": 0,
+  "timing": "any",
+  "repay": 0,
+  "threat": "all",
+  "produces": "",
+  "effect": "Drop a 1⚡ food cache anywhere in sight — lures ants and worms to it.",
+  "family": "control",
+  "tutorial": false,
+  "startCopies": 0
  }
 ];
 

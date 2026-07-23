@@ -1040,3 +1040,15 @@ review workflow caught it; fixed to 17⚡.)
   `aimedGrow`/`aimedGrowAction` for the directional set; the food-seek buff loops `grow()` `foodSeekSteps`×.
 - **Art:** FLUX 1.1 Pro (`scripts/gen_grow_cards.py`), 3 options/card → `assets/card_options/`, winners →
   `assets/cards/<slug>.jpg`. Brief: **mycelium, not mushrooms** — fine pointed / thread-like hyphal tips, no caps.
+
+## 25. Decoy Cache — tactical lure event (CURRENT — authoritative for this card)
+- **New EVENT: "Decoy Cache"** (70th card). **Tap any spot within the colony's sensing range** (line of
+  sight) to drop a small nut cache worth **exactly 1⚡** total. Cost **2 Energy** (`buyCostEnergy`), no W/P.
+- **Purpose = control, not economy.** Placed food redirects ant harvest targets and draws nematodes, so it
+  pulls threats OFF the colony or bunches them (e.g. onto a Constricting Ring trap). The 1⚡ payout barely
+  covers its own cost if YOU harvest it — the value is the lure.
+- **Impl:** `EFFECTS['Decoy Cache'] = targeted(...)` in `engine/cards.js` — validates the tap is within
+  `growth.sensingRadius` of the nearest node, snaps to the nearest open soil, `sub.deposit(x,y,substrateSmall,1,1)`.
+  Rejects out-of-sight / no-soil taps (no cost, card kept). Auto-joins the event draft pool (1 copy/draft).
+- **Art:** none yet — the card face falls back to no image (frame + name + cost + effect). Generate via the
+  documented FLUX flow (`assets/cards/decoy-cache.jpg`) when the Replicate token is available.
