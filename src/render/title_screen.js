@@ -509,14 +509,13 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores
     const back = el('div', 'ts-confirm');
     back.innerHTML =
       '<div class="ts-confirm-box" role="dialog" aria-modal="true" aria-label="New game">' +
-        '<p class="ts-confirm-msg">Enter your name' +
-          (erase ? '<span class="ts-confirm-sub">Starting a new game will erase all previous progress.</span>' : '') +
-        '</p>' +
+        '<p class="ts-confirm-msg">Enter your name</p>' +
         '<input class="ts-name-input" id="tsNameInput" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false">' +
         '<div class="ts-confirm-actions">' +
           '<button class="ts-confirm-btn" id="tsNameStart" type="button">Start</button>' +
           '<button class="ts-confirm-btn" id="tsNameCancel" type="button">Cancel</button>' +
         '</div>' +
+        (erase ? '<p class="ts-confirm-sub">Starting a new game will erase all previous progress.</p>' : '') +
       '</div>';
     root.appendChild(back);
     const input = back.querySelector('#tsNameInput');
