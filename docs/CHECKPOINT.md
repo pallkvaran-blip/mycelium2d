@@ -517,6 +517,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep: Dev buttons removed + fresh itch zip.** `config.dev.enabled: false` (hides "Dev: win
+  level") and removed the picker `#ssDev`/`#ssDevUnlock` buttons + listeners. Verified release-clean
+  (`verify-nodev.mjs`). Zip = `dist/index.html` (as `index.html`) + `dist/assets/` at the root, ~22 MB. This
+  cut ships the death-carry, the Artist's Conk⇄Earthball roster swap (+refund migration), the death-screen
+  redesign, the starter Turgor Thrust, and the Aquifer-Tap-lights fix. Re-enable dev buttons the same way as
+  before (config flag + the two picker buttons) for continued testing.
 - **Aquifer Tap cadence lights count UP; death-screen polish.** The Aquifer Tap (water-source trickle)
   cadence meter now FILLS as it charges — touch one source → 1 light next round (was `cad − _et`, which read
   as 2). Only that engine flips (special-cased on `e._waterSource` in `ui.js summarizeEngines`); every other

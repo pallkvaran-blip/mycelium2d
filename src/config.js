@@ -460,7 +460,7 @@ export const CONFIG = {
   },
 
   dev: {
-    enabled: true,              // dev cheats + sliders panel + "Dev: win level" (ON for owner testing — REMOVE for release)
+    enabled: false,             // gates the in-game "Dev: win level" button (off for release)
     cheatEnergy: 100,
     cheatSpores: 100,
   },
