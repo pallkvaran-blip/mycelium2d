@@ -517,6 +517,9 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dev buttons RE-ENABLED again (owner testing; NOT release-clean).** Set `config.dev.enabled: true` and
+  restored the picker `#ssDev`/`#ssDevUnlock` buttons + listeners — same toggle as before. Strip them again
+  (see the "Release prep" entry) before the next itch cut. The already-shipped itch zip stays dev-free.
 - **Release prep: Dev buttons removed again + fresh itch zip.** Reversed the "Dev buttons RE-ENABLED" entry
   below: set `config.dev.enabled: false` and removed the species-picker `#ssDev`/`#ssDevUnlock` buttons +
   listeners from `species_select.js`. This re-hides the cheats/sliders panel, "Dev: win level", and the
