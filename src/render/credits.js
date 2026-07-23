@@ -14,7 +14,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 
 // {label} — what the credit is for; {name}/{url} — the artist + their page.
 const PHOTO_CREDITS = [
-  { label: 'Fairy Ring Champignon &middot; <i>Marasmius oreades</i>', name: 'David Harbour', url: 'https://www.inaturalist.org/people/david3613' },
+  { label: 'Fairy Ring Champignon &middot; <i>Marasmius oreades</i>', name: 'Thomas Pruß', url: 'https://commons.wikimedia.org/wiki/User:Thomas_Pru%C3%9F' },
   { label: 'Honey Fungus &middot; <i>Armillaria ostoyae</i>', name: 'Jenn Wren', url: 'https://www.inaturalist.org/people/jennwren' },
   { label: 'Common Earthball &middot; <i>Scleroderma citrinum</i>', name: 'Will Kuhn', url: 'https://www.inaturalist.org/people/willkuhn' },
   { label: 'Oyster Mushroom &middot; <i>Pleurotus ostreatus</i>', name: 'Павлик Лисицын', url: 'https://www.inaturalist.org/people/lisopavlik' },

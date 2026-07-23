@@ -576,7 +576,8 @@ Both menus are dark, on-theme, with glowing green borders.
   /root/.ccr/ca-bundle.crt <url> -o x`), cover-crop 560×720 (`scratchpad/reshape_all.py`; Dry Rot uses
   zoom=1.5/fy=0.92 to drop a "leave for trap" note), copy to `assets/species/<img>.jpg`, and set
   `credits.js PHOTO_CREDITS` (name · latin → artist + `inaturalist.org/people/<handle>`):
-  - Fairy Ring Champignon / Marasmius oreades — David Harbour / david3613 — photos/140237375/original.jpeg
+  - Fairy Ring Champignon / Marasmius oreades — **REPLACED** → Thomas Pruß, Wikimedia Commons
+    `Feldschwindling_02.jpg` (**CC BY-SA 3.0**); was David Harbour / iNat 140237375 (too soft/source-limited)
   - Honey Fungus / Armillaria ostoyae — Jenn Wren / jennwren — photos/332141087/original.jpg
   - Common Earthball / Scleroderma citrinum — Will Kuhn / willkuhn — photos/163759592/original.jpeg
   - Oyster Mushroom / Pleurotus ostreatus — Павлик Лисицын / lisopavlik — photos/442323380/original.jpeg
