@@ -1461,8 +1461,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "574gjt";
-globalThis.__BUILD__ = "local 07-23 19:49";
+window.__ASSET_VER = "8m2156";
+globalThis.__BUILD__ = "local 07-23 20:06";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10929,53 +10929,8 @@ class UI {
 
     // (Event log now lives in the top HUD drop-down; see above.)
 
-    // ---- Dev panel (cheats + sliders), clearly marked ----
-    if (this.state.config.dev.enabled) {
-      const dev = div('panel dev' + maybeCollapsed);
-      dev.innerHTML = `<div class="title clickable">DEV TOOLS <span class="warn">(remove for release)</span> <span class="chev">▾</span></div>`;
-      const body = div('dev-body');
-
-      const cheats = div('cheats');
-      const c1 = button('btn dev-btn', `+${this.state.config.dev.cheatEnergy} Energy`);
-      c1.onclick = () => this.handlers.onCheat('energy');
-      const c2 = button('btn dev-btn', `+${this.state.config.dev.cheatSpores} Spores`);
-      c2.onclick = () => this.handlers.onCheat('spores');
-      const c3 = button('btn dev-btn', 'Spawn Trichoderma');
-      c3.onclick = () => this.handlers.onCheat('trichoderma');
-      const c4 = button('btn dev-btn', 'No-Trich Map ↻');
-      c4.onclick = () => this.handlers.onNoTrichMap();
-      const c5 = button('btn dev-btn', 'Spawn Nematode');
-      c5.onclick = () => this.handlers.onCheat('nematode');
-      const c6 = button('btn dev-btn', 'Worm Vision: OFF');
-      c6.onclick = () => { const on = this.handlers.onToggleWormVision(); c6.textContent = 'Worm Vision: ' + (on ? 'ON' : 'OFF'); };
-      const c7 = button('btn dev-btn', 'Place Worm: OFF');
-      c7.onclick = () => { const on = this.handlers.onPlaceWorm(); c7.textContent = 'Place Worm: ' + (on ? 'ON' : 'OFF'); };
-      cheats.append(c1, c2, c3, c4, c5, c6, c7);
-      body.appendChild(cheats);
-
-      const sliders = div('sliders');
-      for (const s of SLIDERS) {
-        const wrap = div('slider');
-        const val = getByPath(this.state.config, s.path);
-        wrap.innerHTML = `<label>${s.label} <span class="sv">${val}</span></label>`;
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.min = s.min; input.max = s.max; input.step = s.step; input.value = val;
-        const sv = wrap.querySelector('.sv');
-        input.oninput = () => {
-          const v = parseFloat(input.value);
-          setByPath(this.state.config, s.path, v);
-          sv.textContent = v;
-          this.handlers.onSliderChange(s.path, v);
-        };
-        wrap.appendChild(input);
-        sliders.appendChild(wrap);
-      }
-      body.appendChild(sliders);
-      dev.appendChild(body);
-      dev.querySelector('.title').onclick = () => dev.classList.toggle('collapsed');
-      root.appendChild(dev);
-    }
+    // ---- Dev cheats/sliders panel: PERMANENTLY REMOVED (owner request). The invisible
+    // window.__game hooks stay for tests; "Dev: win level" + the picker dev buttons live elsewhere.
 
     // ---- Run-over overlay ----
     this.el.overlay = div('overlay hidden');

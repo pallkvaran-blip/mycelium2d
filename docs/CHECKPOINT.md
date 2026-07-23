@@ -517,6 +517,11 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **DEV TOOLS cheats/sliders panel PERMANENTLY removed** (`ui.js` — the bottom-right collapsible with +Energy/
+  +Spores/Spawn-Trichoderma + the tuning sliders). Owner won't need it. `config.dev.enabled` now gates ONLY
+  the "Dev: win level" (`#devWin`) button; the picker `#ssDev`/`#ssDevUnlock` buttons and the invisible
+  `window.__game` hooks are untouched. The `onCheat`/`onNoTrichMap`/`onToggleWormVision`/`onPlaceWorm` handlers
+  in `main.js` + the `SLIDERS` table are now dead (harmless) — left in place. Verified `verify-nodevpanel.mjs`.
 - **Death-carry: dying lets you keep cards for your next run (retention fix for early deaths).** On a campaign
   death the run-over screen IS now the memory-style card carousel (`showLoadoutSelect` extended with
   `header`/labels/`secondaryText`/`emptyText`) with the death message on top. The player carries
