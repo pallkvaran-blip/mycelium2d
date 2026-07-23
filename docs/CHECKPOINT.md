@@ -517,6 +517,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dev buttons RE-ENABLED for owner testing (NOT release-clean — strip before the next itch cut).** Reversed
+  the ee5977b release removal: restored the species-picker "Dev quick-start" (`#ssDev`) + "Dev: unlock all"
+  (`#ssDevUnlock`) in `species_select.js`, and set `config.dev.enabled: true` — which brings back BOTH the
+  in-game "Dev: win level" (`#devWin`) and the cheats/sliders DEV TOOLS panel (`ui.js`). Verified via
+  Playwright (`scratchpad/verify-devon.mjs`). **The already-cut itch zip stays dev-free** — to ship, flip
+  `dev.enabled` back to `false`, re-remove the two `#ssDev`/`#ssDevUnlock` buttons + their listeners, rebuild,
+  and re-zip (see ee5977b for the exact removal).
 - **Death-cause tracking in telemetry + analytics ("How players die"); dashboard shows common names.**
   - Every death now carries a specific `cause` on `state.runResult`, forwarded by `run_end`
     (`main.js presentRunOver` sends `cause: r.cause || 'died'`). Causes: **`water`** (`main.js checkWater`,
