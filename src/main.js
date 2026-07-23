@@ -30,6 +30,7 @@ import { initSfx } from './render/sfx.js';
 import { showLoading } from './render/loading.js';
 import { showHighScores, checkHighScore, recordHighScore } from './render/highscores.js';
 import { loadPlayerName, savePlayerName } from './highscores.js';
+import { logEvent } from './net_scores.js';
 import { showCredits } from './render/credits.js';
 import { CARD_DATA } from './cards-data.js';
 
@@ -183,7 +184,7 @@ function showPicker() {
   hideCanvas();      // never let a finished run's map show behind the picker
   playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
-    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
+    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; logEvent('run_start', { species: sp && sp.id, level: currentLevel }); startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }
@@ -310,6 +311,7 @@ function presentRunOver() {
         if (half > 0) { addSpores(half); runSpores += half; }
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
+      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: 'died', turns: (state && state.turn) });
     }
     // High score: a run ends on death — if the LEVEL reached cracks the monthly/all-time
     // top 10 (global board when configured, else local), record it automatically under the
@@ -521,6 +523,7 @@ function drawWinCelebration(time) {
 
 function onLevelWon() {
   const cleared = currentLevel;
+  logEvent('level_clear', { species: chosenSpecies && chosenSpecies.id, level: cleared });
   const prev = loadProgress();
   const newlyRevealed = newlyRevealedByClear(cleared, prev);   // one species revealed per clear, in tier order
   recordLevelCleared(cleared);
@@ -534,6 +537,7 @@ function onLevelWon() {
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
+    logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: cleared, cause: 'won', turns: state && state.turn });
     showGameWon({ spores: runSpores, balance, onNewRun: () => runEndThen(backToPicker) });
   } else {
     const snap = snapshotCarry();

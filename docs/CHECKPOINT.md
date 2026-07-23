@@ -517,6 +517,22 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Anonymous run telemetry + owner analytics dashboard; title-footer + Credits polish.**
+  - **Telemetry** (`net_scores.js logEvent`): fire-and-forget POSTs to a NEW Supabase **`events`** table —
+    `run_start` (`main.js` onPick), `level_clear` + `run_end` cause `won` (onLevelWon), `run_end` cause
+    `died` (presentRunOver finish), `purchase` (`species_select.js` buy). **No PII:** anonymous per-device
+    `client_id` (localStorage `mycelium.clientid.v1`) + per-load `session_id`; best-effort, 404s harmlessly
+    until the table exists. **Owner must create the `events` table** (SQL in `docs/leaderboard-setup.md` +
+    the dashboard's own setup note). Why: the leaderboard only logs top-10 *deaths* with a name (opt-in +
+    biased) so it can't show how far people get, retention, or purchases — this fills that gap.
+  - **Dashboard:** `docs/analytics.html` → published to `<site>/analytics.html` by `build.mjs` (NOT in the
+    itch zip). Reads the events table (public anon key, same as scores) → players/sessions/runs, run-length
+    distribution, win-vs-death, species picked, purchases, retention (≥2 runs / returned ≥2 days), recent list.
+  - **Title footer:** High Scores + Credits combined into one **centred** row "HIGH SCORES – CREDITS"
+    (`title_screen.js` `.ts-footer`/`.ts-foot-btn`; ids `tsHighScores`/`tsCredits` kept for tests).
+  - **Credits:** added a **Creator** section at the top — Páll Kvaran, linked to LinkedIn (`render/credits.js`
+    `.cr-creator`).
+
 - **Starter-species photos re-sourced (confirmed CC) + reframed; Honey Fungus → *Armillaria mellea*.**
   After a licence review (owner asked "does CC mean we can use it?" — answer: depends on the variant + use;
   we CROP everything so **ND** is out, and we may monetise so **NC** is risky; CC BY / BY-SA / CC0 are safe),

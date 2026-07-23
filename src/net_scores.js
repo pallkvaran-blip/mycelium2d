@@ -71,3 +71,45 @@ export async function submitGlobalScore({ name, level, species, speciesName }) {
     return !!(r && r.ok);
   } catch (_) { return false; }
 }
+
+// =============================================================================
+// Anonymous run telemetry — a tiny event stream to a SEPARATE `events` table so
+// we can see the funnel the leaderboard can't (how far people get, retention,
+// purchases). NO names or PII: just an anonymous per-device id (to count distinct
+// players + returns) and a per-page-load session id. Best-effort + fire-and-forget;
+// every failure is swallowed. Needs the `events` table + RLS (docs/leaderboard-setup.md);
+// until it exists these POSTs just 404 harmlessly. Events:
+//   run_start  {species, level}          — a run begins at the picker
+//   level_clear{species, level}          — a level was cleared
+//   run_end    {species, level, cause,turns} — cause: 'won' | 'died'
+//   purchase   {species}                 — a species was unlocked with Spores
+const EVENTS_REST = () => cfg().url.replace(/\/+$/, '') + '/rest/v1/events';
+const CLIENT_KEY = 'mycelium.clientid.v1';
+function uuid() {
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
+  return 'x' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+}
+function clientId() {
+  try {
+    let id = localStorage.getItem(CLIENT_KEY);
+    if (!id) { id = uuid(); localStorage.setItem(CLIENT_KEY, id); }
+    return id;
+  } catch (_) { return 'anon'; }
+}
+let _sid = null;
+function sessionId() { return _sid || (_sid = uuid()); }
+
+// Fire-and-forget one event. Returns nothing; never throws.
+export function logEvent(kind, fields) {
+  if (!scoresEnabled()) return;
+  try {
+    const f = fields || {};
+    const row = { client_id: clientId(), session_id: sessionId(), kind: String(kind).slice(0, 24) };
+    if (f.species != null) row.species = String(f.species).slice(0, 32);
+    if (f.level != null) row.level = f.level | 0;
+    if (f.cause != null) row.cause = String(f.cause).slice(0, 16);
+    if (f.turns != null) row.turns = f.turns | 0;
+    fetchT(EVENTS_REST(), { method: 'POST', headers: headers({ Prefer: 'return=minimal' }), body: JSON.stringify(row), keepalive: true }, 3000)
+      .catch(() => {});
+  } catch (_) { /* never let telemetry break the game */ }
+}

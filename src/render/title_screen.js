@@ -57,18 +57,21 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores
     root.appendChild(devBtn);
   }
 
-  // Small, plain B&W "High Scores" button centred at the very bottom of the title.
-  if (onHighScores) {
-    const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
-    root.appendChild(hsBtn);
-    hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
-  }
-
-  // Matching plain "Credits" button, parked bottom-right.
-  if (onCredits) {
-    const crBtn = el('button', 'ts-credits', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
-    root.appendChild(crBtn);
-    crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
+  // Bottom-centre footer: "HIGH SCORES – CREDITS" — both plain B&W text links, centred together.
+  if (onHighScores || onCredits) {
+    const foot = el('div', 'ts-footer');
+    if (onHighScores) {
+      const hsBtn = el('button', 'ts-foot-btn', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
+      hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
+      foot.appendChild(hsBtn);
+    }
+    if (onHighScores && onCredits) foot.appendChild(el('span', 'ts-foot-sep', '–'));
+    if (onCredits) {
+      const crBtn = el('button', 'ts-foot-btn', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
+      crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
+      foot.appendChild(crBtn);
+    }
+    root.appendChild(foot);
   }
 
   const canvas = root.querySelector('#tsCanvas');

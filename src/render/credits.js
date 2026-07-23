@@ -44,6 +44,9 @@ export function showCredits({ onClose } = {}) {
     '<div class="hs-card cr-card" role="dialog" aria-label="Credits">' +
       '<button class="hs-close" id="crClose" type="button" aria-label="Close">✕</button>' +
       '<h2 class="hs-title cr-title">Credits</h2>' +
+      '<div class="cr-sec cr-creator"><div class="cr-head">Creator</div>' +
+        '<a class="cr-who cr-creator-name" href="https://www.linkedin.com/in/p%C3%A1ll-kvaran-0b82b741/" target="_blank" rel="noopener noreferrer">Páll Kvaran</a>' +
+      '</div>' +
       section('Species photography', PHOTO_CREDITS) +
       section('Music', MUSIC_CREDITS) +
     '</div>';

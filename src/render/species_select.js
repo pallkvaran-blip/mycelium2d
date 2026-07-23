@@ -16,6 +16,7 @@
 import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
 import { cardSlug, SPORE_ICON } from './ui.js';
+import { logEvent } from '../net_scores.js';
 import { growMyceliumTitle } from './mycelium_title.js';
 
 const CARD_BY_NAME = {};
@@ -190,7 +191,7 @@ function openSpeciesDetail(species, opts = {}) {
     const buy = actions.querySelector('#ssIBuy');
     if (afford && buy) buy.onclick = () => {
       const r = purchaseSpecies(species);
-      if (r.ok) { ins.close(); opts.onBuy && opts.onBuy(); }
+      if (r.ok) { if (species.unlock) logEvent('purchase', { species: species.id }); ins.close(); opts.onBuy && opts.onBuy(); }
     };
   } else {
     actions.innerHTML = '<button class="ss-btn primary" id="ssIOk">Continue</button>';

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Run Analytics</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0f0d; color: #e7efe9;
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 24px 8px; }
+  h1 { margin: 0 0 2px; font-size: 20px; letter-spacing: .01em; }
+  .sub { color: #7f948a; font-size: 13px; }
+  .bar-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  button { font: inherit; font-size: 13px; font-weight: 600; color: #0b0f0d; background: #6fe0b0;
+    border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button:hover { background: #86ecc1; }
+  main { padding: 8px 24px 48px; max-width: 1000px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 14px 0 26px; }
+  .tile { background: #12181500; background: #121a16; border: 1px solid #1f2a24; border-radius: 12px; padding: 14px 16px; }
+  .tile .n { font-size: 28px; font-weight: 800; letter-spacing: -.01em; }
+  .tile .l { color: #8aa093; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+  section { margin: 26px 0; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: #9fb5a8; margin: 0 0 12px;
+    border-bottom: 1px solid #1f2a24; padding-bottom: 8px; }
+  .row { display: grid; grid-template-columns: 130px 1fr 56px; align-items: center; gap: 10px; margin: 5px 0; }
+  .row .k { color: #cfe0d6; font-size: 13px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .v { color: #cfe0d6; font-size: 13px; font-weight: 700; }
+  .track { background: #182420; border-radius: 6px; height: 18px; overflow: hidden; }
+  .fill { height: 100%; background: linear-gradient(90deg, #2e7d5b, #6fe0b0); border-radius: 6px; min-width: 2px; }
+  .fill.warn { background: linear-gradient(90deg, #7d552e, #e0a86f); }
+  .muted { color: #7f948a; }
+  .note { background: #121a16; border: 1px solid #1f2a24; border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  pre { background: #0e1512; border: 1px solid #1f2a24; border-radius: 10px; padding: 14px; overflow: auto; color: #bcd; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #16211c; white-space: nowrap; }
+  th { color: #8aa093; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+  .err { color: #e0a86f; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mycelium — Run Analytics</h1>
+  <div class="sub">Anonymous run telemetry (no names). Reads the Supabase <code>events</code> table.</div>
+  <div class="bar-top">
+    <button id="refresh">Refresh</button>
+    <span class="sub" id="status">Loading…</span>
+  </div>
+</header>
+<main id="out"></main>
+
+<script>
+'use strict';
+// Same public Supabase project as the game (anon key is safe to expose; read-only here).
+var G = (typeof globalThis !== 'undefined' && globalThis.MYCELIUM_SUPABASE) || {};
+var URL_ = G.url || 'https://daebrdzdoewpuedhxwud.supabase.co';
+var KEY = G.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhZWJyZHpkb2V3cHVlZGh4d3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NzcwNDAsImV4cCI6MjEwMDI1MzA0MH0.sOYQLy4_IedoR3mEX_-kxheXvRUYt3N4evxz_wUU8Uw';
+var out = document.getElementById('out');
+var statusEl = document.getElementById('status');
+var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+
+var SETUP_SQL =
+  "create table if not exists public.events (\n" +
+  "  id bigint generated always as identity primary key,\n" +
+  "  created_at timestamptz not null default now(),\n" +
+  "  client_id text, session_id text,\n" +
+  "  kind text not null,          -- run_start | level_clear | run_end | purchase\n" +
+  "  species text, level int, cause text, turns int\n" +
+  ");\n" +
+  "alter table public.events enable row level security;\n" +
+  "create policy events_insert on public.events for insert to anon with check (\n" +
+  "  char_length(kind) <= 24 and coalesce(char_length(species),0) <= 32\n" +
+  "  and coalesce(level,0) between 0 and 1000 );\n" +
+  "create policy events_read on public.events for select to anon using (true);";
+
+function fetchEvents() {
+  statusEl.textContent = 'Loading…';
+  var url = URL_.replace(/\/+$/, '') + '/rest/v1/events?select=created_at,client_id,session_id,kind,species,level,cause,turns&order=created_at.desc&limit=10000';
+  return fetch(url, { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+}
+
+function bar(k, v, max, warn) {
+  var pct = max > 0 ? Math.round(v / max * 100) : 0;
+  return '<div class="row"><div class="k">' + esc(k) + '</div>' +
+    '<div class="track"><div class="fill' + (warn ? ' warn' : '') + '" style="width:' + pct + '%"></div></div>' +
+    '<div class="v">' + v + '</div></div>';
+}
+function tile(n, l) { return '<div class="tile"><div class="n">' + n + '</div><div class="l">' + esc(l) + '</div></div>'; }
+function countBy(arr, keyFn) { var m = {}; arr.forEach(function (e) { var k = keyFn(e); if (k == null) return; m[k] = (m[k] || 0) + 1; }); return m; }
+function sortedEntries(m) { return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); }
+
+function render(rows) {
+  statusEl.textContent = rows.length + ' events · ' + new Date().toLocaleString();
+  if (!rows.length) { out.innerHTML = '<div class="note">No events yet. Once players run the current build (and the <code>events</code> table exists), data appears here.</div>' + setupBlock(); return; }
+
+  var starts = rows.filter(function (e) { return e.kind === 'run_start'; });
+  var ends = rows.filter(function (e) { return e.kind === 'run_end'; });
+  var clears = rows.filter(function (e) { return e.kind === 'level_clear'; });
+  var buys = rows.filter(function (e) { return e.kind === 'purchase'; });
+  var wins = ends.filter(function (e) { return e.cause === 'won'; });
+  var deaths = ends.filter(function (e) { return e.cause === 'died'; });
+
+  var players = {}; rows.forEach(function (e) { if (e.client_id) players[e.client_id] = 1; });
+  var sessions = {}; rows.forEach(function (e) { if (e.session_id) sessions[e.session_id] = 1; });
+  var nPlayers = Object.keys(players).length;
+
+  // retention: runs per player, and distinct days per player
+  var runsByPlayer = countBy(starts, function (e) { return e.client_id; });
+  var daysByPlayer = {}; rows.forEach(function (e) {
+    if (!e.client_id || !e.created_at) return;
+    (daysByPlayer[e.client_id] = daysByPlayer[e.client_id] || {})[String(e.created_at).slice(0, 10)] = 1;
+  });
+  var repeatPlayers = Object.keys(runsByPlayer).filter(function (c) { return runsByPlayer[c] >= 2; }).length;
+  var returningPlayers = Object.keys(daysByPlayer).filter(function (c) { return Object.keys(daysByPlayer[c]).length >= 2; }).length;
+
+  var html = '';
+  html += '<div class="grid">' +
+    tile(nPlayers, 'Players') + tile(Object.keys(sessions).length, 'Sessions') +
+    tile(starts.length, 'Runs started') + tile(wins.length, 'Wins') +
+    tile(deaths.length, 'Deaths') + tile(buys.length, 'Purchases') + '</div>';
+
+  // Run-length: distribution of the level a run ENDED on (how far people get)
+  var endLevels = countBy(ends, function (e) { return e.level; });
+  var maxLvl = Math.max.apply(null, Object.keys(endLevels).map(Number).concat([1]));
+  var rl = '';
+  var maxEnd = Math.max.apply(null, Object.keys(endLevels).map(function (k) { return endLevels[k]; }).concat([1]));
+  for (var L = 1; L <= maxLvl; L++) rl += bar('Level ' + L, endLevels[L] || 0, maxEnd);
+  html += '<section><h2>How far runs get (level reached at run end)</h2>' + (ends.length ? rl : '<div class="muted">No finished runs yet.</div>') + '</section>';
+
+  // Outcome
+  var oMax = Math.max(deaths.length, wins.length, 1);
+  html += '<section><h2>Outcome</h2>' + bar('Died', deaths.length, oMax, true) + bar('Won (beat L100)', wins.length, oMax) + '</section>';
+
+  // Species picked
+  var sp = sortedEntries(countBy(starts, function (e) { return e.species || '—'; }));
+  var spMax = sp.length ? sp[0][1] : 1;
+  html += '<section><h2>Species picked (run starts)</h2>' + (sp.length ? sp.map(function (e) { return bar(e[0], e[1], spMax); }).join('') : '<div class="muted">—</div>') + '</section>';
+
+  // Purchases by species
+  var pb = sortedEntries(countBy(buys, function (e) { return e.species || '—'; }));
+  var pbMax = pb.length ? pb[0][1] : 1;
+  html += '<section><h2>Species purchased</h2>' + (pb.length ? pb.map(function (e) { return bar(e[0], e[1], pbMax); }).join('') : '<div class="muted">No purchases recorded yet.</div>') + '</section>';
+
+  // Retention
+  html += '<section><h2>Retention</h2>' +
+    bar('All players', nPlayers, nPlayers || 1) +
+    bar('≥2 runs', repeatPlayers, nPlayers || 1) +
+    bar('Returned (≥2 days)', returningPlayers, nPlayers || 1) +
+    '<div class="muted" style="margin-top:8px">' + pct(repeatPlayers, nPlayers) + ' started a second run · ' + pct(returningPlayers, nPlayers) + ' came back on another day.</div></section>';
+
+  // Recent events
+  var recent = rows.slice(0, 40);
+  html += '<section><h2>Recent events</h2><table><thead><tr><th>When</th><th>Kind</th><th>Species</th><th>Lvl</th><th>Cause</th></tr></thead><tbody>' +
+    recent.map(function (e) { return '<tr><td>' + esc(String(e.created_at).replace('T', ' ').slice(0, 16)) + '</td><td>' + esc(e.kind) + '</td><td>' + esc(e.species || '') + '</td><td>' + (e.level == null ? '' : e.level) + '</td><td>' + esc(e.cause || '') + '</td></tr>'; }).join('') +
+    '</tbody></table></section>';
+
+  out.innerHTML = html;
+}
+function pct(a, b) { return b > 0 ? Math.round(a / b * 100) + '%' : '0%'; }
+function setupBlock() {
+  return '<div class="note"><b>Set up the <code>events</code> table</b> (run once in the Supabase SQL editor):<pre>' + esc(SETUP_SQL) + '</pre></div>';
+}
+
+function load() {
+  fetchEvents().then(render).catch(function (err) {
+    statusEl.textContent = '';
+    out.innerHTML = '<div class="note err">Could not read the <code>events</code> table (' + esc(err.message) + '). If this is the first time, create it:</div>' + setupBlock();
+  });
+}
+document.getElementById('refresh').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

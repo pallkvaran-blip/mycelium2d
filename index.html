@@ -40,15 +40,14 @@
     @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 
     /* High scores — plain black & white (leaderboard + name-entry). */
-    #titleScreen .ts-hs { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6;
-      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
-      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
-    #titleScreen .ts-hs:hover { opacity: 1; text-decoration: underline; }
-    /* Credits — same plain white text button as High Scores, parked bottom-right. */
-    #titleScreen .ts-credits { position: absolute; right: 14px; bottom: 14px; z-index: 6;
-      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
-      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
-    #titleScreen .ts-credits:hover { opacity: 1; text-decoration: underline; }
+    /* Bottom-centre footer: "HIGH SCORES – CREDITS", both centred together. */
+    #titleScreen .ts-footer { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6;
+      display: flex; align-items: center; gap: 10px; }
+    #titleScreen .ts-foot-btn { font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em;
+      text-transform: uppercase; color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68;
+      -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-foot-btn:hover { opacity: 1; text-decoration: underline; }
+    #titleScreen .ts-foot-sep { color: #fff; opacity: .4; font: 500 10px/1 ui-sans-serif, system-ui, sans-serif; }
     /* Credits popup — reuses the B&W .hs-card shell; left-aligned credit rows with linked names. */
     .cr-card { text-align: left; }
     .cr-title { text-align: center; margin: 0 0 4px; }
@@ -60,6 +59,9 @@
     .cr-what i { font-style: italic; }
     .cr-who { color: #fff; font-weight: 700; text-decoration: underline; white-space: nowrap; cursor: pointer; }
     .cr-who:hover { text-decoration: none; }
+    .cr-creator { text-align: center; }
+    .cr-creator .cr-head { text-align: center; }
+    .cr-creator-name { font-size: 16px; }
     .hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
       display: flex; align-items: center; justify-content: center; padding: 20px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;

@@ -35,15 +35,14 @@
     @keyframes ldPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 
     /* High scores — plain black & white (leaderboard + name-entry). */
-    #titleScreen .ts-hs { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6;
-      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
-      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
-    #titleScreen .ts-hs:hover { opacity: 1; text-decoration: underline; }
-    /* Credits — same plain white text button as High Scores, parked bottom-right. */
-    #titleScreen .ts-credits { position: absolute; right: 14px; bottom: 14px; z-index: 6;
-      font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em; text-transform: uppercase;
-      color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68; -webkit-tap-highlight-color: transparent; }
-    #titleScreen .ts-credits:hover { opacity: 1; text-decoration: underline; }
+    /* Bottom-centre footer: "HIGH SCORES – CREDITS", both centred together. */
+    #titleScreen .ts-footer { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6;
+      display: flex; align-items: center; gap: 10px; }
+    #titleScreen .ts-foot-btn { font: 500 10px/1 ui-sans-serif, system-ui, -apple-system, sans-serif; letter-spacing: .12em;
+      text-transform: uppercase; color: #fff; background: none; border: 0; padding: 5px; cursor: pointer; opacity: .68;
+      -webkit-tap-highlight-color: transparent; }
+    #titleScreen .ts-foot-btn:hover { opacity: 1; text-decoration: underline; }
+    #titleScreen .ts-foot-sep { color: #fff; opacity: .4; font: 500 10px/1 ui-sans-serif, system-ui, sans-serif; }
     /* Credits popup — reuses the B&W .hs-card shell; left-aligned credit rows with linked names. */
     .cr-card { text-align: left; }
     .cr-title { text-align: center; margin: 0 0 4px; }
@@ -55,6 +54,9 @@
     .cr-what i { font-style: italic; }
     .cr-who { color: #fff; font-weight: 700; text-decoration: underline; white-space: nowrap; cursor: pointer; }
     .cr-who:hover { text-decoration: none; }
+    .cr-creator { text-align: center; }
+    .cr-creator .cr-head { text-align: center; }
+    .cr-creator-name { font-size: 16px; }
     .hs-wrap { position: fixed; inset: 0; z-index: 2000; background: #000; color: #fff;
       display: flex; align-items: center; justify-content: center; padding: 20px;
       font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -1445,8 +1447,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "7c63t1";
-globalThis.__BUILD__ = "local 07-23 10:53";
+window.__ASSET_VER = "19k6evy";
+globalThis.__BUILD__ = "local 07-23 11:43";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3806,7 +3808,49 @@ async function submitGlobalScore({ name, level, species, speciesName }) {
   } catch (_) { return false; }
 }
 
-  return { scoresEnabled, fetchGlobalBoards, submitGlobalScore };
+// =============================================================================
+// Anonymous run telemetry — a tiny event stream to a SEPARATE `events` table so
+// we can see the funnel the leaderboard can't (how far people get, retention,
+// purchases). NO names or PII: just an anonymous per-device id (to count distinct
+// players + returns) and a per-page-load session id. Best-effort + fire-and-forget;
+// every failure is swallowed. Needs the `events` table + RLS (docs/leaderboard-setup.md);
+// until it exists these POSTs just 404 harmlessly. Events:
+//   run_start  {species, level}          — a run begins at the picker
+//   level_clear{species, level}          — a level was cleared
+//   run_end    {species, level, cause,turns} — cause: 'won' | 'died'
+//   purchase   {species}                 — a species was unlocked with Spores
+const EVENTS_REST = () => cfg().url.replace(/\/+$/, '') + '/rest/v1/events';
+const CLIENT_KEY = 'mycelium.clientid.v1';
+function uuid() {
+  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (_) {}
+  return 'x' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+}
+function clientId() {
+  try {
+    let id = localStorage.getItem(CLIENT_KEY);
+    if (!id) { id = uuid(); localStorage.setItem(CLIENT_KEY, id); }
+    return id;
+  } catch (_) { return 'anon'; }
+}
+let _sid = null;
+function sessionId() { return _sid || (_sid = uuid()); }
+
+// Fire-and-forget one event. Returns nothing; never throws.
+function logEvent(kind, fields) {
+  if (!scoresEnabled()) return;
+  try {
+    const f = fields || {};
+    const row = { client_id: clientId(), session_id: sessionId(), kind: String(kind).slice(0, 24) };
+    if (f.species != null) row.species = String(f.species).slice(0, 32);
+    if (f.level != null) row.level = f.level | 0;
+    if (f.cause != null) row.cause = String(f.cause).slice(0, 16);
+    if (f.turns != null) row.turns = f.turns | 0;
+    fetchT(EVENTS_REST(), { method: 'POST', headers: headers({ Prefer: 'return=minimal' }), body: JSON.stringify(row), keepalive: true }, 3000)
+      .catch(() => {});
+  } catch (_) { /* never let telemetry break the game */ }
+}
+
+  return { scoresEnabled, fetchGlobalBoards, submitGlobalScore, logEvent };
 })();
 
 // ===================== src/engine/rng.js =====================
@@ -12295,6 +12339,7 @@ const __m_render_species_select = (function () {
   const { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel } = __m_species;
   const { CARD_DATA } = __m_cards_data;
   const { cardSlug, SPORE_ICON } = __m_render_ui;
+  const { logEvent } = __m_net_scores;
   const { growMyceliumTitle } = __m_render_mycelium_title;
 // =============================================================================
 // Start-of-run species picker + between-level campaign overlays (in-game).
@@ -12484,7 +12529,7 @@ function openSpeciesDetail(species, opts = {}) {
     const buy = actions.querySelector('#ssIBuy');
     if (afford && buy) buy.onclick = () => {
       const r = purchaseSpecies(species);
-      if (r.ok) { ins.close(); opts.onBuy && opts.onBuy(); }
+      if (r.ok) { if (species.unlock) logEvent('purchase', { species: species.id }); ins.close(); opts.onBuy && opts.onBuy(); }
     };
   } else {
     actions.innerHTML = '<button class="ss-btn primary" id="ssIOk">Continue</button>';
@@ -12898,18 +12943,21 @@ function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCre
     root.appendChild(devBtn);
   }
 
-  // Small, plain B&W "High Scores" button centred at the very bottom of the title.
-  if (onHighScores) {
-    const hsBtn = el('button', 'ts-hs', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
-    root.appendChild(hsBtn);
-    hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
-  }
-
-  // Matching plain "Credits" button, parked bottom-right.
-  if (onCredits) {
-    const crBtn = el('button', 'ts-credits', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
-    root.appendChild(crBtn);
-    crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
+  // Bottom-centre footer: "HIGH SCORES – CREDITS" — both plain B&W text links, centred together.
+  if (onHighScores || onCredits) {
+    const foot = el('div', 'ts-footer');
+    if (onHighScores) {
+      const hsBtn = el('button', 'ts-foot-btn', 'High Scores'); hsBtn.id = 'tsHighScores'; hsBtn.type = 'button';
+      hsBtn.addEventListener('click', () => { if (consuming || finished) return; onHighScores(); });
+      foot.appendChild(hsBtn);
+    }
+    if (onHighScores && onCredits) foot.appendChild(el('span', 'ts-foot-sep', '–'));
+    if (onCredits) {
+      const crBtn = el('button', 'ts-foot-btn', 'Credits'); crBtn.id = 'tsCredits'; crBtn.type = 'button';
+      crBtn.addEventListener('click', () => { if (consuming || finished) return; onCredits(); });
+      foot.appendChild(crBtn);
+    }
+    root.appendChild(foot);
   }
 
   const canvas = root.querySelector('#tsCanvas');
@@ -14057,6 +14105,9 @@ function showCredits({ onClose } = {}) {
     '<div class="hs-card cr-card" role="dialog" aria-label="Credits">' +
       '<button class="hs-close" id="crClose" type="button" aria-label="Close">✕</button>' +
       '<h2 class="hs-title cr-title">Credits</h2>' +
+      '<div class="cr-sec cr-creator"><div class="cr-head">Creator</div>' +
+        '<a class="cr-who cr-creator-name" href="https://www.linkedin.com/in/p%C3%A1ll-kvaran-0b82b741/" target="_blank" rel="noopener noreferrer">Páll Kvaran</a>' +
+      '</div>' +
       section('Species photography', PHOTO_CREDITS) +
       section('Music', MUSIC_CREDITS) +
     '</div>';
@@ -14097,6 +14148,7 @@ const __m_main = (function () {
   const { showLoading } = __m_render_loading;
   const { showHighScores, checkHighScore, recordHighScore } = __m_render_highscores;
   const { loadPlayerName, savePlayerName } = __m_highscores;
+  const { logEvent } = __m_net_scores;
   const { showCredits } = __m_render_credits;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
@@ -14259,7 +14311,7 @@ function showPicker() {
   hideCanvas();      // never let a finished run's map show behind the picker
   playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
-    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; startRunWithLoadout(sp); },
+    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; logEvent('run_start', { species: sp && sp.id, level: currentLevel }); startRunWithLoadout(sp); },
     onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }
@@ -14386,6 +14438,7 @@ function presentRunOver() {
         if (half > 0) { addSpores(half); runSpores += half; }
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
+      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: 'died', turns: (state && state.turn) });
     }
     // High score: a run ends on death — if the LEVEL reached cracks the monthly/all-time
     // top 10 (global board when configured, else local), record it automatically under the
@@ -14597,6 +14650,7 @@ function drawWinCelebration(time) {
 
 function onLevelWon() {
   const cleared = currentLevel;
+  logEvent('level_clear', { species: chosenSpecies && chosenSpecies.id, level: cleared });
   const prev = loadProgress();
   const newlyRevealed = newlyRevealedByClear(cleared, prev);   // one species revealed per clear, in tier order
   recordLevelCleared(cleared);
@@ -14610,6 +14664,7 @@ function onLevelWon() {
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
+    logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: cleared, cause: 'won', turns: state && state.turn });
     showGameWon({ spores: runSpores, balance, onNewRun: () => runEndThen(backToPicker) });
   } else {
     const snap = snapshotCarry();

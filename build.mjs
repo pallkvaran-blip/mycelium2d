@@ -180,6 +180,14 @@ if (existsSync(R('docs/card-editor.html'))) {
   console.log('Copied docs/card-editor.html -> dist/card-editor.html');
 }
 
+// Publish the run-analytics dashboard at <site>/analytics.html (owner tool; reads the
+// Supabase `events` telemetry table). Self-contained; excluded from the itch zip (which
+// only ships index.html + assets/).
+if (existsSync(R('docs/analytics.html'))) {
+  cpSync(R('docs/analytics.html'), R('dist/analytics.html'));
+  console.log('Copied docs/analytics.html -> dist/analytics.html');
+}
+
 // Publish the species editor at <site>/species-editor.html. It live-imports ../src when
 // run from the source tree, but dist/ has no src/, so BAKE the current roster + a slim
 // card list into its #injectedData tag (the page prefers that when present).

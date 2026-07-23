@@ -89,3 +89,35 @@ never breaks.
   `delete from public.scores where ...` in the SQL editor).
 - Optional hardening later: a Supabase **Edge Function** could add per-IP rate limiting or a
   shared submit secret. Not required to launch.
+
+---
+
+## Run telemetry (the `events` table) — optional but recommended
+
+The leaderboard only records top-10 *deaths* with a name, so it can't tell you how far most
+people get, whether they come back, or whether anyone buys a species. The game also emits
+**anonymous run telemetry** (`src/net_scores.js` `logEvent`) into a separate `events` table:
+`run_start` · `level_clear` · `run_end` (cause `won`/`died`) · `purchase`. No names — just an
+anonymous per-device id (`mycelium.clientid.v1`) and a per-load session id. Until this table
+exists the POSTs 404 harmlessly (the game is unaffected).
+
+Create it once in the Supabase **SQL editor**:
+
+```sql
+create table if not exists public.events (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  client_id text, session_id text,
+  kind text not null,          -- run_start | level_clear | run_end | purchase
+  species text, level int, cause text, turns int
+);
+alter table public.events enable row level security;
+create policy events_insert on public.events for insert to anon with check (
+  char_length(kind) <= 24 and coalesce(char_length(species),0) <= 32
+  and coalesce(level,0) between 0 and 1000 );
+create policy events_read on public.events for select to anon using (true);
+```
+
+Then view the funnel at **`<site>/analytics.html`** (`docs/analytics.html`, published by
+`build.mjs`; NOT in the itch zip): players, sessions, run-length distribution, win/death split,
+species picked, purchases, and simple retention. Reads are public (anon key), same as the board.
