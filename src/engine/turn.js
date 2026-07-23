@@ -58,7 +58,9 @@ export function tickWorld(state) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
-        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        // Cause split for telemetry: no Energy left = out of energy; otherwise the mould
+        // (Trichoderma) rotted every healthy strand.
+        state.runResult = { spores: net.spores, bodies: 0, died: true, cause: net.energy <= 0 ? 'energy' : 'infected' };
         state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
@@ -72,7 +74,7 @@ export function tickWorld(state) {
   if (act && act.active && !state.runOver && (act.nodes.length === 0 || act.healthyCount() === 0)) {
     act.alive = false;
     state.runOver = true;
-    state.runResult = { spores: act.spores, bodies: 0, died: true };
+    state.runResult = { spores: act.spores, bodies: 0, died: true, cause: 'devoured' };   // worms/ants ate the last strand
     state.log('The colony has been devoured — every strand is gone. Run over.', 'warn');
   }
 

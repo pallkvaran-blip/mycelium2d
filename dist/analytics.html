@@ -24,7 +24,7 @@
   section { margin: 26px 0; }
   h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: #9fb5a8; margin: 0 0 12px;
     border-bottom: 1px solid #1f2a24; padding-bottom: 8px; }
-  .row { display: grid; grid-template-columns: 130px 1fr 56px; align-items: center; gap: 10px; margin: 5px 0; }
+  .row { display: grid; grid-template-columns: 175px 1fr 56px; align-items: center; gap: 10px; margin: 5px 0; }
   .row .k { color: #cfe0d6; font-size: 13px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .v { color: #cfe0d6; font-size: 13px; font-weight: 700; }
   .track { background: #182420; border-radius: 6px; height: 18px; overflow: hidden; }
@@ -51,6 +51,7 @@
 </header>
 <main id="out"></main>
 
+<script id="speciesNames" type="application/json">{"marasmius":"Fairy Ring Champignon","armillaria":"Honey Fungus","scleroderma":"Common Earthball","pleurotus":"Oyster Mushroom","suillus":"Slippery Jack","schizophyllum":"Split Gill","hydnellum":"Bleeding Tooth Fungus","stropharia":"Wine Cap","cortinarius":"Violet Webcap","serpula":"Dry Rot","ganoderma":"Artist's Conk"}</script>
 <script>
 'use strict';
 // Same public Supabase project as the game (anon key is safe to expose; read-only here).
@@ -60,6 +61,15 @@ var KEY = G.anonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
 var out = document.getElementById('out');
 var statusEl = document.getElementById('status');
 var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+// Species id -> common name (injected by build.mjs; falls back to the id).
+var SPECIES_NAMES = {};
+try { SPECIES_NAMES = JSON.parse(document.getElementById('speciesNames').textContent || '{}'); } catch (e) {}
+var spName = function (id) { return (id && SPECIES_NAMES[id]) || id || '—'; };
+// Friendly labels for death causes (run_end.cause when it isn't 'won').
+var CAUSE_LABELS = { water: 'Ran out of water', energy: 'Ran out of energy', nocards: 'Ran out of cards',
+  infected: 'Mould (Trichoderma)', devoured: 'Eaten by worms/ants', abandon: 'Abandoned run',
+  starved: 'Ran out of energy', stall: 'Stuck (no moves)', died: 'Other / unknown' };   // starved/stall = legacy aliases
+var causeLabel = function (c) { return CAUSE_LABELS[c] || c || 'Unknown'; };
 
 var SETUP_SQL =
   "create table if not exists public.events (\n" +
@@ -101,7 +111,7 @@ function render(rows) {
   var clears = rows.filter(function (e) { return e.kind === 'level_clear'; });
   var buys = rows.filter(function (e) { return e.kind === 'purchase'; });
   var wins = ends.filter(function (e) { return e.cause === 'won'; });
-  var deaths = ends.filter(function (e) { return e.cause === 'died'; });
+  var deaths = ends.filter(function (e) { return e.cause && e.cause !== 'won'; });
 
   var players = {}; rows.forEach(function (e) { if (e.client_id) players[e.client_id] = 1; });
   var sessions = {}; rows.forEach(function (e) { if (e.session_id) sessions[e.session_id] = 1; });
@@ -134,15 +144,20 @@ function render(rows) {
   var oMax = Math.max(deaths.length, wins.length, 1);
   html += '<section><h2>Outcome</h2>' + bar('Died', deaths.length, oMax, true) + bar('Won (beat L100)', wins.length, oMax) + '</section>';
 
+  // How players die — breakdown of the death cause
+  var dc = sortedEntries(countBy(deaths, function (e) { return e.cause; }));
+  var dcMax = dc.length ? dc[0][1] : 1;
+  html += '<section><h2>How players die</h2>' + (dc.length ? dc.map(function (e) { return bar(causeLabel(e[0]), e[1], dcMax, true); }).join('') : '<div class="muted">No deaths yet.</div>') + '</section>';
+
   // Species picked
   var sp = sortedEntries(countBy(starts, function (e) { return e.species || '—'; }));
   var spMax = sp.length ? sp[0][1] : 1;
-  html += '<section><h2>Species picked (run starts)</h2>' + (sp.length ? sp.map(function (e) { return bar(e[0], e[1], spMax); }).join('') : '<div class="muted">—</div>') + '</section>';
+  html += '<section><h2>Species picked (run starts)</h2>' + (sp.length ? sp.map(function (e) { return bar(spName(e[0]), e[1], spMax); }).join('') : '<div class="muted">—</div>') + '</section>';
 
   // Purchases by species
   var pb = sortedEntries(countBy(buys, function (e) { return e.species || '—'; }));
   var pbMax = pb.length ? pb[0][1] : 1;
-  html += '<section><h2>Species purchased</h2>' + (pb.length ? pb.map(function (e) { return bar(e[0], e[1], pbMax); }).join('') : '<div class="muted">No purchases recorded yet.</div>') + '</section>';
+  html += '<section><h2>Species purchased</h2>' + (pb.length ? pb.map(function (e) { return bar(spName(e[0]), e[1], pbMax); }).join('') : '<div class="muted">No purchases recorded yet.</div>') + '</section>';
 
   // Retention
   html += '<section><h2>Retention</h2>' +
@@ -154,7 +169,7 @@ function render(rows) {
   // Recent events
   var recent = rows.slice(0, 40);
   html += '<section><h2>Recent events</h2><table><thead><tr><th>When</th><th>Kind</th><th>Species</th><th>Lvl</th><th>Cause</th></tr></thead><tbody>' +
-    recent.map(function (e) { return '<tr><td>' + esc(String(e.created_at).replace('T', ' ').slice(0, 16)) + '</td><td>' + esc(e.kind) + '</td><td>' + esc(e.species || '') + '</td><td>' + (e.level == null ? '' : e.level) + '</td><td>' + esc(e.cause || '') + '</td></tr>'; }).join('') +
+    recent.map(function (e) { return '<tr><td>' + esc(String(e.created_at).replace('T', ' ').slice(0, 16)) + '</td><td>' + esc(e.kind) + '</td><td>' + esc(e.species ? spName(e.species) : '') + '</td><td>' + (e.level == null ? '' : e.level) + '</td><td>' + esc(e.cause || '') + '</td></tr>'; }).join('') +
     '</tbody></table></section>';
 
   out.innerHTML = html;

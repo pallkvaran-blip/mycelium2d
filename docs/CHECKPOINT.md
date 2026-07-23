@@ -517,6 +517,21 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Death-cause tracking in telemetry + analytics ("How players die"); dashboard shows common names.**
+  - Every death now carries a specific `cause` on `state.runResult`, forwarded by `run_end`
+    (`main.js presentRunOver` sends `cause: r.cause || 'died'`). Causes: **`water`** (`main.js checkWater`,
+    Water hit 0) · **`energy`** (out of Energy: starvation in `turn.js`, OR a stall where the hand/deck still
+    has cards but there's too little Energy to draw/skip/play/act — `cards.js checkGoalReached`) · **`nocards`**
+    (a stall with hand **and** drawDeck empty) · **`infected`** (Trichoderma rotted the last healthy strand,
+    `turn.js`) · **`devoured`** (worms/ants ate the last strand, `turn.js`) · **`abandon`** (player hit
+    force-fruit, `main.js forceFruitAbandon`) · **`won`**. The **stall split** matters: at a stall `canSkip` is
+    already false (Energy < `skipCostEnergy` 3), so Water/P can never be the *sole* blocker — the only two
+    stall outcomes are "no cards left" vs "no Energy". Verified in the built game
+    (`scratchpad/verify-deathcauses.mjs`): empty hand+deck → `nocards`, non-empty hand + Energy 2 → `energy`.
+  - **Dashboard** (`docs/analytics.html`): new **"How players die"** breakdown (`CAUSE_LABELS` → friendly
+    text like "Ran out of water" / "Mould (Trichoderma)" / "Eaten by worms/ants"; `starved`/`stall` kept as
+    legacy aliases). Also now refers to species by **common name, not latin/id** — `build.mjs` bakes a
+    `{id:name}` map into a `#speciesNames` tag it reads via `spName()` (mirrors the species-editor injection).
 - **Anonymous run telemetry + owner analytics dashboard; title-footer + Credits polish.**
   - **Telemetry** (`net_scores.js logEvent`): fire-and-forget POSTs to a NEW Supabase **`events`** table —
     `run_start` (`main.js` onPick), `level_clear` + `run_end` cause `won` (onLevelWon), `run_end` cause

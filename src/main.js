@@ -284,7 +284,7 @@ function forceFruitAbandon() {
   state.active.alive = false;
   state.runOver = true;
   state.won = false;
-  state.runResult = { won: false, died: true, turns: state.turn };
+  state.runResult = { won: false, died: true, cause: 'abandon', turns: state.turn };
   presentRunOver();
 }
 
@@ -311,7 +311,7 @@ function presentRunOver() {
         if (half > 0) { addSpores(half); runSpores += half; }
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
-      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: 'died', turns: (state && state.turn) });
+      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: r.cause || 'died', turns: (state && state.turn) });
     }
     // High score: a run ends on death — if the LEVEL reached cracks the monthly/all-time
     // top 10 (global board when configured, else local), record it automatically under the

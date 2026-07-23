@@ -81,7 +81,8 @@ export async function submitGlobalScore({ name, level, species, speciesName }) {
 // until it exists these POSTs just 404 harmlessly. Events:
 //   run_start  {species, level}          — a run begins at the picker
 //   level_clear{species, level}          — a level was cleared
-//   run_end    {species, level, cause,turns} — cause: 'won' | 'died'
+//   run_end    {species, level, cause, turns} — cause: 'won' | (a death cause:
+//              'water' | 'energy' | 'nocards' | 'infected' | 'devoured' | 'abandon')
 //   purchase   {species}                 — a species was unlocked with Spores
 const EVENTS_REST = () => cfg().url.replace(/\/+$/, '') + '/rest/v1/events';
 const CLIENT_KEY = 'mycelium.clientid.v1';

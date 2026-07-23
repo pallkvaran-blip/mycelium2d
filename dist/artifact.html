@@ -1444,8 +1444,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "65n50u";
-globalThis.__BUILD__ = "local 07-23 11:56";
+window.__ASSET_VER = "cutwkw";
+globalThis.__BUILD__ = "local 07-23 14:11";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3814,7 +3814,8 @@ async function submitGlobalScore({ name, level, species, speciesName }) {
 // until it exists these POSTs just 404 harmlessly. Events:
 //   run_start  {species, level}          — a run begins at the picker
 //   level_clear{species, level}          — a level was cleared
-//   run_end    {species, level, cause,turns} — cause: 'won' | 'died'
+//   run_end    {species, level, cause, turns} — cause: 'won' | (a death cause:
+//              'water' | 'energy' | 'nocards' | 'infected' | 'devoured' | 'abandon')
 //   purchase   {species}                 — a species was unlocked with Spores
 const EVENTS_REST = () => cfg().url.replace(/\/+$/, '') + '/rest/v1/events';
 const CLIENT_KEY = 'mycelium.clientid.v1';
@@ -7648,8 +7649,12 @@ function checkGoalReached(state) {
   const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
   if (!canDraw && !canSkip && !canPlay && !canAct && !hasDraft) {
     net.alive = false; state.runOver = true;
-    state.runResult = { won: false, died: true, cause: 'stall', turns: state.turn };
-    state.log('Colony died: ran out of cards and resources.', 'warn');
+    // Split the softlock for telemetry: genuinely OUT OF CARDS vs too little ENERGY to act.
+    // (At a stall canSkip is already false — Energy < skipCost — so Water/P can never be the
+    // sole blocker: with enough Energy you could always skip.)
+    const outOfCards = C.hand.length === 0 && C.drawDeck.length === 0;
+    state.runResult = { won: false, died: true, cause: outOfCards ? 'nocards' : 'energy', turns: state.turn };
+    state.log(outOfCards ? 'Colony died: out of cards.' : 'Colony died: out of Energy to act.', 'warn');
   }
 }
 
@@ -8356,7 +8361,9 @@ function tickWorld(state) {
       net.alive = false;
       if (net.active && !state.runOver) {
         state.runOver = true;
-        state.runResult = { spores: net.spores, bodies: 0, died: true };
+        // Cause split for telemetry: no Energy left = out of energy; otherwise the mould
+        // (Trichoderma) rotted every healthy strand.
+        state.runResult = { spores: net.spores, bodies: 0, died: true, cause: net.energy <= 0 ? 'energy' : 'infected' };
         state.log('The colony has been consumed. Run over.', 'warn');
       }
     }
@@ -8370,7 +8377,7 @@ function tickWorld(state) {
   if (act && act.active && !state.runOver && (act.nodes.length === 0 || act.healthyCount() === 0)) {
     act.alive = false;
     state.runOver = true;
-    state.runResult = { spores: act.spores, bodies: 0, died: true };
+    state.runResult = { spores: act.spores, bodies: 0, died: true, cause: 'devoured' };   // worms/ants ate the last strand
     state.log('The colony has been devoured — every strand is gone. Run over.', 'warn');
   }
 
@@ -14409,7 +14416,7 @@ function forceFruitAbandon() {
   state.active.alive = false;
   state.runOver = true;
   state.won = false;
-  state.runResult = { won: false, died: true, turns: state.turn };
+  state.runResult = { won: false, died: true, cause: 'abandon', turns: state.turn };
   presentRunOver();
 }
 
@@ -14436,7 +14443,7 @@ function presentRunOver() {
         if (half > 0) { addSpores(half); runSpores += half; }
       }
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
-      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: 'died', turns: (state && state.turn) });
+      if (r.died) logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: currentLevel, cause: r.cause || 'died', turns: (state && state.turn) });
     }
     // High score: a run ends on death — if the LEVEL reached cracks the monthly/all-time
     // top 10 (global board when configured, else local), record it automatically under the

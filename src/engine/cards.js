@@ -547,8 +547,12 @@ export function checkGoalReached(state) {
   const hasDraft = C.pendingOffers && C.pendingOffers.length > 0;   // a free card is still coming
   if (!canDraw && !canSkip && !canPlay && !canAct && !hasDraft) {
     net.alive = false; state.runOver = true;
-    state.runResult = { won: false, died: true, cause: 'stall', turns: state.turn };
-    state.log('Colony died: ran out of cards and resources.', 'warn');
+    // Split the softlock for telemetry: genuinely OUT OF CARDS vs too little ENERGY to act.
+    // (At a stall canSkip is already false — Energy < skipCost — so Water/P can never be the
+    // sole blocker: with enough Energy you could always skip.)
+    const outOfCards = C.hand.length === 0 && C.drawDeck.length === 0;
+    state.runResult = { won: false, died: true, cause: outOfCards ? 'nocards' : 'energy', turns: state.turn };
+    state.log(outOfCards ? 'Colony died: out of cards.' : 'Colony died: out of Energy to act.', 'warn');
   }
 }
 

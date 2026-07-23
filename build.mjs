@@ -182,10 +182,17 @@ if (existsSync(R('docs/card-editor.html'))) {
 
 // Publish the run-analytics dashboard at <site>/analytics.html (owner tool; reads the
 // Supabase `events` telemetry table). Self-contained; excluded from the itch zip (which
-// only ships index.html + assets/).
+// only ships index.html + assets/). Bake the species id->common-name map so the dashboard
+// shows "Fairy Ring Champignon" instead of "marasmius".
 if (existsSync(R('docs/analytics.html'))) {
-  cpSync(R('docs/analytics.html'), R('dist/analytics.html'));
-  console.log('Copied docs/analytics.html -> dist/analytics.html');
+  const sp = await import('./src/species.js');
+  const names = {};
+  for (const s of sp.SPECIES) names[s.id] = s.name;
+  let aHtml = readFileSync(R('docs/analytics.html'), 'utf8');
+  aHtml = aHtml.replace('<script id="speciesNames" type="application/json"></script>',
+    '<script id="speciesNames" type="application/json">' + JSON.stringify(names).replace(/</g, '\\u003c') + '</script>');
+  writeFileSync(R('dist/analytics.html'), aHtml);
+  console.log('Copied docs/analytics.html -> dist/analytics.html (species names injected)');
 }
 
 // Publish the species editor at <site>/species-editor.html. It live-imports ../src when
