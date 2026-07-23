@@ -118,9 +118,9 @@ function inspector() {
       '<div class="ss-d-body">' +
         '<div><div class="ss-d-name" id="ssIName"></div><div class="ss-d-latin" id="ssILatin"></div></div>' +
         '<p class="ss-d-blurb" id="ssIBlurb"></p>' +
-        '<div class="ss-hand"><h3>Starting hand</h3><p class="ss-sub">The actual cards this colony brings to the surface on turn one.</p>' +
+        '<div class="ss-hand"><h3>Starting hand</h3>' +
           '<div class="ss-resprow" id="ssIRes"></div><div class="ss-deck" id="ssIHand"></div></div>' +
-        '<div class="ss-hand ss-carry" id="ssICarry" style="display:none"><h3>You’ll also bring</h3><p class="ss-sub">Cards you carried from your last run — they join this colony’s starting hand.</p>' +
+        '<div class="ss-hand ss-carry" id="ssICarry" style="display:none"><h3>Carryovers from your last run</h3>' +
           '<div class="ss-deck" id="ssICarryDeck"></div></div>' +
         '<div class="ss-actions" id="ssIActions"></div>' +
       '</div>' +
