@@ -1097,7 +1097,7 @@
     .ss-d-blurb b { color:var(--ss-ink); font-weight:600; }
 
     .ss-hand { border-top:1px solid rgba(120,160,140,0.16); padding-top:14px; }
-    .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 4px; font-weight:700; }
+    .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 12px; font-weight:700; }
     .ss-sub { font-size:12px; color:var(--ss-ink-faint); margin:0 0 12px; }
     .ss-resprow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
     .ss-respill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px 5px 9px; border-radius:999px;
@@ -1375,14 +1375,17 @@
     /* secondary (e.g. "Main menu" on the death screen) — outlined, not solid */
     .lo-btn2 { color:#fff; background:transparent; border-color:rgba(255,255,255,0.4); }
     .lo-btn2:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.72); }
-    /* Death-screen header sitting ATOP the carry carousel (the run's death message). */
+    /* Death-screen header sitting ATOP the carry carousel (title matches the cause of death). */
     .lo-header { width:100%; max-width:680px; text-align:center; margin:0 auto; }
     .lo-h-title { margin:0 0 6px; font-size:clamp(20px,3.2vw,28px); font-weight:800; color:#fff; letter-spacing:.01em; }
-    .lo-h-body { margin:0 auto; max-width:600px; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#c9d8d0; }
-    .lo-header .death-spores { display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; color:#f2f2f2; margin:12px 0 2px; font-weight:600; }
-    .lo-header .death-spores b { color:#fff; font-weight:700; }
-    .lo-header .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto; filter:brightness(0) invert(1); }
-    .lo-header .ov-hs { margin:12px 0 0; }
+    .lo-h-body { margin:0 auto 2px; max-width:600px; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#c9d8d0; }
+    .lo-h-spores { display:flex; align-items:center; justify-content:center; gap:7px; font-size:14px; color:#f2f2f2; margin:12px 0 0; font-weight:600; }
+    .lo-h-spores b { color:#fff; font-weight:700; }
+    .lo-h-spores .spore-ic { width:17px; height:17px; flex:0 0 auto; filter:brightness(0) invert(1); }
+    .lo-h-instr { margin:14px auto 0; max-width:620px; font-size:clamp(14px,2.1vw,17px); font-weight:700; color:#eaf4ee; }
+    .lo-h-note { font-weight:600; color:#8fb3a4; font-size:0.85em; white-space:nowrap; }
+    /* bigger count for the death carry ("0 / 3") */
+    .lo-count-big { font-size:clamp(18px,3vw,24px); }
 
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each
@@ -1455,8 +1458,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "8m2156";
-globalThis.__BUILD__ = "local 07-23 20:06";
+window.__ASSET_VER = "1eqyyvc";
+globalThis.__BUILD__ = "local 07-23 20:40";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -11350,6 +11353,26 @@ class UI {
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 
+  // Top-10 prompt shown AFTER the death-carry screen (only when the run cracked the board).
+  // Plain black & white, reusing the run-over overlay element. The score is already recorded
+  // (under the New Game name); this just tells the player + links to the board.
+  showHighScorePrompt(level, opts = {}) {
+    this._hideCardPopup && this._hideCardPopup();
+    const o = this.el.overlay;
+    o.classList.remove('hidden');
+    o.innerHTML = `
+      <div class="card death">
+        <h1>Top 10 score</h1>
+        <p>You reached level ${level | 0}!</p>
+        <div class="ctrl deathctrl">
+          <button class="btn big secondary" id="hsp-view">View High Scores</button>
+          <button class="btn big" id="hsp-cont">Continue</button>
+        </div>
+      </div>`;
+    const v = o.querySelector('#hsp-view'); if (v) v.onclick = () => opts.onView && opts.onView();
+    const c = o.querySelector('#hsp-cont'); if (c) c.onclick = () => opts.onContinue && opts.onContinue();
+  }
+
   // A click-to-dismiss WARNING modal (used for the survival/low-water warning). Clean
   // black & white, no gradients; the "Warning" heading is red. Stays up until the player
   // clicks OK (or the backdrop) — unlike the transient toast, it demands acknowledgement.
@@ -12794,7 +12817,7 @@ function enableDragScroll(el) {
 }
 
 function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm,
-  header, upperLabel, lowerLabel, midText: midTextOpt, confirmText, secondaryText, onSecondary, emptyText }) {
+  header, upperLabel, lowerLabel, midText: midTextOpt, confirmText, secondaryText, onSecondary, emptyText, layout }) {
   const root = el('div'); root.id = 'loadoutSelect';
   const MAX_PICK = maxPick || 8;
   const MAX_ENG = maxEngines || 0;
@@ -12819,20 +12842,26 @@ function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEn
   const upLbl = upperLabel || 'Your starting hand';
   const loLbl = lowerLabel || 'Drafted last run — click to add';
   const confLbl = confirmText || 'Confirm';
+  // Death layout: POOL carousel on top, big counter, then the SELECTED carousel (the
+  // instruction lives in the header). Default (memory): SELECTED on top, mid text + count, POOL below.
+  const poolTop = layout === 'death';
+  const caroSel = '<div class="lo-caro"><div class="lo-label">' + esc(upLbl) + '</div>' +
+    '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>';
+  const caroPool = '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
+    '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>';
+  const midBlock = poolTop
+    ? '<div class="lo-mid"><span class="lo-count lo-count-big" id="loCount"></span></div>'
+    : '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span><span class="lo-count" id="loCount"></span></div>';
+  const actionsBlock = '<div class="lo-actions">' +
+    (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
+    '<button class="lo-btn" id="loConfirm" type="button">' + esc(confLbl) + '</button>' +
+    '</div>';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
       (header ? '<div class="lo-header">' + header + '</div>' : '') +
-      '<div class="lo-caro"><div class="lo-label">' + esc(upLbl) + '</div>' +
-        '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span>' +
-        '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
-        '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
-      '<div class="lo-actions">' +
-        (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
-        '<button class="lo-btn" id="loConfirm" type="button">' + esc(confLbl) + '</button>' +
-      '</div>' +
+      (poolTop ? (caroPool + midBlock + caroSel) : (caroSel + midBlock + caroPool)) +
+      actionsBlock +
     '</div>';
   document.body.appendChild(root);
 
@@ -12910,7 +12939,7 @@ function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEn
     const nNon = selCountNon(), nEng = selCountEng();
     countEl.textContent = MAX_ENG > 0 ? (nNon + '/' + MAX_PICK + ' cards · ' + nEng + '/' + MAX_ENG + ' engines') : (nNon + ' / ' + MAX_PICK);
     const full = MAX_ENG > 0 ? (nNon >= MAX_PICK && nEng >= MAX_ENG) : (nNon >= MAX_PICK);
-    countEl.className = 'lo-count' + (full ? ' lo-full' : '');
+    countEl.className = 'lo-count' + (poolTop ? ' lo-count-big' : '') + (full ? ' lo-full' : '');
   }
   render();
 
@@ -14471,39 +14500,70 @@ function forceFruitAbandon() {
   presentRunOver();
 }
 
-// The DEATH screen: the memory-style card carousel with the run's death message on top.
-// The colony sporulates as it dies, so the player carries a few cards they PLAYED this run
-// into their NEXT run (any species): 2 cards + 1 per level CLEARED this run. Confirm saves
-// the pick and returns to the picker; Main menu saves it too and returns to the title.
-function showDeathCarry(r, hs) {
+// Title + subtitle for the death screen, keyed to the CAUSE of death (turn.js/cards.js/
+// main.js set state.runResult.cause). The colony always sporulates as it dies — that's why
+// you bank Spores + carry cards — so the subtitle is the same for every "ran out / overrun"
+// death; only the manual force-fruit (abandon) reads differently.
+function deathText(cause) {
+  const titles = {
+    water: 'You ran out of water',
+    energy: 'You ran out of energy',
+    nocards: 'You ran out of cards',
+    infected: 'The mould consumed your colony',
+    devoured: 'Your colony was devoured',
+    abandon: 'You fruited early',
+  };
+  const title = titles[cause] || 'Your run has ended';
+  const sub = cause === 'abandon'
+    ? 'You ended the run before reaching the goal, sporing before reaching the east.'
+    : 'Your colony was forced to fruit and spore before reaching the east.';
+  return { title, sub };
+}
+
+// The DEATH screen: the memory-style card carousel with the run's death message on top
+// (title matches the cause of death). The player carries cards they PLAYED this run into
+// their NEXT run (any species): 3 + (levels CLEARED this run). Confirm/Main-menu save the
+// pick; the Top-10 prompt (if earned) shows AFTER, on the way out.
+function showDeathCarry(r) {
   const cleared = Math.max(0, currentLevel - runStartLevel);
-  const keep = 2 + cleared;
+  const keep = 3 + cleared;
   const rp = (state && state.cards && state.cards.runPlayed) || {};
   const pool = Object.keys(rp).filter((n) => rp[n] > 0).map((n) => ({ name: n, count: rp[n] }));
+  const { title, sub } = deathText(r && r.cause);
   const sporeLine = (r && r.runSpores != null)
-    ? `<p class="death-spores">${SPORE_ICON}<b>${r.runSpores}</b>&nbsp;Spores earned this run</p>` : '';
-  const hsBlock = hs
-    ? '<div class="ov-hs"><p class="ov-hs-badge">Top 10 score</p><button class="ov-hs-link" id="dc-hs-view" type="button">High Scores</button></div>' : '';
+    ? `<p class="lo-h-spores">${SPORE_ICON}<b>${r.runSpores}</b> earned this run — use them to buy new species</p>` : '';
   const header =
-    '<h1 class="lo-h-title">Your run has ended</h1>' +
-    `<p class="lo-h-body">Your colony was forced to fruit and spore on <b>level ${currentLevel}</b>. A few of the cards you played survive on the wind — carry them into your next colony, whatever species you choose.</p>` +
-    sporeLine + hsBlock;
-  const view = showLoadoutSelect({
-    drafted: pool, fixed: [], maxPick: keep, maxEngines: 0,
+    `<h1 class="lo-h-title">${title}</h1>` +
+    `<p class="lo-h-body">${sub}</p>` +
+    sporeLine +
+    `<p class="lo-h-instr">Choose ${keep} cards you played to bring with you into your next run <span class="lo-h-note">(3 + levels cleared)</span></p>`;
+  // Kick off the Top-10 check now (in the background) + record it, so the prompt is ready the
+  // instant the player leaves this screen — it shows AFTER Next run / Main menu, not here.
+  const hsPromise = (cardsCampaign() && chosenSpecies)
+    ? checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
+        .then((hs) => { if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }); return hs; })
+        .catch(() => null)
+    : Promise.resolve(null);
+  showLoadoutSelect({
+    drafted: pool, fixed: [], maxPick: keep, maxEngines: 0, layout: 'death',
     header,
-    upperLabel: 'Carrying to your next run',
+    upperLabel: 'Cards for your next run',
     lowerLabel: 'Cards you played this run — click to add',
-    midText: 'Choose up to ' + keep + ' card' + (keep === 1 ? '' : 's') + ' to carry into your next run',
     emptyText: 'You didn’t play any cards this run.',
-    confirmText: 'Continue →',
+    confirmText: 'Next run',
     secondaryText: 'Main menu',
-    onConfirm: (picked) => { saveDeathCarry(picked); backToPicker(); },
-    onSecondary: (picked) => { saveDeathCarry(picked); backToTitle(); },
+    onConfirm: (picked) => { saveDeathCarry(picked); afterDeath(hsPromise, backToPicker); },
+    onSecondary: (picked) => { saveDeathCarry(picked); afterDeath(hsPromise, backToTitle); },
   });
-  if (hs && view && view.root) {
-    const vb = view.root.querySelector('#dc-hs-view');
-    if (vb) vb.onclick = () => showHighScores({});
-  }
+}
+
+// Between the death screen and wherever the player is headed: if this run cracked the Top 10,
+// show the score prompt first (with a link to the board), then continue.
+function afterDeath(hsPromise, next) {
+  hsPromise.then((hs) => {
+    if (hs && ui) ui.showHighScorePrompt(hs.level, { onView: () => showHighScores({}), onContinue: next });
+    else next();
+  });
 }
 
 function presentRunOver() {
@@ -14536,13 +14596,9 @@ function presentRunOver() {
     // name the player entered at New Game, and flag it on the run-over card ("Top 10 score"
     // + a High Scores link). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
-      checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
-        .then((hs) => {
-          if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal });
-          // The death screen IS the card-carry carousel (death message on top). It saves the
-          // player's picks and routes onward (picker / main menu) itself.
-          showDeathCarry(r, hs);
-        });
+      // The death screen IS the card-carry carousel (cause-matched message on top). It runs
+      // the Top-10 check itself and shows that prompt AFTER the player leaves the carousel.
+      showDeathCarry(r);
       return;
     }
     ui.showOverlay(r);

@@ -60,7 +60,7 @@ function enableDragScroll(el) {
 }
 
 export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm,
-  header, upperLabel, lowerLabel, midText: midTextOpt, confirmText, secondaryText, onSecondary, emptyText }) {
+  header, upperLabel, lowerLabel, midText: midTextOpt, confirmText, secondaryText, onSecondary, emptyText, layout }) {
   const root = el('div'); root.id = 'loadoutSelect';
   const MAX_PICK = maxPick || 8;
   const MAX_ENG = maxEngines || 0;
@@ -85,20 +85,26 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
   const upLbl = upperLabel || 'Your starting hand';
   const loLbl = lowerLabel || 'Drafted last run — click to add';
   const confLbl = confirmText || 'Confirm';
+  // Death layout: POOL carousel on top, big counter, then the SELECTED carousel (the
+  // instruction lives in the header). Default (memory): SELECTED on top, mid text + count, POOL below.
+  const poolTop = layout === 'death';
+  const caroSel = '<div class="lo-caro"><div class="lo-label">' + esc(upLbl) + '</div>' +
+    '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>';
+  const caroPool = '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
+    '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>';
+  const midBlock = poolTop
+    ? '<div class="lo-mid"><span class="lo-count lo-count-big" id="loCount"></span></div>'
+    : '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span><span class="lo-count" id="loCount"></span></div>';
+  const actionsBlock = '<div class="lo-actions">' +
+    (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
+    '<button class="lo-btn" id="loConfirm" type="button">' + esc(confLbl) + '</button>' +
+    '</div>';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
       (header ? '<div class="lo-header">' + header + '</div>' : '') +
-      '<div class="lo-caro"><div class="lo-label">' + esc(upLbl) + '</div>' +
-        '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span>' +
-        '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
-        '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
-      '<div class="lo-actions">' +
-        (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
-        '<button class="lo-btn" id="loConfirm" type="button">' + esc(confLbl) + '</button>' +
-      '</div>' +
+      (poolTop ? (caroPool + midBlock + caroSel) : (caroSel + midBlock + caroPool)) +
+      actionsBlock +
     '</div>';
   document.body.appendChild(root);
 
@@ -176,7 +182,7 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
     const nNon = selCountNon(), nEng = selCountEng();
     countEl.textContent = MAX_ENG > 0 ? (nNon + '/' + MAX_PICK + ' cards · ' + nEng + '/' + MAX_ENG + ' engines') : (nNon + ' / ' + MAX_PICK);
     const full = MAX_ENG > 0 ? (nNon >= MAX_PICK && nEng >= MAX_ENG) : (nNon >= MAX_PICK);
-    countEl.className = 'lo-count' + (full ? ' lo-full' : '');
+    countEl.className = 'lo-count' + (poolTop ? ' lo-count-big' : '') + (full ? ' lo-full' : '');
   }
   render();
 

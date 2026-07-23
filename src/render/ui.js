@@ -717,6 +717,26 @@ export class UI {
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
 
+  // Top-10 prompt shown AFTER the death-carry screen (only when the run cracked the board).
+  // Plain black & white, reusing the run-over overlay element. The score is already recorded
+  // (under the New Game name); this just tells the player + links to the board.
+  showHighScorePrompt(level, opts = {}) {
+    this._hideCardPopup && this._hideCardPopup();
+    const o = this.el.overlay;
+    o.classList.remove('hidden');
+    o.innerHTML = `
+      <div class="card death">
+        <h1>Top 10 score</h1>
+        <p>You reached level ${level | 0}!</p>
+        <div class="ctrl deathctrl">
+          <button class="btn big secondary" id="hsp-view">View High Scores</button>
+          <button class="btn big" id="hsp-cont">Continue</button>
+        </div>
+      </div>`;
+    const v = o.querySelector('#hsp-view'); if (v) v.onclick = () => opts.onView && opts.onView();
+    const c = o.querySelector('#hsp-cont'); if (c) c.onclick = () => opts.onContinue && opts.onContinue();
+  }
+
   // A click-to-dismiss WARNING modal (used for the survival/low-water warning). Clean
   // black & white, no gradients; the "Warning" heading is red. Stays up until the player
   // clicks OK (or the backdrop) — unlike the transient toast, it demands acknowledgement.

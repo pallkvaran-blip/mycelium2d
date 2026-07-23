@@ -300,39 +300,70 @@ function forceFruitAbandon() {
   presentRunOver();
 }
 
-// The DEATH screen: the memory-style card carousel with the run's death message on top.
-// The colony sporulates as it dies, so the player carries a few cards they PLAYED this run
-// into their NEXT run (any species): 2 cards + 1 per level CLEARED this run. Confirm saves
-// the pick and returns to the picker; Main menu saves it too and returns to the title.
-function showDeathCarry(r, hs) {
+// Title + subtitle for the death screen, keyed to the CAUSE of death (turn.js/cards.js/
+// main.js set state.runResult.cause). The colony always sporulates as it dies — that's why
+// you bank Spores + carry cards — so the subtitle is the same for every "ran out / overrun"
+// death; only the manual force-fruit (abandon) reads differently.
+function deathText(cause) {
+  const titles = {
+    water: 'You ran out of water',
+    energy: 'You ran out of energy',
+    nocards: 'You ran out of cards',
+    infected: 'The mould consumed your colony',
+    devoured: 'Your colony was devoured',
+    abandon: 'You fruited early',
+  };
+  const title = titles[cause] || 'Your run has ended';
+  const sub = cause === 'abandon'
+    ? 'You ended the run before reaching the goal, sporing before reaching the east.'
+    : 'Your colony was forced to fruit and spore before reaching the east.';
+  return { title, sub };
+}
+
+// The DEATH screen: the memory-style card carousel with the run's death message on top
+// (title matches the cause of death). The player carries cards they PLAYED this run into
+// their NEXT run (any species): 3 + (levels CLEARED this run). Confirm/Main-menu save the
+// pick; the Top-10 prompt (if earned) shows AFTER, on the way out.
+function showDeathCarry(r) {
   const cleared = Math.max(0, currentLevel - runStartLevel);
-  const keep = 2 + cleared;
+  const keep = 3 + cleared;
   const rp = (state && state.cards && state.cards.runPlayed) || {};
   const pool = Object.keys(rp).filter((n) => rp[n] > 0).map((n) => ({ name: n, count: rp[n] }));
+  const { title, sub } = deathText(r && r.cause);
   const sporeLine = (r && r.runSpores != null)
-    ? `<p class="death-spores">${SPORE_ICON}<b>${r.runSpores}</b>&nbsp;Spores earned this run</p>` : '';
-  const hsBlock = hs
-    ? '<div class="ov-hs"><p class="ov-hs-badge">Top 10 score</p><button class="ov-hs-link" id="dc-hs-view" type="button">High Scores</button></div>' : '';
+    ? `<p class="lo-h-spores">${SPORE_ICON}<b>${r.runSpores}</b> earned this run — use them to buy new species</p>` : '';
   const header =
-    '<h1 class="lo-h-title">Your run has ended</h1>' +
-    `<p class="lo-h-body">Your colony was forced to fruit and spore on <b>level ${currentLevel}</b>. A few of the cards you played survive on the wind — carry them into your next colony, whatever species you choose.</p>` +
-    sporeLine + hsBlock;
-  const view = showLoadoutSelect({
-    drafted: pool, fixed: [], maxPick: keep, maxEngines: 0,
+    `<h1 class="lo-h-title">${title}</h1>` +
+    `<p class="lo-h-body">${sub}</p>` +
+    sporeLine +
+    `<p class="lo-h-instr">Choose ${keep} cards you played to bring with you into your next run <span class="lo-h-note">(3 + levels cleared)</span></p>`;
+  // Kick off the Top-10 check now (in the background) + record it, so the prompt is ready the
+  // instant the player leaves this screen — it shows AFTER Next run / Main menu, not here.
+  const hsPromise = (cardsCampaign() && chosenSpecies)
+    ? checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
+        .then((hs) => { if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }); return hs; })
+        .catch(() => null)
+    : Promise.resolve(null);
+  showLoadoutSelect({
+    drafted: pool, fixed: [], maxPick: keep, maxEngines: 0, layout: 'death',
     header,
-    upperLabel: 'Carrying to your next run',
+    upperLabel: 'Cards for your next run',
     lowerLabel: 'Cards you played this run — click to add',
-    midText: 'Choose up to ' + keep + ' card' + (keep === 1 ? '' : 's') + ' to carry into your next run',
     emptyText: 'You didn’t play any cards this run.',
-    confirmText: 'Continue →',
+    confirmText: 'Next run',
     secondaryText: 'Main menu',
-    onConfirm: (picked) => { saveDeathCarry(picked); backToPicker(); },
-    onSecondary: (picked) => { saveDeathCarry(picked); backToTitle(); },
+    onConfirm: (picked) => { saveDeathCarry(picked); afterDeath(hsPromise, backToPicker); },
+    onSecondary: (picked) => { saveDeathCarry(picked); afterDeath(hsPromise, backToTitle); },
   });
-  if (hs && view && view.root) {
-    const vb = view.root.querySelector('#dc-hs-view');
-    if (vb) vb.onclick = () => showHighScores({});
-  }
+}
+
+// Between the death screen and wherever the player is headed: if this run cracked the Top 10,
+// show the score prompt first (with a link to the board), then continue.
+function afterDeath(hsPromise, next) {
+  hsPromise.then((hs) => {
+    if (hs && ui) ui.showHighScorePrompt(hs.level, { onView: () => showHighScores({}), onContinue: next });
+    else next();
+  });
 }
 
 function presentRunOver() {
@@ -365,13 +396,9 @@ function presentRunOver() {
     // name the player entered at New Game, and flag it on the run-over card ("Top 10 score"
     // + a High Scores link). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
-      checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
-        .then((hs) => {
-          if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal });
-          // The death screen IS the card-carry carousel (death message on top). It saves the
-          // player's picks and routes onward (picker / main menu) itself.
-          showDeathCarry(r, hs);
-        });
+      // The death screen IS the card-carry carousel (cause-matched message on top). It runs
+      // the Top-10 check itself and shows that prompt AFTER the player leaves the carousel.
+      showDeathCarry(r);
       return;
     }
     ui.showOverlay(r);

@@ -517,6 +517,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Death screen redesign + carry bumped to 3 + levels cleared.** Carry is now **3 + (levels cleared this
+  run)** (was 2; deliberately generous, tune later). The screen (`main.js showDeathCarry` + `loadout_select.js`
+  `layout:'death'`) reordered: cause-matched **title** (`deathText(cause)` — "You ran out of water/energy/
+  cards", "The mould consumed your colony", "Your colony was devoured", "You fruited early") → subtitle
+  ("…forced to fruit and spore before reaching the east"; abandon reads "You ended the run…sporing before
+  reaching the east") → spore line (`SPORE_ICON` + count, **no word "Spores"**, "…use them to buy new
+  species") → instruction "Choose N cards you played… (3 + levels cleared)" → **POOL carousel on top**
+  ("Cards you played this run — click to add") → **big counter** (`.lo-count-big`) → **picks carousel**
+  ("Cards for your next run") → buttons **"Next run"** (arrow removed) + **"Main menu"**. The **Top-10 prompt
+  moved to AFTER** the button (`ui.showHighScorePrompt(level,{onView,onContinue})`, "Top 10 score / You
+  reached level X!" + View High Scores / Continue) — the check runs in the background during the carousel and
+  fires only if the run cracked the board, then routes to picker/title. Species detail: dropped both `.ss-sub`
+  subtitles, "Carryovers from your last run" heading, more space under `.ss-hand h3`. Verified
+  `scratchpad/verify-deathredesign.mjs` (13/13).
 - **DEV TOOLS cheats/sliders panel PERMANENTLY removed** (`ui.js` — the bottom-right collapsible with +Energy/
   +Spores/Spawn-Trichoderma + the tuning sliders). Owner won't need it. `config.dev.enabled` now gates ONLY
   the "Dev: win level" (`#devWin`) button; the picker `#ssDev`/`#ssDevUnlock` buttons and the invisible

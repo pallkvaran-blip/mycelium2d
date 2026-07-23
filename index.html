@@ -1102,7 +1102,7 @@
     .ss-d-blurb b { color:var(--ss-ink); font-weight:600; }
 
     .ss-hand { border-top:1px solid rgba(120,160,140,0.16); padding-top:14px; }
-    .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 4px; font-weight:700; }
+    .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 12px; font-weight:700; }
     .ss-sub { font-size:12px; color:var(--ss-ink-faint); margin:0 0 12px; }
     .ss-resprow { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
     .ss-respill { display:inline-flex; align-items:center; gap:6px; padding:5px 12px 5px 9px; border-radius:999px;
@@ -1380,14 +1380,17 @@
     /* secondary (e.g. "Main menu" on the death screen) — outlined, not solid */
     .lo-btn2 { color:#fff; background:transparent; border-color:rgba(255,255,255,0.4); }
     .lo-btn2:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.72); }
-    /* Death-screen header sitting ATOP the carry carousel (the run's death message). */
+    /* Death-screen header sitting ATOP the carry carousel (title matches the cause of death). */
     .lo-header { width:100%; max-width:680px; text-align:center; margin:0 auto; }
     .lo-h-title { margin:0 0 6px; font-size:clamp(20px,3.2vw,28px); font-weight:800; color:#fff; letter-spacing:.01em; }
-    .lo-h-body { margin:0 auto; max-width:600px; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#c9d8d0; }
-    .lo-header .death-spores { display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; color:#f2f2f2; margin:12px 0 2px; font-weight:600; }
-    .lo-header .death-spores b { color:#fff; font-weight:700; }
-    .lo-header .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto; filter:brightness(0) invert(1); }
-    .lo-header .ov-hs { margin:12px 0 0; }
+    .lo-h-body { margin:0 auto 2px; max-width:600px; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#c9d8d0; }
+    .lo-h-spores { display:flex; align-items:center; justify-content:center; gap:7px; font-size:14px; color:#f2f2f2; margin:12px 0 0; font-weight:600; }
+    .lo-h-spores b { color:#fff; font-weight:700; }
+    .lo-h-spores .spore-ic { width:17px; height:17px; flex:0 0 auto; filter:brightness(0) invert(1); }
+    .lo-h-instr { margin:14px auto 0; max-width:620px; font-size:clamp(14px,2.1vw,17px); font-weight:700; color:#eaf4ee; }
+    .lo-h-note { font-weight:600; color:#8fb3a4; font-size:0.85em; white-space:nowrap; }
+    /* bigger count for the death carry ("0 / 3") */
+    .lo-count-big { font-size:clamp(18px,3vw,24px); }
 
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each
