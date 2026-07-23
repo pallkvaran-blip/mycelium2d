@@ -20,6 +20,17 @@ const RETAIN = 60;                    // cap stored entries: last week + all-tim
 
 function now() { return Date.now(); }
 
+// The player's display name, entered on the title screen when they press New Game and
+// reused for every score this device submits until they start another New Game. Kept
+// separate from the score list so it survives a board prune and pre-fills next time.
+const NAME_KEY = 'mycelium.playername.v1';
+export function loadPlayerName() {
+  try { return (String(localStorage.getItem(NAME_KEY) || '').trim()).slice(0, 14); } catch (_) { return ''; }
+}
+export function savePlayerName(name) {
+  try { localStorage.setItem(NAME_KEY, (String(name || '').trim()).slice(0, 14)); } catch (_) {}
+}
+
 export function loadScores() {
   try { const p = JSON.parse(localStorage.getItem(KEY)); return (p && Array.isArray(p.entries)) ? p.entries : []; }
   catch (_) { return []; }

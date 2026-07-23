@@ -728,15 +728,13 @@ export class UI {
     const sporeLine = (result && result.runSpores != null)
       ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
       : '';
-    // Inline high-score entry (only when this run cracked the top 10 — hs supplied). Save
-    // records the score and turns into View, which opens the full high-scores list.
+    // Top-10 badge (only when this run cracked the top 10 — hs supplied). The score was
+    // already recorded (using the name entered at New Game); this just flags it and links
+    // to the full board. Plain black & white, no gradients.
     const hsBlock = hs ? `
         <div class="ov-hs">
-          <p class="dim small">You reached level <b>${hs.level | 0}</b>${hs.speciesName ? ` as <b>${hs.speciesName}</b>` : ''} — a top 10 run.</p>
-          <div class="hs-entry">
-            <input class="hs-input" id="ov-hs-name" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">
-            <button class="hs-btn" id="ov-hs-save" type="button">Save</button>
-          </div>
+          <p class="ov-hs-badge">Top 10 score</p>
+          <button class="ov-hs-link" id="ov-hs-view" type="button">High Scores</button>
         </div>` : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
@@ -756,18 +754,10 @@ export class UI {
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
     const mn = o.querySelector('#overlay-menu');
     if (mn) mn.onclick = () => this.handlers.onMainMenu();
-    // Inline high-score entry: Save records the score then becomes View → the full list.
+    // Top-10 badge: the "High Scores" link opens the full board.
     if (hs) {
-      const nm = o.querySelector('#ov-hs-name'), sv = o.querySelector('#ov-hs-save');
-      let saved = false;
-      const doSave = () => {
-        if (saved || !sv) return; saved = true;
-        sv.disabled = true; if (nm) nm.disabled = true;
-        Promise.resolve(hs.onSave(nm ? nm.value : '')).then(() => { sv.textContent = 'View'; sv.disabled = false; });
-      };
-      if (sv) sv.onclick = () => { if (!saved) doSave(); else hs.onView && hs.onView(); };
-      if (nm) nm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !saved) doSave(); });
-      setTimeout(() => { try { if (nm) nm.focus(); } catch (_) {} }, 60);
+      const vb = o.querySelector('#ov-hs-view');
+      if (vb) vb.onclick = () => hs.onView && hs.onView();
     }
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }

@@ -91,14 +91,11 @@
     .hs-row.hs-hi td { background: #fff; color: #000; }
     .hs-row.hs-hi .hs-rank, .hs-row.hs-hi .hs-sp { color: #333; }
     .hs-empty { padding: 26px 0; color: #8f8f8f; font-size: 13px; }
-    .ov-hs { margin: 8px 0 2px; }   /* inline high-score entry inside the run-over card */
-    .hs-entry { display: flex; gap: 8px; justify-content: center; margin: 6px 0 4px; }
-    .hs-input { flex: 1 1 auto; max-width: 240px; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 10px;
-      background: #000; border: 1px solid #fff; color: #fff; text-align: center; }
-    .hs-input::placeholder { color: #777; }
-    .hs-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 18px; border-radius: 10px;
-      background: #fff; color: #000; border: 1px solid #fff; cursor: pointer; }
-    .hs-btn:hover { background: #e6e6e6; }
+    .ov-hs { margin: 10px 0 2px; text-align: center; }   /* top-10 badge inside the run-over card */
+    .ov-hs-badge { margin: 0 0 4px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; font-size: 14px; color: #fff; }
+    .ov-hs-link { display: inline-block; font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .02em;
+      color: #fff; background: none; border: none; border-bottom: 1px solid #fff; padding: 1px 2px; cursor: pointer; }
+    .ov-hs-link:hover { color: #cfcfcf; border-color: #cfcfcf; }
     .hs-cont { display: block; width: 100%; margin-top: 16px; }
 
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
@@ -915,7 +912,11 @@
     @keyframes tsConfirmIn { from { opacity:0; } to { opacity:1; } }
     #titleScreen .ts-confirm-box { background:#000; border:1px solid #fff; border-radius:12px;
       padding:30px 32px; max-width:min(460px,92vw); text-align:center; }
-    #titleScreen .ts-confirm-msg { color:#fff; font-size:clamp(15px,1.9vw,17px); line-height:1.5; margin:0 0 24px; }
+    #titleScreen .ts-confirm-msg { color:#fff; font-size:clamp(15px,1.9vw,17px); line-height:1.5; margin:0 0 16px; }
+    #titleScreen .ts-confirm-sub { display:block; margin-top:8px; font-size:13px; color:#b9b9b9; }
+    #titleScreen .ts-name-input { display:block; box-sizing:border-box; width:100%; margin:0 0 22px; font-family:inherit;
+      font-size:16px; text-align:center; color:#fff; background:#000; border:1px solid #fff; border-radius:8px; padding:12px 14px; }
+    #titleScreen .ts-name-input::placeholder { color:#777; }
     #titleScreen .ts-confirm-actions { display:flex; gap:14px; justify-content:center; }
     #titleScreen .ts-confirm-btn { cursor:pointer; font-family:inherit; font-weight:600; font-size:15px; letter-spacing:.02em;
       color:#fff; background:#000; border:1px solid #fff; border-radius:8px; padding:11px 30px; transition:background .15s, color .15s; }

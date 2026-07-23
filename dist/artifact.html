@@ -86,14 +86,11 @@
     .hs-row.hs-hi td { background: #fff; color: #000; }
     .hs-row.hs-hi .hs-rank, .hs-row.hs-hi .hs-sp { color: #333; }
     .hs-empty { padding: 26px 0; color: #8f8f8f; font-size: 13px; }
-    .ov-hs { margin: 8px 0 2px; }   /* inline high-score entry inside the run-over card */
-    .hs-entry { display: flex; gap: 8px; justify-content: center; margin: 6px 0 4px; }
-    .hs-input { flex: 1 1 auto; max-width: 240px; font: inherit; font-size: 15px; padding: 11px 12px; border-radius: 10px;
-      background: #000; border: 1px solid #fff; color: #fff; text-align: center; }
-    .hs-input::placeholder { color: #777; }
-    .hs-btn { font: inherit; font-size: 14px; font-weight: 700; padding: 11px 18px; border-radius: 10px;
-      background: #fff; color: #000; border: 1px solid #fff; cursor: pointer; }
-    .hs-btn:hover { background: #e6e6e6; }
+    .ov-hs { margin: 10px 0 2px; text-align: center; }   /* top-10 badge inside the run-over card */
+    .ov-hs-badge { margin: 0 0 4px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; font-size: 14px; color: #fff; }
+    .ov-hs-link { display: inline-block; font: inherit; font-size: 14px; font-weight: 700; letter-spacing: .02em;
+      color: #fff; background: none; border: none; border-bottom: 1px solid #fff; padding: 1px 2px; cursor: pointer; }
+    .ov-hs-link:hover { color: #cfcfcf; border-color: #cfcfcf; }
     .hs-cont { display: block; width: 100%; margin-top: 16px; }
 
     .panel { position: absolute; background: var(--panel); border: 1px solid var(--panel-border);
@@ -910,7 +907,11 @@
     @keyframes tsConfirmIn { from { opacity:0; } to { opacity:1; } }
     #titleScreen .ts-confirm-box { background:#000; border:1px solid #fff; border-radius:12px;
       padding:30px 32px; max-width:min(460px,92vw); text-align:center; }
-    #titleScreen .ts-confirm-msg { color:#fff; font-size:clamp(15px,1.9vw,17px); line-height:1.5; margin:0 0 24px; }
+    #titleScreen .ts-confirm-msg { color:#fff; font-size:clamp(15px,1.9vw,17px); line-height:1.5; margin:0 0 16px; }
+    #titleScreen .ts-confirm-sub { display:block; margin-top:8px; font-size:13px; color:#b9b9b9; }
+    #titleScreen .ts-name-input { display:block; box-sizing:border-box; width:100%; margin:0 0 22px; font-family:inherit;
+      font-size:16px; text-align:center; color:#fff; background:#000; border:1px solid #fff; border-radius:8px; padding:12px 14px; }
+    #titleScreen .ts-name-input::placeholder { color:#777; }
     #titleScreen .ts-confirm-actions { display:flex; gap:14px; justify-content:center; }
     #titleScreen .ts-confirm-btn { cursor:pointer; font-family:inherit; font-weight:600; font-size:15px; letter-spacing:.02em;
       color:#fff; background:#000; border:1px solid #fff; border-radius:8px; padding:11px 30px; transition:background .15s, color .15s; }
@@ -1444,8 +1445,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "y8ef7o";
-globalThis.__BUILD__ = "local 07-22 14:15";
+window.__ASSET_VER = "u3c9qd";
+globalThis.__BUILD__ = "local 07-23 09:05";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3666,6 +3667,17 @@ const RETAIN = 60;                    // cap stored entries: last week + all-tim
 
 function now() { return Date.now(); }
 
+// The player's display name, entered on the title screen when they press New Game and
+// reused for every score this device submits until they start another New Game. Kept
+// separate from the score list so it survives a board prune and pre-fills next time.
+const NAME_KEY = 'mycelium.playername.v1';
+function loadPlayerName() {
+  try { return (String(localStorage.getItem(NAME_KEY) || '').trim()).slice(0, 14); } catch (_) { return ''; }
+}
+function savePlayerName(name) {
+  try { localStorage.setItem(NAME_KEY, (String(name || '').trim()).slice(0, 14)); } catch (_) {}
+}
+
 function loadScores() {
   try { const p = JSON.parse(localStorage.getItem(KEY)); return (p && Array.isArray(p.entries)) ? p.entries : []; }
   catch (_) { return []; }
@@ -3714,7 +3726,7 @@ function recordScore({ name, level, species, speciesName }) {
   return { ts, weekly: weeklyBoard(ts), allTime: allTimeBoard() };
 }
 
-  return { loadScores, allTimeBoard, weeklyBoard, beatsBoard, qualifies, recordScore };
+  return { loadPlayerName, savePlayerName, loadScores, allTimeBoard, weeklyBoard, beatsBoard, qualifies, recordScore };
 })();
 
 // ===================== src/net_scores.js =====================
@@ -11239,15 +11251,13 @@ class UI {
     const sporeLine = (result && result.runSpores != null)
       ? `<p class="death-spores">${SPORE_ICON}<b>${result.runSpores}</b>&nbsp;Spores earned this run</p>`
       : '';
-    // Inline high-score entry (only when this run cracked the top 10 — hs supplied). Save
-    // records the score and turns into View, which opens the full high-scores list.
+    // Top-10 badge (only when this run cracked the top 10 — hs supplied). The score was
+    // already recorded (using the name entered at New Game); this just flags it and links
+    // to the full board. Plain black & white, no gradients.
     const hsBlock = hs ? `
         <div class="ov-hs">
-          <p class="dim small">You reached level <b>${hs.level | 0}</b>${hs.speciesName ? ` as <b>${hs.speciesName}</b>` : ''} — a top 10 run.</p>
-          <div class="hs-entry">
-            <input class="hs-input" id="ov-hs-name" type="text" maxlength="14" placeholder="Enter your name" autocomplete="off" spellcheck="false">
-            <button class="hs-btn" id="ov-hs-save" type="button">Save</button>
-          </div>
+          <p class="ov-hs-badge">Top 10 score</p>
+          <button class="ov-hs-link" id="ov-hs-view" type="button">High Scores</button>
         </div>` : '';
     o.innerHTML = `
       <div class="card${died ? ' death' : ''}">
@@ -11267,18 +11277,10 @@ class UI {
     if (pk) pk.onclick = () => this.handlers.onBackToPicker();
     const mn = o.querySelector('#overlay-menu');
     if (mn) mn.onclick = () => this.handlers.onMainMenu();
-    // Inline high-score entry: Save records the score then becomes View → the full list.
+    // Top-10 badge: the "High Scores" link opens the full board.
     if (hs) {
-      const nm = o.querySelector('#ov-hs-name'), sv = o.querySelector('#ov-hs-save');
-      let saved = false;
-      const doSave = () => {
-        if (saved || !sv) return; saved = true;
-        sv.disabled = true; if (nm) nm.disabled = true;
-        Promise.resolve(hs.onSave(nm ? nm.value : '')).then(() => { sv.textContent = 'View'; sv.disabled = false; });
-      };
-      if (sv) sv.onclick = () => { if (!saved) doSave(); else hs.onView && hs.onView(); };
-      if (nm) nm.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !saved) doSave(); });
-      setTimeout(() => { try { if (nm) nm.focus(); } catch (_) {} }, 60);
+      const vb = o.querySelector('#ov-hs-view');
+      if (vb) vb.onclick = () => hs.onView && hs.onView();
     }
   }
   hideOverlay() { this.el.overlay.classList.add('hidden'); }
@@ -12853,7 +12855,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits }) {
+function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits, playerName }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -13333,32 +13335,44 @@ function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCre
   function hasProgress() {
     try { const p = loadProgress(); return !!(p && p.clears && Object.keys(p.clears).length); } catch (_) { return false; }
   }
-  // Plain black-and-white "erase progress?" confirm (no gradients). Yes → onYes(); Cancel/backdrop/Esc → dismiss.
-  function confirmNewRun(onYes) {
+  // Plain black-and-white "New Game" dialog (no gradients): enter the display name used
+  // for high scores this run, plus the erase-progress warning when there's saved progress.
+  // Start → onNew(name); Cancel/backdrop/Esc → dismiss.
+  function newGameDialog() {
     if (consuming || finished) return;
+    const erase = hasProgress();
     const back = el('div', 'ts-confirm');
     back.innerHTML =
-      '<div class="ts-confirm-box" role="dialog" aria-modal="true">' +
-        '<p class="ts-confirm-msg">Are you sure? Starting a new game will erase all previous progress.</p>' +
+      '<div class="ts-confirm-box" role="dialog" aria-modal="true" aria-label="New game">' +
+        '<p class="ts-confirm-msg">Enter your name' +
+          (erase ? '<span class="ts-confirm-sub">Starting a new game will erase all previous progress.</span>' : '') +
+        '</p>' +
+        '<input class="ts-name-input" id="tsNameInput" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false">' +
         '<div class="ts-confirm-actions">' +
-          '<button class="ts-confirm-btn" id="tsConfirmYes" type="button">Yes</button>' +
-          '<button class="ts-confirm-btn" id="tsConfirmCancel" type="button">Cancel</button>' +
+          '<button class="ts-confirm-btn" id="tsNameStart" type="button">Start</button>' +
+          '<button class="ts-confirm-btn" id="tsNameCancel" type="button">Cancel</button>' +
         '</div>' +
       '</div>';
     root.appendChild(back);
+    const input = back.querySelector('#tsNameInput');
+    input.value = playerName || '';
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     function close() { document.removeEventListener('keydown', onKey); back.remove(); }
-    back.querySelector('#tsConfirmYes').addEventListener('click', () => { close(); onYes(); });
-    back.querySelector('#tsConfirmCancel').addEventListener('click', close);
+    function start() {
+      if (consuming || finished) return;
+      const nm = input.value;
+      close();
+      consume(root.querySelector('#tsNew'), () => onNew && onNew(nm));
+    }
+    back.querySelector('#tsNameStart').addEventListener('click', start);
+    back.querySelector('#tsNameCancel').addEventListener('click', close);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
     back.addEventListener('click', (e) => { if (e.target === back) close(); });
     document.addEventListener('keydown', onKey);
+    setTimeout(() => { try { input.focus(); input.select(); } catch (_) {} }, 60);
   }
 
-  root.querySelector('#tsNew').addEventListener('click', () => {
-    const btn = root.querySelector('#tsNew');
-    if (hasProgress()) confirmNewRun(() => consume(btn, onNew));
-    else consume(btn, onNew);
-  });
+  root.querySelector('#tsNew').addEventListener('click', () => { newGameDialog(); });
   root.querySelector('#tsCont').addEventListener('click', () => consume(root.querySelector('#tsCont'), onContinue));
 
   let rt = 0;
@@ -14077,6 +14091,7 @@ const __m_main = (function () {
   const { initSfx } = __m_render_sfx;
   const { showLoading } = __m_render_loading;
   const { showHighScores, checkHighScore, recordHighScore } = __m_render_highscores;
+  const { loadPlayerName, savePlayerName } = __m_highscores;
   const { showCredits } = __m_render_credits;
   const { CARD_DATA } = __m_cards_data;
 // =============================================================================
@@ -14368,15 +14383,15 @@ function presentRunOver() {
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
     // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
-    // top 10 (global board when configured, else local), the run-over card shows an inline
-    // name-entry (Save → View → the board). Only real species runs score (dev/testall have none).
+    // top 10 (global board when configured, else local), record it automatically under the
+    // name the player entered at New Game, and flag it on the run-over card ("Top 10 score"
+    // + a High Scores link). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
       checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
-        .then((hs) => ui.showOverlay(r, hs ? {
-          level: hs.level, speciesName: hs.speciesName,
-          onSave: (name) => recordHighScore({ name, level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }),
-          onView: () => showHighScores({}),
-        } : null));
+        .then((hs) => {
+          if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal });
+          ui.showOverlay(r, hs ? { onView: () => showHighScores({}) } : null);
+        });
       return;
     }
     ui.showOverlay(r);
@@ -14614,8 +14629,10 @@ function showMainMenu() {
   hideCanvas();      // hide any finished-run map so the title's fade-out to the picker doesn't flash it
   playMenuMusic();   // title theme: backrooms-vol29, fading in over its first 20s
   showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+    // New Game collects the player's high-score name (pre-filled with their last one).
+    playerName: loadPlayerName(),
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-    onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onNew: (name) => { savePlayerName(name); resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
     onHighScores: () => showHighScores({}),
     onCredits: () => showCredits({}),

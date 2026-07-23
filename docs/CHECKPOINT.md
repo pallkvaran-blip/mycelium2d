@@ -517,6 +517,28 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **High-score name entry moved from the death card to New Game.** You now type your display name in a
+  black-and-white popup when you press **New** on the title (`render/title_screen.js` `newGameDialog`, which
+  also folds in the erase-progress warning when there's saved progress; pre-filled with your last name via
+  the new `playerName` option). Stored in localStorage `mycelium.playername.v1` (`highscores.js`
+  `loadPlayerName`/`savePlayerName`) and reused for every score until you start another New Game. The
+  run-over card no longer has a name input: on a death that cracks the top 10 it records the score
+  automatically under that name and just shows **"TOP 10 SCORE"** + a clickable **"High Scores"** link
+  (`ui.js` `.ov-hs-badge`/`.ov-hs-link`; `main.js` presentRunOver records via `loadPlayerName()` then passes
+  only `{onView}`). Verified in the built game (popup saves the name, death shows the badge+link with no
+  input, score recorded under the entered name, link opens the board).
+
+- **INVESTIGATION (on hold — owner will send video): "food piles appear out of nowhere."** Chased the §11
+  bug with the owner's repro (northern tip, orange cache, big grow). **RULED OUT: solidifyRock overwriting
+  food** — probed 15 fresh maps / 195 piles for cells that are BOTH `rock` and food (`maxNutrient>0`/`foodKind`):
+  **0 found** (`scratchpad/food_rock_probe.mjs`). And rock density does NOT scale with level (`main.js
+  configForLevel` only sets ants/nematodes/trich counts), so that generalises to all levels. **Proposed cause
+  (owner says NOT it): off-screen piles** — at the default play zoom (~1.35, the short map pins the zoom floor)
+  the view shows only ~948×533 of the 2600×1500 world, so **~55% of piles are off-screen**
+  (`scratchpad/pile_visibility.mjs`); the camera never follows growth, and `colonizeReachablePiles` auto-claims
+  any pile within `sensingRadius` (135px ≈ 3.75 cells) of a strand + bridges runners to it. Owner rejected this
+  — awaiting a video/screenshots.
+
 - **Release prep (again): removed the visible DEV buttons + cut a fresh itch zip.** Re-applied the release
   removal (the "Dev buttons restored" entry below was for hosted-build dev; now reversed for the itch cut):
   dropped the species-picker "Dev quick-start" (`#ssDev`) + "Dev: unlock all" (`#ssDevUnlock`) from

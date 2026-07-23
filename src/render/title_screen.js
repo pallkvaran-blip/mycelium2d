@@ -20,7 +20,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const TITLE = 'MYCELIUM';
 
-export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits }) {
+export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores, onCredits, playerName }) {
   const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const root = el('div'); root.id = 'titleScreen';
@@ -500,32 +500,44 @@ export function showTitleScreen({ onNew, onContinue, onDevTutorial, onHighScores
   function hasProgress() {
     try { const p = loadProgress(); return !!(p && p.clears && Object.keys(p.clears).length); } catch (_) { return false; }
   }
-  // Plain black-and-white "erase progress?" confirm (no gradients). Yes → onYes(); Cancel/backdrop/Esc → dismiss.
-  function confirmNewRun(onYes) {
+  // Plain black-and-white "New Game" dialog (no gradients): enter the display name used
+  // for high scores this run, plus the erase-progress warning when there's saved progress.
+  // Start → onNew(name); Cancel/backdrop/Esc → dismiss.
+  function newGameDialog() {
     if (consuming || finished) return;
+    const erase = hasProgress();
     const back = el('div', 'ts-confirm');
     back.innerHTML =
-      '<div class="ts-confirm-box" role="dialog" aria-modal="true">' +
-        '<p class="ts-confirm-msg">Are you sure? Starting a new game will erase all previous progress.</p>' +
+      '<div class="ts-confirm-box" role="dialog" aria-modal="true" aria-label="New game">' +
+        '<p class="ts-confirm-msg">Enter your name' +
+          (erase ? '<span class="ts-confirm-sub">Starting a new game will erase all previous progress.</span>' : '') +
+        '</p>' +
+        '<input class="ts-name-input" id="tsNameInput" type="text" maxlength="14" placeholder="Your name" autocomplete="off" spellcheck="false">' +
         '<div class="ts-confirm-actions">' +
-          '<button class="ts-confirm-btn" id="tsConfirmYes" type="button">Yes</button>' +
-          '<button class="ts-confirm-btn" id="tsConfirmCancel" type="button">Cancel</button>' +
+          '<button class="ts-confirm-btn" id="tsNameStart" type="button">Start</button>' +
+          '<button class="ts-confirm-btn" id="tsNameCancel" type="button">Cancel</button>' +
         '</div>' +
       '</div>';
     root.appendChild(back);
+    const input = back.querySelector('#tsNameInput');
+    input.value = playerName || '';
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     function close() { document.removeEventListener('keydown', onKey); back.remove(); }
-    back.querySelector('#tsConfirmYes').addEventListener('click', () => { close(); onYes(); });
-    back.querySelector('#tsConfirmCancel').addEventListener('click', close);
+    function start() {
+      if (consuming || finished) return;
+      const nm = input.value;
+      close();
+      consume(root.querySelector('#tsNew'), () => onNew && onNew(nm));
+    }
+    back.querySelector('#tsNameStart').addEventListener('click', start);
+    back.querySelector('#tsNameCancel').addEventListener('click', close);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
     back.addEventListener('click', (e) => { if (e.target === back) close(); });
     document.addEventListener('keydown', onKey);
+    setTimeout(() => { try { input.focus(); input.select(); } catch (_) {} }, 60);
   }
 
-  root.querySelector('#tsNew').addEventListener('click', () => {
-    const btn = root.querySelector('#tsNew');
-    if (hasProgress()) confirmNewRun(() => consume(btn, onNew));
-    else consume(btn, onNew);
-  });
+  root.querySelector('#tsNew').addEventListener('click', () => { newGameDialog(); });
   root.querySelector('#tsCont').addEventListener('click', () => consume(root.querySelector('#tsCont'), onContinue));
 
   let rt = 0;

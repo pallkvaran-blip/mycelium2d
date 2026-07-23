@@ -29,6 +29,7 @@ import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
 import { showLoading } from './render/loading.js';
 import { showHighScores, checkHighScore, recordHighScore } from './render/highscores.js';
+import { loadPlayerName, savePlayerName } from './highscores.js';
 import { showCredits } from './render/credits.js';
 import { CARD_DATA } from './cards-data.js';
 
@@ -311,15 +312,15 @@ function presentRunOver() {
       r.runSpores = runSpores;                      // banked-this-run total, shown on the death card
     }
     // High score: a run ends on death — if the LEVEL reached cracks the weekly/all-time
-    // top 10 (global board when configured, else local), the run-over card shows an inline
-    // name-entry (Save → View → the board). Only real species runs score (dev/testall have none).
+    // top 10 (global board when configured, else local), record it automatically under the
+    // name the player entered at New Game, and flag it on the run-over card ("Top 10 score"
+    // + a High Scores link). Only real species runs score (dev/testall have none).
     if (cardsCampaign() && r.died && chosenSpecies) {
       checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
-        .then((hs) => ui.showOverlay(r, hs ? {
-          level: hs.level, speciesName: hs.speciesName,
-          onSave: (name) => recordHighScore({ name, level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal }),
-          onView: () => showHighScores({}),
-        } : null));
+        .then((hs) => {
+          if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal });
+          ui.showOverlay(r, hs ? { onView: () => showHighScores({}) } : null);
+        });
       return;
     }
     ui.showOverlay(r);
@@ -557,8 +558,10 @@ function showMainMenu() {
   hideCanvas();      // hide any finished-run map so the title's fade-out to the picker doesn't flash it
   playMenuMusic();   // title theme: backrooms-vol29, fading in over its first 20s
   showTitleScreen({          // title → Survival New (wipe unlocks) / Continue (keep unlocks) → picker
+    // New Game collects the player's high-score name (pre-filled with their last one).
+    playerName: loadPlayerName(),
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-    onNew: () => { resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onNew: (name) => { savePlayerName(name); resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
     onContinue: () => showPicker(),
     onHighScores: () => showHighScores({}),
     onCredits: () => showCredits({}),
