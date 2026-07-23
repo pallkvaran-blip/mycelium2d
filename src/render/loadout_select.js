@@ -59,7 +59,8 @@ function enableDragScroll(el) {
   el.addEventListener('click', (e) => { if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
 }
 
-export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm }) {
+export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick, maxEngines, onConfirm,
+  header, upperLabel, lowerLabel, midText: midTextOpt, confirmText, secondaryText, onSecondary, emptyText }) {
   const root = el('div'); root.id = 'loadoutSelect';
   const MAX_PICK = maxPick || 8;
   const MAX_ENG = maxEngines || 0;
@@ -78,19 +79,26 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
   const capFor = (n) => (isEng(n) ? MAX_ENG : MAX_PICK);
   const catCount = (n) => (isEng(n) ? selCountEng() : selCountNon());
   let upperFilter = 'all', lowerFilter = 'all';
-  const midTxt = MAX_ENG > 0
+  const midTxt = midTextOpt || (MAX_ENG > 0
     ? 'Choose up to ' + MAX_PICK + ' cards + ' + MAX_ENG + ' engines for this run'
-    : 'Choose ' + MAX_PICK + ' cards for this run';
+    : 'Choose ' + MAX_PICK + ' cards for this run');
+  const upLbl = upperLabel || 'Your starting hand';
+  const loLbl = lowerLabel || 'Drafted last run — click to add';
+  const confLbl = confirmText || 'Confirm';
 
   root.innerHTML =
     '<div class="lo-panel" role="dialog" aria-label="Choose cards for this run">' +
-      '<div class="lo-caro"><div class="lo-label">Your starting hand</div>' +
+      (header ? '<div class="lo-header">' + header + '</div>' : '') +
+      '<div class="lo-caro"><div class="lo-label">' + esc(upLbl) + '</div>' +
         '<div class="lo-filter" id="loUpFilter"></div><div class="lo-list" id="loUpper"></div></div>' +
-      '<div class="lo-mid"><span class="lo-mid-txt">' + midTxt + '</span>' +
+      '<div class="lo-mid"><span class="lo-mid-txt">' + esc(midTxt) + '</span>' +
         '<span class="lo-count" id="loCount"></span></div>' +
-      '<div class="lo-caro"><div class="lo-label">Drafted last run — click to add</div>' +
+      '<div class="lo-caro"><div class="lo-label">' + esc(loLbl) + '</div>' +
         '<div class="lo-filter" id="loLoFilter"></div><div class="lo-list" id="loLower"></div></div>' +
-      '<div class="lo-actions"><button class="lo-btn" id="loConfirm" type="button">Confirm</button></div>' +
+      '<div class="lo-actions">' +
+        (secondaryText ? '<button class="lo-btn lo-btn2" id="loSecondary" type="button">' + esc(secondaryText) + '</button>' : '') +
+        '<button class="lo-btn" id="loConfirm" type="button">' + esc(confLbl) + '</button>' +
+      '</div>' +
     '</div>';
   document.body.appendChild(root);
 
@@ -163,7 +171,7 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
         onClick: () => { if (catCount(name) < capFor(name) && (pool[name] - (selected[name] || 0)) > 0) { selected[name] = (selected[name] || 0) + 1; render(); } },
       }));
     }
-    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : 'Nothing drafted last run.'));
+    if (!shown) lower.appendChild(el('div', 'lo-empty', Object.keys(pool).length ? 'No cards in this filter.' : (emptyText || 'Nothing drafted last run.')));
 
     const nNon = selCountNon(), nEng = selCountEng();
     countEl.textContent = MAX_ENG > 0 ? (nNon + '/' + MAX_PICK + ' cards · ' + nEng + '/' + MAX_ENG + ' engines') : (nNon + ' / ' + MAX_PICK);
@@ -173,10 +181,9 @@ export function showLoadoutSelect({ species, drafted, enginePool, fixed, maxPick
   render();
 
   function hide() { root.remove(); }
-  root.querySelector('#loConfirm').addEventListener('click', () => {
-    const list = Object.keys(selected).filter((n) => selected[n] > 0).map((n) => ({ name: n, count: selected[n] }));
-    hide();
-    onConfirm && onConfirm(list);
-  });
+  const collect = () => Object.keys(selected).filter((n) => selected[n] > 0).map((n) => ({ name: n, count: selected[n] }));
+  root.querySelector('#loConfirm').addEventListener('click', () => { const list = collect(); hide(); onConfirm && onConfirm(list); });
+  const secBtn = root.querySelector('#loSecondary');
+  if (secBtn) secBtn.addEventListener('click', () => { const list = collect(); hide(); onSecondary && onSecondary(list); });
   return { hide, root };
 }

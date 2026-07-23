@@ -517,6 +517,29 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Death-carry: dying lets you keep cards for your next run (retention fix for early deaths).** On a campaign
+  death the run-over screen IS now the memory-style card carousel (`showLoadoutSelect` extended with
+  `header`/labels/`secondaryText`/`emptyText`) with the death message on top. The player carries
+  **2 + (levels CLEARED this run)** of the cards they PLAYED this run into their NEXT run — **whatever species
+  they pick next**. Per-level-*cleared*, NOT absolute level: start on L3, die on L3 → 2 cards (`keep = 2 +
+  (currentLevel - runStartLevel)`; `runStartLevel` set at onPick/onDev/hash). Pieces: engine tracks
+  `state.cards.runPlayed` `{name:copies}` (incremented in `playCard`, accumulates across a run's levels via
+  `applyCarry`); `species.js` persists a universal `progress.deathCarry` `[{name,count}]`
+  (`loadDeathCarry`/`saveDeathCarry`/`clearDeathCarry`); `main.js showDeathCarry(r,hs)` builds the pool from
+  `runPlayed`, shows the carousel, saves the pick, routes on (Continue → picker, Main menu → title, both save);
+  `withDeathCarry()` merges the carry into the NEXT fresh run's hand ON TOP of any memory loadout and CONSUMES
+  it (one-shot; only the `chosenSpecies` seed path, never a level-transition carryOver). Every species' detail
+  view shows a "You'll also bring" section (`#ssICarry`, `loadDeathCarry`). Engines/actions ARE carriable
+  (single pool, one N cap). Verified `scratchpad/verify-deathcarry.mjs`. **Balance knob to watch:** a free
+  carry every run is permanent power creep — tune N or restrict to basics/events if it trivialises early levels.
+  - **Render-loop freeze fixed (found while building this).** After a run ended, `frame()` kept rendering the
+    finished world behind the full-screen menu; with a stale post-celebration camera a backdrop `drawImage`
+    (`drawHomeBackdrop`/`drawGoalBackdrop`) could balloon to millions of px and hard-lock the tab on the
+    return to the picker. Fix: `frame()` now skips world rendering when a menu overlay is in the DOM
+    (`#titleScreen`/`#speciesSelect`/`#loadoutSelect`) — chosen over an opacity check because the canvas
+    starts hidden during the run-start reveal handshake (`revealMap` runs FROM the loop), so gating on
+    opacity would deadlock the reveal. Diagnosed via CDP `Debugger.pause`/`Profiler` + breadcrumbs.
+  - **Both STARTER species (Fairy Ring + Honey Fungus) gained 5× Turgor Thrust** in their opening hand.
 - **Dev buttons RE-ENABLED again (owner testing; NOT release-clean).** Set `config.dev.enabled: true` and
   restored the picker `#ssDev`/`#ssDevUnlock` buttons + listeners — same toggle as before. Strip them again
   (see the "Release prep" entry) before the next itch cut. The already-shipped itch zip stays dev-free.

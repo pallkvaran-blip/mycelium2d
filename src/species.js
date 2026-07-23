@@ -25,6 +25,7 @@ export const SPECIES = [
       { name: 'Foraging Fan', count: 4 },
       { name: 'Hyphal Extension', count: 6 },
       { name: 'Acorn Cache', count: 6 },
+      { name: 'Turgor Thrust', count: 5 },
     ],
   },
   {
@@ -35,6 +36,7 @@ export const SPECIES = [
     hand: [
       { name: 'Apical Drive', count: 10 },
       { name: 'Rhizomorph Lance', count: 5 },
+      { name: 'Turgor Thrust', count: 5 },
     ],
   },
   {
@@ -292,6 +294,7 @@ export function loadProgress() {
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
+  if (!Array.isArray(p.deathCarry)) p.deathCarry = [];   // universal death-carry: cards chosen at death to bring into the NEXT run (any species), consumed when it seeds
   if (migrateProgress(p)) saveProgress(p);   // one-time roster-swap migrations; persist if anything changed
   return p;
 }
@@ -405,6 +408,27 @@ export function saveLastDraftEngines(speciesId, list) {
   p.lastDraftEngines[speciesId] = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
   saveProgress(p);
   return p.lastDraftEngines[speciesId];
+}
+
+// --- death-carry (universal consolation cards) ------------------------------
+// When a run ends in death the player picks a few cards they PLAYED to carry into
+// their NEXT run — whatever species they choose. One shared list [{name,count}]
+// (not per species); merged into the next fresh run's starting hand and cleared
+// when that run seeds. See main.js showDeathCarry / withDeathCarry.
+export function loadDeathCarry(progress) {
+  const p = progress || loadProgress();
+  return Array.isArray(p.deathCarry) ? p.deathCarry.filter((e) => e && e.name && e.count > 0) : [];
+}
+export function saveDeathCarry(list) {
+  const p = loadProgress();
+  p.deathCarry = (Array.isArray(list) ? list : []).filter((e) => e && e.name && e.count > 0);
+  saveProgress(p);
+  return p.deathCarry;
+}
+export function clearDeathCarry() {
+  const p = loadProgress();
+  p.deathCarry = [];
+  saveProgress(p);
 }
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).

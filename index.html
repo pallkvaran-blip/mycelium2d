@@ -1372,11 +1372,22 @@
     .lo-mid-txt { font-size:clamp(14px,2.4vw,18px); font-weight:700; color:#eaf4ee; letter-spacing:.01em; }
     .lo-count { font-size:12px; font-weight:800; color:#8fb3a4; letter-spacing:.08em; }
     .lo-count.lo-full { color:#7ef0c0; }
-    .lo-actions { margin-top:8px; }
+    .lo-actions { margin-top:8px; display:flex; gap:12px; justify-content:center; align-items:center; flex-wrap:wrap; }
     /* simple black & white button (no gradient, no icon) */
     .lo-btn { font:inherit; font-size:15px; font-weight:700; color:#000; background:#fff;
       border:2px solid #fff; border-radius:10px; padding:11px 30px; cursor:pointer; }
     .lo-btn:hover { background:#e9e9e9; }
+    /* secondary (e.g. "Main menu" on the death screen) — outlined, not solid */
+    .lo-btn2 { color:#fff; background:transparent; border-color:rgba(255,255,255,0.4); }
+    .lo-btn2:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.72); }
+    /* Death-screen header sitting ATOP the carry carousel (the run's death message). */
+    .lo-header { width:100%; max-width:680px; text-align:center; margin:0 auto; }
+    .lo-h-title { margin:0 0 6px; font-size:clamp(20px,3.2vw,28px); font-weight:800; color:#fff; letter-spacing:.01em; }
+    .lo-h-body { margin:0 auto; max-width:600px; font-size:clamp(13px,1.9vw,15px); line-height:1.5; color:#c9d8d0; }
+    .lo-header .death-spores { display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; color:#f2f2f2; margin:12px 0 2px; font-weight:600; }
+    .lo-header .death-spores b { color:#fff; font-weight:700; }
+    .lo-header .death-spores .spore-ic { width:18px; height:18px; flex:0 0 auto; filter:brightness(0) invert(1); }
+    .lo-header .ov-hs { margin:12px 0 0; }
 
     /* ---- Level intro -------------------------------------------------------
        A full-screen BLACK "Level N" + threat-roster screen shown before each

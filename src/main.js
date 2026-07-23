@@ -17,13 +17,13 @@ import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
-import { UI, cardSlug } from './render/ui.js';
+import { UI, cardSlug, SPORE_ICON } from './render/ui.js';
 import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
 import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } from './render/assets.js';
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -51,6 +51,7 @@ let state, ui, substrateRenderer;
 let noTrich = false;                  // testing aid: spawn sandbox maps with no Trichoderma
 let chosenSpecies = null;             // picked at the start-of-run screen; null = dev default run
 let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
+let runStartLevel = 1;                // the level THIS run began on — death-carry size = 2 + (currentLevel - runStartLevel)
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
 let runSpores = 0;                      // Spores earned across the current run (levels finished) — shown on death
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
@@ -184,8 +185,8 @@ function showPicker() {
   hideCanvas();      // never let a finished run's map show behind the picker
   playMenuMusic();   // vol29 keeps playing (or starts) across the title → picker
   showSpeciesSelect({
-    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); carryOver = null; runSpores = 0; logEvent('run_start', { species: sp && sp.id, level: currentLevel }); startRunWithLoadout(sp); },
-    onDev: () => { chosenSpecies = null; currentLevel = 1; carryOver = null; runSpores = 0; startRun(); },
+    onPick: (sp, startLevel) => { chosenSpecies = sp; currentLevel = Math.max(1, (startLevel | 0) || 1); runStartLevel = currentLevel; carryOver = null; runSpores = 0; logEvent('run_start', { species: sp && sp.id, level: currentLevel }); startRunWithLoadout(sp); },
+    onDev: () => { chosenSpecies = null; currentLevel = 1; runStartLevel = 1; carryOver = null; runSpores = 0; startRun(); },
   });
 }
 
@@ -219,6 +220,17 @@ function effectiveSpecies(sp) {
   if (!sp || !sp.memory) return sp;
   const lo = loadoutFor(sp.id);                        // [{name,count}] copies chosen last run
   return lo.length ? { ...sp, hand: [...(sp.hand || []), ...lo] } : sp;
+}
+
+// After a death the player curated a few PLAYED cards to carry into their NEXT run (any
+// species — see showDeathCarry). Merge that universal carry into the seeded hand ON TOP of
+// any memory loadout, then CONSUME it (one-shot). Only a FRESH run seeds through here; a
+// level-transition reuses the live deck (applyCarry), so the carry never double-applies.
+function withDeathCarry(sp) {
+  const carry = loadDeathCarry();
+  if (!carry.length) return sp;
+  clearDeathCarry();
+  return { ...(sp || {}), hand: [...((sp && sp.hand) || []), ...carry] };
 }
 
 // At RUN END with a memory species, REMEMBER this run's NON-ENGINE drafts
@@ -288,6 +300,41 @@ function forceFruitAbandon() {
   presentRunOver();
 }
 
+// The DEATH screen: the memory-style card carousel with the run's death message on top.
+// The colony sporulates as it dies, so the player carries a few cards they PLAYED this run
+// into their NEXT run (any species): 2 cards + 1 per level CLEARED this run. Confirm saves
+// the pick and returns to the picker; Main menu saves it too and returns to the title.
+function showDeathCarry(r, hs) {
+  const cleared = Math.max(0, currentLevel - runStartLevel);
+  const keep = 2 + cleared;
+  const rp = (state && state.cards && state.cards.runPlayed) || {};
+  const pool = Object.keys(rp).filter((n) => rp[n] > 0).map((n) => ({ name: n, count: rp[n] }));
+  const sporeLine = (r && r.runSpores != null)
+    ? `<p class="death-spores">${SPORE_ICON}<b>${r.runSpores}</b>&nbsp;Spores earned this run</p>` : '';
+  const hsBlock = hs
+    ? '<div class="ov-hs"><p class="ov-hs-badge">Top 10 score</p><button class="ov-hs-link" id="dc-hs-view" type="button">High Scores</button></div>' : '';
+  const header =
+    '<h1 class="lo-h-title">Your run has ended</h1>' +
+    `<p class="lo-h-body">Your colony was forced to fruit and spore on <b>level ${currentLevel}</b>. A few of the cards you played survive on the wind — carry them into your next colony, whatever species you choose.</p>` +
+    sporeLine + hsBlock;
+  const view = showLoadoutSelect({
+    drafted: pool, fixed: [], maxPick: keep, maxEngines: 0,
+    header,
+    upperLabel: 'Carrying to your next run',
+    lowerLabel: 'Cards you played this run — click to add',
+    midText: 'Choose up to ' + keep + ' card' + (keep === 1 ? '' : 's') + ' to carry into your next run',
+    emptyText: 'You didn’t play any cards this run.',
+    confirmText: 'Continue →',
+    secondaryText: 'Main menu',
+    onConfirm: (picked) => { saveDeathCarry(picked); backToPicker(); },
+    onSecondary: (picked) => { saveDeathCarry(picked); backToTitle(); },
+  });
+  if (hs && view && view.root) {
+    const vb = view.root.querySelector('#dc-hs-view');
+    if (vb) vb.onclick = () => showHighScores({});
+  }
+}
+
 function presentRunOver() {
   if (!state.runOver || _runOverPresented) return;
   // Let the player's LAST action (e.g. a grow) finish ANIMATING before the win/lose
@@ -321,7 +368,9 @@ function presentRunOver() {
       checkHighScore({ level: currentLevel, species: chosenSpecies.id, speciesName: chosenSpecies.name })
         .then((hs) => {
           if (hs) recordHighScore({ name: loadPlayerName(), level: hs.level, species: hs.species, speciesName: hs.speciesName, isGlobal: hs.isGlobal });
-          ui.showOverlay(r, hs ? { onView: () => showHighScores({}) } : null);
+          // The death screen IS the card-carry carousel (death message on top). It saves the
+          // player's picks and routes onward (picker / main menu) itself.
+          showDeathCarry(r, hs);
         });
       return;
     }
@@ -759,7 +808,7 @@ function begin(newState) {
   //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
     if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
-    else if (chosenSpecies) initCards(state, 'species', effectiveSpecies(chosenSpecies));
+    else if (chosenSpecies) initCards(state, 'species', withDeathCarry(effectiveSpecies(chosenSpecies)));
     else initCards(state, 'testall');
   }
   buildRenderers();
@@ -1439,6 +1488,12 @@ function frame(time) {
   // The species picker runs before the first run is created; there's nothing to
   // render until then, so idle the loop (keeps requesting frames) while state is null.
   if (!state) { requestAnimationFrame(frame); return; }
+  // A full-screen menu (title / species picker / loadout / death-carry) fully covers the
+  // canvas. Don't render the (possibly finished) run behind it: it's invisible anyway, and
+  // with a stale post-run camera a backdrop drawImage can balloon to millions of px and
+  // stall the tab. These ids are only in the DOM while their menu is up, and never during
+  // the run-start reveal handshake or the death celebration, so gameplay still renders.
+  if (document.getElementById('titleScreen') || document.getElementById('speciesSelect') || document.getElementById('loadoutSelect')) { requestAnimationFrame(frame); return; }
   try {
     renderFrame(time);
   } catch (e) {
@@ -3478,8 +3533,8 @@ setupInput();
 // loading screen's "Click" so the game always opens on a fully-decoded frame.
 function enterGame() {
   if (location.hash === '#puzzle') startPuzzle();
-  else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; startRun(); }
-  else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; startRun(); }   // skip the picker
+  else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; runStartLevel = 1; startRun(); }
+  else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; runStartLevel = 1; startRun(); }   // skip the picker
   else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)
   else showMainMenu();
 }

@@ -13,7 +13,7 @@
 // in-game .card/.overlay UI.
 // =============================================================================
 
-import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel } from '../species.js';
+import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel, loadDeathCarry } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
 import { cardSlug, SPORE_ICON } from './ui.js';
 import { logEvent } from '../net_scores.js';
@@ -120,6 +120,8 @@ function inspector() {
         '<p class="ss-d-blurb" id="ssIBlurb"></p>' +
         '<div class="ss-hand"><h3>Starting hand</h3><p class="ss-sub">The actual cards this colony brings to the surface on turn one.</p>' +
           '<div class="ss-resprow" id="ssIRes"></div><div class="ss-deck" id="ssIHand"></div></div>' +
+        '<div class="ss-hand ss-carry" id="ssICarry" style="display:none"><h3>You’ll also bring</h3><p class="ss-sub">Cards you carried from your last run — they join this colony’s starting hand.</p>' +
+          '<div class="ss-deck" id="ssICarryDeck"></div></div>' +
         '<div class="ss-actions" id="ssIActions"></div>' +
       '</div>' +
     '</div>';
@@ -144,6 +146,16 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
   ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
+  // Universal death-carry: cards the player kept from their last dead run, shown for EVERY
+  // species (they join whatever colony you pick). Hidden when there's nothing carried.
+  const carry = loadDeathCarry();
+  const carryWrap = ins.wrap.querySelector('#ssICarry');
+  if (carry.length) {
+    ins.wrap.querySelector('#ssICarryDeck').innerHTML = carry.map(cardFace).join('');
+    carryWrap.style.display = '';
+  } else {
+    carryWrap.style.display = 'none';
+  }
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     // Which campaign level this colony begins on. Fixed for most species; an adjustable-start

@@ -158,7 +158,8 @@ export function initCards(state, mode = 'tutorial', species = null) {
 
   state.cards = { drawDeck, hand, discard: [], engines: [], actions: [], round: 1, seq, drawDiscount: 0, pendingOffers: [],
     draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
-    runDrafted: {}, runDraftedEngines: {} };   // {name: copies} drafted this run, split non-engine / engine (memory species loadout picker)
+    runDrafted: {}, runDraftedEngines: {},   // {name: copies} drafted this run, split non-engine / engine (memory species loadout picker)
+    runPlayed: {} };   // {name: copies} PLAYED (cast) this run — the pool the death-carry picker offers (accumulates across the run's levels via applyCarry)
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -395,6 +396,9 @@ export function playCard(state, handIndex, ctx = {}) {
   } else {
     C.discard.push(entry.name);
   }
+  // Remember it was played this run (any card type) so the death-carry picker can offer it.
+  if (!C.runPlayed) C.runPlayed = {};
+  C.runPlayed[entry.name] = (C.runPlayed[entry.name] || 0) + 1;
   state.log(`Played ${entry.name}. ${res.message}`, 'action');
   return { ok: true, tick: true, message: res.message };
 }
