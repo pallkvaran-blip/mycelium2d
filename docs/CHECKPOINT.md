@@ -578,7 +578,8 @@ Both menus are dark, on-theme, with glowing green borders.
   `credits.js PHOTO_CREDITS` (name · latin → artist + `inaturalist.org/people/<handle>`):
   - Fairy Ring Champignon / Marasmius oreades — **REPLACED** → Thomas Pruß, Wikimedia Commons
     `Feldschwindling_02.jpg` (**CC BY-SA 3.0**); was David Harbour / iNat 140237375 (too soft/source-limited)
-  - Honey Fungus / Armillaria ostoyae — Jenn Wren / jennwren — photos/332141087/original.jpg
+  - Honey Fungus / Armillaria ostoyae — **REPLACED** → stu7009, Flickr (photo 50428394696, "Armillaria
+    mellea, Honey Fungus", **CC BY-SA 2.0**); was Jenn Wren / iNat 332141087
   - Common Earthball / Scleroderma citrinum — Will Kuhn / willkuhn — photos/163759592/original.jpeg
   - Oyster Mushroom / Pleurotus ostreatus — Павлик Лисицын / lisopavlik — photos/442323380/original.jpeg
   - Slippery Jack / Suillus luteus — Daniel Seth Jackson / stonescottages — photos/228147257/original.jpeg
