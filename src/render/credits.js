@@ -13,6 +13,9 @@
 const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
 
 // {label} — what the credit is for; {name}/{url} — the artist + their page.
+const CREATOR_CREDITS = [
+  { label: 'Design &amp; code', name: 'Páll Kvaran', url: 'https://www.linkedin.com/in/p%C3%A1ll-kvaran-0b82b741/' },
+];
 const PHOTO_CREDITS = [
   { label: 'Fairy Ring Champignon &middot; <i>Marasmius oreades</i>', name: 'Thomas Pruß', url: 'https://commons.wikimedia.org/wiki/User:Thomas_Pru%C3%9F' },
   { label: 'Honey Fungus &middot; <i>Armillaria mellea</i>', name: 'stu7009', url: 'https://www.flickr.com/photos/185693251@N07/' },
@@ -44,9 +47,7 @@ export function showCredits({ onClose } = {}) {
     '<div class="hs-card cr-card" role="dialog" aria-label="Credits">' +
       '<button class="hs-close" id="crClose" type="button" aria-label="Close">✕</button>' +
       '<h2 class="hs-title cr-title">Credits</h2>' +
-      '<div class="cr-sec cr-creator"><div class="cr-head">Creator</div>' +
-        '<a class="cr-who cr-creator-name" href="https://www.linkedin.com/in/p%C3%A1ll-kvaran-0b82b741/" target="_blank" rel="noopener noreferrer">Páll Kvaran</a>' +
-      '</div>' +
+      section('Creator', CREATOR_CREDITS) +
       section('Species photography', PHOTO_CREDITS) +
       section('Music', MUSIC_CREDITS) +
     '</div>';
