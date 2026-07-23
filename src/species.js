@@ -18,6 +18,7 @@ export const SPECIES = [
   {
     id: 'marasmius', vibe: 'cool', unlock: null,
     name: 'Fairy Ring Champignon', latin: 'Marasmius oreades', img: 'marasmius-oreades',
+    cardPos: 'center 20%',   // grid card: pull the visible band up so the cap top isn't cropped (detail view unchanged)
     blurb: 'A grassland saprotroph that grows outward in an ever-widening <b>fairy ring</b> pattern — the colony pushes evenly in every direction from its heart, decomposing the turf as it goes. It is marcescent: it shrivels in a drought and springs back to life once the rain returns, so it banks water and simply waits the dry spells out. Slow, broad and hard to kill — a forgiving way to learn the colony.',
     res: { energy: 0, water: 30, phosphorus: 0 },
     hand: [

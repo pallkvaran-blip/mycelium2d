@@ -212,8 +212,13 @@ function speciesCard(s, { locked, cost, onClick }) {
     ? '<span class="ss-lockbadge ss-buybadge">' + SPORE_ICON + '<span class="ss-sp-n">' + cost + '</span></span>'
     : (locked ? '<span class="ss-lockbadge">Locked</span>' : '');
   const choose = buyable ? 'Unlock ▸' : (locked ? 'Preview ▸' : 'Inspect ▸');
+  // Optional per-species card framing: the grid card shows only the middle band of the
+  // 560×720 portrait (object-fit cover). `cardPos` shifts that band (e.g. 'center 20%'
+  // pulls it up) so a subject near the top of the photo isn't cropped in the card —
+  // without touching the full-portrait detail view. Default = centered.
+  const artPos = s.cardPos ? ' style="object-position:' + esc(s.cardPos) + '"' : '';
   card.innerHTML =
-    '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"></div>' +
+    '<div class="ss-card-art"><img src="' + speciesImg(s.img) + '" alt="' + esc(s.name) + '" onerror="this.style.opacity=0"' + artPos + '></div>' +
     badge +
     '<span class="ss-choose">' + choose + '</span>' +
     '<div class="ss-card-info"><div class="ss-sp-name">' + esc(s.name) + '</div><div class="ss-sp-latin">' + esc(s.latin) + '</div></div>';
