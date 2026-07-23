@@ -292,10 +292,32 @@ export function loadProgress() {
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
+  if (migrateProgress(p)) saveProgress(p);   // one-time roster-swap migrations; persist if anything changed
   return p;
 }
 export function saveProgress(p) {
   try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (_) {}
+}
+
+// One-time save migrations. Mutates `p` in place; returns true if anything changed (so
+// loadProgress persists it). Each migration is guarded by its own flag → it runs at most
+// once per save, and because the flag is written in the SAME saveProgress call as the change,
+// a failed write simply replays the whole thing next load (never a partial / double refund).
+const EARTHBALL_OLD_L1_COST = 1000;   // what an L1 unlock cost when Earthball was still an L1 species
+export function migrateProgress(p) {
+  let changed = false;
+  // Roster swap (2026-07): Earthball (scleroderma) moved L1 -> L5. Anyone who already BOUGHT it
+  // at the old L1 price is refunded those spores and has the purchase cleared, so it reverts to a
+  // normal (locked) L5 unlock for them — rather than silently losing a species they paid for.
+  if (!p.migratedEarthballL5) {
+    if (p.purchased && p.purchased.scleroderma) {
+      delete p.purchased.scleroderma;
+      p.spores = (typeof p.spores === 'number' && isFinite(p.spores) ? p.spores : 0) + EARTHBALL_OLD_L1_COST;
+    }
+    p.migratedEarthballL5 = true;
+    changed = true;
+  }
+  return changed;
 }
 // "New" on the title screen: wipe all unlock progress (start from scratch).
 export function resetProgress() {

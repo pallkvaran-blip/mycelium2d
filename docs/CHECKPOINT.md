@@ -533,6 +533,15 @@ Both menus are dark, on-theme, with glowing green borders.
   (built game: picker order #1–#11, both detail views, Earthball seeds a L5 run with the new deck). NB the
   Earthball blurb still reads "holds ground instead of racing" while its new hand is more aggressive
   (12 lances) — left as-is; revisit if it grates.
+  - **Save migration (refund):** Earthball moving L1→L5 would otherwise silently strip access from players
+    who'd already BOUGHT it at L1 (its reveal now re-checks L5). Fix: a one-time `migrateProgress(p)` (pure,
+    called + persisted by `loadProgress`) **refunds those 1000 spores and clears the `scleroderma` purchase**,
+    so it reverts to a normal locked L5 unlock. Guarded by `p.migratedEarthballL5`; refund + flag write in the
+    same `saveProgress`, so a failed write just replays next load (never a double refund). Artist's Conk
+    owners are untouched (it moved to an *easier* tier — still playable). Verified: `verify-refund.mjs` (unit,
+    incl. idempotency / both-owned / corrupt-spores) + `verify-refund-e2e.mjs` (built game: real save → 500→1500
+    spores, purchase cleared + persisted, Earthball back to a locked L5 tile). localStorage persists across
+    itch re-uploads, so this runs for real players the first time they open the updated build.
 - **Dev buttons RE-ENABLED for owner testing (NOT release-clean — strip before the next itch cut).** Reversed
   the ee5977b release removal: restored the species-picker "Dev quick-start" (`#ssDev`) + "Dev: unlock all"
   (`#ssDevUnlock`) in `species_select.js`, and set `config.dev.enabled: true` — which brings back BOTH the
