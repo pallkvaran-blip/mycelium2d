@@ -12,6 +12,7 @@ import { SLIDERS, getByPath, setByPath } from '../config.js';
 import { CARD_BY_NAME } from '../cards-data.js';
 import { cardDeckAdditions, actionUsable, cardBlockedReason } from '../engine/cards.js';
 import { toggleMusic, isMusicMuted } from './music.js';
+import { toggleSfx, isSfxMuted } from './sfx.js';
 
 // Small self-contained line-icons for the action bar (inlined so they survive the
 // single-file bundle). Hidden on narrow phones via CSS so the bar stays uncluttered.
@@ -168,6 +169,7 @@ export class UI {
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
       +   `<button class="setitem" id="set-log" type="button" role="menuitem">Event log<span class="setchev">▾</span></button>`
       +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
+      +   `<button class="setitem" id="set-sfx" type="button" role="menuitemcheckbox">Sound effects<span class="settoggle" id="set-sfx-state"></span></button>`
       +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
       +   `<button class="setitem setitem-danger" id="set-forcefruit" type="button" role="menuitem">Force Fruiting (abandon run)</button>`
       + `</div>`
@@ -410,12 +412,15 @@ export class UI {
     const refresh = () => {
       const ms = hud.querySelector('#set-mute-state');
       if (ms) { const on = !isMusicMuted(); ms.textContent = on ? 'On' : 'Off'; ms.classList.toggle('off', !on); }
+      const fs = hud.querySelector('#set-sfx-state');
+      if (fs) { const on = !isSfxMuted(); fs.textContent = on ? 'On' : 'Off'; fs.classList.toggle('off', !on); }
     };
     const close = () => { menu.classList.add('hidden'); gear.setAttribute('aria-expanded', 'false'); };
     const open = () => { refresh(); menu.classList.remove('hidden'); gear.setAttribute('aria-expanded', 'true'); };
     gear.onclick = (e) => { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); };
     hud.querySelector('#set-log').onclick = (e) => { e.stopPropagation(); close(); this.toggleLog(); };
     hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
+    hud.querySelector('#set-sfx').onclick = (e) => { e.stopPropagation(); toggleSfx(); refresh(); };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
     hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.

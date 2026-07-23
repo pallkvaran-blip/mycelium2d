@@ -15,6 +15,17 @@
 // =============================================================================
 
 let AC = null, BUF = null, ready = false, MASTER = null, voices = 0;
+// Sound-effects mute (separate from Music). Persisted in localStorage; toggled from the
+// settings menu. The sample still loads + the audio context still arms so un-muting works
+// instantly — only playback is gated (see playGrowBurst).
+let muted = false;
+try { muted = localStorage.getItem('mycSfxMuted') === '1'; } catch (e) {}
+export function isSfxMuted() { return muted; }
+export function toggleSfx() {
+  muted = !muted;
+  try { localStorage.setItem('mycSfxMuted', muted ? '1' : '0'); } catch (e) {}
+  return muted;
+}
 const STRANDS_PER_HIT = 10;   // one sample trigger per this many new strands
 const MAX_LAYERS = 6;         // cap for a single grow
 const MAX_VOICES = 8;         // global concurrent-voice cap
@@ -73,7 +84,7 @@ function hit(when, gain, rate, pan) {
 
 // Fire a layered burst for `count` strands that begin growing over `spreadMs`.
 export function playGrowBurst(count, spreadMs) {
-  if (!ready || !count) return;
+  if (muted || !ready || !count) return;
   const a = ctx();
   if (a.state === 'suspended') a.resume();
   const layers = Math.max(1, Math.min(MAX_LAYERS, Math.round(count / STRANDS_PER_HIT)));

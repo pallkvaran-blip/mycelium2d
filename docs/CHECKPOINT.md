@@ -517,6 +517,18 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Aquifer Tap now taps each source ONCE; separate SFX toggle in Settings.**
+  - **Water source = one tap, total.** The Aquifer Tap used to be a durable faucet — a source in contact paid
+    +1 Water every 3 rounds forever, which read as "multiple taps" (esp. re-growing in / fanning multiple
+    strands onto it). Now each source charges over `WATER_SOURCE_EVERY` (3) rounds, pays out ONCE, then is
+    **spent for the map** (`state._tappedWater` Set, keyed by source id — `'lake'` / reservoir id; resets per
+    map since `state` is per-level). `updateWaterSourceEngine` only counts NOT-yet-tapped sources; the engine's
+    payout tick marks its `_sources` spent (`cards.js produceCardEngines`). Re-contact / extra strands never
+    re-tap. **Balance note:** this is a real water-income nerf (each source +1 once vs. a forever-faucet) —
+    bump the per-tap amount if water gets too tight. Verified `scratchpad/verify-water-sfx.mjs` (water rises
+    once per source then stays flat).
+  - **Sound-effects toggle** added to the gear menu, separate from Music (`sfx.js` `toggleSfx`/`isSfxMuted`,
+    localStorage `mycSfxMuted`; `playGrowBurst` gated; `ui.js` `#set-sfx` item mirrors the Music toggle).
 - **Release prep: Dev buttons removed + fresh itch zip.** `config.dev.enabled: false` (hides "Dev: win
   level") and removed the picker `#ssDev`/`#ssDevUnlock` buttons + listeners. Verified release-clean
   (`verify-nodev.mjs`). Zip = `dist/index.html` (as `index.html`) + `dist/assets/` at the root, ~22 MB. This

@@ -1466,8 +1466,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "15mwyt4";
-globalThis.__BUILD__ = "local 07-23 21:02";
+window.__ASSET_VER = "coo89m";
+globalThis.__BUILD__ = "local 07-23 21:32";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7599,6 +7599,9 @@ function produceCardEngines(state) {
       if (e.energy) energySum += e.energy;
       if (e.water) net.water = gain(net.water, e.water, cc.softCapWater);
       if (e.phosphorus) net.phosphorus = gain(net.phosphorus, e.phosphorus, cc.softCapPhosphorus);
+      // The Aquifer Tap pays each source exactly ONCE: mark the sources it just paid for as
+      // spent so re-contact (more strands / regrowing in) never taps them again this map.
+      if (e._waterSource && e._sources && state._tappedWater) for (const id of e._sources) state._tappedWater.add(id);
     }
     if (e.digEvery) {
       e._t = (e._t || 0) + 1;
@@ -7848,21 +7851,26 @@ function waterSourcesNear(state) {
 const nodeTouchesWater = (state) => waterSourcesNear(state).size > 0;    // lake OR reservoir
 
 // --- water-source income ----------------------------------------------------
-// Almost-touching open lake water OR an underground reservoir gives the colony a Water
-// trickle: +1 Water every 3 rounds PER source (at most +1 for the lake, +1 per
-// distinct reservoir). Implemented as a synthetic engine kept in C.engines so the
-// income pill + ledger display it automatically — added while a source is in
-// contact, removed the moment none is.
+// Almost-touching open lake water OR an underground reservoir taps it: the Aquifer Tap
+// charges over WATER_SOURCE_EVERY rounds, then pays +1 Water PER fresh source ONCE — after
+// which that source is SPENT for the rest of the map (`state._tappedWater`). So a source can
+// only ever be tapped once, no matter how many strands reach it or how many times you grow
+// back into it. Implemented as a synthetic engine in C.engines so the income pill + ledger
+// display it automatically; it's added while a still-untapped source is in contact, then
+// removed once its sources are spent (or contact is lost).
 const WATER_SOURCE_NAME = 'Aquifer Tap';
 const WATER_SOURCE_EVERY = 3;
 const waterSourcesTouched = (state) => waterSourcesNear(state).size;
 function updateWaterSourceEngine(state) {
   const C = state.cards; if (!C || !C.engines) return;
-  const sources = (state.active && state.active.alive) ? waterSourcesTouched(state) : 0;
+  if (!state._tappedWater) state._tappedWater = new Set();   // source ids already tapped THIS map (each taps once)
+  const near = (state.active && state.active.alive) ? waterSourcesNear(state) : new Set();
+  const fresh = [];
+  for (const id of near) if (!state._tappedWater.has(id)) fresh.push(id);   // ignore sources already spent
   const i = C.engines.findIndex((e) => e._waterSource);
-  if (sources <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
-  if (i >= 0) C.engines[i].water = sources;                 // keep cadence, refresh amount
-  else C.engines.push({ name: WATER_SOURCE_NAME, water: sources, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
+  if (fresh.length <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
+  if (i >= 0) { C.engines[i].water = fresh.length; C.engines[i]._sources = fresh; }   // keep cadence, refresh which sources it'll spend
+  else C.engines.push({ name: WATER_SOURCE_NAME, water: fresh.length, _sources: fresh, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
 }
 function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
@@ -9711,6 +9719,17 @@ const __m_render_sfx = (function () {
 // =============================================================================
 
 let AC = null, BUF = null, ready = false, MASTER = null, voices = 0;
+// Sound-effects mute (separate from Music). Persisted in localStorage; toggled from the
+// settings menu. The sample still loads + the audio context still arms so un-muting works
+// instantly — only playback is gated (see playGrowBurst).
+let muted = false;
+try { muted = localStorage.getItem('mycSfxMuted') === '1'; } catch (e) {}
+function isSfxMuted() { return muted; }
+function toggleSfx() {
+  muted = !muted;
+  try { localStorage.setItem('mycSfxMuted', muted ? '1' : '0'); } catch (e) {}
+  return muted;
+}
 const STRANDS_PER_HIT = 10;   // one sample trigger per this many new strands
 const MAX_LAYERS = 6;         // cap for a single grow
 const MAX_VOICES = 8;         // global concurrent-voice cap
@@ -9769,7 +9788,7 @@ function hit(when, gain, rate, pan) {
 
 // Fire a layered burst for `count` strands that begin growing over `spreadMs`.
 function playGrowBurst(count, spreadMs) {
-  if (!ready || !count) return;
+  if (muted || !ready || !count) return;
   const a = ctx();
   if (a.state === 'suspended') a.resume();
   const layers = Math.max(1, Math.min(MAX_LAYERS, Math.round(count / STRANDS_PER_HIT)));
@@ -9789,7 +9808,7 @@ function playGrowBurst(count, spreadMs) {
   }
 }
 
-  return { initSfx, playGrowBurst };
+  return { isSfxMuted, toggleSfx, initSfx, playGrowBurst };
 })();
 
 // ===================== src/render/network.js =====================
@@ -10647,6 +10666,7 @@ const __m_render_ui = (function () {
   const { CARD_BY_NAME } = __m_cards_data;
   const { cardDeckAdditions, actionUsable, cardBlockedReason } = __m_engine_cards;
   const { toggleMusic, isMusicMuted } = __m_render_music;
+  const { toggleSfx, isSfxMuted } = __m_render_sfx;
 // =============================================================================
 // UI — HUD, action buttons, event log, dev tools, "what we're testing" panel.
 //
@@ -10812,6 +10832,7 @@ class UI {
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
       +   `<button class="setitem" id="set-log" type="button" role="menuitem">Event log<span class="setchev">▾</span></button>`
       +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
+      +   `<button class="setitem" id="set-sfx" type="button" role="menuitemcheckbox">Sound effects<span class="settoggle" id="set-sfx-state"></span></button>`
       +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
       +   `<button class="setitem setitem-danger" id="set-forcefruit" type="button" role="menuitem">Force Fruiting (abandon run)</button>`
       + `</div>`
@@ -11054,12 +11075,15 @@ class UI {
     const refresh = () => {
       const ms = hud.querySelector('#set-mute-state');
       if (ms) { const on = !isMusicMuted(); ms.textContent = on ? 'On' : 'Off'; ms.classList.toggle('off', !on); }
+      const fs = hud.querySelector('#set-sfx-state');
+      if (fs) { const on = !isSfxMuted(); fs.textContent = on ? 'On' : 'Off'; fs.classList.toggle('off', !on); }
     };
     const close = () => { menu.classList.add('hidden'); gear.setAttribute('aria-expanded', 'false'); };
     const open = () => { refresh(); menu.classList.remove('hidden'); gear.setAttribute('aria-expanded', 'true'); };
     gear.onclick = (e) => { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); };
     hud.querySelector('#set-log').onclick = (e) => { e.stopPropagation(); close(); this.toggleLog(); };
     hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
+    hud.querySelector('#set-sfx').onclick = (e) => { e.stopPropagation(); toggleSfx(); refresh(); };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
     hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.
