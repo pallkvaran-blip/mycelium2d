@@ -1466,8 +1466,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "coo89m";
-globalThis.__BUILD__ = "local 07-23 21:32";
+window.__ASSET_VER = "1t1xmkm";
+globalThis.__BUILD__ = "local 07-23 22:01";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7599,9 +7599,6 @@ function produceCardEngines(state) {
       if (e.energy) energySum += e.energy;
       if (e.water) net.water = gain(net.water, e.water, cc.softCapWater);
       if (e.phosphorus) net.phosphorus = gain(net.phosphorus, e.phosphorus, cc.softCapPhosphorus);
-      // The Aquifer Tap pays each source exactly ONCE: mark the sources it just paid for as
-      // spent so re-contact (more strands / regrowing in) never taps them again this map.
-      if (e._waterSource && e._sources && state._tappedWater) for (const id of e._sources) state._tappedWater.add(id);
     }
     if (e.digEvery) {
       e._t = (e._t || 0) + 1;
@@ -7851,26 +7848,26 @@ function waterSourcesNear(state) {
 const nodeTouchesWater = (state) => waterSourcesNear(state).size > 0;    // lake OR reservoir
 
 // --- water-source income ----------------------------------------------------
-// Almost-touching open lake water OR an underground reservoir taps it: the Aquifer Tap
-// charges over WATER_SOURCE_EVERY rounds, then pays +1 Water PER fresh source ONCE — after
-// which that source is SPENT for the rest of the map (`state._tappedWater`). So a source can
-// only ever be tapped once, no matter how many strands reach it or how many times you grow
-// back into it. Implemented as a synthetic engine in C.engines so the income pill + ledger
-// display it automatically; it's added while a still-untapped source is in contact, then
-// removed once its sources are spent (or contact is lost).
+// Almost-touching open lake water OR an underground reservoir TAPS it: the source joins a
+// persistent, once-per-source faucet (the Aquifer Tap) that keeps charging over
+// WATER_SOURCE_EVERY rounds and paying +1 Water PER tapped source, OVER AND OVER, for the rest
+// of the map. But each source is only ever tapped ONCE per colony — extra strands on it, or
+// growing back into it later, never add another tap (`state._tappedWater`, keyed by source id:
+// 'lake' or reservoir id; resets per map since `state` is per-level). Implemented as a synthetic
+// engine in C.engines so the income pill + ledger display it automatically.
 const WATER_SOURCE_NAME = 'Aquifer Tap';
 const WATER_SOURCE_EVERY = 3;
 const waterSourcesTouched = (state) => waterSourcesNear(state).size;
 function updateWaterSourceEngine(state) {
   const C = state.cards; if (!C || !C.engines) return;
-  if (!state._tappedWater) state._tappedWater = new Set();   // source ids already tapped THIS map (each taps once)
-  const near = (state.active && state.active.alive) ? waterSourcesNear(state) : new Set();
-  const fresh = [];
-  for (const id of near) if (!state._tappedWater.has(id)) fresh.push(id);   // ignore sources already spent
+  if (!state._tappedWater) state._tappedWater = new Set();   // source ids tapped THIS map (each taps once, then stays tapped)
+  // First contact taps a source for the rest of the map; the Set dedups so more strands / regrows never re-tap.
+  if (state.active && state.active.alive) for (const id of waterSourcesNear(state)) state._tappedWater.add(id);
+  const count = state._tappedWater.size;   // every tapped source keeps trickling for the whole level
   const i = C.engines.findIndex((e) => e._waterSource);
-  if (fresh.length <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
-  if (i >= 0) { C.engines[i].water = fresh.length; C.engines[i]._sources = fresh; }   // keep cadence, refresh which sources it'll spend
-  else C.engines.push({ name: WATER_SOURCE_NAME, water: fresh.length, _sources: fresh, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
+  if (count <= 0) { if (i >= 0) C.engines.splice(i, 1); return; }
+  if (i >= 0) C.engines[i].water = count;                 // keep cadence, refresh the tapped-source count
+  else C.engines.push({ name: WATER_SOURCE_NAME, water: count, every: WATER_SOURCE_EVERY, _et: 0, _waterSource: true });
 }
 function digNearestRock(state, classes) {
   const fp = state.active.frontierPoint(); if (!fp) return 0;
