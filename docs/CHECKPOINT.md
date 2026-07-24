@@ -1,6 +1,9 @@
 # Mycelium — Project Checkpoint
 
-_Living status + knowledge doc. Last updated: 2026-07-22 (**SHIPPED — first public release on itch.io**
+_Living status + knowledge doc. Last updated: 2026-07-24 — latest work: anonymous run telemetry + analytics
+dashboard (retention/funnel panel), death-carry between runs, death-screen redesign, SFX toggle, Aquifer-Tap
+fix, and the Decoy Cache / Perennial Decoy lure cards with a "Colony line of sight" overlay (all in §9). Prior
+snapshot 2026-07-22: (**SHIPPED — first public release on itch.io**
 (free HTML5 build; global Supabase leaderboard live). Launch-polish pass since: hand tray capped at ~40%
 screen height on short screens via container-query card scaling (no distortion); title New/Old captions
 tucked against the letters; **HIGH SCORES** heading enlarged + close-✕ halved; the level-intro title now
@@ -544,6 +547,13 @@ Both menus are dark, on-theme, with glowing green borders.
   (`.panel.dev`, commit 23d6265) stays gone. Rebuilt dist. Verified `scratchpad/verify-devon2.mjs` (picker
   buttons + `#devWin` present, `.panel.dev` still 0). **Before the next itch cut, flip these off again** (same
   as any prior "Release prep: Dev buttons removed" entry).
+- **Analytics: new-player funnel + retention panel** (`docs/analytics.html`, hosted at `<site>/analytics.html`).
+  A per-player first-run reconstruction (`firstRuns()`) drives five sections: new-player funnel (share clearing
+  ≥L levels on run 1), first-run-on-L1 outcome (cleared / died / left-mid-L1), **after-a-first-death return rate**
+  (the death-carry KPI), a **before/after the Jul-23 update** table (cleared-L1, first-death return, instant-
+  bounce, median turns at L1 death — with a caveat that the starter-hand buff + death-carry shipped in one deploy
+  and can't be separated), and L1 drop-off by starting species. Read-only via the public anon key. Early read
+  (n≈77, ~1 day): ~68% one-and-done, most bailing mid-L1; die→retry ~80%; too little data yet for real D1.
 - **New tactical event card: "Decoy Cache"** (70th card). Tap any spot within the colony's sensing range to
   drop a small nut cache worth exactly **1⚡** (`sub.deposit(x,y,substrateSmall,1,1)`); costs **2 Energy**.
   It lures threats — placed food redirects ant harvest + draws worms — so you can pull them off the colony or
@@ -3240,6 +3250,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
+- **Retention: the level-1 first minute is the biggest leak** (from the analytics — see §9 + `analytics.html`).
+  ~68% of new players are one-and-done and most bail *during* level 1 without ever dying, so death-carry can't
+  reach them; Fairy Ring (the default first species) bleeds hardest. Highest-leverage next work = first-minute
+  onboarding / level-1 pacing & difficulty, not more content. Re-check real D1 retention after a few more days
+  of data (web-game bar ≈ 10–15% D1; top titles convert 80%+ of players to ≥1 min of play).
+- **Before the next itch cut: turn the Dev buttons OFF** (currently ON for owner testing — `config.dev.enabled`
+  + the picker `#ssDev`/`#ssDevUnlock` buttons; see the "Dev buttons RE-ENABLED" §9 entry for the one-step flip).
 - **Campaign / level progression + species unlocks — BUILT** (see §9, commit `0989061`). 11
   procedural levels, per-level threat-count scaling (`LEVEL_THREATS`), carry deck+resources
   between levels, death → picker, localStorage unlock persistence. Follow-ups: only **Complete

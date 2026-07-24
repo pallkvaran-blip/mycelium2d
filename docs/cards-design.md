@@ -1042,13 +1042,34 @@ review workflow caught it; fixed to 17⚡.)
   `assets/cards/<slug>.jpg`. Brief: **mycelium, not mushrooms** — fine pointed / thread-like hyphal tips, no caps.
 
 ## 25. Decoy Cache — tactical lure event (CURRENT — authoritative for this card)
-- **New EVENT: "Decoy Cache"** (70th card). **Tap any spot within the colony's sensing range** (line of
-  sight) to drop a small nut cache worth **exactly 1⚡** total. Cost **2 Energy** (`buyCostEnergy`), no W/P.
+- **EVENT: "Decoy Cache"** (70th card). **Tap any spot in the colony's LINE OF SIGHT** — a clear straight
+  line from ANY living strand, rock blocks it, **NO distance cap** — to drop a small nut (acorn) cache worth
+  **exactly 1⚡** total. Cost **2⚡ + 1💧** (`buyCostEnergy:2`, `playCostWater:1`).
 - **Purpose = control, not economy.** Placed food redirects ant harvest targets and draws nematodes, so it
   pulls threats OFF the colony or bunches them (e.g. onto a Constricting Ring trap). The 1⚡ payout barely
-  covers its own cost if YOU harvest it — the value is the lure.
-- **Impl:** `EFFECTS['Decoy Cache'] = targeted(...)` in `engine/cards.js` — validates the tap is within
-  `growth.sensingRadius` of the nearest node, snaps to the nearest open soil, `sub.deposit(x,y,substrateSmall,1,1)`.
-  Rejects out-of-sight / no-soil taps (no cost, card kept). Auto-joins the event draft pool (1 copy/draft).
-- **Art:** none yet — the card face falls back to no image (frame + name + cost + effect). Generate via the
-  documented FLUX flow (`assets/cards/decoy-cache.jpg`) when the Replicate token is available.
+  covers its own cost if YOU harvest it — the value is the lure. (Card text stays terse — "Drop a 1⚡ food
+  cache anywhere in sight." — the lure behaviour is left for the player to discover.)
+- **Filters:** shows under **Substrate + Defense** (and Event) — `category:'substrate'` + `familyKey:'defense'`
+  in `cards.json` (both fields are display-only, read by `cardGroups()` in `ui.js`).
+- **Impl:** `EFFECTS['Decoy Cache'] = targeted((s,c,ctx) => dropDecoyCache(s,ctx))` in `engine/cards.js`. The
+  shared `dropDecoyCache(s,ctx,kind='nut')` helper snaps to the nearest open soil and gates on
+  `sub.segmentClear(node, spot)` for ANY node (no range check). A blocked tap returns `{ok:false, losHint:true}`
+  (no cost, card kept) → the UI shows a **"Colony line of sight"** button beside the gear; clicking it toggles
+  a translucent mint overlay of every open-soil cell the colony can see (`main.js` computeColonyLos/drawColonyLos).
+  Both clear on the next successful card/action. Auto-joins the event draft pool (1 copy/draft).
+- **Art:** `assets/cards/decoy-cache.jpg` — a bright-moss mixed-forage pile, generated via Replicate **FLUX 1.1
+  Pro Ultra + raw** (owner rejected a first flux-1.1-pro batch as "too AI"). Scripts `scripts/gen_decoy_cache*.py`.
+
+## 26. Perennial Decoy — the engine twin of Decoy Cache (CURRENT)
+- **ENGINE card (installed action), 71st card.** Install **10⚡ + 1P**; then in the Actions menu: *"Once per 8
+  rounds: pay 1 W to drop a 1⚡ leaf-litter cache anywhere in sight."* Same line-of-sight gate + "Colony line of
+  sight" overlay as Decoy Cache (shares `dropDecoyCache`; `activateAction` propagates `losHint`, and charges
+  the 1💧 + starts the 8-round cooldown only on a successful drop — a blocked tap costs nothing).
+- **Places a YELLOW LEAF-LITTER pile** (`foodKind:'duff'`, not the `'nut'` acorn scatter) via the `kind` param
+  on `substrate.deposit()` — `EFFECTS['Perennial Decoy'] = action({...,every:8,cost:1,res:'water',target:true},
+  (s,ctx)=>dropDecoyCache(s,ctx,'duff'))`. Matches its card art.
+- **Art REUSES the archived Leaf Litter Cache face** (`assets/cards/perennial-decoy.jpg` = a copy of
+  `leaf-litter-cache.jpg`; that card is archived and never renders, so there's no in-game duplication). This is
+  the cheap way to art a new card: repurpose an archived card's image instead of generating.
+- **Filters:** Engine + Substrate + Defense (`displayCategory:'engine'`, `category:'substrate'`,
+  `familyKey:'defense'`).

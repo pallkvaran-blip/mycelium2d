@@ -52,8 +52,14 @@ node --test test/               # smoke + card tests
   click (`main.js enterGame()`), which also unlocks audio. Card-face urls carry the deploy `?v=` query in
   ALL THREE places (preload, `ui.js cardArt`, picker) — keep them in sync or art pops in / goes stale.
   `build.mjs` excludes `assets/*_options` + `card_art_archive` from the dist copy (unused authoring art).
-- **Art generation:** Replicate FLUX via `curl --cacert /root/.ccr/ca-bundle.crt`,
-  token in env (`REPLICATE_API_TOKEN`). Examples: `scripts/gen_*.py`.
+- **Art generation:** Replicate FLUX via `curl --cacert /root/.ccr/ca-bundle.crt`, token in env
+  (`REPLICATE_API_TOKEN`, sourced from the **gitignored** `.replicate-token` — NEVER commit it). Examples:
+  `scripts/gen_*.py` → options land in `assets/card_options/`, owner picks the winner → `assets/cards/<slug>.jpg`.
+  For **photoreal** card faces use **`black-forest-labs/flux-1.1-pro-ultra` with `raw:true`** (the base
+  `flux-1.1-pro` reads as "too AI" — malformed insects, plasticky look); a pure "macro nature photography"
+  prompt with no tiny animals works best. **Cheapest option: reuse an ARCHIVED card's art** (see `ARCHIVED`
+  in `engine/cards.js`) for a new card — e.g. Perennial Decoy's face is a copy of the archived `leaf-litter-cache.jpg`
+  (an archived card never renders, so no dup). Card art displays in a 3:2 `object-fit:cover` box.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **First-run tutorial fires ONCE PER BROWSER** (localStorage `mycelium.tutorial.v1`), armed only by **New**
