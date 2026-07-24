@@ -520,6 +520,11 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep: Dev buttons removed again for a fresh itch cut.** `config.dev.enabled:false` (hides
+  "Dev: win level") + removed the picker `#ssDev`/`#ssDevUnlock` buttons + listeners (the `.ss-dev` CSS +
+  invisible `#dev` hash route stay). Rebuilt dist; verified release-clean via `scratchpad/verify-nodev.mjs`.
+  Zip = `dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT (no artifact/editor/analytics
+  HTML). Re-enable the same way as any prior "Dev buttons RE-ENABLED" entry.
 - **Title "Old" (continue last game) now RESUMES your current level after a tab close.** Each campaign level,
   `begin()` calls `saveResumeSnapshot()` → a serializable snapshot to localStorage `mycelium.resume.v1`
   (`species.js` load/save/clearResume): level, runStartLevel, species id, resources, and the deck as card
