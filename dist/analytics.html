@@ -102,6 +102,115 @@ function tile(n, l) { return '<div class="tile"><div class="n">' + n + '</div><d
 function countBy(arr, keyFn) { var m = {}; arr.forEach(function (e) { var k = keyFn(e); if (k == null) return; m[k] = (m[k] || 0) + 1; }); return m; }
 function sortedEntries(m) { return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); }
 
+// ---- New-player funnel + retention (per-player first-run reconstruction) ----
+var UPDATE_TS = Date.parse('2026-07-23T19:40:00Z');   // Jul 23 update: starter-hand buff + death-carry (one deploy)
+var isDeath = function (c) { return !!c && c !== 'won'; };
+function median(a) { if (!a.length) return null; var b = a.slice().sort(function (x, y) { return x - y; }); var m = Math.floor(b.length / 2); return b.length % 2 ? b[m] : Math.round((b[m - 1] + b[m]) / 2); }
+
+// One record per player, describing their FIRST run (first run_start -> next run_start).
+function firstRuns(rows) {
+  var by = {};
+  rows.forEach(function (e) { if (e.client_id) (by[e.client_id] = by[e.client_id] || []).push(e); });
+  var out = [];
+  Object.keys(by).forEach(function (cid) {
+    var evs = by[cid].slice().sort(function (a, b) { return Date.parse(a.created_at) - Date.parse(b.created_at); });
+    var s0 = -1; for (var i = 0; i < evs.length; i++) { if (evs[i].kind === 'run_start') { s0 = i; break; } }
+    if (s0 < 0) return;
+    var s1 = evs.length; for (var j = s0 + 1; j < evs.length; j++) { if (evs[j].kind === 'run_start') { s1 = j; break; } }
+    var start = evs[s0], run = evs.slice(s0, s1), maxClear = 0, end = null;
+    run.forEach(function (e) {
+      if (e.kind === 'level_clear' && (e.level || 0) > maxClear) maxClear = e.level || 0;
+      if (e.kind === 'run_end' && !end) end = e;
+    });
+    if (end && (end.level || 1) - 1 > maxClear) maxClear = (end.level || 1) - 1;   // died on L>=2 => cleared L1
+    out.push({
+      species: start.species || '—', startMs: Date.parse(start.created_at), startLevel: start.level || 1,
+      maxClear: maxClear, clearedL1: maxClear >= 1, leftMid: !end,
+      endCause: end ? end.cause : null, turns: end ? (end.turns || 0) : null,
+      returned: s1 < evs.length, sameSess: s1 < evs.length && evs[s1].session_id === start.session_id,
+      nEvents: evs.length
+    });
+  });
+  return out;
+}
+
+function retentionPanel(rows) {
+  var fr = firstRuns(rows), N = fr.length;
+  if (!N) return '';
+  var html = '';
+
+  // Funnel — share of new players whose FIRST run cleared >= L levels.
+  var maxDepth = fr.reduce(function (m, r) { return Math.max(m, r.maxClear); }, 0);
+  var fun = bar('Started first run', N, N);
+  for (var L = 1; L <= Math.min(maxDepth, 10); L++) {
+    fun += bar('Cleared level ' + L + '+', fr.filter(function (r) { return r.maxClear >= L; }).length, N, L === 1);
+  }
+  html += '<section><h2>New-player funnel (how deep the first run gets)</h2>' + fun +
+    '<div class="muted" style="margin-top:8px">' + pct(fr.filter(function (r) { return r.clearedL1; }).length, N) +
+    ' of ' + N + ' new players clear level 1 on their first run. The gap from “Started” to “Cleared level 1+” is the level-1 drop-off.</div></section>';
+
+  // First run on level 1 — outcome split.
+  var l1 = fr.filter(function (r) { return r.startLevel === 1; });
+  var cl = l1.filter(function (r) { return r.clearedL1; }).length;
+  var diedL1 = l1.filter(function (r) { return !r.clearedL1 && !r.leftMid; }).length;
+  var leftL1 = l1.filter(function (r) { return !r.clearedL1 && r.leftMid; }).length;
+  var oMax = Math.max(cl, diedL1, leftL1, 1);
+  html += '<section><h2>First run on level 1 — what happens</h2>' +
+    bar('Cleared level 1', cl, oMax) + bar('Died on level 1', diedL1, oMax, true) +
+    bar('Left mid-level-1 (closed tab)', leftL1, oMax, true) +
+    '<div class="muted" style="margin-top:8px">' + pct(leftL1, l1.length) +
+    ' of new players close the tab during level 1 without finishing it — the biggest single leak (death-carry can’t reach them; they never die).</div></section>';
+
+  // After a first-run death — did they come back? (death-carry KPI)
+  var deaths = fr.filter(function (r) { return isDeath(r.endCause); });
+  var ret = deaths.filter(function (r) { return r.returned; }).length;
+  var retSame = deaths.filter(function (r) { return r.sameSess; }).length;
+  html += '<section><h2>After a first-run death — did they come back?</h2>' +
+    bar('Died on first run', deaths.length, deaths.length || 1, true) +
+    bar('Played another run', ret, deaths.length || 1) +
+    bar('…same session (Next-run button)', retSame, deaths.length || 1) +
+    '<div class="muted" style="margin-top:8px">' + pct(ret, deaths.length) +
+    ' of players who die on their first run play again — the death-carry retention KPI.</div></section>';
+
+  // Before vs after the Jul 23 update.
+  function grp(pred) {
+    var g = fr.filter(pred), l1g = g.filter(function (r) { return r.startLevel === 1; }), dg = g.filter(function (r) { return isDeath(r.endCause); });
+    // engagement gauge: turns survived among deaths that happened ON level 1 (didn't clear it)
+    var mt = dg.filter(function (r) { return r.turns != null && !r.clearedL1; }).map(function (r) { return r.turns; });
+    return { n: g.length,
+      clr: l1g.length ? Math.round(l1g.filter(function (r) { return r.clearedL1; }).length / l1g.length * 100) : null,
+      ret: dg.length ? Math.round(dg.filter(function (r) { return r.returned; }).length / dg.length * 100) : null,
+      bounce: g.length ? Math.round(g.filter(function (r) { return r.nEvents === 1; }).length / g.length * 100) : null,
+      med: median(mt) };
+  }
+  var bfr = grp(function (r) { return r.startMs < UPDATE_TS; }), aft = grp(function (r) { return r.startMs >= UPDATE_TS; });
+  var cell = function (v, suf) { return v == null ? '<td class="muted">—</td>' : '<td>' + v + (suf || '') + '</td>'; };
+  html += '<section><h2>Before vs after the Jul 23 update</h2>' +
+    '<table><thead><tr><th>Metric</th><th>Before</th><th>After</th></tr></thead><tbody>' +
+    '<tr><td>New players</td>' + cell(bfr.n) + cell(aft.n) + '</tr>' +
+    '<tr><td>Cleared level 1</td>' + cell(bfr.clr, '%') + cell(aft.clr, '%') + '</tr>' +
+    '<tr><td>First-death → returned</td>' + cell(bfr.ret, '%') + cell(aft.ret, '%') + '</tr>' +
+    '<tr><td>Instant bounce (1 event)</td>' + cell(bfr.bounce, '%') + cell(aft.bounce, '%') + '</tr>' +
+    '<tr><td>Median turns at level-1 death</td>' + cell(bfr.med) + cell(aft.med) + '</tr>' +
+    '</tbody></table>' +
+    '<div class="note" style="margin-top:12px"><b>Read with care.</b> The starter-hand buff and death-carry shipped in the <i>same</i> deploy, so their effects can’t be separated here. The “after” window also drew lower-intent traffic (instant-bounce rose), which drags clear-rate down independently of difficulty — “median turns at level-1 death” gauges real engagement. Samples are small; watch these stabilise over more days.</div></section>';
+
+  // Level-1 drop-off by starting species.
+  var bySp = {};
+  l1.forEach(function (r) { (bySp[r.species] = bySp[r.species] || []).push(r); });
+  var spRows = Object.keys(bySp).map(function (k) {
+    var g = bySp[k];
+    return { sp: k, n: g.length,
+      clr: Math.round(g.filter(function (r) { return r.clearedL1; }).length / g.length * 100),
+      left: Math.round(g.filter(function (r) { return !r.clearedL1 && r.leftMid; }).length / g.length * 100) };
+  }).sort(function (x, y) { return y.n - x.n; });
+  html += '<section><h2>Level-1 drop-off by starting species</h2><table><thead><tr><th>Species</th><th>New players</th><th>Cleared L1</th><th>Left mid-L1</th></tr></thead><tbody>' +
+    spRows.map(function (r) { return '<tr><td>' + esc(spName(r.sp)) + '</td><td>' + r.n + '</td><td>' + r.clr + '%</td><td>' + r.left + '%</td></tr>'; }).join('') +
+    '</tbody></table></section>';
+
+  return html;
+}
+
 function render(rows) {
   statusEl.textContent = rows.length + ' events · ' + new Date().toLocaleString();
   if (!rows.length) { out.innerHTML = '<div class="note">No events yet. Once players run the current build (and the <code>events</code> table exists), data appears here.</div>' + setupBlock(); return; }
@@ -165,6 +274,9 @@ function render(rows) {
     bar('≥2 runs', repeatPlayers, nPlayers || 1) +
     bar('Returned (≥2 days)', returningPlayers, nPlayers || 1) +
     '<div class="muted" style="margin-top:8px">' + pct(repeatPlayers, nPlayers) + ' started a second run · ' + pct(returningPlayers, nPlayers) + ' came back on another day.</div></section>';
+
+  // New-player funnel + retention panel (first-run reconstruction).
+  html += retentionPanel(rows);
 
   // Recent events
   var recent = rows.slice(0, 40);
