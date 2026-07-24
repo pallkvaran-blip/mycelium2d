@@ -520,6 +520,9 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dev buttons RE-ENABLED again (owner testing on the hosted build; NOT release-clean).** `config.dev.enabled:
+  true` + restored the picker `#ssDev`/`#ssDevUnlock` buttons + listeners. The itch zip was cut from the
+  release-clean state just before this. Verified `scratchpad/verify-devon2.mjs`. Turn off again before the next cut.
 - **Release prep: Dev buttons removed again for a fresh itch cut.** `config.dev.enabled:false` (hides
   "Dev: win level") + removed the picker `#ssDev`/`#ssDevUnlock` buttons + listeners (the `.ss-dev` CSS +
   invisible `#dev` hash route stay). Rebuilt dist; verified release-clean via `scratchpad/verify-nodev.mjs`.
