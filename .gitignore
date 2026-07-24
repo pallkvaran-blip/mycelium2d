@@ -12,3 +12,6 @@ scratchpad/
 
 # itch.io build artifacts (regenerable via `node build.mjs` + zip — never committed)
 *.zip
+
+# Local Replicate API token (never commit)
+.replicate-token
