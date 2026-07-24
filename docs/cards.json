@@ -1527,7 +1527,7 @@
     "playCostEnergy": 0,
     "playCostWater": 1,
     "playCostPhosphorus": 0,
-    "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ food cache anywhere in sight.",
+    "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ leaf-litter cache anywhere in sight.",
     "produces": "",
     "timing": "any",
     "repayRounds": 0,
@@ -1535,7 +1535,7 @@
     "threat": "all",
     "targeting": "radius",
     "flavor": "A standing bait station the colony keeps restocking — a fresh lure whenever the hungry things wander close.",
-    "notes": "ENGINE twin of Decoy Cache: an installed ACTION (Actions menu). Install 10 Energy + 1 Phosphorus; each use pays 1 Water and drops a 1-energy nut cache anywhere in colony LINE OF SIGHT (same dropDecoyCache() helper, losHint on a blocked tap). every:8 cooldown. category 'substrate' + familyKey 'defense' -> Engine + Substrate + Defense filters.",
+    "notes": "ENGINE twin of Decoy Cache: an installed ACTION (Actions menu). Install 10 Energy + 1 Phosphorus; each use pays 1 Water and drops a 1-energy YELLOW LEAF-LITTER cache (foodKind 'duff') anywhere in colony LINE OF SIGHT (dropDecoyCache(s,ctx,'duff'), losHint on a blocked tap). every:8 cooldown. Art REUSES the archived Leaf Litter Cache face (assets/cards/perennial-decoy.jpg = copy of leaf-litter-cache.jpg). category 'substrate' + familyKey 'defense' -> Engine + Substrate + Defense filters.",
     "familyKey": "defense",
     "tutorial": false,
     "startCopies": 0

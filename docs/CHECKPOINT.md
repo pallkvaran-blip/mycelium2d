@@ -517,6 +517,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Decoy Cache family: filters + cost + a new engine twin.** (1) Decoy Cache now shows under the
+  **Substrate + Defense** filters (`category:'substrate'` + `familyKey:'defense'` → `cardGroups()` in ui.js;
+  both fields are display-only) and costs **2⚡ + 1💧** (`playCostWater:1`). (2) New ENGINE card **Perennial
+  Decoy** (installed action): 10⚡ + 1P to install, then *"Once per 8 rounds: pay 1 W to drop a 1⚡ leaf-litter
+  cache anywhere in sight."* — shares the `dropDecoyCache(s,ctx,kind)` line-of-sight helper (losHint + overlay
+  work from the installed use too; `activateAction` now propagates `losHint`). It places a **yellow LEAF-LITTER
+  pile** (`foodKind:'duff'`, not the `'nut'` acorn scatter) via a new `kind` param on `substrate.deposit()`.
+  Card face **reuses the archived Leaf Litter Cache art** (`assets/cards/perennial-decoy.jpg` = copy of
+  `leaf-litter-cache.jpg`; the archived card never renders, so no in-game dup). Verified `verify-decoy-v2.mjs`,
+  `verify-leaf.mjs` (duff vs nut), `verify-leaf-visual.mjs` (yellow leaves render in-game), `verify-los-ui.mjs`.
 - **Decoy Cache → LINE OF SIGHT + a "Colony line of sight" overlay.** The card now places
   anywhere with a clear straight line from ANY strand (rock blocks it; **no distance cap** — was a
   `sensingRadius` circle) via `sub.segmentClear(node, target)` in `EFFECTS['Decoy Cache']`; card text

@@ -247,7 +247,7 @@ export class Substrate {
   // `energyTotal` (optional): make the whole nut pile digest to EXACTLY this much
   // Energy (spread as a per-nutrient rate over the cells it wrote), instead of the
   // default global incomeEfficiency — e.g. Acorn Cache = 2⚡ total.
-  deposit(x, y, amount, radiusCells, energyTotal) {
+  deposit(x, y, amount, radiusCells, energyTotal, kind = 'nut') {
     const c0 = this.colAtX(x), r0 = this.rowAtY(y);
     const written = [];
     for (let row = r0 - radiusCells; row <= r0 + radiusCells; row++) {
@@ -260,9 +260,10 @@ export class Substrate {
         cell.nutrient = Math.max(cell.nutrient, amount);  // flat patch (same value per cell)
         cell.maxNutrient = Math.max(cell.maxNutrient, amount);
         cell.hazard = false;
-        // Player-placed food = a humble NUT cache (energy only, no card). Never
-        // downgrade a MAP cache cell (orange draft / red engine / brown duff).
-        if (!cell.foodKind || cell.foodKind === 'nut') { cell.foodKind = 'nut'; written.push(cell); }
+        // Player-placed food (energy only, no card draft). `kind` picks the look:
+        // 'nut' = a small acorn scatter (default), 'duff' = a yellow leaf-litter pile.
+        // Never downgrade a MAP cache cell (orange draft / red engine) or a different-kind pile.
+        if (!cell.foodKind || cell.foodKind === kind) { cell.foodKind = kind; written.push(cell); }
       }
     }
     if (energyTotal != null && written.length) {

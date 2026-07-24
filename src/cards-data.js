@@ -1277,7 +1277,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ food cache anywhere in sight.",
+  "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ leaf-litter cache anywhere in sight.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0

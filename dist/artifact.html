@@ -1470,8 +1470,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "14hv4xj";
-globalThis.__BUILD__ = "local 07-24 11:03";
+window.__ASSET_VER = "ggjgqg";
+globalThis.__BUILD__ = "local 07-24 11:24";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3266,7 +3266,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ food cache anywhere in sight.",
+  "effect": "Once per 8 rounds: pay 1 W to drop a 1⚡ leaf-litter cache anywhere in sight.",
   "family": "defense",
   "tutorial": false,
   "startCopies": 0
@@ -4234,7 +4234,7 @@ class Substrate {
   // `energyTotal` (optional): make the whole nut pile digest to EXACTLY this much
   // Energy (spread as a per-nutrient rate over the cells it wrote), instead of the
   // default global incomeEfficiency — e.g. Acorn Cache = 2⚡ total.
-  deposit(x, y, amount, radiusCells, energyTotal) {
+  deposit(x, y, amount, radiusCells, energyTotal, kind = 'nut') {
     const c0 = this.colAtX(x), r0 = this.rowAtY(y);
     const written = [];
     for (let row = r0 - radiusCells; row <= r0 + radiusCells; row++) {
@@ -4247,9 +4247,10 @@ class Substrate {
         cell.nutrient = Math.max(cell.nutrient, amount);  // flat patch (same value per cell)
         cell.maxNutrient = Math.max(cell.maxNutrient, amount);
         cell.hazard = false;
-        // Player-placed food = a humble NUT cache (energy only, no card). Never
-        // downgrade a MAP cache cell (orange draft / red engine / brown duff).
-        if (!cell.foodKind || cell.foodKind === 'nut') { cell.foodKind = 'nut'; written.push(cell); }
+        // Player-placed food (energy only, no card draft). `kind` picks the look:
+        // 'nut' = a small acorn scatter (default), 'duff' = a yellow leaf-litter pile.
+        // Never downgrade a MAP cache cell (orange draft / red engine) or a different-kind pile.
+        if (!cell.foodKind || cell.foodKind === kind) { cell.foodKind = kind; written.push(cell); }
       }
     }
     if (energyTotal != null && written.length) {
@@ -7800,12 +7801,13 @@ function punchAt(state, ctx) {
   const py = ctx.srcY != null ? ctx.srcY : ctx.y;
   return state.active.punchThrough(state.substrate, state.rng, px, py, ctx.x, ctx.y);
 }
-// Drop a 1⚡ nut cache at ctx, gated by colony LINE OF SIGHT — a clear straight line
+// Drop a 1⚡ food cache at ctx, gated by colony LINE OF SIGHT — a clear straight line
 // from ANY living strand (rock blocks it; NO distance cap). Snaps to the nearest open
-// soil. Returns {ok,message} on success, or {ok:false,message,losHint} when nothing has
-// a clear line (losHint tells the UI to offer the "Colony line of sight" overlay).
-// Shared by the Decoy Cache event and the installed Perennial Decoy action.
-function dropDecoyCache(s, ctx) {
+// soil. `kind` picks the pile's look: 'nut' = acorn scatter (Decoy Cache), 'duff' = a
+// yellow leaf-litter pile (Perennial Decoy). Returns {ok,message} on success, or
+// {ok:false,message,losHint} when nothing has a clear line (losHint tells the UI to
+// offer the "Colony line of sight" overlay).
+function dropDecoyCache(s, ctx, kind = 'nut') {
   const sub = s.substrate, nodes = s.active.nodes;
   if (!nodes || !nodes.length) return { ok: false, message: 'No living colony to sense from.' };
   const isSoil = (col, row) => { const cell = sub.cellAt(col, row); return cell && !cell.rock && !cell.water; };
@@ -7814,8 +7816,8 @@ function dropDecoyCache(s, ctx) {
   if (!at) { let bd = Infinity; for (let r = r0 - 2; r <= r0 + 2; r++) for (let col = c0 - 2; col <= c0 + 2; col++) { if (!isSoil(col, r)) continue; const cc = sub.cellCenter(col, r); const d = (cc.x - ctx.x) ** 2 + (cc.y - ctx.y) ** 2; if (d < bd) { bd = d; at = cc; } } }
   if (!at) return { ok: false, message: 'No open soil there for a cache.' };
   if (!nodes.some((n) => sub.segmentClear(n.x, n.y, at.x, at.y))) return { ok: false, message: 'Out of sight — no clear line from your colony to there.', losHint: true };
-  sub.deposit(at.x, at.y, s.config.cards.substrateSmall, 1, 1);
-  return { ok: true, message: 'Dropped a 1⚡ decoy cache.' };
+  sub.deposit(at.x, at.y, s.config.cards.substrateSmall, 1, 1, kind);
+  return { ok: true, message: kind === 'duff' ? 'Dropped a 1⚡ leaf-litter decoy.' : 'Dropped a 1⚡ decoy cache.' };
 }
 
 function depositAtSensingEdge(state, ctx, amount, radiusCells, energyTotal) {
@@ -8311,7 +8313,8 @@ EFFECTS['Acorn Fall'] = action({ effect: 'bury a small nut cache', every: 6, cos
 });
 // Perennial Decoy: the installed ENGINE twin of Decoy Cache — every 8 rounds, pay 1 W to
 // drop a 1⚡ cache anywhere in colony line of sight (same dropDecoyCache() gate + losHint).
-EFFECTS['Perennial Decoy'] = action({ effect: 'drop a 1⚡ food cache in sight', every: 8, cost: 1, res: 'water', target: true }, (s, ctx) => dropDecoyCache(s, ctx));
+// Places a YELLOW LEAF-LITTER pile ('duff') to match its Leaf-Litter-Cache card art.
+EFFECTS['Perennial Decoy'] = action({ effect: 'drop a 1⚡ leaf-litter cache in sight', every: 8, cost: 1, res: 'water', target: true }, (s, ctx) => dropDecoyCache(s, ctx, 'duff'));
 EFFECTS['Crust Reserve'] = action({ effect: 'harden + clear mould (immune)', every: 6, cost: 2, res: 'phosphorus', target: true }, (s, ctx) => {
   const R = s.config.cards;
   const h = hardenPatch(s, ctx, R.reserveRadius, R.immuneRounds, false);   // infection immunity only, for immuneRounds rounds
