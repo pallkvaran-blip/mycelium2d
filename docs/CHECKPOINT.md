@@ -520,6 +520,35 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **NEW SPECIES — Magic Mushroom (Psilocybe cubensis), the reddit community-vote winner.** A `'?'`-tier
+  species (`species.js` id `psilocybe`, `vibe:'spore'`) with a one-of-a-kind unlock + power:
+  - **Special power (`special:'magic'`, `magicEvery:4`):** every 4 world-ticks a random BASIC or EVENT card
+    is conjured free into hand. Lives on the tick clock in `cards.js produceCardEngines` (NOT in the
+    engines/actions lists) so tempo upgrades can't hurry it — "Cannot be sped up". Seeded in `initCards`
+    (`state.cards.special/magicEvery/magicCountdown`), carried across levels (`snapshotCarry`→`applyCarry`
+    resets the clock per level) and across a tab-close (`saveResumeSnapshot`/`rebuildCardsFromSnapshot`).
+    Shown in the **top-left ledger** as a pinned 🍄 row with cadence lights counting down to the next conjure
+    (`ui.js specialRowHTML` + `_renderEngines`), and as a "✦ Special" callout in the picker detail
+    (`species_select.js` `#ssISpecial`).
+  - **Unlock = touch a troll rockface on level 1 (not a level clear).** `unlock:'?'` + `revealBy:'rockface'`
+    routes its reveal through a new persisted flag (`species.js progress.revealedSpecies`, `revealSpecies`/
+    `isSpeciesRevealed`; `isRevealed` short-circuits on `revealBy`). `main.js placeRockface()` drops ONE
+    glowing boulder (`asset('troll')`, manifest key `troll` → `assets/rockface/troll.png`) at a random open
+    mid-field cell on level 1 — only while unrevealed; `checkRockfaceTouch()` (per frame) fires
+    `touchRockface()` when any strand node reaches it → `revealSpecies('psilocybe')` + `showSpeciesUnlocked`
+    overlay (win-screen look, grown "UNLOCKED" wordmark), then the level continues. Once revealed the rock is
+    never placed again. Then it's a normal Spore purchase: **`cost:2000`** (`unlockCost` honours `sp.cost`).
+  - **Picker:** first tile of the communal `'?'` row; while unrevealed it shows a "✦ Touch rockface" hint
+    inside the "?" tile (`mysteryCard(hint)` + `.ss-hint` CSS).
+  - **Stats:** starts 40 W / 10 P (+14 Energy so the opening grows are playable — the requested 40/10 alone
+    soft-locks since every opener costs Energy). Hand: 10× Rhizomorph Lance, 10× Turgor Thrust, 1× Capillary Runners.
+  - **Art (Replicate FLUX 1.1 Pro Ultra, raw):** `scripts/gen_troll_rock.py` (5 troll-face boulder options →
+    `assets/rock_options/`, winner → `assets/rockface/troll.png`, soft-alpha cutout + downscaled) and
+    `scripts/gen_magic_mushroom.py` (4 portrait options: cubensis + rainbow + peeking elves →
+    `assets/species_options/`, winner → `assets/species/psilocybe-cubensis.jpg`). **Owner picks the winners.**
+  - Tests: `test/magic.test.js` (species def + conjure cadence). Verified in-game via
+    `scratchpad/verify.mjs` / `verify_bc.mjs` (picker hint, special ledger row, conjure +1/4 turns, rock touch
+    → unlock overlay + persisted reveal).
 - **Dev buttons RE-ENABLED again (owner testing on the hosted build; NOT release-clean).** `config.dev.enabled:
   true` + restored the picker `#ssDev`/`#ssDevUnlock` buttons + listeners. The itch zip was cut from the
   release-clean state just before this. Verified `scratchpad/verify-devon2.mjs`. Turn off again before the next cut.

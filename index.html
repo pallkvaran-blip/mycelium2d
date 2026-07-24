@@ -351,6 +351,8 @@
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
     .erow.t .eval { color: var(--warn); }
+    .erow.magic .enm { color: #d9b8f0; font-weight: 600; }   /* Magic Mushroom special-power row */
+    .erow.magic .eval.lead { min-width: 22px; font-size: 14px; filter: drop-shadow(0 0 4px rgba(199,155,230,0.7)); }
     .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
     /* Cadence lights: one dot per round of the cadence. Lit dots = rounds left
        until the event (a producer's next payout, or an action coming off cooldown);
@@ -1076,6 +1078,13 @@
       text-shadow:0 0 14px rgba(236,246,240,0.45), 0 0 30px rgba(236,246,240,0.22); animation:ssQ 4.2s ease-in-out infinite; }
     .ss-lock-card:nth-child(3n) .ss-q { animation-delay:-1.4s; } .ss-lock-card:nth-child(3n+1) .ss-q { animation-delay:-2.6s; }
     @keyframes ssQ { 0%,100% { opacity:0.5; } 50% { opacity:0.95; } }
+    /* A "?" tile carrying a how-to-unlock hint (e.g. Magic Mushroom's "Touch rockface"). */
+    .ss-lock-card.ss-hinted { border-color:rgba(199,155,230,0.42); box-shadow:inset 0 0 22px rgba(199,155,230,0.15); }
+    .ss-hinted .ss-q { align-items:flex-start; padding-top:15%; }
+    .ss-hint { position:absolute; left:0; right:0; bottom:9px; text-align:center; padding:0 6px;
+      font-family:var(--ss-serif); font-size:clamp(9px,1.9vw,11.5px); font-weight:700; letter-spacing:0.01em;
+      color:#ecd9fd; text-shadow:0 0 10px rgba(199,155,230,0.75); }
+    .ss-hint::before { content:'✦ '; opacity:0.85; }
 
     .ss-detailwrap { position:fixed; inset:0; z-index:1002; display:flex; align-items:center; justify-content:center;
       padding:clamp(12px,3vw,36px); background:rgba(3,5,9,0.72); backdrop-filter:blur(7px);
@@ -1110,6 +1119,11 @@
     .ss-detail.spore .ss-d-latin { color:#d6bff0; }
     .ss-d-blurb { font-size:14px; line-height:1.62; color:var(--ss-ink-dim); margin:0; }
     .ss-d-blurb b { color:var(--ss-ink); font-weight:600; }
+    /* Special-power callout in the species detail view (Magic Mushroom etc.). */
+    .ss-d-special { font-size:13px; line-height:1.5; color:#ecd9fd; margin:0;
+      background:rgba(199,155,230,0.1); border:1px solid rgba(199,155,230,0.32);
+      border-radius:10px; padding:9px 12px; }
+    .ss-d-special-tag { font-weight:700; color:#d9b8f0; margin-right:5px; white-space:nowrap; }
 
     .ss-hand { border-top:1px solid rgba(120,160,140,0.16); padding-top:14px; }
     .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 12px; font-weight:700; }

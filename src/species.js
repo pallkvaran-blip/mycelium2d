@@ -150,6 +150,25 @@ export const SPECIES = [
       { name: 'Melanized Wall', count: 1 },
     ],
   },
+  {
+    // Reddit bonus-competition winner. Unlocked NOT by clearing a level but by touching a
+    // hidden "troll rockface" that appears on level 1 (see main.js placeRockface / touchRockface,
+    // render/species_select.js showSpeciesUnlocked). `unlock:'?'` keeps it in the communal
+    // mystery tier; `revealBy:'rockface'` routes its reveal through the rock, not level clears
+    // (see isRevealed). `special:'magic'` wires the conjure-a-card power (engine/cards.js).
+    id: 'psilocybe', vibe: 'spore', unlock: '?', cost: 2000,
+    revealBy: 'rockface', revealHint: 'Touch rockface',
+    special: 'magic', magicEvery: 4,
+    specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
+    name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
+    blurb: 'The famous <b>magic mushroom</b> — a golden-capped dung-loving fungus steeped in folklore and psychedelia, and the <b>winner of the community vote</b>. This colony bends the rules of the deck itself: every few turns a card simply <b>materialises in your hand out of thin air</b>, conjured with no cost and no way to hurry it along. Let the magic keep dealing and ride whatever it gives you.',
+    res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
+    hand: [
+      { name: 'Rhizomorph Lance', count: 10 },
+      { name: 'Turgor Thrust', count: 10 },
+      { name: 'Capillary Runners', count: 1 },
+    ],
+  },
 ];
 
 // Locked unlock tiers shown under the two available species (mystery "?" cards,
@@ -291,6 +310,7 @@ export function loadProgress() {
   if (!p.clears) p.clears = {};
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
+  if (!p.revealedSpecies) p.revealedSpecies = {};   // species revealed by a special event (e.g. Magic Mushroom via the level-1 troll rock) rather than by clearing a level
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
@@ -331,8 +351,10 @@ export function resetProgress() {
 // button on the species picker; remove for release.
 export function devUnlockAll() {
   const p = loadProgress();
+  if (!p.revealedSpecies) p.revealedSpecies = {};
   for (const s of SPECIES) {
     if (!s.unlock) continue;
+    if (s.revealBy) { p.revealedSpecies[s.id] = true; p.purchased[s.id] = true; continue; }   // special-reveal species (rock, etc.)
     const lvl = levelFromUnlock(s.unlock);
     if (lvl) p.clears[lvl] = Math.max(p.clears[lvl] || 0, 99);   // 99 clears → every species in the tier is revealed
     p.purchased[s.id] = true;                                    // and bought (playable)
@@ -467,8 +489,26 @@ export function purchaseSpecies(sp, progress) {
 // tile flips to a viewable "Locked" card (k-th species needs k+1 clears of the level).
 export function isRevealed(sp, progress) {
   if (!sp || !sp.unlock) return true;
+  // Specially-revealed species (e.g. Magic Mushroom, revealBy:'rockface') don't gate on
+  // level clears — they flip to revealed the moment their unlock EVENT fires (the rock is
+  // touched → revealSpecies), which persists in progress.revealedSpecies.
+  if (sp.revealBy) return isSpeciesRevealed(sp.id, progress);
   const lvl = levelFromUnlock(sp.unlock);
   return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
+}
+// Whether a species has been specially revealed (persisted). Safe with no progress arg.
+export function isSpeciesRevealed(id, progress) {
+  const p = progress || loadProgress();
+  return !!(p && p.revealedSpecies && p.revealedSpecies[id]);
+}
+// Mark a species revealed (its unlock event fired). Idempotent; persists and returns progress.
+export function revealSpecies(id) {
+  const p = loadProgress();
+  if (!p.revealedSpecies) p.revealedSpecies = {};
+  if (p.revealedSpecies[id]) return p;   // already revealed
+  p.revealedSpecies[id] = true;
+  saveProgress(p);
+  return p;
 }
 // PLAYABLE: revealed AND bought with Spores (ungated species are always playable).
 export function isPlayable(sp, progress) {

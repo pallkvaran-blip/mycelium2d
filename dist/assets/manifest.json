@@ -305,6 +305,11 @@
    "key": "reservoir3",
    "file": "reservoir3.png",
    "kind": "sprite"
+  },
+  {
+   "key": "troll",
+   "file": "rockface/troll.png",
+   "kind": "sprite"
   }
  ]
 }

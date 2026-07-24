@@ -497,8 +497,11 @@ export class UI {
     const sum = summarizeEngines(engines);
     // The left ledger is only resource income + economy modifiers. Timed dig
     // abilities (e.g. Sinker Rhizomorph) render in the Actions menu instead, so
-    // the ledger hides when the only install is one of those.
-    const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
+    // the ledger hides when the only install is one of those. A species SPECIAL power
+    // (Magic Mushroom's conjure clock) pins a row here too, so the ledger shows even
+    // with nothing installed yet.
+    const special = specialRowHTML(C);
+    const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length || !!special;
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
@@ -521,7 +524,7 @@ export class UI {
     };
     // Use the SAME resource marks as the top pill (RES_ICON SVGs) rather than emoji,
     // so all three are the same size, aligned, and match the HUD (just smaller).
-    let h = block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
+    let h = special + block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
@@ -1478,6 +1481,20 @@ function cadenceLightsHTML(cad, lit, ck = 't', title) {
   for (let i = 0; i < cad; i++) dots += `<i class="clight${i < lit ? ' on' : ''}"></i>`;
   const t = title != null ? title : `every ${cad} rounds · ${lit} left`;
   return `<span class="ecad cad ck-${ck}" title="${t}">${dots}</span>`;
+}
+
+// A species SPECIAL-power row for the top-left ledger. Magic Mushroom: a random
+// basic/event card conjured every N turns, with cadence lights counting DOWN to the
+// next one (all lit = just fired, one lit = fires next turn). Returns '' if no special.
+function specialRowHTML(C) {
+  if (!C || C.special !== 'magic') return '';
+  const every = C.magicEvery || 4;
+  const left = Math.max(0, (C.magicCountdown != null) ? C.magicCountdown : every);
+  const title = `Special: every ${every} turns a random basic or event card magically appears in your hand. Cannot be sped up.`;
+  return `<div class="erow magic" title="${escapeHtml(title)}">`
+    + `<span class="eval lead">🍄</span>`
+    + `<span class="enm">Conjures a card · every ${every} turns</span>`
+    + cadenceLightsHTML(every, left, 'p', title) + `</div>`;
 }
 
 // --- actions-menu row -------------------------------------------------------

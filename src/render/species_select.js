@@ -118,6 +118,7 @@ function inspector() {
       '<div class="ss-d-body">' +
         '<div><div class="ss-d-name" id="ssIName"></div><div class="ss-d-latin" id="ssILatin"></div></div>' +
         '<p class="ss-d-blurb" id="ssIBlurb"></p>' +
+        '<div class="ss-d-special" id="ssISpecial" style="display:none"></div>' +
         '<div class="ss-hand"><h3>Starting hand</h3>' +
           '<div class="ss-resprow" id="ssIRes"></div><div class="ss-deck" id="ssIHand"></div></div>' +
         '<div class="ss-hand ss-carry" id="ssICarry" style="display:none"><h3>Carryovers from your last run</h3>' +
@@ -144,6 +145,12 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssIName').textContent = species.name;
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
+  // Special-power callout (e.g. Magic Mushroom's conjure clock), shown only when set.
+  const specialEl = ins.wrap.querySelector('#ssISpecial');
+  if (species.specialText) {
+    specialEl.innerHTML = '<span class="ss-d-special-tag">✦ Special</span> ' + esc(species.specialText);
+    specialEl.style.display = '';
+  } else { specialEl.style.display = 'none'; }
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
   ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   // Universal death-carry: cards the player kept from their last dead run, shown for EVERY
@@ -239,10 +246,12 @@ function speciesCard(s, { locked, cost, onClick }) {
   return card;
 }
 
-// The "?" placeholder for a species that hasn't been revealed yet.
-function mysteryCard() {
-  const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
-  lc.innerHTML = '<span class="ss-q">?</span>';
+// The "?" placeholder for a species that hasn't been revealed yet. An optional `hint`
+// (e.g. "Touch rockface" for Magic Mushroom) prints a small how-to-unlock line inside
+// the card, so a specially-unlocked species tells the player where to look.
+function mysteryCard(hint) {
+  const lc = el('div', 'ss-lock-card' + (hint ? ' ss-hinted' : '')); lc.setAttribute('aria-hidden', 'true');
+  lc.innerHTML = '<span class="ss-q">?</span>' + (hint ? '<span class="ss-hint">' + esc(hint) + '</span>' : '');
   return lc;
 }
 
@@ -299,9 +308,10 @@ export function showSpeciesSelect({ onPick, onDev }) {
       label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>' + (rangeStr ? startTag(rangeStr) : '');
       const grid = el('div', 'ss-grid');
       for (const s of tier) {
-        // Not yet revealed → stays a "?"; revealed+bought → playable; revealed but
+        // Not yet revealed → stays a "?" (with an optional how-to-unlock hint, e.g.
+        // Magic Mushroom's "Touch rockface"); revealed+bought → playable; revealed but
         // unbought → a viewable Locked card with a Spore price (opens the buy sheet).
-        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard()); continue; }
+        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard(s.revealHint)); continue; }
         if (isPlayable(s, progress)) {
           grid.appendChild(speciesCard(s, { locked: false, onClick: () =>
             openSpeciesDetail(s, { mode: 'start', onStart: (lvl) => { hide(); onPick && onPick(s, lvl); } }) }));
@@ -349,6 +359,30 @@ export function showLevelComplete({ level, maxLevel, unlocked, earned, balance, 
     for (const s of unlocked) cards.appendChild(speciesCard(s, { locked: false, onClick: () => openSpeciesDetail(s, { mode: 'inspect' }) }));
   }
   root.querySelector('#ssWinProceed').addEventListener('click', () => { hide(); onNext && onNext(); });
+  return { hide, root };
+}
+
+// ============== species unlocked mid-run (touched the troll rockface) ========
+// Same celebratory look as the level-complete unlock: the mycelium wordmark grows
+// "UNLOCKED", a line, and the newly-revealed species card (tap to inspect). Dismissing
+// returns to the level in progress. The species is now REVEALED (buyable for Spores) —
+// the rock itself is the reveal event; you still spend Spores to play it (its `cost`).
+export function showSpeciesUnlocked({ species, onContinue }) {
+  const root = el('div', 'ss-win'); root.id = 'ssSpeciesUnlocked';
+  const cost = unlockCost(species);
+  root.innerHTML =
+    '<div class="ss-win-title" role="img" aria-label="Unlocked"></div>' +
+    '<p class="ss-win-sub">The old troll stone stirs at your touch — a new species is revealed!</p>' +
+    '<div class="ss-win-unlock">' + esc(species.name) + ' · unlock to play for ' + SPORE_ICON +
+      '<span class="ss-sp-n">' + cost + '</span> Spores</div>' +
+    '<div class="ss-win-cards" id="ssUnlockCards"></div>' +
+    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue the level ▸</button>';
+  document.body.appendChild(root);
+  const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: 'UNLOCKED', stepRate: 3.2 });
+  function hide() { title.destroy(); root.remove(); }
+  root.querySelector('#ssUnlockCards').appendChild(
+    speciesCard(species, { locked: false, onClick: () => openSpeciesDetail(species, { mode: 'inspect' }) }));
+  root.querySelector('#ssUnlockProceed').addEventListener('click', () => { hide(); onContinue && onContinue(); });
   return { hide, root };
 }
 

@@ -346,6 +346,8 @@
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
     .erow.t .eval { color: var(--warn); }
+    .erow.magic .enm { color: #d9b8f0; font-weight: 600; }   /* Magic Mushroom special-power row */
+    .erow.magic .eval.lead { min-width: 22px; font-size: 14px; filter: drop-shadow(0 0 4px rgba(199,155,230,0.7)); }
     .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
     /* Cadence lights: one dot per round of the cadence. Lit dots = rounds left
        until the event (a producer's next payout, or an action coming off cooldown);
@@ -1071,6 +1073,13 @@
       text-shadow:0 0 14px rgba(236,246,240,0.45), 0 0 30px rgba(236,246,240,0.22); animation:ssQ 4.2s ease-in-out infinite; }
     .ss-lock-card:nth-child(3n) .ss-q { animation-delay:-1.4s; } .ss-lock-card:nth-child(3n+1) .ss-q { animation-delay:-2.6s; }
     @keyframes ssQ { 0%,100% { opacity:0.5; } 50% { opacity:0.95; } }
+    /* A "?" tile carrying a how-to-unlock hint (e.g. Magic Mushroom's "Touch rockface"). */
+    .ss-lock-card.ss-hinted { border-color:rgba(199,155,230,0.42); box-shadow:inset 0 0 22px rgba(199,155,230,0.15); }
+    .ss-hinted .ss-q { align-items:flex-start; padding-top:15%; }
+    .ss-hint { position:absolute; left:0; right:0; bottom:9px; text-align:center; padding:0 6px;
+      font-family:var(--ss-serif); font-size:clamp(9px,1.9vw,11.5px); font-weight:700; letter-spacing:0.01em;
+      color:#ecd9fd; text-shadow:0 0 10px rgba(199,155,230,0.75); }
+    .ss-hint::before { content:'✦ '; opacity:0.85; }
 
     .ss-detailwrap { position:fixed; inset:0; z-index:1002; display:flex; align-items:center; justify-content:center;
       padding:clamp(12px,3vw,36px); background:rgba(3,5,9,0.72); backdrop-filter:blur(7px);
@@ -1105,6 +1114,11 @@
     .ss-detail.spore .ss-d-latin { color:#d6bff0; }
     .ss-d-blurb { font-size:14px; line-height:1.62; color:var(--ss-ink-dim); margin:0; }
     .ss-d-blurb b { color:var(--ss-ink); font-weight:600; }
+    /* Special-power callout in the species detail view (Magic Mushroom etc.). */
+    .ss-d-special { font-size:13px; line-height:1.5; color:#ecd9fd; margin:0;
+      background:rgba(199,155,230,0.1); border:1px solid rgba(199,155,230,0.32);
+      border-radius:10px; padding:9px 12px; }
+    .ss-d-special-tag { font-weight:700; color:#d9b8f0; margin-right:5px; white-space:nowrap; }
 
     .ss-hand { border-top:1px solid rgba(120,160,140,0.16); padding-top:14px; }
     .ss-hand h3 { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--ss-mint); margin:0 0 12px; font-weight:700; }
@@ -1470,8 +1484,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "ftnlkt";
-globalThis.__BUILD__ = "local 07-24 17:17";
+window.__ASSET_VER = "1y4d718";
+globalThis.__BUILD__ = "local 07-24 18:14";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3432,6 +3446,25 @@ const SPECIES = [
       { name: 'Melanized Wall', count: 1 },
     ],
   },
+  {
+    // Reddit bonus-competition winner. Unlocked NOT by clearing a level but by touching a
+    // hidden "troll rockface" that appears on level 1 (see main.js placeRockface / touchRockface,
+    // render/species_select.js showSpeciesUnlocked). `unlock:'?'` keeps it in the communal
+    // mystery tier; `revealBy:'rockface'` routes its reveal through the rock, not level clears
+    // (see isRevealed). `special:'magic'` wires the conjure-a-card power (engine/cards.js).
+    id: 'psilocybe', vibe: 'spore', unlock: '?', cost: 2000,
+    revealBy: 'rockface', revealHint: 'Touch rockface',
+    special: 'magic', magicEvery: 4,
+    specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
+    name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
+    blurb: 'The famous <b>magic mushroom</b> — a golden-capped dung-loving fungus steeped in folklore and psychedelia, and the <b>winner of the community vote</b>. This colony bends the rules of the deck itself: every few turns a card simply <b>materialises in your hand out of thin air</b>, conjured with no cost and no way to hurry it along. Let the magic keep dealing and ride whatever it gives you.',
+    res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
+    hand: [
+      { name: 'Rhizomorph Lance', count: 10 },
+      { name: 'Turgor Thrust', count: 10 },
+      { name: 'Capillary Runners', count: 1 },
+    ],
+  },
 ];
 
 // Locked unlock tiers shown under the two available species (mystery "?" cards,
@@ -3573,6 +3606,7 @@ function loadProgress() {
   if (!p.clears) p.clears = {};
   if (typeof p.spores !== 'number' || !isFinite(p.spores)) p.spores = 0;
   if (!p.purchased) p.purchased = {};
+  if (!p.revealedSpecies) p.revealedSpecies = {};   // species revealed by a special event (e.g. Magic Mushroom via the level-1 troll rock) rather than by clearing a level
   if (!p.loadouts) p.loadouts = {};   // per-species carried loadout (memory species): { id: [{name,count}] }
   if (!p.lastDrafts) p.lastDrafts = {};   // per-species pool of the LAST run's non-engine drafts, offered at the next run's start-of-run picker
   if (!p.lastDraftEngines) p.lastDraftEngines = {};   // parallel pool of the LAST run's ENGINE drafts (Artist's Conk curates up to 2)
@@ -3613,8 +3647,10 @@ function resetProgress() {
 // button on the species picker; remove for release.
 function devUnlockAll() {
   const p = loadProgress();
+  if (!p.revealedSpecies) p.revealedSpecies = {};
   for (const s of SPECIES) {
     if (!s.unlock) continue;
+    if (s.revealBy) { p.revealedSpecies[s.id] = true; p.purchased[s.id] = true; continue; }   // special-reveal species (rock, etc.)
     const lvl = levelFromUnlock(s.unlock);
     if (lvl) p.clears[lvl] = Math.max(p.clears[lvl] || 0, 99);   // 99 clears → every species in the tier is revealed
     p.purchased[s.id] = true;                                    // and bought (playable)
@@ -3749,8 +3785,26 @@ function purchaseSpecies(sp, progress) {
 // tile flips to a viewable "Locked" card (k-th species needs k+1 clears of the level).
 function isRevealed(sp, progress) {
   if (!sp || !sp.unlock) return true;
+  // Specially-revealed species (e.g. Magic Mushroom, revealBy:'rockface') don't gate on
+  // level clears — they flip to revealed the moment their unlock EVENT fires (the rock is
+  // touched → revealSpecies), which persists in progress.revealedSpecies.
+  if (sp.revealBy) return isSpeciesRevealed(sp.id, progress);
   const lvl = levelFromUnlock(sp.unlock);
   return lvl != null && clearsFor(progress, lvl) >= tierIndexOf(sp) + 1;
+}
+// Whether a species has been specially revealed (persisted). Safe with no progress arg.
+function isSpeciesRevealed(id, progress) {
+  const p = progress || loadProgress();
+  return !!(p && p.revealedSpecies && p.revealedSpecies[id]);
+}
+// Mark a species revealed (its unlock event fired). Idempotent; persists and returns progress.
+function revealSpecies(id) {
+  const p = loadProgress();
+  if (!p.revealedSpecies) p.revealedSpecies = {};
+  if (p.revealedSpecies[id]) return p;   // already revealed
+  p.revealedSpecies[id] = true;
+  saveProgress(p);
+  return p;
 }
 // PLAYABLE: revealed AND bought with Spores (ungated species are always playable).
 function isPlayable(sp, progress) {
@@ -3765,7 +3819,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/highscores.js =====================
@@ -7313,6 +7367,13 @@ function eventDraftNames() {   // infinite; 1 copy on draft
 function uniqueDraftNames() {  // the consumable per-run pool: one of each ENGINE
   return CARD_DATA.filter((c) => playable(c) && dcatOf(c) === 'engine').map((c) => c.name);
 }
+// A random playable BASIC or EVENT card name — the pool the Magic Mushroom special
+// power conjures from (engine/action/extender excluded). Uses the sim rng for determinism.
+function randomBasicOrEventName(rng) {
+  const pool = basicDraftNames().concat(eventDraftNames());
+  if (!pool.length) return null;
+  return pool[Math.floor(rng() * pool.length)];
+}
 // Pick `n` DISTINCT normal-draft cards, weighting each slot toward BASIC (`pBasic`, ~0.6)
 // vs EVENT, so your bread-and-butter grows show up more often than the many event cards.
 // Draws without replacement within each category; falls back to the other if one runs dry.
@@ -7388,6 +7449,13 @@ function initCards(state, mode = 'tutorial', species = null) {
     draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
     runDrafted: {}, runDraftedEngines: {},   // {name: copies} drafted this run, split non-engine / engine (memory species loadout picker)
     runPlayed: {} };   // {name: copies} PLAYED (cast) this run — the pool the death-carry picker offers (accumulates across the run's levels via applyCarry)
+  // Species special power (Magic Mushroom): conjure a free basic/event card every N turns.
+  // Tracked here (not as an installed engine) so tempo upgrades can't speed it up.
+  if (mode === 'species' && species && species.special) {
+    state.cards.special = species.special;
+    state.cards.magicEvery = species.magicEvery || 4;
+    state.cards.magicCountdown = state.cards.magicEvery;   // world-ticks until the next conjure
+  }
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -7419,6 +7487,8 @@ function rebuildCardsFromSnapshot(state, snap) {
     draftable: (c.draftable && c.draftable.length) ? c.draftable.filter(known) : uniqueDraftNames(),
     runDrafted: c.runDrafted || {}, runDraftedEngines: c.runDraftedEngines || {}, runPlayed: c.runPlayed || {},
   };
+  // Restore a species special power (Magic Mushroom's conjure clock) across a tab-close resume.
+  if (c.special) { state.cards.special = c.special; state.cards.magicEvery = c.magicEvery || 4; state.cards.magicCountdown = (c.magicCountdown != null ? c.magicCountdown : state.cards.magicEvery); }
   for (const name of (c.engines || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'engine') state.cards.engines.push(r.obj); }
   for (const name of (c.actions || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'action') state.cards.actions.push(r.obj); }
   const res = (snap && snap.res) || {}, net = state.active;
@@ -7707,6 +7777,24 @@ function produceCardEngines(state) {
   for (const a of (C.actions || [])) {
     a.used = 0;
     if (a.cd > 0) a.cd -= 1;
+  }
+
+  // Magic Mushroom special: every N world-ticks, a random basic/event card materialises
+  // in hand — free, and immune to tempo upgrades because it lives here on the tick clock
+  // (not in the engines/actions lists), so nothing can hurry it. produceCardEngines runs
+  // exactly once per tick (turn.js), and a tick is the only way turns advance.
+  if (C.special === 'magic') {
+    const every = C.magicEvery || 4;
+    C.magicCountdown = (C.magicCountdown != null ? C.magicCountdown : every) - 1;
+    if (C.magicCountdown <= 0) {
+      C.magicCountdown = every;
+      const name = randomBasicOrEventName(state.rng);
+      if (name) {
+        C.hand.push({ id: C.seq++, name });
+        C._magicConjured = name;   // one-frame flag the render layer can sparkle on
+        state.log(`✨ The magic conjures ${name} into your hand out of thin air.`, 'good');
+      }
+    }
   }
 }
 
@@ -11278,8 +11366,11 @@ class UI {
     const sum = summarizeEngines(engines);
     // The left ledger is only resource income + economy modifiers. Timed dig
     // abilities (e.g. Sinker Rhizomorph) render in the Actions menu instead, so
-    // the ledger hides when the only install is one of those.
-    const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length;
+    // the ledger hides when the only install is one of those. A species SPECIAL power
+    // (Magic Mushroom's conjure clock) pins a row here too, so the ledger shows even
+    // with nothing installed yet.
+    const special = specialRowHTML(C);
+    const hasLeft = sum.energy.rows.size || sum.phosphorus.rows.size || sum.water.rows.size || sum.mods.length || !!special;
     const show = !!hasLeft && this.ledgerOpen;   // collapsible via the pill on every screen
     led.classList.toggle('hidden', !show);
     if (!show) { led.innerHTML = ''; return; }
@@ -11302,7 +11393,7 @@ class UI {
     };
     // Use the SAME resource marks as the top pill (RES_ICON SVGs) rather than emoji,
     // so all three are the same size, aligned, and match the HUD (just smaller).
-    let h = block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
+    let h = special + block('energy', RES_ICON.energy) + block('phosphorus', RES_ICON.phos) + block('water', RES_ICON.water);
     // (Timed dig abilities moved to the Actions menu — see _renderActions.)
     if (sum.mods.length) {
       h += '<div class="lgdiv"></div><div class="lgblock"><div class="lghead m"><span>Modifiers</span></div>'
@@ -12261,6 +12352,20 @@ function cadenceLightsHTML(cad, lit, ck = 't', title) {
   return `<span class="ecad cad ck-${ck}" title="${t}">${dots}</span>`;
 }
 
+// A species SPECIAL-power row for the top-left ledger. Magic Mushroom: a random
+// basic/event card conjured every N turns, with cadence lights counting DOWN to the
+// next one (all lit = just fired, one lit = fires next turn). Returns '' if no special.
+function specialRowHTML(C) {
+  if (!C || C.special !== 'magic') return '';
+  const every = C.magicEvery || 4;
+  const left = Math.max(0, (C.magicCountdown != null) ? C.magicCountdown : every);
+  const title = `Special: every ${every} turns a random basic or event card magically appears in your hand. Cannot be sped up.`;
+  return `<div class="erow magic" title="${escapeHtml(title)}">`
+    + `<span class="eval lead">🍄</span>`
+    + `<span class="enm">Conjures a card · every ${every} turns</span>`
+    + cadenceLightsHTML(every, left, 'p', title) + `</div>`;
+}
+
 // --- actions-menu row -------------------------------------------------------
 const ACT_GLYPH = { energy: '⚡', water: '💧', phosphorus: '✦' };
 const ACT_DOT = { energy: 'e', water: 'w', phosphorus: 'p' };
@@ -12676,6 +12781,7 @@ function inspector() {
       '<div class="ss-d-body">' +
         '<div><div class="ss-d-name" id="ssIName"></div><div class="ss-d-latin" id="ssILatin"></div></div>' +
         '<p class="ss-d-blurb" id="ssIBlurb"></p>' +
+        '<div class="ss-d-special" id="ssISpecial" style="display:none"></div>' +
         '<div class="ss-hand"><h3>Starting hand</h3>' +
           '<div class="ss-resprow" id="ssIRes"></div><div class="ss-deck" id="ssIHand"></div></div>' +
         '<div class="ss-hand ss-carry" id="ssICarry" style="display:none"><h3>Carryovers from your last run</h3>' +
@@ -12702,6 +12808,12 @@ function openSpeciesDetail(species, opts = {}) {
   ins.wrap.querySelector('#ssIName').textContent = species.name;
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
+  // Special-power callout (e.g. Magic Mushroom's conjure clock), shown only when set.
+  const specialEl = ins.wrap.querySelector('#ssISpecial');
+  if (species.specialText) {
+    specialEl.innerHTML = '<span class="ss-d-special-tag">✦ Special</span> ' + esc(species.specialText);
+    specialEl.style.display = '';
+  } else { specialEl.style.display = 'none'; }
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
   ins.wrap.querySelector('#ssIHand').innerHTML = species.hand.map(cardFace).join('') + (species.memory ? chooseFiveFace(species) : '');
   // Universal death-carry: cards the player kept from their last dead run, shown for EVERY
@@ -12797,10 +12909,12 @@ function speciesCard(s, { locked, cost, onClick }) {
   return card;
 }
 
-// The "?" placeholder for a species that hasn't been revealed yet.
-function mysteryCard() {
-  const lc = el('div', 'ss-lock-card'); lc.setAttribute('aria-hidden', 'true');
-  lc.innerHTML = '<span class="ss-q">?</span>';
+// The "?" placeholder for a species that hasn't been revealed yet. An optional `hint`
+// (e.g. "Touch rockface" for Magic Mushroom) prints a small how-to-unlock line inside
+// the card, so a specially-unlocked species tells the player where to look.
+function mysteryCard(hint) {
+  const lc = el('div', 'ss-lock-card' + (hint ? ' ss-hinted' : '')); lc.setAttribute('aria-hidden', 'true');
+  lc.innerHTML = '<span class="ss-q">?</span>' + (hint ? '<span class="ss-hint">' + esc(hint) + '</span>' : '');
   return lc;
 }
 
@@ -12857,9 +12971,10 @@ function showSpeciesSelect({ onPick, onDev }) {
       label.innerHTML = '<span class="ss-lk">' + esc(row.label) + '</span><span class="ss-rule"></span>' + (rangeStr ? startTag(rangeStr) : '');
       const grid = el('div', 'ss-grid');
       for (const s of tier) {
-        // Not yet revealed → stays a "?"; revealed+bought → playable; revealed but
+        // Not yet revealed → stays a "?" (with an optional how-to-unlock hint, e.g.
+        // Magic Mushroom's "Touch rockface"); revealed+bought → playable; revealed but
         // unbought → a viewable Locked card with a Spore price (opens the buy sheet).
-        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard()); continue; }
+        if (!isRevealed(s, progress)) { grid.appendChild(mysteryCard(s.revealHint)); continue; }
         if (isPlayable(s, progress)) {
           grid.appendChild(speciesCard(s, { locked: false, onClick: () =>
             openSpeciesDetail(s, { mode: 'start', onStart: (lvl) => { hide(); onPick && onPick(s, lvl); } }) }));
@@ -12910,6 +13025,30 @@ function showLevelComplete({ level, maxLevel, unlocked, earned, balance, onNext 
   return { hide, root };
 }
 
+// ============== species unlocked mid-run (touched the troll rockface) ========
+// Same celebratory look as the level-complete unlock: the mycelium wordmark grows
+// "UNLOCKED", a line, and the newly-revealed species card (tap to inspect). Dismissing
+// returns to the level in progress. The species is now REVEALED (buyable for Spores) —
+// the rock itself is the reveal event; you still spend Spores to play it (its `cost`).
+function showSpeciesUnlocked({ species, onContinue }) {
+  const root = el('div', 'ss-win'); root.id = 'ssSpeciesUnlocked';
+  const cost = unlockCost(species);
+  root.innerHTML =
+    '<div class="ss-win-title" role="img" aria-label="Unlocked"></div>' +
+    '<p class="ss-win-sub">The old troll stone stirs at your touch — a new species is revealed!</p>' +
+    '<div class="ss-win-unlock">' + esc(species.name) + ' · unlock to play for ' + SPORE_ICON +
+      '<span class="ss-sp-n">' + cost + '</span> Spores</div>' +
+    '<div class="ss-win-cards" id="ssUnlockCards"></div>' +
+    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue the level ▸</button>';
+  document.body.appendChild(root);
+  const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: 'UNLOCKED', stepRate: 3.2 });
+  function hide() { title.destroy(); root.remove(); }
+  root.querySelector('#ssUnlockCards').appendChild(
+    speciesCard(species, { locked: false, onClick: () => openSpeciesDetail(species, { mode: 'inspect' }) }));
+  root.querySelector('#ssUnlockProceed').addEventListener('click', () => { hide(); onContinue && onContinue(); });
+  return { hide, root };
+}
+
 // =========================== game won (final) ================================
 function showGameWon({ spores, balance, onNewRun }) {
   const root = el('div', 'ss-detailwrap open'); root.id = 'ssGameWon';
@@ -12927,7 +13066,7 @@ function showGameWon({ spores, balance, onNewRun }) {
   return { hide, root };
 }
 
-  return { showSpeciesSelect, showLevelComplete, showGameWon };
+  return { showSpeciesSelect, showLevelComplete, showSpeciesUnlocked, showGameWon };
 })();
 
 // ===================== src/render/loadout_select.js =====================
@@ -14386,12 +14525,12 @@ const __m_main = (function () {
   const { NetworkRenderer, drawFruitBodies } = __m_render_network;
   const { Lighting } = __m_render_lighting;
   const { UI, cardSlug, SPORE_ICON } = __m_render_ui;
-  const { showSpeciesSelect, showLevelComplete, showGameWon } = __m_render_species_select;
+  const { showSpeciesSelect, showLevelComplete, showGameWon, showSpeciesUnlocked } = __m_render_species_select;
   const { showLoadoutSelect } = __m_render_loadout_select;
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } = __m_render_assets;
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -14642,6 +14781,7 @@ function applyCarry(st, carry) {
   st.cards = carry.cards;
   st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
   st.cards.round = 1;
+  if (st.cards.special === 'magic') st.cards.magicCountdown = st.cards.magicEvery || 4;   // fresh conjure clock each level
   // The Aquifer Tap water trickle is a SYNTHETIC engine kept in sync with live water
   // contact (cards.js updateWaterSourceEngine). It must NOT carry between levels — a
   // fresh map's colony isn't touching any water, so drop it; you re-earn the trickle by
@@ -14675,6 +14815,8 @@ function saveResumeSnapshot() {
       round: C.round, seq: C.seq, drawDiscount: C.drawDiscount || 0,
       draftable: [...(C.draftable || [])],
       runDrafted: { ...(C.runDrafted || {}) }, runDraftedEngines: { ...(C.runDraftedEngines || {}) }, runPlayed: { ...(C.runPlayed || {}) },
+      // Species special power (Magic Mushroom conjure clock) so a tab-close resume keeps it.
+      special: C.special || null, magicEvery: C.magicEvery || 0, magicCountdown: C.magicCountdown != null ? C.magicCountdown : null,
     },
   });
 }
@@ -15320,6 +15462,7 @@ function begin(newState) {
   uiDirty = true;
   updateLevelChip();
   updateDevWinBtn();
+  placeRockface();   // Magic Mushroom unlock object — level 1 only, until it's been revealed
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
   // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
@@ -16037,6 +16180,8 @@ function renderFrame(time) {
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawChest(time);
+  if (state.rockface && !state.rockface.done) checkRockfaceTouch();   // reveal Magic Mushroom on contact
+  drawRockface(time);           // the glowing troll rockface (level 1, pre-unlock)
   drawColonyLos();              // "Colony line of sight" wash (only when toggled on)
   drawCloudSight();
   drawAnts(time);
@@ -16056,6 +16201,93 @@ function renderFrame(time) {
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
   // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
   if (_revealPending) { _revealPending = false; revealMap(); }
+}
+
+// --- Magic Mushroom unlock: the troll rockface --------------------------------
+// A hidden boulder with a face in it, placed at a random reachable spot on LEVEL 1,
+// only until Magic Mushroom (id 'psilocybe') has been REVEALED. Touch it with any
+// strand → reveal the species (buyable for Spores) and stop placing the rock forever.
+function placeRockface() {
+  state.rockface = null;
+  if (!state || state.mode === 'puzzle') return;
+  if (currentLevel !== 1) return;
+  if (isSpeciesRevealed('psilocybe')) return;   // already found → never place it again
+  const sub = state.substrate;
+  const cs = sub.cellSize;
+  const root = state.active && state.active.nodes[0];
+  const open = (col, row) => {
+    if (col < 0 || col >= sub.cols || row < 0 || row >= sub.rows) return false;
+    const c = sub.cells[row * sub.cols + col];
+    return !!c && !c.rock && !c.formation && !c.column && !c.water && !c.reservoir;
+  };
+  // A random OPEN cell in the mid-field the colony crosses to reach the goal: a
+  // horizontal band across the middle, a few cells below the surface, with open
+  // neighbours so a strand can actually approach it — and clear of the spawn point.
+  const colLo = Math.floor(sub.cols * 0.28), colHi = Math.floor(sub.cols * 0.72);
+  const rowLo = 2, rowHi = Math.min(sub.rows - 2, 7);
+  let best = null;
+  for (let tries = 0; tries < 300 && !best; tries++) {
+    const col = colLo + Math.floor(Math.random() * Math.max(1, colHi - colLo));
+    const row = rowLo + Math.floor(Math.random() * Math.max(1, rowHi - rowLo));
+    if (!open(col, row) || !open(col - 1, row) || !open(col + 1, row) || !open(col, row + 1)) continue;
+    const c = sub.cellCenter(col, row);
+    if (root && Math.hypot(c.x - root.x, c.y - root.y) < cs * 5) continue;   // not right on the spawn
+    best = c;
+  }
+  if (!best) best = sub.cellCenter(Math.floor(sub.cols * 0.5), 5);   // fallback: mid-map
+  state.rockface = { x: best.x, y: best.y, r: cs * 1.2, done: false };
+}
+
+function checkRockfaceTouch() {
+  const rf = state.rockface; if (!rf || rf.done) return;
+  const net = state.active; if (!net || !net.alive) return;
+  const r2 = rf.r * rf.r;
+  for (const n of net.nodes) {
+    const dx = n.x - rf.x, dy = n.y - rf.y;
+    if (dx * dx + dy * dy <= r2) { touchRockface(); return; }
+  }
+}
+
+function touchRockface() {
+  const rf = state.rockface; if (!rf || rf.done) return;
+  rf.done = true;
+  revealSpecies('psilocybe');
+  try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
+  if (state.log) state.log('Your hyphae brush an old troll stone — it stirs, and a new species is revealed.', 'good');
+  const sp = SPECIES.find((s) => s.id === 'psilocybe');
+  if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
+}
+
+// Draw the rockface with a soft pulsing magical aura so the player is drawn to touch it.
+function drawRockface(time) {
+  const rf = state && state.rockface;
+  if (!rf || rf.done) return;
+  const s = camera.worldToScreen(rf.x, rf.y);
+  const z = camera.zoom;
+  const w = state.substrate.cellSize * 2.7 * z;   // ~2.7 cells wide
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
+  const R = w * (0.66 + 0.07 * pulse);
+  const g = ctx.createRadialGradient(s.x, s.y, R * 0.15, s.x, s.y, R);
+  g.addColorStop(0, `rgba(199,155,230,${0.30 + 0.16 * pulse})`);
+  g.addColorStop(0.55, `rgba(150,120,210,${0.12 + 0.06 * pulse})`);
+  g.addColorStop(1, 'rgba(150,120,210,0)');
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  const img = asset('troll');
+  if (img && img.width) {
+    const h = w * (img.height / img.width);
+    ctx.drawImage(img, s.x - w / 2, s.y - h / 2, w, h);
+  } else {
+    // Fallback so the object is still visible + touchable before its art loads.
+    ctx.save();
+    ctx.fillStyle = 'rgba(110,112,120,0.95)';
+    ctx.strokeStyle = 'rgba(210,200,225,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(s.x, s.y, w * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where

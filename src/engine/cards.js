@@ -85,6 +85,13 @@ function eventDraftNames() {   // infinite; 1 copy on draft
 function uniqueDraftNames() {  // the consumable per-run pool: one of each ENGINE
   return CARD_DATA.filter((c) => playable(c) && dcatOf(c) === 'engine').map((c) => c.name);
 }
+// A random playable BASIC or EVENT card name — the pool the Magic Mushroom special
+// power conjures from (engine/action/extender excluded). Uses the sim rng for determinism.
+function randomBasicOrEventName(rng) {
+  const pool = basicDraftNames().concat(eventDraftNames());
+  if (!pool.length) return null;
+  return pool[Math.floor(rng() * pool.length)];
+}
 // Pick `n` DISTINCT normal-draft cards, weighting each slot toward BASIC (`pBasic`, ~0.6)
 // vs EVENT, so your bread-and-butter grows show up more often than the many event cards.
 // Draws without replacement within each category; falls back to the other if one runs dry.
@@ -160,6 +167,13 @@ export function initCards(state, mode = 'tutorial', species = null) {
     draftable: uniqueDraftNames(),   // per-run pool of UNIQUE (event/engine) draftable cards; basics are infinite
     runDrafted: {}, runDraftedEngines: {},   // {name: copies} drafted this run, split non-engine / engine (memory species loadout picker)
     runPlayed: {} };   // {name: copies} PLAYED (cast) this run — the pool the death-carry picker offers (accumulates across the run's levels via applyCarry)
+  // Species special power (Magic Mushroom): conjure a free basic/event card every N turns.
+  // Tracked here (not as an installed engine) so tempo upgrades can't speed it up.
+  if (mode === 'species' && species && species.special) {
+    state.cards.special = species.special;
+    state.cards.magicEvery = species.magicEvery || 4;
+    state.cards.magicCountdown = state.cards.magicEvery;   // world-ticks until the next conjure
+  }
   state.log('Card layer online: you start with a small hand — draw more basics, finish a map food pile to draft a new card, and reach the goal.', 'good');
   return state.cards;
 }
@@ -191,6 +205,8 @@ export function rebuildCardsFromSnapshot(state, snap) {
     draftable: (c.draftable && c.draftable.length) ? c.draftable.filter(known) : uniqueDraftNames(),
     runDrafted: c.runDrafted || {}, runDraftedEngines: c.runDraftedEngines || {}, runPlayed: c.runPlayed || {},
   };
+  // Restore a species special power (Magic Mushroom's conjure clock) across a tab-close resume.
+  if (c.special) { state.cards.special = c.special; state.cards.magicEvery = c.magicEvery || 4; state.cards.magicCountdown = (c.magicCountdown != null ? c.magicCountdown : state.cards.magicEvery); }
   for (const name of (c.engines || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'engine') state.cards.engines.push(r.obj); }
   for (const name of (c.actions || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'action') state.cards.actions.push(r.obj); }
   const res = (snap && snap.res) || {}, net = state.active;
@@ -479,6 +495,24 @@ export function produceCardEngines(state) {
   for (const a of (C.actions || [])) {
     a.used = 0;
     if (a.cd > 0) a.cd -= 1;
+  }
+
+  // Magic Mushroom special: every N world-ticks, a random basic/event card materialises
+  // in hand — free, and immune to tempo upgrades because it lives here on the tick clock
+  // (not in the engines/actions lists), so nothing can hurry it. produceCardEngines runs
+  // exactly once per tick (turn.js), and a tick is the only way turns advance.
+  if (C.special === 'magic') {
+    const every = C.magicEvery || 4;
+    C.magicCountdown = (C.magicCountdown != null ? C.magicCountdown : every) - 1;
+    if (C.magicCountdown <= 0) {
+      C.magicCountdown = every;
+      const name = randomBasicOrEventName(state.rng);
+      if (name) {
+        C.hand.push({ id: C.seq++, name });
+        C._magicConjured = name;   // one-frame flag the render layer can sparkle on
+        state.log(`✨ The magic conjures ${name} into your hand out of thin air.`, 'good');
+      }
+    }
   }
 }
 

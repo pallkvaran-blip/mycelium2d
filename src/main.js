@@ -18,12 +18,12 @@ import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
 import { Lighting } from './render/lighting.js';
 import { UI, cardSlug, SPORE_ICON } from './render/ui.js';
-import { showSpeciesSelect, showLevelComplete, showGameWon } from './render/species_select.js';
+import { showSpeciesSelect, showLevelComplete, showGameWon, showSpeciesUnlocked } from './render/species_select.js';
 import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } from './render/assets.js';
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -265,6 +265,7 @@ function applyCarry(st, carry) {
   st.cards = carry.cards;
   st.cards.pendingOffers = [];   // no stale pile offers on the fresh map
   st.cards.round = 1;
+  if (st.cards.special === 'magic') st.cards.magicCountdown = st.cards.magicEvery || 4;   // fresh conjure clock each level
   // The Aquifer Tap water trickle is a SYNTHETIC engine kept in sync with live water
   // contact (cards.js updateWaterSourceEngine). It must NOT carry between levels — a
   // fresh map's colony isn't touching any water, so drop it; you re-earn the trickle by
@@ -298,6 +299,8 @@ function saveResumeSnapshot() {
       round: C.round, seq: C.seq, drawDiscount: C.drawDiscount || 0,
       draftable: [...(C.draftable || [])],
       runDrafted: { ...(C.runDrafted || {}) }, runDraftedEngines: { ...(C.runDraftedEngines || {}) }, runPlayed: { ...(C.runPlayed || {}) },
+      // Species special power (Magic Mushroom conjure clock) so a tab-close resume keeps it.
+      special: C.special || null, magicEvery: C.magicEvery || 0, magicCountdown: C.magicCountdown != null ? C.magicCountdown : null,
     },
   });
 }
@@ -943,6 +946,7 @@ function begin(newState) {
   uiDirty = true;
   updateLevelChip();
   updateDevWinBtn();
+  placeRockface();   // Magic Mushroom unlock object — level 1 only, until it's been revealed
   // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
   // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
   // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
@@ -1660,6 +1664,8 @@ function renderFrame(time) {
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawChest(time);
+  if (state.rockface && !state.rockface.done) checkRockfaceTouch();   // reveal Magic Mushroom on contact
+  drawRockface(time);           // the glowing troll rockface (level 1, pre-unlock)
   drawColonyLos();              // "Colony line of sight" wash (only when toggled on)
   drawCloudSight();
   drawAnts(time);
@@ -1679,6 +1685,93 @@ function renderFrame(time) {
   // Doing it here (not on asset load) guarantees we never fade in a blank canvas,
   // e.g. on a warm-cache refresh where assets resolve before the first frame draws.
   if (_revealPending) { _revealPending = false; revealMap(); }
+}
+
+// --- Magic Mushroom unlock: the troll rockface --------------------------------
+// A hidden boulder with a face in it, placed at a random reachable spot on LEVEL 1,
+// only until Magic Mushroom (id 'psilocybe') has been REVEALED. Touch it with any
+// strand → reveal the species (buyable for Spores) and stop placing the rock forever.
+function placeRockface() {
+  state.rockface = null;
+  if (!state || state.mode === 'puzzle') return;
+  if (currentLevel !== 1) return;
+  if (isSpeciesRevealed('psilocybe')) return;   // already found → never place it again
+  const sub = state.substrate;
+  const cs = sub.cellSize;
+  const root = state.active && state.active.nodes[0];
+  const open = (col, row) => {
+    if (col < 0 || col >= sub.cols || row < 0 || row >= sub.rows) return false;
+    const c = sub.cells[row * sub.cols + col];
+    return !!c && !c.rock && !c.formation && !c.column && !c.water && !c.reservoir;
+  };
+  // A random OPEN cell in the mid-field the colony crosses to reach the goal: a
+  // horizontal band across the middle, a few cells below the surface, with open
+  // neighbours so a strand can actually approach it — and clear of the spawn point.
+  const colLo = Math.floor(sub.cols * 0.28), colHi = Math.floor(sub.cols * 0.72);
+  const rowLo = 2, rowHi = Math.min(sub.rows - 2, 7);
+  let best = null;
+  for (let tries = 0; tries < 300 && !best; tries++) {
+    const col = colLo + Math.floor(Math.random() * Math.max(1, colHi - colLo));
+    const row = rowLo + Math.floor(Math.random() * Math.max(1, rowHi - rowLo));
+    if (!open(col, row) || !open(col - 1, row) || !open(col + 1, row) || !open(col, row + 1)) continue;
+    const c = sub.cellCenter(col, row);
+    if (root && Math.hypot(c.x - root.x, c.y - root.y) < cs * 5) continue;   // not right on the spawn
+    best = c;
+  }
+  if (!best) best = sub.cellCenter(Math.floor(sub.cols * 0.5), 5);   // fallback: mid-map
+  state.rockface = { x: best.x, y: best.y, r: cs * 1.2, done: false };
+}
+
+function checkRockfaceTouch() {
+  const rf = state.rockface; if (!rf || rf.done) return;
+  const net = state.active; if (!net || !net.alive) return;
+  const r2 = rf.r * rf.r;
+  for (const n of net.nodes) {
+    const dx = n.x - rf.x, dy = n.y - rf.y;
+    if (dx * dx + dy * dy <= r2) { touchRockface(); return; }
+  }
+}
+
+function touchRockface() {
+  const rf = state.rockface; if (!rf || rf.done) return;
+  rf.done = true;
+  revealSpecies('psilocybe');
+  try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
+  if (state.log) state.log('Your hyphae brush an old troll stone — it stirs, and a new species is revealed.', 'good');
+  const sp = SPECIES.find((s) => s.id === 'psilocybe');
+  if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
+}
+
+// Draw the rockface with a soft pulsing magical aura so the player is drawn to touch it.
+function drawRockface(time) {
+  const rf = state && state.rockface;
+  if (!rf || rf.done) return;
+  const s = camera.worldToScreen(rf.x, rf.y);
+  const z = camera.zoom;
+  const w = state.substrate.cellSize * 2.7 * z;   // ~2.7 cells wide
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
+  const R = w * (0.66 + 0.07 * pulse);
+  const g = ctx.createRadialGradient(s.x, s.y, R * 0.15, s.x, s.y, R);
+  g.addColorStop(0, `rgba(199,155,230,${0.30 + 0.16 * pulse})`);
+  g.addColorStop(0.55, `rgba(150,120,210,${0.12 + 0.06 * pulse})`);
+  g.addColorStop(1, 'rgba(150,120,210,0)');
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  const img = asset('troll');
+  if (img && img.width) {
+    const h = w * (img.height / img.width);
+    ctx.drawImage(img, s.x - w / 2, s.y - h / 2, w, h);
+  } else {
+    // Fallback so the object is still visible + touchable before its art loads.
+    ctx.save();
+    ctx.fillStyle = 'rgba(110,112,120,0.95)';
+    ctx.strokeStyle = 'rgba(210,200,225,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(s.x, s.y, w * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 // Constricting Ring traps — a pulsing phosphorus ring on the ground marking where
