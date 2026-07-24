@@ -523,8 +523,18 @@ Both menus are dark, on-theme, with glowing green borders.
   bunch them onto a trap. `EFFECTS['Decoy Cache'] = targeted(...)` in `engine/cards.js`: validates the tap is
   within `growth.sensingRadius` of the nearest node, snaps to open soil, rejects out-of-sight/no-soil (no
   cost, card kept). Authored in `docs/cards.json` → regen `cards-data.js` → auto-joins the event draft pool.
-  **No art yet** (graceful no-image fallback; Replicate token absent this session). Verified
-  `scratchpad/verify-decoy.mjs`. See cards-design.md §25.
+  **Art added** (`assets/cards/decoy-cache.jpg`, 520×346 3:2): a bright-moss pile of mixed wild forage
+  (nuts/seeds/berries) reading as tempting bait — matches the warm forest-floor CACHE family (acorn-cache),
+  NOT the deep-earth mycelium look. Generated via Replicate **FLUX 1.1 Pro Ultra + `raw`** (owner rejected a
+  first flux-1.1-pro batch as "too AI"; Ultra+raw + a pure macro-photography prompt with no AI-prone ants
+  fixed it). Scripts `scripts/gen_decoy_cache*.py`; candidates in `assets/card_options/`. Token lives in a
+  gitignored `.replicate-token` (never committed). Verified `scratchpad/verify-decoy.mjs` (logic) +
+  `verify-decoy-art.mjs` (art loads in built dist). See cards-design.md §25.
+- **Fixed a pre-existing red smoke test** ("growth passes through an ant trail"). It asserted a proxy — that
+  seed 71 crosses a trail wall within 40 grow steps — which the bendier runner-growth model no longer
+  satisfies (red independent of recent work). Rewrote it to grow the same seed WITH and WITHOUT the trail and
+  assert byte-identical node positions (growth code never reads `cell.antTrail`) — the real invariant, and
+  robust to future growth retuning. Suite green again.
 - **Aquifer Tap now taps each source ONCE; separate SFX toggle in Settings.**
   - **Water source = ONE tap per source, but a persistent faucet.** A source, on first contact, is TAPPED for
     the rest of the map and keeps charging over `WATER_SOURCE_EVERY` (3) rounds and paying +1 Water per tapped
