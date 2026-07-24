@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# Five "troll rockface" sprite options for the Magic Mushroom (Psilocybe cubensis)
-# level-1 UNLOCK object. BATCH 2 (owner feedback): the first batch was photoreal with
-# an OBVIOUS sculpted face. Now match the IN-GAME rock sprites (painterly dark-charcoal
-# game-art boulders w/ moss, see assets/rockMossy.png / rockform*.png) and make the face
-# VERY SUBTLE — mostly an ordinary boulder that only faintly suggests a face.
-# FLUX 1.1 PRO ULTRA, raw:false (stylised, not photoreal). Output ->
-# assets/rock_options/troll-r<n>.jpg + troll-r<n>.png (soft cutout) + a contact sheet.
+# Troll rockface for the Magic Mushroom unlock — BATCH 3 (owner feedback: batch 2 was
+# too bright, too high-detail, and too much face). Target = the DARK, simple in-game rock
+# sprites (assets/rockMossy.png is dark charcoal, low-detail). So: near-black charcoal
+# boulder, soft flat low-detail painterly shading, and the face almost invisible — mostly
+# just a plain dark mossy rock. FLUX 1.1 PRO ULTRA, raw:false. Output ->
+# assets/rock_options/troll-r<n>.jpg/.png (proper bg-keyed cutout) + a contact sheet.
 import os, sys, json, time, subprocess, tempfile
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTDIR = ROOT / "assets" / "rock_options"
@@ -18,30 +17,27 @@ TOKEN = os.environ.get("REPLICATE_API_TOKEN", "").strip()
 LOG = os.environ.get("ROCKLOG", "/tmp/troll_rock.log")
 MODEL = "black-forest-labs/flux-1.1-pro-ultra"
 
-# Match the in-game rock sprites: painterly game art, dark charcoal faceted stone + moss.
-STYLE = ("2D hand-painted game-art rock sprite, painterly semi-realistic fungal-fantasy "
-         "illustration (NOT a photograph, no photorealism), a chunky dark charcoal-grey "
-         "angular boulder with crisp faceted planes and chipped edges, patches of muted "
-         "olive-green and gold moss and lichen, cool near-black deep-earth palette with "
-         "soft ambient shadow, clean simple side-view sprite that matches a 2D "
-         "side-scroller game boulder, flat plain very dark near-black background, "
-         "centered, no text, no watermark, no border, no people, no photograph")
+# Dark, simple, low-detail game rock (match rockMossy) on a pure-black background.
+STYLE = ("simple 2D game-art rock sprite, soft flat low-detail painterly shading (NOT "
+         "photoreal, NOT high-detail, NOT crisp, no fine texture), a DARK near-black "
+         "charcoal-grey boulder like a dim underground stone, muted desaturated deep-earth "
+         "palette, sparse patches of dark olive moss, gentle soft shadow, matches a plain "
+         "dark 2D side-scroller game boulder, solid pure black background, centered, "
+         "no text, no watermark, no border, no people")
 
-# A mostly-ordinary boulder whose shadows only FAINTLY hint at a face (subtle pareidolia).
-SUBJECT = ("a single chunky weathered angular grey boulder, first and foremost an "
-           "ordinary mossy game rock; its natural facets and pooled shadow hollows only "
-           "VERY FAINTLY and accidentally suggest a sleeping troll's face — the barest "
-           "hint of two shadowed eye hollows and a blunt nose ridge that most players "
-           "would miss at a glance. It is NOT a carved or sculpted face, there are no "
-           "drawn eyes or mouth, only soft accidental shadow shapes; the boulder must "
-           "read as a normal rock, the face extremely subtle and easy to overlook")
+# Almost no face — a plain dark rock that only MIGHT hint at a sleeping face.
+SUBJECT = ("an ordinary plain dark charcoal boulder, essentially just a normal dim mossy "
+           "underground rock; at most the faintest accidental shadow in its facets could "
+           "be imagined as a sleeping face, but there are NO eyes, NO glowing eyes, NO "
+           "nose or mouth, nothing golem-like or monstrous, no character — a player should "
+           "simply see a dark rock. The face is almost completely invisible and unimportant")
 
 VARIANTS = [
-    ("even flat game lighting, the hint of a face only in the upper facets, lots of moss", 5100),
-    ("gentle top-left light, shallow shadow hollows barely reading as eyes, mossy cap", 5270),
-    ("cool blue-grey shading, a craggier angular boulder, the face almost imperceptible", 5440),
-    ("a rounder smoother boulder, soft rounded facets, only the faintest sleepy face", 5610),
-    ("more moss and lichen creeping over the stone, the face nearly hidden under it", 5780),
+    ("a plain rounded dark boulder, no discernible face at all, just dim stone and moss", 6100),
+    ("a dark angular boulder, only the very faintest shadow hollows, no real face", 6270),
+    ("a dim mossy boulder, at most a sleepy suggestion in the shadows, extremely subtle", 6440),
+    ("a dark craggy boulder, moss creeping over any hint of a face, nearly featureless", 6610),
+    ("a smooth dark river boulder, the calmest faintest sleeping impression, mostly plain", 6780),
 ]
 
 def log(m):
@@ -68,47 +64,55 @@ def poll(geturl):
         time.sleep(2)
     return {"status":"timeout"}
 
-def save_png(url, dest, size=640):
+def bg_cutout(im, dest):
+    """Flood-fill the (near-uniform) background from the borders to a clean transparent
+    silhouette — works for both light and dark backgrounds (keyed by the corner colour)."""
+    im = im.convert("RGB")
+    w, h = im.size
+    work = im.copy()
+    SENT = (255, 0, 255)
+    seeds = [(1,1),(w-2,1),(1,h-2),(w-2,h-2),(w//2,1),(w//2,h-2),(1,h//2),(w-2,h//2)]
+    for s in seeds:
+        ImageDraw.floodfill(work, s, SENT, thresh=34)
+    px = work.load()
+    alpha = Image.new("L", (w, h), 255); ap = alpha.load()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y] == SENT: ap[x, y] = 0
+    alpha = alpha.filter(ImageFilter.GaussianBlur(1.5))
+    out = im.convert("RGBA"); out.putalpha(alpha)
+    bbox = out.getbbox()
+    if bbox:
+        pad = 8
+        bbox = (max(0,bbox[0]-pad), max(0,bbox[1]-pad), min(w,bbox[2]+pad), min(h,bbox[3]+pad))
+        out = out.crop(bbox)
+    out.save(dest, "PNG")
+
+def save_variants(url, n):
     tmp = tempfile.mktemp(suffix=".png")
     subprocess.run(["curl","-sS","--max-time","150","--cacert",CA,"-o",tmp,url], check=True)
     im = Image.open(tmp).convert("RGB")
     s = min(im.width, im.height)
-    im = im.crop(((im.width-s)//2, (im.height-s)//2, (im.width-s)//2+s, (im.height-s)//2+s))
-    im = im.resize((size, size), Image.LANCZOS)
-    im.save(dest, "PNG"); os.remove(tmp)
-    return im
-
-def soft_cutout(im, dest):
-    size = im.size[0]
-    mask = Image.new("L", (size, size), 0)
-    d = ImageDraw.Draw(mask)
-    d.ellipse([size*0.06, size*0.06, size*0.94, size*0.94], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(size*0.045))
-    out = im.convert("RGBA"); out.putalpha(mask)
-    out.save(dest, "PNG")
+    im = im.crop(((im.width-s)//2, (im.height-s)//2, (im.width-s)//2+s, (im.height-s)//2+s)).resize((560,560), Image.LANCZOS)
+    im = ImageEnhance.Brightness(im).enhance(0.82)     # nudge darker to sit with the dim in-game rocks
+    im = ImageEnhance.Color(im).enhance(0.85)          # slightly desaturate
+    im.save(OUTDIR / f"troll-r{n}.jpg", "JPEG", quality=90)
+    bg_cutout(im, str(OUTDIR / f"troll-r{n}.png"))
+    os.remove(tmp)
 
 def gen_one(n, variant, seed):
-    raw = OUTDIR / f"troll-r{n}.jpg"
-    png = OUTDIR / f"troll-r{n}.png"
-    full = OUTDIR / f"_full-troll-r{n}.png"
     prompt = f"{SUBJECT}, {variant}, {STYLE}"
     for attempt in range(4):
         d = create(prompt, seed + attempt*911)
         get = ((d.get("urls") or {}).get("get")) or ""
-        if not get:
-            log(f"troll-r{n}: create fail ({d.get('detail') or d.get('_raw')})"); time.sleep(5); continue
+        if not get: log(f"troll-r{n}: create fail ({d.get('detail') or d.get('_raw')})"); time.sleep(5); continue
         r = poll(get)
         out = r.get("output"); url = out[0] if isinstance(out,list) and out else (out if isinstance(out,str) else "")
         if r.get("status")=="succeeded" and url:
-            try:
-                im = save_png(url, str(full))
-                im.save(raw, "JPEG", quality=90)
-                soft_cutout(im, str(png))
-                log(f"OK troll-r{n} {png.stat().st_size//1024}KB"); return png
+            try: save_variants(url, n); log(f"OK troll-r{n}"); return
             except Exception as e: log(f"troll-r{n}: dl error {e}")
-        else:
-            log(f"troll-r{n}: {r.get('status')} ({r.get('error') or ''})"); time.sleep(4)
-    log(f"FAIL troll-r{n}"); return None
+        else: log(f"troll-r{n}: {r.get('status')} ({r.get('error') or ''})"); time.sleep(4)
+    log(f"FAIL troll-r{n}")
 
 def label(im, text):
     d = ImageDraw.Draw(im)
@@ -132,7 +136,6 @@ def sheet():
 
 def main():
     if not TOKEN: log("NO TOKEN"); sys.exit(1)
-    # overwrite the rejected batch
     for n in range(1,6):
         for ext in ('jpg','png'):
             p = OUTDIR / f"troll-r{n}.{ext}"
