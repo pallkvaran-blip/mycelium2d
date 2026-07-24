@@ -329,25 +329,35 @@ console.log('# Ants: nests seed at the surface, each with a trail to food');
   ok(s.ants.some((n) => n.path && n.path.length > 1), 'at least one nest ran a trail to food');
 }
 
-console.log('# Ants: growth passes freely THROUGH a trail (no mutual impact)');
+console.log('# Ants: growth is UNAFFECTED by trails (identical with vs without)');
 {
-  const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
-  const sub = s.substrate;
-  for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; c.rock = false; c.antTrail = false; }
-  s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
-  const net = s.active;
-  const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
-  // A near lure to pull growth toward the trail, plus food on the far side.
-  const nearCtr = sub.cellCenter(rootCol + 1, rootRow);
-  sub.deposit(nearCtr.x, nearCtr.y, 100, 1);
-  const wallCol = rootCol + 3;
-  for (let row = 0; row < sub.rows; row++) { const cell = sub.cellAt(wallCol, row); if (cell) cell.antTrail = true; }
-  const far = sub.cellAt(wallCol + 3, rootRow); if (far) { far.nutrient = 100; far.maxNutrient = 100; }
-  const before = net.nodes.length;
-  for (let i = 0; i < 40; i++) net.grow(sub, s.rng);
-  const crossed = net.nodes.some((n) => sub.colAtX(n.x) > wallCol);
-  ok(net.nodes.length > before, 'the colony grew toward the lure');
-  ok(crossed, 'growth grows straight through an ant trail (mycelium + trails do not affect each other)');
+  // Grow the same seeded colony twice — once with an ant-trail wall across its
+  // path, once without — and assert the two runs are byte-identical. Growth code
+  // never reads cell.antTrail, so trails provably cannot steer, block, or speed
+  // it. (This replaces an older "reaches the far side in 40 steps" proxy that the
+  // bendier runner-growth model no longer satisfies for this seed — traversal
+  // distance was never the invariant; trail-independence is.)
+  const setup = (withTrail) => {
+    const s = createState(JSON.parse(JSON.stringify(CONFIG)), 71);
+    const sub = s.substrate;
+    for (const c of sub.cells) { c.nutrient = 0; c.maxNutrient = 0; c.rock = false; c.antTrail = false; }
+    s.clouds = []; s.ants = []; s.config.trichoderma.initialPatches = 0;
+    const net = s.active;
+    const rootCol = sub.colAtX(net.root.x), rootRow = sub.rowAtY(net.root.y);
+    // A lure just ahead to pull growth forward across where the trail sits.
+    const nearCtr = sub.cellCenter(rootCol + 1, rootRow);
+    sub.deposit(nearCtr.x, nearCtr.y, 100, 1);
+    const wallCol = rootCol + 3;
+    if (withTrail) for (let row = 0; row < sub.rows; row++) { const cell = sub.cellAt(wallCol, row); if (cell) cell.antTrail = true; }
+    const far = sub.cellAt(wallCol + 3, rootRow); if (far) { far.nutrient = 100; far.maxNutrient = 100; }
+    return { s, net };
+  };
+  const a = setup(true), b = setup(false);
+  const before = a.net.nodes.length;
+  for (let i = 0; i < 40; i++) { a.net.grow(a.s.substrate, a.s.rng); b.net.grow(b.s.substrate, b.s.rng); }
+  const pos = (net) => net.nodes.map((n) => `${n.x.toFixed(4)},${n.y.toFixed(4)}`).join('|');
+  ok(a.net.nodes.length > before, 'the colony grew toward the lure');
+  ok(pos(a.net) === pos(b.net), 'growth is identical with and without an ant trail (mycelium + trails do not affect each other)');
 }
 
 console.log('# Ants: harvest the target food, then relocate when it runs out');
