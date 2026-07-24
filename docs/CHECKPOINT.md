@@ -517,6 +517,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Decoy Cache → LINE OF SIGHT + a "Colony line of sight" overlay.** The card now places
+  anywhere with a clear straight line from ANY strand (rock blocks it; **no distance cap** — was a
+  `sensingRadius` circle) via `sub.segmentClear(node, target)` in `EFFECTS['Decoy Cache']`; card text
+  trimmed to "Drop a 1⚡ food cache anywhere in sight." (dropped the "lures ants and worms" tell). An
+  out-of-sight tap returns `{losHint:true}`, which surfaces a **"Colony line of sight"** button beside the
+  gear (`#losbtn`, `ui.js`); clicking it toggles a translucent MINT wash marking every open-soil cell the
+  colony can see — computed once into a world-space bitmap (`computeColonyLos`/`drawColonyLos` in `main.js`,
+  distinct-node-cell sources capped at 80, scaled up with smoothing). Button + overlay clear on the next
+  successful card/action (`dismissColonyLos` in `resolveCardOp`/`afterAction`), on Escape, and on run start.
+  Verified `scratchpad/verify-decoy-los.mjs` (LOS logic) + `verify-los-ui.mjs` (button/overlay E2E).
 - **Dev buttons RE-ENABLED again (owner testing; NOT release-clean).** Set `config.dev.enabled: true` (shows
   the in-run "Dev: win level" `#devWin`) and restored the picker `#ssDev` (Dev quick-start) + `#ssDevUnlock`
   (Dev: unlock all) buttons + listeners in `render/species_select.js` — a clean re-apply of the 765b652

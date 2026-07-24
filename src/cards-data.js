@@ -1259,7 +1259,7 @@ export const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Drop a 1⚡ food cache anywhere in sight — lures ants and worms to it.",
+  "effect": "Drop a 1⚡ food cache anywhere in sight.",
   "family": "control",
   "tutorial": false,
   "startCopies": 0

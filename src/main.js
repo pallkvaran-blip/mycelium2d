@@ -136,6 +136,9 @@ let lastTime = 0;                     // most recent frame timestamp (for action
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 let showNematodeVision = false;       // dev overlay: nematode sight range + line of sight (off by default — the rings cluttered the map)
 let placingWorm = false;              // dev: click the map to drop a nematode
+let showColonyLOS = false;            // "Colony line of sight" overlay: on while the HUD button is toggled on
+let colonyLos = null;                 // cached {canvas,x0,y0,wWorld,hWorld} visibility bitmap (built when toggled on)
+let losHintActive = false;            // the "Colony line of sight" button is currently offered (after an out-of-sight decoy tap)
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -863,6 +866,7 @@ function begin(newState) {
   if (ui.clearPendingCard) ui.clearPendingCard();
   if (ui.clearPendingAction) ui.clearPendingAction();
   if (ui.clearArmed) ui.clearArmed();
+  losHintActive = false; showColonyLOS = false; colonyLos = null; if (ui.hideColonyLosBtn) ui.hideColonyLosBtn();
   previewFruit = false;
   previewFruitPoints = [];
   resize();
@@ -949,6 +953,7 @@ const handlers = {
   // Settings menu (gear button, ui.js): replay the tutorial + toggle sensing-range lighting.
   onReplayTutorial: () => beginTutorial(),
   onForceFruit: () => forceFruitAbandon(),
+  onColonyLos: () => toggleColonyLos(),
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];
@@ -1176,6 +1181,7 @@ function cancelAiming() {
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
+  dismissColonyLos();                     // any successful action clears the LOS helper
   // The mould steps on EVERY action, so both layers may have changed: clouds
   // moved / ate (substrate) and the rot advanced along filaments (structure).
   substrateRenderer.markDirty();
@@ -1208,6 +1214,7 @@ function checkWater() {
 // Resolve a card op (draw/skip/play): advance the world, refresh renderers.
 function resolveCardOp(res) {
   if (res && res.ok) {
+    dismissColonyLos();                   // any successful play clears the LOS helper
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
@@ -1215,6 +1222,7 @@ function resolveCardOp(res) {
     if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
+    if (res.losHint) showColonyLosHint();   // out-of-sight decoy tap → offer the "Colony line of sight" button
   }
   uiDirty = true;
 }
@@ -1480,7 +1488,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { aim = null; ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { aim = null; ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; dismissColonyLos(); uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -1594,6 +1602,7 @@ function renderFrame(time) {
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawChest(time);
+  drawColonyLos();              // "Colony line of sight" wash (only when toggled on)
   drawCloudSight();
   drawAnts(time);
   drawNematodes(time);
@@ -1759,6 +1768,60 @@ function inspectVisionAt(sx, sy) {
 function clearSightRings() {
   for (const w of (state.nematodes || [])) w.showSight = false;
   for (const c of (state.clouds || [])) c.showSight = false;
+}
+
+// --- "Colony line of sight" helper -----------------------------------------
+// A translucent MINT wash marking every open-soil cell the colony has a clear line
+// to (rock blocks it; NO distance cap) — i.e. exactly where a Decoy Cache can drop.
+// The button appears only after an out-of-sight decoy tap; tapping it toggles this
+// overlay. Both button and overlay clear on the next successful card/action, so the
+// colony can't change while it's up — we compute the grid ONCE into a small
+// world-space bitmap and scale it up with smoothing for a soft glow.
+function computeColonyLos() {
+  const sub = state && state.substrate, net = state && state.active;
+  if (!sub || !net || !net.nodes || !net.nodes.length) return null;
+  const cols = sub.cols, rows = sub.rows, cs = sub.cellSize;
+  // Sources = distinct cells holding a strand (dedupe; cap to ~80 spread points for perf).
+  const seen = new Set(), src = [];
+  for (const n of net.nodes) { const k = sub.colAtX(n.x) + ',' + sub.rowAtY(n.y); if (seen.has(k)) continue; seen.add(k); src.push(n); }
+  let sources = src;
+  if (src.length > 80) { sources = []; const step = src.length / 80; for (let i = 0; i < src.length; i += step) sources.push(src[i | 0]); }
+  const cv = document.createElement('canvas'); cv.width = cols; cv.height = rows;
+  const g = cv.getContext('2d'); const img = g.createImageData(cols, rows); const d = img.data;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const cell = sub.cellAt(c, r); if (!cell || cell.rock || cell.water) continue;   // only placeable soil
+    const cc = sub.cellCenter(c, r);
+    let vis = false;
+    for (let i = 0; i < sources.length; i++) { if (sub.segmentClear(sources[i].x, sources[i].y, cc.x, cc.y)) { vis = true; break; } }
+    if (!vis) continue;
+    const o = (r * cols + c) * 4; d[o] = 111; d[o + 1] = 224; d[o + 2] = 176; d[o + 3] = 105;   // mint, ~0.41α (softens on upscale)
+  }
+  g.putImageData(img, 0, 0);
+  const tl = sub.cellCenter(0, 0);
+  return { canvas: cv, x0: tl.x - cs / 2, y0: tl.y - cs / 2, wWorld: cols * cs, hWorld: rows * cs };
+}
+function toggleColonyLos() {
+  showColonyLOS = !showColonyLOS;
+  colonyLos = showColonyLOS ? computeColonyLos() : null;
+  if (ui) ui.setColonyLosActive(showColonyLOS);
+  uiDirty = true;
+}
+// Offer the button (called when a decoy tap fails specifically for line of sight).
+function showColonyLosHint() { losHintActive = true; if (ui) ui.showColonyLosBtn(); uiDirty = true; }
+// Clear the overlay AND the button — called on any successful card/action.
+function dismissColonyLos() {
+  if (!losHintActive && !showColonyLOS) return;
+  losHintActive = false; showColonyLOS = false; colonyLos = null;
+  if (ui) ui.hideColonyLosBtn();
+  uiDirty = true;
+}
+function drawColonyLos() {
+  if (!showColonyLOS || !colonyLos) return;
+  const s = camera.worldToScreen(colonyLos.x0, colonyLos.y0);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(colonyLos.canvas, s.x, s.y, colonyLos.wWorld * camera.zoom, colonyLos.hWorld * camera.zoom);
+  ctx.restore();
 }
 
 // --- Ant rendering helpers --------------------------------------------------

@@ -1504,7 +1504,7 @@
     "playCostEnergy": 0,
     "playCostWater": 0,
     "playCostPhosphorus": 0,
-    "effect": "Drop a 1⚡ food cache anywhere in sight — lures ants and worms to it.",
+    "effect": "Drop a 1⚡ food cache anywhere in sight.",
     "produces": "",
     "timing": "any",
     "repayRounds": 0,

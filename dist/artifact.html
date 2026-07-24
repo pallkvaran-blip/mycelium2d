@@ -140,6 +140,16 @@
     .gearbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
     .gearbtn[aria-expanded="true"] { transform: rotate(55deg); border-color: rgba(170,255,205,0.7); }
     .gearbtn svg { display: block; }
+    /* "Colony line of sight" helper button — hidden until an out-of-sight decoy tap
+       offers it; sits beside the gear. aria-pressed marks the overlay as active. */
+    .losbtn { color: var(--ink); background: rgba(127,230,163,0.12);
+      border: 1px solid rgba(130,230,166,0.4); border-radius: 999px; cursor: pointer;
+      height: 32px; padding: 0 12px; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .01em;
+      white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center;
+      backdrop-filter: blur(6px); transition: background .12s, border-color .12s; }
+    .losbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .losbtn[aria-pressed="true"] { background: rgba(127,230,163,0.32); border-color: rgba(170,255,205,0.85); color: #eafff3; }
+    .losbtn.hidden { display: none; }
     .settingsmenu { margin-top: 8px; min-width: 220px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
       background: linear-gradient(150deg, rgba(16,24,20,0.96), rgba(8,13,11,0.96));
       border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
@@ -1460,8 +1470,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "i12rof";
-globalThis.__BUILD__ = "local 07-24 09:59";
+window.__ASSET_VER = "j95ada";
+globalThis.__BUILD__ = "local 07-24 10:26";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3238,7 +3248,7 @@ const CARD_DATA = [
   "repay": 0,
   "threat": "all",
   "produces": "",
-  "effect": "Drop a 1⚡ food cache anywhere in sight — lures ants and worms to it.",
+  "effect": "Drop a 1⚡ food cache anywhere in sight.",
   "family": "control",
   "tutorial": false,
   "startCopies": 0
@@ -8081,22 +8091,23 @@ const EFFECTS = {
   // Placed with the same PRESS-AND-DRAG aim tool as the grow cards (press on the colony,
   // drag to pick the direction); the cache drops at the sensing edge along that heading.
   'Acorn Cache': directional((s) => s.config.growth.sensingRadius / s.config.growth.segmentLength, (s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
-  // Decoy Cache: TAP any spot within the colony's sensing range to drop a small nut cache worth
-  // exactly 1⚡. Tactical lure — food redirects ant harvest targets and draws nematodes, so it
-  // pulls threats off the colony (or bunches them, e.g. onto a Constricting Ring). Rejects a tap
-  // out of sight or with no open soil; the deposit itself never lands in rock/water.
+  // Decoy Cache: TAP any spot in the colony's LINE OF SIGHT — a clear straight line
+  // from any living strand (rock blocks it, but there is NO distance cap) — to drop a
+  // small nut cache worth exactly 1⚡. Tactical lure. Snaps to the nearest open soil; a
+  // tap with no clear line returns `losHint` so the UI can offer the "Colony line of
+  // sight" overlay. The deposit itself never lands in rock/water.
   'Decoy Cache': targeted((s, c, ctx) => {
-    const sub = s.substrate, g = s.config.growth;
-    const nn = s.active.nearestNode(ctx.x, ctx.y);
-    if (!nn) return { ok: false, message: 'No living colony to sense from.' };
-    if ((nn.x - ctx.x) ** 2 + (nn.y - ctx.y) ** 2 > g.sensingRadius ** 2) return { ok: false, message: 'Out of sight — aim within your sensing range.' };
+    const sub = s.substrate, nodes = s.active.nodes;
+    if (!nodes || !nodes.length) return { ok: false, message: 'No living colony to sense from.' };
     const isSoil = (col, row) => { const cell = sub.cellAt(col, row); return cell && !cell.rock && !cell.water; };
     const c0 = sub.colAtX(ctx.x), r0 = sub.rowAtY(ctx.y);
     let at = isSoil(c0, r0) ? sub.cellCenter(c0, r0) : null;
     if (!at) { let bd = Infinity; for (let r = r0 - 2; r <= r0 + 2; r++) for (let col = c0 - 2; col <= c0 + 2; col++) { if (!isSoil(col, r)) continue; const cc = sub.cellCenter(col, r); const d = (cc.x - ctx.x) ** 2 + (cc.y - ctx.y) ** 2; if (d < bd) { bd = d; at = cc; } } }
     if (!at) return { ok: false, message: 'No open soil there for a cache.' };
+    // In line of sight = a clear straight line from ANY strand to the spot (no range cap).
+    if (!nodes.some((n) => sub.segmentClear(n.x, n.y, at.x, at.y))) return { ok: false, message: 'Out of sight — no clear line from your colony to there.', losHint: true };
     sub.deposit(at.x, at.y, s.config.cards.substrateSmall, 1, 1);
-    return { ok: true, message: 'Dropped a 1⚡ decoy cache — threats will be drawn to it.' };
+    return { ok: true, message: 'Dropped a 1⚡ decoy cache.' };
   }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),
@@ -10853,6 +10864,7 @@ class UI {
     hud.innerHTML =
       `<div class="hudtop">`
       + `<div class="resrow">${resRow}</div>`
+      + `<button class="losbtn hidden" id="losbtn" type="button" aria-pressed="false" title="Show where your colony can drop a decoy — its line of sight">Colony line of sight</button>`
       + `<button class="gearbtn" id="gearbtn" type="button" aria-label="Settings" title="Settings" aria-expanded="false">${GEAR_SVG}</button>`
       + `</div>`
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
@@ -10867,6 +10879,7 @@ class UI {
     this.el.logdrop = hud.querySelector('#logdrop');
     this.el.loglist = hud.querySelector('#loglist');
     this.el.settingsmenu = hud.querySelector('#settingsmenu');
+    this.el.losbtn = hud.querySelector('#losbtn');
     this._wireSettings(hud);
 
     // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
@@ -11112,6 +11125,8 @@ class UI {
     hud.querySelector('#set-sfx').onclick = (e) => { e.stopPropagation(); toggleSfx(); refresh(); };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
     hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
+    const los = hud.querySelector('#losbtn');
+    if (los) los.onclick = (e) => { e.stopPropagation(); if (this.handlers.onColonyLos) this.handlers.onColonyLos(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.
     if (this._onSettingsAway) document.removeEventListener('pointerdown', this._onSettingsAway, true);
     this._onSettingsAway = (e) => {
@@ -11122,6 +11137,12 @@ class UI {
     };
     document.addEventListener('pointerdown', this._onSettingsAway, true);
   }
+
+  // "Colony line of sight" button (top HUD, beside the gear). It stays hidden until an
+  // out-of-sight Decoy Cache tap offers it; clicking it toggles the map overlay (main.js).
+  showColonyLosBtn() { const b = this.el.losbtn; if (b) b.classList.remove('hidden'); }
+  hideColonyLosBtn() { const b = this.el.losbtn; if (b) { b.classList.add('hidden'); b.setAttribute('aria-pressed', 'false'); } }
+  setColonyLosActive(on) { const b = this.el.losbtn; if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 
   // Event-log drop-down (top HUD). Opened/closed via the Settings menu now — errors
   // surface as a transient toast (see toast()), not by yanking the whole log open.
@@ -14395,6 +14416,9 @@ let lastTime = 0;                     // most recent frame timestamp (for action
 let excreteFlashStart = -1e9;         // when the last Excrete fired, for the sticky pulse
 let showNematodeVision = false;       // dev overlay: nematode sight range + line of sight (off by default — the rings cluttered the map)
 let placingWorm = false;              // dev: click the map to drop a nematode
+let showColonyLOS = false;            // "Colony line of sight" overlay: on while the HUD button is toggled on
+let colonyLos = null;                 // cached {canvas,x0,y0,wWorld,hWorld} visibility bitmap (built when toggled on)
+let losHintActive = false;            // the "Colony line of sight" button is currently offered (after an out-of-sight decoy tap)
 const mouse = { x: 0, y: 0, down: false, moved: false, startX: 0, startY: 0 };
 const pointers = new Map();          // active pointers (touch/mouse) by id
 let pinchDist = 0;                    // last two-finger spread, for pinch-zoom
@@ -15122,6 +15146,7 @@ function begin(newState) {
   if (ui.clearPendingCard) ui.clearPendingCard();
   if (ui.clearPendingAction) ui.clearPendingAction();
   if (ui.clearArmed) ui.clearArmed();
+  losHintActive = false; showColonyLOS = false; colonyLos = null; if (ui.hideColonyLosBtn) ui.hideColonyLosBtn();
   previewFruit = false;
   previewFruitPoints = [];
   resize();
@@ -15208,6 +15233,7 @@ const handlers = {
   // Settings menu (gear button, ui.js): replay the tutorial + toggle sensing-range lighting.
   onReplayTutorial: () => beginTutorial(),
   onForceFruit: () => forceFruitAbandon(),
+  onColonyLos: () => toggleColonyLos(),
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];
@@ -15435,6 +15461,7 @@ function cancelAiming() {
 
 function afterAction(name, res) {
   if (!res || !res.ok) { uiDirty = true; return; }
+  dismissColonyLos();                     // any successful action clears the LOS helper
   // The mould steps on EVERY action, so both layers may have changed: clouds
   // moved / ate (substrate) and the rot advanced along filaments (structure).
   substrateRenderer.markDirty();
@@ -15467,6 +15494,7 @@ function checkWater() {
 // Resolve a card op (draw/skip/play): advance the world, refresh renderers.
 function resolveCardOp(res) {
   if (res && res.ok) {
+    dismissColonyLos();                   // any successful play clears the LOS helper
     if (res.tick) tickWorld(state);
     substrateRenderer.markDirty();
     rendererFor(state.active).markStructureDirty();
@@ -15474,6 +15502,7 @@ function resolveCardOp(res) {
     if (state.runOver) presentRunOver();
   } else if (res && res.message) {
     ui.toast(res.message);   // a blocked/no-op play (e.g. not enough energy) → error toast
+    if (res.losHint) showColonyLosHint();   // out-of-sight decoy tap → offer the "Colony line of sight" button
   }
   uiDirty = true;
 }
@@ -15739,7 +15768,7 @@ function setupInput() {
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Escape') { aim = null; ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; uiDirty = true; }
+    if (e.code === 'Escape') { aim = null; ui.setSelectedAction(null); ui.clearPendingCard(); if (ui.clearPendingAction) ui.clearPendingAction(); if (ui.clearArmed) ui.clearArmed(); ui.resetHint(); placingWorm = false; dismissColonyLos(); uiDirty = true; }
     else if (e.code === 'KeyF') { camera.fitBounds(expandedBounds(), 120); }
   });
 
@@ -15853,6 +15882,7 @@ function renderFrame(time) {
   substrateRenderer.drawAtmosphere(ctx, camera, time);
 
   drawChest(time);
+  drawColonyLos();              // "Colony line of sight" wash (only when toggled on)
   drawCloudSight();
   drawAnts(time);
   drawNematodes(time);
@@ -16018,6 +16048,60 @@ function inspectVisionAt(sx, sy) {
 function clearSightRings() {
   for (const w of (state.nematodes || [])) w.showSight = false;
   for (const c of (state.clouds || [])) c.showSight = false;
+}
+
+// --- "Colony line of sight" helper -----------------------------------------
+// A translucent MINT wash marking every open-soil cell the colony has a clear line
+// to (rock blocks it; NO distance cap) — i.e. exactly where a Decoy Cache can drop.
+// The button appears only after an out-of-sight decoy tap; tapping it toggles this
+// overlay. Both button and overlay clear on the next successful card/action, so the
+// colony can't change while it's up — we compute the grid ONCE into a small
+// world-space bitmap and scale it up with smoothing for a soft glow.
+function computeColonyLos() {
+  const sub = state && state.substrate, net = state && state.active;
+  if (!sub || !net || !net.nodes || !net.nodes.length) return null;
+  const cols = sub.cols, rows = sub.rows, cs = sub.cellSize;
+  // Sources = distinct cells holding a strand (dedupe; cap to ~80 spread points for perf).
+  const seen = new Set(), src = [];
+  for (const n of net.nodes) { const k = sub.colAtX(n.x) + ',' + sub.rowAtY(n.y); if (seen.has(k)) continue; seen.add(k); src.push(n); }
+  let sources = src;
+  if (src.length > 80) { sources = []; const step = src.length / 80; for (let i = 0; i < src.length; i += step) sources.push(src[i | 0]); }
+  const cv = document.createElement('canvas'); cv.width = cols; cv.height = rows;
+  const g = cv.getContext('2d'); const img = g.createImageData(cols, rows); const d = img.data;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const cell = sub.cellAt(c, r); if (!cell || cell.rock || cell.water) continue;   // only placeable soil
+    const cc = sub.cellCenter(c, r);
+    let vis = false;
+    for (let i = 0; i < sources.length; i++) { if (sub.segmentClear(sources[i].x, sources[i].y, cc.x, cc.y)) { vis = true; break; } }
+    if (!vis) continue;
+    const o = (r * cols + c) * 4; d[o] = 111; d[o + 1] = 224; d[o + 2] = 176; d[o + 3] = 105;   // mint, ~0.41α (softens on upscale)
+  }
+  g.putImageData(img, 0, 0);
+  const tl = sub.cellCenter(0, 0);
+  return { canvas: cv, x0: tl.x - cs / 2, y0: tl.y - cs / 2, wWorld: cols * cs, hWorld: rows * cs };
+}
+function toggleColonyLos() {
+  showColonyLOS = !showColonyLOS;
+  colonyLos = showColonyLOS ? computeColonyLos() : null;
+  if (ui) ui.setColonyLosActive(showColonyLOS);
+  uiDirty = true;
+}
+// Offer the button (called when a decoy tap fails specifically for line of sight).
+function showColonyLosHint() { losHintActive = true; if (ui) ui.showColonyLosBtn(); uiDirty = true; }
+// Clear the overlay AND the button — called on any successful card/action.
+function dismissColonyLos() {
+  if (!losHintActive && !showColonyLOS) return;
+  losHintActive = false; showColonyLOS = false; colonyLos = null;
+  if (ui) ui.hideColonyLosBtn();
+  uiDirty = true;
+}
+function drawColonyLos() {
+  if (!showColonyLOS || !colonyLos) return;
+  const s = camera.worldToScreen(colonyLos.x0, colonyLos.y0);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(colonyLos.canvas, s.x, s.y, colonyLos.wWorld * camera.zoom, colonyLos.hWorld * camera.zoom);
+  ctx.restore();
 }
 
 // --- Ant rendering helpers --------------------------------------------------

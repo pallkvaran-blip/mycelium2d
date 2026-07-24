@@ -899,22 +899,23 @@ export const EFFECTS = {
   // Placed with the same PRESS-AND-DRAG aim tool as the grow cards (press on the colony,
   // drag to pick the direction); the cache drops at the sensing edge along that heading.
   'Acorn Cache': directional((s) => s.config.growth.sensingRadius / s.config.growth.segmentLength, (s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateSmall, 1, s.config.cards.acornCacheEnergy); return { ok: true, message: `Buried a small nut cache at the sensing edge (+${s.config.cards.acornCacheEnergy}⚡ when digested).` }; }),
-  // Decoy Cache: TAP any spot within the colony's sensing range to drop a small nut cache worth
-  // exactly 1⚡. Tactical lure — food redirects ant harvest targets and draws nematodes, so it
-  // pulls threats off the colony (or bunches them, e.g. onto a Constricting Ring). Rejects a tap
-  // out of sight or with no open soil; the deposit itself never lands in rock/water.
+  // Decoy Cache: TAP any spot in the colony's LINE OF SIGHT — a clear straight line
+  // from any living strand (rock blocks it, but there is NO distance cap) — to drop a
+  // small nut cache worth exactly 1⚡. Tactical lure. Snaps to the nearest open soil; a
+  // tap with no clear line returns `losHint` so the UI can offer the "Colony line of
+  // sight" overlay. The deposit itself never lands in rock/water.
   'Decoy Cache': targeted((s, c, ctx) => {
-    const sub = s.substrate, g = s.config.growth;
-    const nn = s.active.nearestNode(ctx.x, ctx.y);
-    if (!nn) return { ok: false, message: 'No living colony to sense from.' };
-    if ((nn.x - ctx.x) ** 2 + (nn.y - ctx.y) ** 2 > g.sensingRadius ** 2) return { ok: false, message: 'Out of sight — aim within your sensing range.' };
+    const sub = s.substrate, nodes = s.active.nodes;
+    if (!nodes || !nodes.length) return { ok: false, message: 'No living colony to sense from.' };
     const isSoil = (col, row) => { const cell = sub.cellAt(col, row); return cell && !cell.rock && !cell.water; };
     const c0 = sub.colAtX(ctx.x), r0 = sub.rowAtY(ctx.y);
     let at = isSoil(c0, r0) ? sub.cellCenter(c0, r0) : null;
     if (!at) { let bd = Infinity; for (let r = r0 - 2; r <= r0 + 2; r++) for (let col = c0 - 2; col <= c0 + 2; col++) { if (!isSoil(col, r)) continue; const cc = sub.cellCenter(col, r); const d = (cc.x - ctx.x) ** 2 + (cc.y - ctx.y) ** 2; if (d < bd) { bd = d; at = cc; } } }
     if (!at) return { ok: false, message: 'No open soil there for a cache.' };
+    // In line of sight = a clear straight line from ANY strand to the spot (no range cap).
+    if (!nodes.some((n) => sub.segmentClear(n.x, n.y, at.x, at.y))) return { ok: false, message: 'Out of sight — no clear line from your colony to there.', losHint: true };
     sub.deposit(at.x, at.y, s.config.cards.substrateSmall, 1, 1);
-    return { ok: true, message: 'Dropped a 1⚡ decoy cache — threats will be drawn to it.' };
+    return { ok: true, message: 'Dropped a 1⚡ decoy cache.' };
   }),
   'Humus Bed': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateMedium, 2); return { ok: true, message: 'Laid a medium patch at the sensing edge.' }; }),
   'Humic Mat': targeted((s, c, ctx) => { depositAtSensingEdge(s, ctx, s.config.cards.substrateLarge, 3); return { ok: true, message: 'Spread a large mat at the sensing edge.' }; }),

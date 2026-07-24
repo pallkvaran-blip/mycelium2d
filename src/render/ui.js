@@ -164,6 +164,7 @@ export class UI {
     hud.innerHTML =
       `<div class="hudtop">`
       + `<div class="resrow">${resRow}</div>`
+      + `<button class="losbtn hidden" id="losbtn" type="button" aria-pressed="false" title="Show where your colony can drop a decoy — its line of sight">Colony line of sight</button>`
       + `<button class="gearbtn" id="gearbtn" type="button" aria-label="Settings" title="Settings" aria-expanded="false">${GEAR_SVG}</button>`
       + `</div>`
       + `<div class="settingsmenu hidden" id="settingsmenu" role="menu">`
@@ -178,6 +179,7 @@ export class UI {
     this.el.logdrop = hud.querySelector('#logdrop');
     this.el.loglist = hud.querySelector('#loglist');
     this.el.settingsmenu = hud.querySelector('#settingsmenu');
+    this.el.losbtn = hud.querySelector('#losbtn');
     this._wireSettings(hud);
 
     // ---- Installed engines: income ledger (top-left, hangs under the pill) ----
@@ -423,6 +425,8 @@ export class UI {
     hud.querySelector('#set-sfx').onclick = (e) => { e.stopPropagation(); toggleSfx(); refresh(); };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
     hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
+    const los = hud.querySelector('#losbtn');
+    if (los) los.onclick = (e) => { e.stopPropagation(); if (this.handlers.onColonyLos) this.handlers.onColonyLos(); };
     // click-away (capture, all widths) — close unless the click is inside the menu or gear.
     if (this._onSettingsAway) document.removeEventListener('pointerdown', this._onSettingsAway, true);
     this._onSettingsAway = (e) => {
@@ -433,6 +437,12 @@ export class UI {
     };
     document.addEventListener('pointerdown', this._onSettingsAway, true);
   }
+
+  // "Colony line of sight" button (top HUD, beside the gear). It stays hidden until an
+  // out-of-sight Decoy Cache tap offers it; clicking it toggles the map overlay (main.js).
+  showColonyLosBtn() { const b = this.el.losbtn; if (b) b.classList.remove('hidden'); }
+  hideColonyLosBtn() { const b = this.el.losbtn; if (b) { b.classList.add('hidden'); b.setAttribute('aria-pressed', 'false'); } }
+  setColonyLosActive(on) { const b = this.el.losbtn; if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
 
   // Event-log drop-down (top HUD). Opened/closed via the Settings menu now — errors
   // surface as a transient toast (see toast()), not by yanking the whole log open.

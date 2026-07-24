@@ -145,6 +145,16 @@
     .gearbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
     .gearbtn[aria-expanded="true"] { transform: rotate(55deg); border-color: rgba(170,255,205,0.7); }
     .gearbtn svg { display: block; }
+    /* "Colony line of sight" helper button — hidden until an out-of-sight decoy tap
+       offers it; sits beside the gear. aria-pressed marks the overlay as active. */
+    .losbtn { color: var(--ink); background: rgba(127,230,163,0.12);
+      border: 1px solid rgba(130,230,166,0.4); border-radius: 999px; cursor: pointer;
+      height: 32px; padding: 0 12px; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .01em;
+      white-space: nowrap; flex: 0 0 auto; display: inline-flex; align-items: center;
+      backdrop-filter: blur(6px); transition: background .12s, border-color .12s; }
+    .losbtn:hover { background: rgba(127,230,163,0.22); border-color: rgba(170,255,205,0.6); }
+    .losbtn[aria-pressed="true"] { background: rgba(127,230,163,0.32); border-color: rgba(170,255,205,0.85); color: #eafff3; }
+    .losbtn.hidden { display: none; }
     .settingsmenu { margin-top: 8px; min-width: 220px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
       background: linear-gradient(150deg, rgba(16,24,20,0.96), rgba(8,13,11,0.96));
       border: 1px solid rgba(130,230,166,0.35); border-radius: 12px;
