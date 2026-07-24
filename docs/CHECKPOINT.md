@@ -517,6 +517,13 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Dev buttons RE-ENABLED again (owner testing; NOT release-clean).** Set `config.dev.enabled: true` (shows
+  the in-run "Dev: win level" `#devWin`) and restored the picker `#ssDev` (Dev quick-start) + `#ssDevUnlock`
+  (Dev: unlock all) buttons + listeners in `render/species_select.js` — a clean re-apply of the 765b652
+  removal (nothing else had touched those two files since). The permanently-removed cheats/sliders panel
+  (`.panel.dev`, commit 23d6265) stays gone. Rebuilt dist. Verified `scratchpad/verify-devon2.mjs` (picker
+  buttons + `#devWin` present, `.panel.dev` still 0). **Before the next itch cut, flip these off again** (same
+  as any prior "Release prep: Dev buttons removed" entry).
 - **New tactical event card: "Decoy Cache"** (70th card). Tap any spot within the colony's sensing range to
   drop a small nut cache worth exactly **1⚡** (`sub.deposit(x,y,substrateSmall,1,1)`); costs **2 Energy**.
   It lures threats — placed food redirects ant harvest + draws worms — so you can pull them off the colony or
