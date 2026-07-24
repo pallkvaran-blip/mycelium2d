@@ -15,3 +15,7 @@ scratchpad/
 
 # Local Replicate API token (never commit)
 .replicate-token
+
+# Python bytecode cache from scripts/ helpers
+__pycache__/
+*.pyc
