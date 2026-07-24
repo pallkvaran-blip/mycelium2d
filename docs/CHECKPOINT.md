@@ -520,6 +520,9 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Hand carousel is sorted ALPHABETICALLY by card name.** `_renderHand()` sorts the grouped hand
+  (`all.sort((a,b)=>a.name.localeCompare(b.name))`) — display-only; play/selection still key off each group's
+  name + `firstIndex`, and the filter chips stay category-ordered. Verified `scratchpad/verify-alpha.mjs`.
 - **HUD side panels cap their height so a tall stack can't overlap the card carousel.** `ui.js
   _syncPanelHeights()` now measures the live `.handbar` (carousel) top and sets an inline `max-height` on the
   left engine ledger (`.engledger`) and right actions menu (`.actmenu`) so each stops ~10px above the carousel

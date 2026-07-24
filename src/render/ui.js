@@ -846,7 +846,9 @@ export class UI {
       if (!g) { g = { name: h.name, card: CARD_BY_NAME[h.name] || { costW: 0, costP: 0, buyCostEnergy: 0, effect: '', type: '' }, count: 0, firstIndex: i }; groups.set(h.name, g); }
       g.count++;
     });
-    const all = [...groups.values()];
+    // Show the carousel in ALPHABETICAL order by card name (stable, display-only —
+    // play/selection key off each group's name + firstIndex, not carousel position).
+    const all = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 
     // Reconcile the selection with the freshly-built hand: drop it if that card
     // is gone, else refresh its index to the current firstIndex (the hand can
