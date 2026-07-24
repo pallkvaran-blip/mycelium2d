@@ -313,7 +313,7 @@ export class UI {
       this.el.offermin.title = 'Finish your draft — click to choose a card';
       this.el.offermin.onclick = () => this.restoreOffer();
       root.appendChild(this.el.offermin);
-      window.addEventListener('resize', () => { if (this._offerMin) this._positionOfferMin(); });
+      window.addEventListener('resize', () => { if (this._offerMin) this._positionOfferMin(); this._syncPanelHeights(); });
       // Tempo-upgrade picker: "which installed ability should this speed up?"
       this.el.pick = div('offer pick hidden');
       root.appendChild(this.el.pick);
@@ -398,6 +398,7 @@ export class UI {
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
     const chev = this.el.handtoggle && this.el.handtoggle.querySelector('.htchev');
     if (chev) chev.textContent = open ? '▾' : '▴';
+    this._syncPanelHeights();   // carousel height changed → re-cap the side panels
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
   // Select a card-hand filter group by key ('all' | 'grow' | 'basic' | …) and re-render
@@ -586,6 +587,17 @@ export class UI {
     if (!led || !menu) return;
     led.style.height = ''; menu.style.height = '';
     led.style.minHeight = ''; menu.style.minHeight = '';
+    // Cap each side panel so a tall stack (lots of installed engines / actions) SCROLLS
+    // instead of running down over the bottom card carousel (.handbar). Measured live, so
+    // it tracks the carousel's height (taller when open) and any screen size / orientation.
+    const hand = this.el.handbar;
+    const hr = hand ? hand.getBoundingClientRect().top : 0;
+    const floor = hr > 0 ? hr : window.innerHeight;
+    for (const p of [led, menu]) {
+      if (p.classList.contains('hidden')) { p.style.maxHeight = ''; continue; }
+      const top = p.getBoundingClientRect().top;
+      p.style.maxHeight = Math.max(120, Math.round(floor - top - 10)) + 'px';
+    }
   }
 
   // The "selected card" chip in the hand header — makes it clear which card is

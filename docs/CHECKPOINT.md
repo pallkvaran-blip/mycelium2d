@@ -520,6 +520,12 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **HUD side panels cap their height so a tall stack can't overlap the card carousel.** `ui.js
+  _syncPanelHeights()` now measures the live `.handbar` (carousel) top and sets an inline `max-height` on the
+  left engine ledger (`.engledger`) and right actions menu (`.actmenu`) so each stops ~10px above the carousel
+  and SCROLLS instead of running over it. Recomputed on every actions/engines render, on carousel open/close
+  (`setHandOpen`), and on window resize. Verified `scratchpad/verify-pill-height.mjs` (24 actions → panel
+  bottom above carousel top, content scrolls).
 - **Decoy Cache family: filters + cost + a new engine twin.** (1) Decoy Cache now shows under the
   **Substrate + Defense** filters (`category:'substrate'` + `familyKey:'defense'` → `cardGroups()` in ui.js;
   both fields are display-only) and costs **2⚡ + 1💧** (`playCostWater:1`). (2) New ENGINE card **Perennial
