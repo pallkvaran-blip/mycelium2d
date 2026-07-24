@@ -1490,8 +1490,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "cp55mg";
-globalThis.__BUILD__ = "local 07-24 18:45";
+window.__ASSET_VER = "1e7zh47";
+globalThis.__BUILD__ = "local 07-24 18:51";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -16271,17 +16271,8 @@ function drawRockface(time) {
   const s = camera.worldToScreen(rf.x, rf.y);
   const z = camera.zoom;
   const w = state.substrate.cellSize * 2.7 * z;   // ~2.7 cells wide
-  const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
-  const R = w * (0.66 + 0.07 * pulse);
-  const g = ctx.createRadialGradient(s.x, s.y, R * 0.15, s.x, s.y, R);
-  g.addColorStop(0, `rgba(199,155,230,${0.30 + 0.16 * pulse})`);
-  g.addColorStop(0.55, `rgba(150,120,210,${0.12 + 0.06 * pulse})`);
-  g.addColorStop(1, 'rgba(150,120,210,0)');
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
+  // No glow halo — the rock reads as a natural boulder; the picker's "Touch rockface"
+  // hint guides players to it.
   const img = asset('troll');
   if (img && img.width) {
     const h = w * (img.height / img.width);
