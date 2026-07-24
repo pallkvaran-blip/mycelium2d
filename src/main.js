@@ -907,7 +907,10 @@ function begin(newState) {
   };
   if (ui) ui.setState(state); else ui = new UI(state, handlers);
   ui.hideOverlay();
-  if (ui.setHandOpen) ui.setHandOpen(true);   // re-open the carousel a level-win collapse may have closed
+  // Keep the hand carousel CLOSED while a "Level N" intro is pending (campaign) so it
+  // can't flash on screen in the gap before the intro overlay appears — the intro's
+  // onContinue re-opens it. Puzzle mode has no intro, so open it now.
+  if (ui.setHandOpen) ui.setHandOpen(state.mode === 'puzzle');
   ui.setSelectedAction(null);
   // Clear any armed aim/selection so a stale index never carries into the new run.
   if (ui.clearPendingCard) ui.clearPendingCard();
@@ -960,7 +963,10 @@ function begin(newState) {
   // dismissing it reveals the map and runs any deferred tutorial. Puzzle mode skips
   // it and just fades the map in.
   if (state.mode !== 'puzzle') {
-    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: afterIntro };
+    // Open the hand only once the intro clears (avoids the carousel flashing before it),
+    // then run any deferred tutorial.
+    const deferred = afterIntro;
+    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); if (deferred) deferred(); } };
   } else if (afterIntro) {
     afterIntro();
   }

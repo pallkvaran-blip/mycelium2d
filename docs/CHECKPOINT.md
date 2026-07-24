@@ -531,7 +531,11 @@ Both menus are dark, on-theme, with glowing green borders.
   `scratchpad/verify-resume.mjs` (snapshot JSON round-trip re-wires a live action) + `verify-resume-e2e.mjs`
   (win L1 → reload → Old → back on L2 with the deck). A **"Save & exit to menu"** settings-menu item
   (`#set-saveexit` → `handlers.onSaveExit` → `showMainMenu()`) drops to the title WITHOUT ending the run (the
-  level is already saved), so "Old" resumes it — verified `scratchpad/verify-saveexit.mjs`.
+  level is already saved), so "Old" resumes it — verified `scratchpad/verify-saveexit.mjs`. **Flash fix:**
+  every campaign level start now keeps the hand carousel CLOSED until the "Level N" intro is dismissed
+  (`begin()` opens it only for puzzle mode; the intro's `onContinue` opens it otherwise) — previously the
+  carousel flashed on screen in the gap before the intro overlay appeared (most visible on "Old"). Verified
+  `scratchpad/verify-nohandflash.mjs`.
 - **Hand carousel is sorted ALPHABETICALLY by card name.** `_renderHand()` sorts the grouped hand
   (`all.sort((a,b)=>a.name.localeCompare(b.name))`) — display-only; play/selection still key off each group's
   name + `firstIndex`, and the filter chips stay category-ordered. Verified `scratchpad/verify-alpha.mjs`.
