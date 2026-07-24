@@ -1001,6 +1001,9 @@ const handlers = {
   onReplayTutorial: () => beginTutorial(),
   onForceFruit: () => forceFruitAbandon(),
   onColonyLos: () => toggleColonyLos(),
+  // Save & exit: the current level's opening state is already persisted (begin ->
+  // saveResumeSnapshot), so just drop to the title WITHOUT ending the run — "Old" resumes it.
+  onSaveExit: () => showMainMenu(),
   onAction(name, ctx) {
     placingWorm = false;              // selecting an action leaves worm-placement mode
     const a = ACTIONS[name];

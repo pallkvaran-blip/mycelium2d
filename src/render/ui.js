@@ -172,6 +172,7 @@ export class UI {
       +   `<button class="setitem" id="set-mute" type="button" role="menuitemcheckbox">Music<span class="settoggle" id="set-mute-state"></span></button>`
       +   `<button class="setitem" id="set-sfx" type="button" role="menuitemcheckbox">Sound effects<span class="settoggle" id="set-sfx-state"></span></button>`
       +   `<button class="setitem" id="set-tutorial" type="button" role="menuitem">Replay tutorial</button>`
+      +   `<button class="setitem" id="set-saveexit" type="button" role="menuitem">Save &amp; exit to menu</button>`
       +   `<button class="setitem setitem-danger" id="set-forcefruit" type="button" role="menuitem">Force Fruiting (abandon run)</button>`
       + `</div>`
       + `<div class="logdrop hidden" id="logdrop"><div class="loglist" id="loglist"></div></div>`;
@@ -425,6 +426,7 @@ export class UI {
     hud.querySelector('#set-mute').onclick = (e) => { e.stopPropagation(); toggleMusic(); refresh(); };
     hud.querySelector('#set-sfx').onclick = (e) => { e.stopPropagation(); toggleSfx(); refresh(); };
     hud.querySelector('#set-tutorial').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onReplayTutorial) this.handlers.onReplayTutorial(); };
+    hud.querySelector('#set-saveexit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onSaveExit) this.handlers.onSaveExit(); };
     hud.querySelector('#set-forcefruit').onclick = (e) => { e.stopPropagation(); close(); if (this.handlers.onForceFruit) this.handlers.onForceFruit(); };
     const los = hud.querySelector('#losbtn');
     if (los) los.onclick = (e) => { e.stopPropagation(); if (this.handlers.onColonyLos) this.handlers.onColonyLos(); };

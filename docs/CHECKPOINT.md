@@ -529,7 +529,9 @@ Both menus are dark, on-theme, with glowing green borders.
   (fresh map, saved deck — the player just restarts that level); else → the picker as before. Cleared on death
   (`finish`), full-campaign win, `backToPicker`, and New. Species runs only (dev/testall not saved). Verified
   `scratchpad/verify-resume.mjs` (snapshot JSON round-trip re-wires a live action) + `verify-resume-e2e.mjs`
-  (win L1 → reload → Old → back on L2 with the deck).
+  (win L1 → reload → Old → back on L2 with the deck). A **"Save & exit to menu"** settings-menu item
+  (`#set-saveexit` → `handlers.onSaveExit` → `showMainMenu()`) drops to the title WITHOUT ending the run (the
+  level is already saved), so "Old" resumes it — verified `scratchpad/verify-saveexit.mjs`.
 - **Hand carousel is sorted ALPHABETICALLY by card name.** `_renderHand()` sorts the grouped hand
   (`all.sort((a,b)=>a.name.localeCompare(b.name))`) — display-only; play/selection still key off each group's
   name + `firstIndex`, and the filter chips stay category-ordered. Verified `scratchpad/verify-alpha.mjs`.
