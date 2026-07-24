@@ -430,6 +430,23 @@ export function clearDeathCarry() {
   p.deathCarry = [];
   saveProgress(p);
 }
+
+// --- Resume-in-progress-run (title "Old" → continue last game) --------------
+// A serializable snapshot of the CURRENT LEVEL's opening state (level, species id, deck
+// as card names, installed engine/action names, resources), saved at the start of each
+// campaign level in main.js. Lets a player who closes the tab mid-run press "Old" and
+// re-enter the same level (a fresh map — they just restart that level). Kept in its own
+// localStorage key (bulky + run-specific), separate from the meta-progression wallet.
+const RESUME_KEY = 'mycelium.resume.v1';
+export function loadResume() {
+  try { const s = localStorage.getItem(RESUME_KEY); return s ? JSON.parse(s) : null; } catch (_) { return null; }
+}
+export function saveResume(snap) {
+  try { localStorage.setItem(RESUME_KEY, JSON.stringify(snap)); } catch (_) { /* ignore quota/serialize errors */ }
+}
+export function clearResume() {
+  try { localStorage.removeItem(RESUME_KEY); } catch (_) {}
+}
 // Buy a revealed species with Spores. Returns { ok, spores } — ok=false if it can't
 // be bought (not revealed, already owned, or too few Spores).
 export function purchaseSpecies(sp, progress) {

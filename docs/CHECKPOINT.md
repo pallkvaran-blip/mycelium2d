@@ -520,6 +520,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Title "Old" (continue last game) now RESUMES your current level after a tab close.** Each campaign level,
+  `begin()` calls `saveResumeSnapshot()` → a serializable snapshot to localStorage `mycelium.resume.v1`
+  (`species.js` load/save/clearResume): level, runStartLevel, species id, resources, and the deck as card
+  NAMES (hand/draw/discard piles + installed engines/actions by name — their `apply` fns can't serialize, so
+  `cards.js rebuildCardsFromSnapshot()` re-installs them by name on load; the synthetic Aquifer-Tap water
+  engine is dropped and re-earned). `onContinue`: if a valid snapshot exists → restore vars + `startRun()`
+  (fresh map, saved deck — the player just restarts that level); else → the picker as before. Cleared on death
+  (`finish`), full-campaign win, `backToPicker`, and New. Species runs only (dev/testall not saved). Verified
+  `scratchpad/verify-resume.mjs` (snapshot JSON round-trip re-wires a live action) + `verify-resume-e2e.mjs`
+  (win L1 → reload → Old → back on L2 with the deck).
 - **Hand carousel is sorted ALPHABETICALLY by card name.** `_renderHand()` sorts the grouped hand
   (`all.sort((a,b)=>a.name.localeCompare(b.name))`) — display-only; play/selection still key off each group's
   name + `firstIndex`, and the filter chips stay category-ordered. Verified `scratchpad/verify-alpha.mjs`.

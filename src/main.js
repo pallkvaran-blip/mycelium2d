@@ -12,7 +12,7 @@ import { createState, createPuzzleState } from './engine/state.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
-import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardUsesDragAim, dragAimReach, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo } from './engine/cards.js';
+import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardUsesDragAim, dragAimReach, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo, rebuildCardsFromSnapshot } from './engine/cards.js';
 import { Camera } from './render/camera.js';
 import { SubstrateRenderer } from './render/substrate.js';
 import { NetworkRenderer, drawFruitBodies } from './render/network.js';
@@ -23,7 +23,7 @@ import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } from './render/assets.js';
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -53,6 +53,7 @@ let chosenSpecies = null;             // picked at the start-of-run screen; null
 let currentLevel = 1;                 // campaign level 1..MAX_LEVEL
 let runStartLevel = 1;                // the level THIS run began on — death-carry size = 2 + (currentLevel - runStartLevel)
 let carryOver = null;                  // deck+resources snapshot transplanted onto the next level (null = seed fresh)
+let resumeSnapshot = null;             // set by title "Old" → continue: rebuild the saved level's deck in begin()
 let runSpores = 0;                      // Spores earned across the current run (levels finished) — shown on death
 let _runOverPresented = false;         // guard: show the end-of-level / death overlay once per run
 let _runOverAt = 0;                    // when the run first flagged over — used to let the last grow finish animating before the win/lose sequence
@@ -275,6 +276,32 @@ function applyCarry(st, carry) {
   st.log('Your colony carries its deck, engines and reserves down to the next level.', 'good');
 }
 
+// Persist a SERIALIZABLE snapshot of the current level's opening state so the title
+// "Old" (continue last game) can re-enter this level after a tab close. Saved at the
+// start of every campaign level (begin()); reflects the level as ENTERED, so resuming
+// simply restarts it on a fresh map. Species runs only (dev/testall runs aren't saved).
+function saveResumeSnapshot() {
+  if (!chosenSpecies || !cardsCampaign() || !state.cards) return;
+  const C = state.cards, net = state.active;
+  saveResume({
+    v: 1, level: currentLevel, runStartLevel,
+    speciesId: chosenSpecies.id,
+    res: { energy: net.energy, water: net.water, phosphorus: net.phosphorus },
+    cards: {
+      drawDeck: [...(C.drawDeck || [])],
+      hand: (C.hand || []).map((h) => ({ id: h.id, name: h.name })),
+      discard: [...(C.discard || [])],
+      // Installed engines/actions saved BY NAME (their apply fns can't serialize; the
+      // synthetic Aquifer-Tap water engine is re-earned by growing into water, so drop it).
+      engines: (C.engines || []).filter((e) => !e._waterSource).map((e) => e.name),
+      actions: (C.actions || []).map((a) => a.name),
+      round: C.round, seq: C.seq, drawDiscount: C.drawDiscount || 0,
+      draftable: [...(C.draftable || [])],
+      runDrafted: { ...(C.runDrafted || {}) }, runDraftedEngines: { ...(C.runDraftedEngines || {}) }, runPlayed: { ...(C.runPlayed || {}) },
+    },
+  });
+}
+
 // Route a finished run: a level win advances the campaign; puzzle wins / deaths
 // fall through to the generic overlay (death's button goes back to the picker).
 // A win at the goal is held PENDING (state.winPending) while the colony finishes
@@ -382,6 +409,7 @@ function presentRunOver() {
   // What happens once any celebration has finished (or immediately otherwise).
   const finish = () => {
     if (state.won && cardsCampaign()) { onLevelWon(); return; }
+    clearResume();   // the run is over (death / non-campaign end) — nothing to continue
     const r = state.runResult || {};
     if (cardsCampaign()) {
       // A campaign DEATH still fruits at the last: pay HALF the level's win-Spores into the
@@ -616,6 +644,7 @@ function onLevelWon() {
   // over the map on short screens; begin() re-opens it when the next level loads.
   if (ui.setHandOpen) ui.setHandOpen(false);
   if (cleared >= MAX_LEVEL) {
+    clearResume();   // whole campaign won — no level left to continue
     logEvent('run_end', { species: chosenSpecies && chosenSpecies.id, level: cleared, cause: 'won', turns: state && state.turn });
     showGameWon({ spores: runSpores, balance, onNewRun: () => runEndThen(backToPicker) });
   } else {
@@ -631,6 +660,7 @@ function backToPicker() {
   ui.hideOverlay();
   currentLevel = 1; carryOver = null; chosenSpecies = null; runSpores = 0;
   winCele = null;               // stop the persistent death-hill spores when leaving
+  resumeSnapshot = null; clearResume();   // abandoning the run → nothing to continue
   showPicker();
 }
 
@@ -644,8 +674,23 @@ function showMainMenu() {
     // New Game collects the player's high-score name (pre-filled with their last one).
     playerName: loadPlayerName(),
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-    onNew: (name) => { savePlayerName(name); resetProgress(); tutorialPending = !tutorialSeen(); showPicker(); },
-    onContinue: () => showPicker(),
+    onNew: (name) => { savePlayerName(name); resetProgress(); clearResume(); tutorialPending = !tutorialSeen(); showPicker(); },
+    // "Old" = continue last game: if a mid-run level was saved (tab closed mid-run),
+    // re-enter that level (fresh map, saved deck); otherwise fall back to the picker.
+    onContinue: () => {
+      const rs = loadResume();
+      const sp = (rs && rs.v === 1 && rs.cards) ? SPECIES.find((s) => s.id === rs.speciesId) : null;
+      if (rs && sp) {
+        chosenSpecies = sp;
+        currentLevel = Math.max(1, rs.level | 0);
+        runStartLevel = Math.max(1, Math.min(currentLevel, (rs.runStartLevel | 0) || currentLevel));
+        carryOver = null; resumeSnapshot = rs;
+        runSpores = 0; for (let l = runStartLevel; l < currentLevel; l++) runSpores += sporesForLevel(l);
+        startRun();   // → begin() rebuilds the saved deck via rebuildCardsFromSnapshot
+      } else {
+        showPicker();
+      }
+    },
     onHighScores: () => showHighScores({}),
     onCredits: () => showCredits({}),
   });
@@ -837,9 +882,11 @@ function begin(newState) {
   //   chosenSpecies → that species' exact starting hand + resources
   //   else       → dev scaffold (5× of every card + 300 of each resource)
   if (state.config.cards && state.config.cards.enabled && state.mode !== 'puzzle') {
-    if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
+    if (resumeSnapshot) { rebuildCardsFromSnapshot(state, resumeSnapshot); resumeSnapshot = null; }
+    else if (carryOver) { applyCarry(state, carryOver); carryOver = null; }
     else if (chosenSpecies) initCards(state, 'species', withDeathCarry(effectiveSpecies(chosenSpecies)));
     else initCards(state, 'testall');
+    saveResumeSnapshot();   // persist this level's opening state so the title "Old" can resume it
   }
   buildRenderers();
   // Invisible console/debug hook (no on-screen UI). Kept for self-play + testing

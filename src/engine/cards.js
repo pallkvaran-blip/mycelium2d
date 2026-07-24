@@ -164,6 +164,42 @@ export function initCards(state, mode = 'tutorial', species = null) {
   return state.cards;
 }
 
+// Re-create an installed engine/action's LIVE object (with its apply fn) from just its
+// card NAME. Installed actions/engines are stored by name in a resume snapshot because a
+// JSON round-trip drops their functions; this replays the install effect to restore them.
+function reinstallByName(state, name) {
+  const eff = EFFECTS[name]; if (!eff || !eff.apply) return null;
+  let res; try { res = eff.apply(state, CARD_BY_NAME[name], {}); } catch (_) { return null; }
+  if (res && res.install) { res.install.name = name; return { kind: 'engine', obj: res.install }; }
+  if (res && res.installAction) { const a = res.installAction; a.name = name; if (a.used == null) a.used = 0; if (a.cd == null) a.cd = 0; return { kind: 'action', obj: a }; }
+  return null;
+}
+
+// Rebuild state.cards from a resume snapshot (species.js loadResume / main.js
+// saveResumeSnapshot). Deck piles + bookkeeping restore verbatim (names only); installed
+// engines/actions are re-created BY NAME so their apply fns are live again. Unknown or
+// renamed card names are dropped defensively. Resources restore onto state.active.
+export function rebuildCardsFromSnapshot(state, snap) {
+  const c = (snap && snap.cards) || {};
+  const known = (n) => !!CARD_BY_NAME[n];
+  state.cards = {
+    drawDeck: (c.drawDeck || []).filter(known),
+    hand: (c.hand || []).filter((h) => h && known(h.name)).map((h) => ({ id: h.id | 0, name: h.name })),
+    discard: (c.discard || []).filter(known),
+    engines: [], actions: [],
+    round: 1, seq: c.seq | 0, drawDiscount: c.drawDiscount || 0, pendingOffers: [],
+    draftable: (c.draftable && c.draftable.length) ? c.draftable.filter(known) : uniqueDraftNames(),
+    runDrafted: c.runDrafted || {}, runDraftedEngines: c.runDraftedEngines || {}, runPlayed: c.runPlayed || {},
+  };
+  for (const name of (c.engines || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'engine') state.cards.engines.push(r.obj); }
+  for (const name of (c.actions || [])) { const r = reinstallByName(state, name); if (r && r.kind === 'action') state.cards.actions.push(r.obj); }
+  const res = (snap && snap.res) || {}, net = state.active;
+  if (res.energy != null) net.energy = res.energy;
+  if (res.water != null) net.water = res.water;
+  if (res.phosphorus != null) net.phosphorus = res.phosphorus;
+  return state.cards;
+}
+
 // --- draft offers -----------------------------------------------------------
 // Queue a draft of 3 cards from the given pool, tagged by kind, and (optionally)
 // anchored at a world point so the render layer can fly the 3-card glyph FROM
