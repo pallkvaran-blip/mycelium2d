@@ -85,13 +85,20 @@ def _dil(m,it):
 def _ero(m,it):
     for _ in range(it): m=m.filter(ImageFilter.MinFilter(5))
     return m
-def cutout(im, dest, T=13, pad=8, feather=1.2, close=9):
+def cutout(im, dest, T=None, pad=8, feather=1.2, close=9, margin=22):
     im = im.convert("RGB"); w,h = im.size
-    lp = im.convert("L").load()
+    L = im.convert("L"); lp = L.load()
+    # ADAPTIVE threshold: FLUX doesn't always honour "pure black background" — sometimes it
+    # renders a mid-grey backdrop. Sample the corner luminance and key just above it, so the
+    # cutout works whether the bg is near-black (~8) or grey (~60). A fixed low T would treat
+    # a grey backdrop as foreground and leave the whole image opaque.
+    corners = [lp[3,3], lp[w-4,3], lp[3,h-4], lp[w-4,h-4]]
+    corners.sort(); bg_lum = corners[1]              # median-ish of the 4 corners
+    Teff = (bg_lum + margin) if T is None else T
     fg = Image.new("L",(w,h),0); fp=fg.load()
     for y in range(h):
         for x in range(w):
-            if lp[x,y] > T: fp[x,y]=255
+            if lp[x,y] > Teff: fp[x,y]=255
     fg = _ero(_dil(fg,close),close)
     work = fg.copy(); wl=work.load()
     seeds=[(1,1),(w-2,1),(1,h-2),(w-2,h-2),(w//2,1),(w//2,h-2),(1,h//2),(w-2,h//2)]
