@@ -1451,11 +1451,13 @@ function setupInput() {
       ui.resetHint();
       const res = activateAction(state, idx, { x: w.x, y: w.y });
       if (res && res.ok) {
+        dismissColonyLos();               // a successful use clears the LOS helper
         substrateRenderer.markDirty();
         rendererFor(state.active).markStructureDirty();
         if (state.runOver) presentRunOver();
       } else if (res && res.message) {
         ui.toast(res.message);
+        if (res.losHint) showColonyLosHint();   // out-of-sight Perennial Decoy use → offer the overlay
       }
       uiDirty = true;
       return;
