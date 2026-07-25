@@ -97,6 +97,7 @@ function revealMap() {
     levelIntro = showLevelIntro({
       level: info.level,
       threats: info.threats,
+      onDismiss: info.onDismiss,      // re-expand the hand while the screen is still black
       onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
     });
     return;
@@ -975,10 +976,17 @@ function begin(newState) {
   // dismissing it reveals the map and runs any deferred tutorial. Puzzle mode skips
   // it and just fades the map in.
   if (state.mode !== 'puzzle') {
-    // Open the hand only once the intro clears (avoids the carousel flashing before it),
-    // then run any deferred tutorial.
+    // Two intro callbacks (see level_intro.js). The hand re-expands on DISMISS — the click,
+    // while the overlay is still solid black — so the tray is already at full height when
+    // the fade reveals the map. Re-expanding it on DONE (after the 1.4s fade) instead made
+    // the carousel pop in a beat late, over an already-visible map. The deferred first-run
+    // tutorial still waits for DONE: its camera moves and popups need a visible map.
     const deferred = afterIntro;
-    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); if (deferred) deferred(); } };
+    pendingLevelIntro = {
+      level: currentLevel, threats: levelThreatList(),
+      onDismiss: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); },
+      onContinue: () => { if (deferred) deferred(); },
+    };
   } else if (afterIntro) {
     afterIntro();
   }

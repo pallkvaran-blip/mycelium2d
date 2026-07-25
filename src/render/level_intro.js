@@ -6,12 +6,20 @@
 // overlay out — and because the finished map is already drawn behind it at full
 // opacity, that fade IS the map fading in (main.js sets the canvas opaque first).
 //
-//   showLevelIntro({ level, threats, onDone }) → controller { destroy(), active }
+//   showLevelIntro({ level, threats, onDismiss, onDone }) → controller { destroy(), active }
 //
 // threats: [{ slug, label, count }, ...] — already filtered to count > 0 by the
 // caller. `slug` names the art file assets/tutorial/<slug>.jpg (reused from the
-// first-run tutorial). `onDone` fires once the overlay has faded out and been
-// removed — main.js uses it to kick off any deferred first-run tutorial.
+// first-run tutorial).
+//
+// Two callbacks, and the difference matters visually:
+//   onDismiss — fires the instant the player clicks, BEFORE the fade begins, while the
+//     screen is still solid black. Anything that changes the HUD's LAYOUT belongs here
+//     (main.js re-expands the hand carousel), so it settles unseen and is simply part of
+//     the scene the fade reveals. Doing it in onDone instead makes it pop in a beat after
+//     the map is already on screen.
+//   onDone — fires once the overlay has faded out and been removed. For things that
+//     should only start on a visible map (main.js: the deferred first-run tutorial).
 // =============================================================================
 
 import { growMyceliumTitle } from './mycelium_title.js';
@@ -38,6 +46,7 @@ function levelWord(n) {
 export function showLevelIntro(opts) {
   const level = (opts && opts.level) || 1;
   const threats = (opts && opts.threats) || [];
+  const onDismiss = opts && opts.onDismiss;
   const onDone = opts && opts.onDone;
 
   const root = el('div'); root.id = 'levelIntro';
@@ -84,6 +93,9 @@ export function showLevelIntro(opts) {
     if (!alive) return;
     alive = false;
     unbind();
+    // Let the caller restore its HUD FIRST, while the overlay is still fully opaque, so
+    // any layout change lands behind black and the fade reveals a settled screen.
+    try { onDismiss && onDismiss(); } catch (_) {}
     root.classList.add('li-out');            // CSS fades opacity 1 -> 0
     let removed = false;
     const finishOut = () => {

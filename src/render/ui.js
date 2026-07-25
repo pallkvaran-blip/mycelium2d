@@ -399,6 +399,11 @@ export class UI {
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
     const chev = this.el.handtoggle && this.el.handtoggle.querySelector('.htchev');
     if (chev) chev.textContent = open ? '▾' : '▴';
+    // Re-measure the ‹ › arrows now the carousel has a size. A _renderHand() that ran while
+    // the tray was COLLAPSED measured a display:none list (scrollWidth = clientWidth = 0 →
+    // "no overflow" → arrows hidden), and nothing re-rendered on expand, so the arrows only
+    // appeared on the next unrelated redraw — a second late pop right after the tray's.
+    if (open) this._updateHandNav();
     this._syncPanelHeights();   // carousel height changed → re-cap the side panels
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }

@@ -540,6 +540,14 @@
     .handcarousel, .handpreview { display: none; }
     .handbar.open .handcarousel { display: flex; }
     .handbar.open .handpreview:not(.hidden) { display: block; }
+    /* Expanding the tray can't TRANSITION (display:none → flex isn't animatable), so the
+       cards would hard-cut in. A short rise+fade turns that into a settle. It's on the
+       carousel CONTAINER, not the cards: _renderHand() rebuilds the card buttons every
+       turn, so a per-card animation would replay on every redraw. Runs whenever .open is
+       (re)applied — the ▾ arrow, and the reopen after the species-unlock popup. */
+    .handbar.open .handcarousel { animation: handIn .3s cubic-bezier(.22,.9,.28,1) both; }
+    @keyframes handIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .handbar.open .handcarousel { animation: none; } }
     /* ▾/▴ show-hide arrow — a small round glass button at the row's left edge */
     /* ▾/▴ arrow + » Skip chip: sized to match the filter chips' height so the whole
        row aligns on one line (green-glass, like the chips). */
@@ -1499,8 +1507,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "oxx2lb";
-globalThis.__BUILD__ = "local 07-25 13:43";
+window.__ASSET_VER = "4f5m7b";
+globalThis.__BUILD__ = "local 07-25 14:01";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -11322,6 +11330,11 @@ class UI {
     if (this.el.handbar) this.el.handbar.classList.toggle('open', open);
     const chev = this.el.handtoggle && this.el.handtoggle.querySelector('.htchev');
     if (chev) chev.textContent = open ? '▾' : '▴';
+    // Re-measure the ‹ › arrows now the carousel has a size. A _renderHand() that ran while
+    // the tray was COLLAPSED measured a display:none list (scrollWidth = clientWidth = 0 →
+    // "no overflow" → arrows hidden), and nothing re-rendered on expand, so the arrows only
+    // appeared on the next unrelated redraw — a second late pop right after the tray's.
+    if (open) this._updateHandNav();
     this._syncPanelHeights();   // carousel height changed → re-cap the side panels
   }
   toggleHand() { this.setHandOpen(!this.handOpen); }
@@ -14231,12 +14244,20 @@ const __m_render_level_intro = (function () {
 // overlay out — and because the finished map is already drawn behind it at full
 // opacity, that fade IS the map fading in (main.js sets the canvas opaque first).
 //
-//   showLevelIntro({ level, threats, onDone }) → controller { destroy(), active }
+//   showLevelIntro({ level, threats, onDismiss, onDone }) → controller { destroy(), active }
 //
 // threats: [{ slug, label, count }, ...] — already filtered to count > 0 by the
 // caller. `slug` names the art file assets/tutorial/<slug>.jpg (reused from the
-// first-run tutorial). `onDone` fires once the overlay has faded out and been
-// removed — main.js uses it to kick off any deferred first-run tutorial.
+// first-run tutorial).
+//
+// Two callbacks, and the difference matters visually:
+//   onDismiss — fires the instant the player clicks, BEFORE the fade begins, while the
+//     screen is still solid black. Anything that changes the HUD's LAYOUT belongs here
+//     (main.js re-expands the hand carousel), so it settles unseen and is simply part of
+//     the scene the fade reveals. Doing it in onDone instead makes it pop in a beat after
+//     the map is already on screen.
+//   onDone — fires once the overlay has faded out and been removed. For things that
+//     should only start on a visible map (main.js: the deferred first-run tutorial).
 // =============================================================================
 
 
@@ -14262,6 +14283,7 @@ function levelWord(n) {
 function showLevelIntro(opts) {
   const level = (opts && opts.level) || 1;
   const threats = (opts && opts.threats) || [];
+  const onDismiss = opts && opts.onDismiss;
   const onDone = opts && opts.onDone;
 
   const root = el('div'); root.id = 'levelIntro';
@@ -14308,6 +14330,9 @@ function showLevelIntro(opts) {
     if (!alive) return;
     alive = false;
     unbind();
+    // Let the caller restore its HUD FIRST, while the overlay is still fully opaque, so
+    // any layout change lands behind black and the fade reveals a settled screen.
+    try { onDismiss && onDismiss(); } catch (_) {}
     root.classList.add('li-out');            // CSS fades opacity 1 -> 0
     let removed = false;
     const finishOut = () => {
@@ -14676,6 +14701,7 @@ function revealMap() {
     levelIntro = showLevelIntro({
       level: info.level,
       threats: info.threats,
+      onDismiss: info.onDismiss,      // re-expand the hand while the screen is still black
       onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
     });
     return;
@@ -15554,10 +15580,17 @@ function begin(newState) {
   // dismissing it reveals the map and runs any deferred tutorial. Puzzle mode skips
   // it and just fades the map in.
   if (state.mode !== 'puzzle') {
-    // Open the hand only once the intro clears (avoids the carousel flashing before it),
-    // then run any deferred tutorial.
+    // Two intro callbacks (see level_intro.js). The hand re-expands on DISMISS — the click,
+    // while the overlay is still solid black — so the tray is already at full height when
+    // the fade reveals the map. Re-expanding it on DONE (after the 1.4s fade) instead made
+    // the carousel pop in a beat late, over an already-visible map. The deferred first-run
+    // tutorial still waits for DONE: its camera moves and popups need a visible map.
     const deferred = afterIntro;
-    pendingLevelIntro = { level: currentLevel, threats: levelThreatList(), onContinue: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); if (deferred) deferred(); } };
+    pendingLevelIntro = {
+      level: currentLevel, threats: levelThreatList(),
+      onDismiss: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); },
+      onContinue: () => { if (deferred) deferred(); },
+    };
   } else if (afterIntro) {
     afterIntro();
   }

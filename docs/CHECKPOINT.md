@@ -520,6 +520,37 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **The hand carousel no longer pops in a beat after the level starts.** Owner report: "the card carousel
+  pops in awkwardly when the level starts."
+  - **Cause = timing, not styling.** `begin()` deliberately collapses the tray so it can't flash in the gap
+    before the black "Level N" overlay appears, and the intro's callback re-expands it. But that callback was
+    `onDone`, which fires on `transitionend` — i.e. **after** the 1.4s fade-out. So the player watched the map
+    fade up with only the thin 47px filter strip at the bottom, and the instant the fade finished the tray
+    snapped 250px taller (47 → 296 at 1280×800). `display:none → flex` can't transition, so it was a hard cut.
+  - **Fix:** `level_intro.js` now takes **two** callbacks — `onDismiss` (fires on the click, BEFORE `li-out` is
+    added, while the overlay is still solid black) and `onDone` (after the fade, node removed). `main.js` moved
+    `setHandOpen(true)` to `onDismiss`, so the tray expands unseen and the fade simply reveals a settled
+    screen. The deferred first-run tutorial **stays** on `onDone` — its camera moves and popups need a visible
+    map. Anything that changes HUD *layout* belongs in `onDismiss`; anything that needs a *visible* map in `onDone`.
+  - Also: `.handbar.open .handcarousel` gets a 0.3s `handIn` rise+fade so the ▾ toggle (and the reopen after
+    the species-unlock popup) settles instead of hard-cutting. It's on the carousel **container**, not the
+    cards — `_renderHand()` rebuilds the card buttons every turn, so a per-card animation would replay on every
+    redraw. Disabled under `prefers-reduced-motion`.
+  - Also: `setHandOpen(true)` now calls `_updateHandNav()`. A `_renderHand()` that ran while the tray was
+    collapsed measured a `display:none` list (`scrollWidth == clientWidth == 0` → "no overflow" → ‹ › hidden),
+    and nothing re-measured on expand — so on narrow screens the arrows appeared later, on the next unrelated
+    redraw. A **second** late pop, same root shape as the first.
+  - **Verifying animation timing in this env is a trap.** Headless Chromium throttles rAF *and* `setInterval`
+    to ~1–2 Hz and CSS transitions don't advance, so wall-clock sampling of the fade is worthless (an in-page
+    rAF recorder got 5 samples in 3s; the overlay read as already-removed 30ms after the click). The
+    timing-independent discriminator: a **MutationObserver callback runs at the end of the task that mutated
+    the DOM**, so observe `#levelIntro`'s class and read `.handbar.open` inside the callback — expanded in the
+    same task as the fade start ⇒ expanded behind black. Reads `false` pre-fix, `true` post-fix.
+    `scratchpad/verify-handin.mjs` (desktop / narrow / reduced-motion × L1 + L2, 16 checks each) and
+    `verify-handin-tut.mjs` (portrait + wide first-run tutorial). Note the tutorial's opening step re-minimises
+    the tray on a portrait phone — that's fine, `enter(0)` runs synchronously inside `onDone`, in the same task
+    that removes the overlay, so no frame is ever painted with the tray open over a visible map.
+
 - **Analytics: Jul-25 deploy cohorts + a `perf` event to test whether lag drives early churn.**
   - `docs/analytics.html` gains **"Jul 25 deploys — did they move anything?"**: four cohorts split on the
     actual deploy times (pre / +substrate fix 11:49 / +1-click play & starter buff 12:16 / +resolution cap &

@@ -539,6 +539,14 @@
     .handcarousel, .handpreview { display: none; }
     .handbar.open .handcarousel { display: flex; }
     .handbar.open .handpreview:not(.hidden) { display: block; }
+    /* Expanding the tray can't TRANSITION (display:none → flex isn't animatable), so the
+       cards would hard-cut in. A short rise+fade turns that into a settle. It's on the
+       carousel CONTAINER, not the cards: _renderHand() rebuilds the card buttons every
+       turn, so a per-card animation would replay on every redraw. Runs whenever .open is
+       (re)applied — the ▾ arrow, and the reopen after the species-unlock popup. */
+    .handbar.open .handcarousel { animation: handIn .3s cubic-bezier(.22,.9,.28,1) both; }
+    @keyframes handIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .handbar.open .handcarousel { animation: none; } }
     /* ▾/▴ show-hide arrow — a small round glass button at the row's left edge */
     /* ▾/▴ arrow + » Skip chip: sized to match the filter chips' height so the whole
        row aligns on one line (green-glass, like the chips). */
