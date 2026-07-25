@@ -346,8 +346,10 @@
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
     .erow.t .eval { color: var(--warn); }
-    .erow.magic .enm { color: #d9b8f0; font-weight: 600; }   /* Magic Mushroom special-power row */
-    .erow.magic .eval.lead { min-width: 22px; font-size: 14px; filter: drop-shadow(0 0 4px rgba(199,155,230,0.7)); }
+    /* Magic Mushroom special-power row (no lead glyph). Its label is longer than the
+       fixed 238px ledger fits on one line, so let this row alone wrap instead of
+       ellipsing away the cadence ("· every N turns"). */
+    .erow.magic .enm { color: #d9b8f0; font-weight: 600; white-space: normal; overflow: visible; line-height: 1.25; }
     .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
     /* Cadence lights: one dot per round of the cadence. Lit dots = rounds left
        until the event (a producer's next payout, or an action coming off cooldown);
@@ -1486,8 +1488,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1qny7ut";
-globalThis.__BUILD__ = "local 07-25 08:35";
+window.__ASSET_VER = "1f2kgn9";
+globalThis.__BUILD__ = "local 07-25 08:55";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12363,8 +12365,7 @@ function specialRowHTML(C) {
   const left = Math.max(0, (C.magicCountdown != null) ? C.magicCountdown : every);
   const title = `Special: every ${every} turns a random basic or event card magically appears in your hand. Cannot be sped up.`;
   return `<div class="erow magic" title="${escapeHtml(title)}">`
-    + `<span class="eval lead">🍄</span>`
-    + `<span class="enm">Conjures a card · every ${every} turns</span>`
+    + `<span class="enm">Magically summons a card · every ${every} turns</span>`
     + cadenceLightsHTML(every, left, 'p', title) + `</div>`;
 }
 

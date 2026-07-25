@@ -351,8 +351,10 @@
     .erow.water .eval { color: #7fd0e0; }
     .erow.phosphorus .eval { color: #c79be6; }
     .erow.t .eval { color: var(--warn); }
-    .erow.magic .enm { color: #d9b8f0; font-weight: 600; }   /* Magic Mushroom special-power row */
-    .erow.magic .eval.lead { min-width: 22px; font-size: 14px; filter: drop-shadow(0 0 4px rgba(199,155,230,0.7)); }
+    /* Magic Mushroom special-power row (no lead glyph). Its label is longer than the
+       fixed 238px ledger fits on one line, so let this row alone wrap instead of
+       ellipsing away the cadence ("· every N turns"). */
+    .erow.magic .enm { color: #d9b8f0; font-weight: 600; white-space: normal; overflow: visible; line-height: 1.25; }
     .ecad { color: var(--ink-dim); font-size: 10px; font-weight: 600; flex: 0 0 auto; }
     /* Cadence lights: one dot per round of the cadence. Lit dots = rounds left
        until the event (a producer's next payout, or an action coming off cooldown);
