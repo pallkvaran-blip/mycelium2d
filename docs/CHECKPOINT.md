@@ -520,6 +520,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Release prep: Dev buttons removed for a fresh itch cut.** `config.dev.enabled:false` (gates
+  "Dev: win level") + removed the picker `#ssDev`/`#ssDevUnlock` buttons and their listeners; the `.ss-dev`
+  CSS, the invisible `#dev` hash route and the `window.__game` test hooks all stay. Rebuilt dist and verified
+  release-clean with `scratchpad/verify-nodev.mjs` (all 7 checks pass), then extracted the zip and booted it
+  end-to-end (loading → title → picker → level 1) with **no page errors and no failed requests**. Zip =
+  `dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT, nothing else — 22 MB, 175 files
+  (`*.zip` is gitignored). **New in this cut vs the previous one:** the Magic Mushroom species (troll-rock
+  reveal, "Magic" ledger row, final blurb) and its **animated detail portrait** (two gnomes that move while
+  the photo stays still). Re-enable the buttons the same way as any prior "Dev buttons RE-ENABLED" entry.
+
 - **Magic Mushroom polish — troll rock art, reveal copy, ledger row, animated gnome portrait.**
   - **Troll rockface finalized** (`assets/rockface/troll.png`, options in `assets/rock_options/`). Owner
     rejected two earlier batches (photoreal + obvious face → "too obvious"; then "too bright / too high
