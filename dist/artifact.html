@@ -1493,8 +1493,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "zfirpq";
-globalThis.__BUILD__ = "local 07-25 12:08";
+window.__ASSET_VER = "iproq3";
+globalThis.__BUILD__ = "local 07-25 12:48";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -16119,18 +16119,34 @@ function setupInput() {
   window.addEventListener('resize', resize);
 }
 
-// Device-pixel ratio for the game canvas, CAPPED at 2. Per-frame fill work (the
-// full-canvas lighting composites, big fills, blurs) scales with device-pixel COUNT,
-// so a 3× phone rendering at 3× does ~2.25× the pixel work of 2× for no visible gain.
-// Capping at 2 nearly halves per-frame fill cost on high-DPR phones (biggest win when
-// zoomed out, where the whole canvas is filled); desktops (DPR 1–2) are unaffected.
+// Device-pixel scale for the game canvas: the DPR capped at 2, then capped again by a total
+// PIXEL BUDGET.
+//
+// Per-frame cost is dominated by FULL-SCREEN work — the background fill, the two substrate
+// blits, building the light buffer, and lighting's multiply + additive composites (~7 passes
+// over the whole canvas) — so it scales with the canvas's DEVICE-pixel count, which is
+// otherwise unbounded. A 1440p desktop has 4× the pixels of a 720p window and a Retina laptop
+// 5.6×, and measured cost grew even faster than the pixel count (0.92 → 3.69 Mpx took
+// 267 → 2357 ms/frame in software raster). That is what left players on big or high-DPI
+// screens with a hot, stuttering game while a small window looked fine.
+//
+// Past the budget we render fewer pixels than the display has and let the browser upscale the
+// canvas — its CSS size is unchanged, so layout is identical. Only the painterly world softens
+// slightly; the HUD, cards and every bit of text are DOM, so they stay pixel-crisp. Windows
+// under the budget (720p, 1080p, phones after the DPR cap) are untouched.
 const RENDER_DPR_CAP = 2;
-function renderDpr() { return Math.min(RENDER_DPR_CAP, window.devicePixelRatio || 1); }
+const RENDER_PIXEL_BUDGET = 2300000;         // ~1900×1200 device px
+function renderScale() {
+  const dpr = Math.min(RENDER_DPR_CAP, window.devicePixelRatio || 1);
+  const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
+  const fit = Math.sqrt(RENDER_PIXEL_BUDGET / (w * h * dpr * dpr));
+  return fit >= 1 ? dpr : dpr * fit;
+}
 
 function resize() {
-  const dpr = renderDpr();
-  canvas.width = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
+  const dpr = renderScale();
+  canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
+  canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
   canvas.style.width = window.innerWidth + 'px';
   canvas.style.height = window.innerHeight + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -16961,7 +16977,7 @@ function floodFoodCells(sub, col0, row0) {
 function drawFloaters(time) {
   if (!floaters.length) return;
   ctx.save();
-  const dpr = renderDpr();
+  const dpr = renderScale();     // must match resize()'s transform, budget cap included
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
   ctx.textBaseline = 'middle';
