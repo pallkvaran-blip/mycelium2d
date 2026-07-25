@@ -160,7 +160,7 @@ function openSpeciesDetail(species, opts = {}) {
   if (species.artAnim === 'gnomes') {
     art.src = speciesImg(species.img + '-base');
     const ext = wantsStill() ? 'png' : 'webp';
-    for (const n of [1, 2]) {
+    for (let n = 1; n <= (species.artAnimLayers || 2); n++) {
       const g = document.createElement('img');
       g.className = 'ss-gnome g' + n;
       g.src = speciesLayer(species.img + '-g' + n, ext);

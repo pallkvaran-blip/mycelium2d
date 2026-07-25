@@ -566,6 +566,22 @@ Both menus are dark, on-theme, with glowing green borders.
     Scale caveat worth remembering: at the size the portrait renders (~370px box) a gnome is ~40×95 CSS px,
     so its eyes are ~4px — **eye blinks cannot read**; only body motion does. Blinking would need the gnomes
     shown much larger.
+  - **Two MORE gnomes peeking over the mushroom CAPS (`g3`/`g4`, `artAnimLayers:4`).** These don't exist in
+    the photo: `scripts/add_cap_gnomes.py` paints a head-and-shoulders gnome over each cap edge with FLUX Fill
+    (→ `scratchpad/caps-up.jpg`, again compositing back only the masked boxes). They are **not** video-driven —
+    a Kling pass with start==end kept the heads up for the whole clip (no hidden phase at all) and re-rendered
+    the caps, so `scripts/build_cap_gnomes.py` animates them **deterministically** instead, which is both
+    exact and free:
+    * the silhouette is `diff(caps-up, original)` thresholded — i.e. ONLY pixels the inpaint added, so no
+      re-rendered background is ever drawn and the layer holds gnome pixels alone (no blob, no seam possible);
+    * that silhouette's **bottom contour is the cap edge** (the cap is what cut the gnome off), so sliding the
+      gnome down and clipping at the contour makes it sink behind the cap along the true curve and vanish;
+    * loop = hidden → rise (ease-out) → hold with a 1px bob → sink (ease-in), `PHASE` offsets g4 by half a
+      loop so they don't rise together. 23 of 60 frames are fully hidden, asserted at build time.
+    **Pillow's WebP encoder losslessly merges identical consecutive frames** — the files report 17 frames, not
+    60, but per-frame durations absorb the merge (g3's first frame carries 1494ms = the hidden phase, total
+    ~4980ms). Don't "fix" the frame count; verify timing by parsing ANMF chunk durations, since this ffmpeg
+    build cannot demux animated WebP.
     The still-plate version below is still how the layers are composited, and `build_gnome_layers.py` still
     builds the reduced-motion stills:
     Three plates in `assets/species/`:
