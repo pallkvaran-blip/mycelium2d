@@ -566,22 +566,36 @@ Both menus are dark, on-theme, with glowing green borders.
     Scale caveat worth remembering: at the size the portrait renders (~370px box) a gnome is ~40×95 CSS px,
     so its eyes are ~4px — **eye blinks cannot read**; only body motion does. Blinking would need the gnomes
     shown much larger.
-  - **Two MORE gnomes peeking over the mushroom CAPS (`g3`/`g4`, `artAnimLayers:4`).** These don't exist in
-    the photo: `scripts/add_cap_gnomes.py` paints a head-and-shoulders gnome over each cap edge with FLUX Fill
-    (→ `scratchpad/caps-up.jpg`, again compositing back only the masked boxes). They are **not** video-driven —
-    a Kling pass with start==end kept the heads up for the whole clip (no hidden phase at all) and re-rendered
-    the caps, so `scripts/build_cap_gnomes.py` animates them **deterministically** instead, which is both
-    exact and free:
-    * the silhouette is `diff(caps-up, original)` thresholded — i.e. ONLY pixels the inpaint added, so no
-      re-rendered background is ever drawn and the layer holds gnome pixels alone (no blob, no seam possible);
-    * that silhouette's **bottom contour is the cap edge** (the cap is what cut the gnome off), so sliding the
-      gnome down and clipping at the contour makes it sink behind the cap along the true curve and vanish;
-    * loop = hidden → rise (ease-out) → hold with a 1px bob → sink (ease-in), `PHASE` offsets g4 by half a
-      loop so they don't rise together. 23 of 60 frames are fully hidden, asserted at build time.
-    **Pillow's WebP encoder losslessly merges identical consecutive frames** — the files report 17 frames, not
-    60, but per-frame durations absorb the merge (g3's first frame carries 1494ms = the hidden phase, total
-    ~4980ms). Don't "fix" the frame count; verify timing by parsing ANMF chunk durations, since this ffmpeg
-    build cannot demux animated WebP.
+  - **Two MORE gnomes peeking over the mushroom CAPS (`g3`/`g4`, `artAnimLayers:4`).** Nothing above the cap,
+    then a head lifts up, looks around and sinks back out of sight. These gnomes don't exist in the photo, and
+    getting them right took three attempts — **read this before touching them**:
+    1. ✗ FLUX Fill at native size (`add_cap_gnomes.py`, kept for reference): each gnome is only ~76×84 px
+       there, so the faces came out **smudged**.
+    2. ✗ FLUX Fill into a 4×-upscaled crop: **worse** — the upscale is soft, so the model matched that
+       softness, and one face came out malformed. Upscaling does NOT buy detail it can key off.
+    3. ✓ **Clone a real gnome from the photograph** (`scripts/clone_cap_gnomes.py`). Sharp by construction and
+       the style matches for free. Three things it has to get right:
+       - **Confining the cut.** `diff(original, base)` also lights up the stems/moss the gnome-removal inpaint
+         re-rendered inside its box, so the silhouette is restricted to a hand-placed head/shoulders region,
+         opened with a wide kernel to drop thin slivers, and the stem *directly behind* the gnome — which stays
+         connected to the silhouette, so morphology can't touch it — is removed **by colour** (bright, low
+         R−G, wide G−B; the beard is neutral, skin/hat far redder, clothing too dark). Enclosed holes that
+         colour test punches out of the hat brim and cheek are then refilled.
+       - **Clipping to the cap edge**, so it reads as peering over the rim rather than sitting on top, and its
+         flat cut bottom stays hidden. NB `s.split()[3]` returns a COPY of the alpha channel — it must be
+         `putalpha`'d back or the clip silently does nothing.
+       - **Finding that edge.** The rainbow background contains orange bands, so a colour test alone fails;
+         acceptance needs a long *run* of cap pixels, and flank columns that still latch onto something far
+         below (the big cap's left slope reported ~321 instead of ~250) are rejected as outliers and
+         interpolated from a fit through the good columns.
+    Motion is **video-driven**, same as g1/g2, with one crucial difference: start==end kept the heads up for
+    the entire clip (no hidden phase at all). So `scratchpad/gen_cap_video2.py` uses
+    **`start_image` = nothing above the caps, `end_image` = the cloned heads-up plate**, which forces the rise
+    to happen and guarantees the hidden state; `build_gnome_anim.py` then **mirrors** the clip (`MIRROR`) so
+    the loop rises, holds, sinks and stays hidden, and offsets g4 by 32% so the two don't rise in unison.
+    **Pillow's WebP encoder losslessly merges identical consecutive frames** — a file may report 17 frames
+    instead of 60 while per-frame durations absorb the merge (total still ~5s). Don't "fix" the frame count;
+    verify timing by parsing ANMF chunk durations, since this ffmpeg build cannot demux animated WebP.
     The still-plate version below is still how the layers are composited, and `build_gnome_layers.py` still
     builds the reduced-motion stills:
     Three plates in `assets/species/`:
