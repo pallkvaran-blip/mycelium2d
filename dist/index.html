@@ -1499,8 +1499,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "iproq3";
-globalThis.__BUILD__ = "local 07-25 12:48";
+window.__ASSET_VER = "fo0hiu";
+globalThis.__BUILD__ = "local 07-25 12:52";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10612,16 +10612,26 @@ class Lighting {
   }
 
   // Dim the scene already drawn to `ctx` and add the colony's light back in.
-  compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0) {
+  // `scale` is main.js renderScale(): the canvas's device pixels per CSS pixel.
+  compose(ctx, camera, state, networkRenderers, substrateRenderer, time = 0, scale = 1) {
     const r = this.config.render;
     if (!r.lighting || r.ambientLight >= 1) return; // lighting off / no darkening
     const breath = 1; // steady lighting (no global breathing — it's distracting)
     const W = camera.viewW, H = camera.viewH;
     if (W <= 0 || H <= 0) return;   // transient 0-size viewport — a 0-wide light buffer would throw on drawImage
-    if (this.canvas.width !== W || this.canvas.height !== H) {
-      this.canvas.width = W; this.canvas.height = H;
+    // Size the light buffer in the DEVICE pixels we actually render, not CSS pixels. Under the
+    // render-resolution budget (main.js renderScale) the canvas can be smaller than the CSS
+    // viewport, and a CSS-sized buffer would then be LARGER than the canvas it lights — building
+    // more light than can ever be shown, then paying again to downscale it twice (this buffer is
+    // composited over the scene twice). Measured on 2560x1440: capping the canvas alone cut 38% of
+    // its pixels but only 12% of frame time, because this buffer stayed at full size.
+    // The transform below keeps every drawing call in this method in CSS units.
+    const bw = Math.max(1, Math.round(W * scale)), bh = Math.max(1, Math.round(H * scale));
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.canvas.width = bw; this.canvas.height = bh;
     }
     const lc = this.lctx;
+    lc.setTransform(scale, 0, 0, scale, 0, 0);   // re-applied every frame: a resize clears it
 
     // 1) Darken ONLY the underground; the daytime sky above stays bright (the
     //    light map is white over the sky, so the multiply leaves it untouched).
@@ -10728,17 +10738,18 @@ class Lighting {
       }
     }
 
-    // 3) Multiply the light map over the scene.
+    // 3) Multiply the light map over the scene. Dest size is given explicitly in CSS units
+    //    because the buffer is in device pixels (see the scale note above).
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.drawImage(this.canvas, 0, 0);
+    ctx.drawImage(this.canvas, 0, 0, W, H);
     ctx.restore();
 
     // 4) Gentle additive bloom from the same lights for a soft halo.
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = 0.18;
-    ctx.drawImage(this.canvas, 0, 0);
+    ctx.drawImage(this.canvas, 0, 0, W, H);
     ctx.restore();
   }
 
@@ -16236,7 +16247,7 @@ function renderFrame(time) {
   // full brightness (below) so it looks exactly like its lit self (consistent colour, tips
   // and trunks alike), just without the surrounding earth being lit.
   lighting.senseAura = sensingLightOn;
-  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time, renderScale());
   if (!sensingLightOn && state.config.render.lighting !== false) {
     for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;

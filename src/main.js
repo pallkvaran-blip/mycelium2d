@@ -1668,7 +1668,7 @@ function renderFrame(time) {
   // full brightness (below) so it looks exactly like its lit self (consistent colour, tips
   // and trunks alike), just without the surrounding earth being lit.
   lighting.senseAura = sensingLightOn;
-  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time);
+  lighting.compose(ctx, camera, state, networkRenderers, substrateRenderer, time, renderScale());
   if (!sensingLightOn && state.config.render.lighting !== false) {
     for (const net of state.networks) {
       if (!net.alive && !net.fruited) continue;
