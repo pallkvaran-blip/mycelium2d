@@ -1484,8 +1484,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "12k6szx";
-globalThis.__BUILD__ = "local 07-25 07:54";
+window.__ASSET_VER = "39r4am";
+globalThis.__BUILD__ = "local 07-25 08:19";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3457,7 +3457,7 @@ const SPECIES = [
     special: 'magic', magicEvery: 4,
     specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
     name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
-    blurb: 'The famous <b>magic mushroom</b> — a golden-capped dung-loving fungus steeped in folklore and psychedelia, and the <b>winner of the community vote</b>. This colony bends the rules of the deck itself: every few turns a card simply <b>materialises in your hand out of thin air</b>, conjured with no cost and no way to hurry it along. Let the magic keep dealing and ride whatever it gives you.',
+    blurb: 'A golden-capped dung-loving fungus steeped in folklore and psychedelia, and the winner of the Reddit community vote. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air.',
     res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
     hand: [
       { name: 'Rhizomorph Lance', count: 10 },
@@ -12811,7 +12811,7 @@ function openSpeciesDetail(species, opts = {}) {
   // Special-power callout (e.g. Magic Mushroom's conjure clock), shown only when set.
   const specialEl = ins.wrap.querySelector('#ssISpecial');
   if (species.specialText) {
-    specialEl.innerHTML = '<span class="ss-d-special-tag">✦ Special</span> ' + esc(species.specialText);
+    specialEl.innerHTML = '<span class="ss-d-special-tag">Special</span> ' + esc(species.specialText);
     specialEl.style.display = '';
   } else { specialEl.style.display = 'none'; }
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
@@ -13032,14 +13032,11 @@ function showLevelComplete({ level, maxLevel, unlocked, earned, balance, onNext 
 // the rock itself is the reveal event; you still spend Spores to play it (its `cost`).
 function showSpeciesUnlocked({ species, onContinue }) {
   const root = el('div', 'ss-win'); root.id = 'ssSpeciesUnlocked';
-  const cost = unlockCost(species);
   root.innerHTML =
     '<div class="ss-win-title" role="img" aria-label="Unlocked"></div>' +
-    '<p class="ss-win-sub">The old troll stone stirs at your touch — a new species is revealed!</p>' +
-    '<div class="ss-win-unlock">' + esc(species.name) + ' · unlock to play for ' + SPORE_ICON +
-      '<span class="ss-sp-n">' + cost + '</span> Spores</div>' +
+    '<p class="ss-win-sub">You brushed an old troll stone... it stirs, and a new species is revealed.</p>' +
     '<div class="ss-win-cards" id="ssUnlockCards"></div>' +
-    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue the level ▸</button>';
+    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue</button>';
   document.body.appendChild(root);
   const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: 'UNLOCKED', stepRate: 3.2 });
   function hide() { title.destroy(); root.remove(); }
@@ -16253,7 +16250,7 @@ function touchRockface() {
   rf.done = true;
   revealSpecies('psilocybe');
   try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
-  if (state.log) state.log('Your hyphae brush an old troll stone — it stirs, and a new species is revealed.', 'good');
+  if (state.log) state.log('You brushed an old troll stone... it stirs, and a new species is revealed.', 'good');
   const sp = SPECIES.find((s) => s.id === 'psilocybe');
   if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
 }

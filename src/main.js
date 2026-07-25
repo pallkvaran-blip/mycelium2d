@@ -1737,7 +1737,7 @@ function touchRockface() {
   rf.done = true;
   revealSpecies('psilocybe');
   try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
-  if (state.log) state.log('Your hyphae brush an old troll stone — it stirs, and a new species is revealed.', 'good');
+  if (state.log) state.log('You brushed an old troll stone... it stirs, and a new species is revealed.', 'good');
   const sp = SPECIES.find((s) => s.id === 'psilocybe');
   if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
 }

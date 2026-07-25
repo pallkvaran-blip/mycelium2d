@@ -148,7 +148,7 @@ function openSpeciesDetail(species, opts = {}) {
   // Special-power callout (e.g. Magic Mushroom's conjure clock), shown only when set.
   const specialEl = ins.wrap.querySelector('#ssISpecial');
   if (species.specialText) {
-    specialEl.innerHTML = '<span class="ss-d-special-tag">✦ Special</span> ' + esc(species.specialText);
+    specialEl.innerHTML = '<span class="ss-d-special-tag">Special</span> ' + esc(species.specialText);
     specialEl.style.display = '';
   } else { specialEl.style.display = 'none'; }
   ins.wrap.querySelector('#ssIRes').innerHTML = resPills(species.res);
@@ -369,14 +369,11 @@ export function showLevelComplete({ level, maxLevel, unlocked, earned, balance, 
 // the rock itself is the reveal event; you still spend Spores to play it (its `cost`).
 export function showSpeciesUnlocked({ species, onContinue }) {
   const root = el('div', 'ss-win'); root.id = 'ssSpeciesUnlocked';
-  const cost = unlockCost(species);
   root.innerHTML =
     '<div class="ss-win-title" role="img" aria-label="Unlocked"></div>' +
-    '<p class="ss-win-sub">The old troll stone stirs at your touch — a new species is revealed!</p>' +
-    '<div class="ss-win-unlock">' + esc(species.name) + ' · unlock to play for ' + SPORE_ICON +
-      '<span class="ss-sp-n">' + cost + '</span> Spores</div>' +
+    '<p class="ss-win-sub">You brushed an old troll stone... it stirs, and a new species is revealed.</p>' +
     '<div class="ss-win-cards" id="ssUnlockCards"></div>' +
-    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue the level ▸</button>';
+    '<button class="ss-win-btn" id="ssUnlockProceed" type="button">Continue</button>';
   document.body.appendChild(root);
   const title = growMyceliumTitle(root.querySelector('.ss-win-title'), { word: 'UNLOCKED', stepRate: 3.2 });
   function hide() { title.destroy(); root.remove(); }

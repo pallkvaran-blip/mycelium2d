@@ -161,7 +161,7 @@ export const SPECIES = [
     special: 'magic', magicEvery: 4,
     specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
     name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
-    blurb: 'The famous <b>magic mushroom</b> — a golden-capped dung-loving fungus steeped in folklore and psychedelia, and the <b>winner of the community vote</b>. This colony bends the rules of the deck itself: every few turns a card simply <b>materialises in your hand out of thin air</b>, conjured with no cost and no way to hurry it along. Let the magic keep dealing and ride whatever it gives you.',
+    blurb: 'A golden-capped dung-loving fungus steeped in folklore and psychedelia, and the winner of the Reddit community vote. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air.',
     res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
     hand: [
       { name: 'Rhizomorph Lance', count: 10 },
