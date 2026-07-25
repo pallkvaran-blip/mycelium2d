@@ -24,6 +24,7 @@ for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
 
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 const speciesImg = (id) => `assets/species/${id}.jpg${VER}`;
+const speciesLayer = (id) => `assets/species/${id}.png${VER}`;
 const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
 
 const RI = {
@@ -140,8 +141,26 @@ function inspector() {
 function openSpeciesDetail(species, opts = {}) {
   const ins = inspector();
   ins.detail.className = 'ss-detail ' + species.vibe;
-  ins.wrap.querySelector('#ssIArt').src = speciesImg(species.img);
-  ins.wrap.querySelector('#ssIArt').alt = 'Portrait of ' + species.name;
+  const art = ins.wrap.querySelector('#ssIArt');
+  art.alt = 'Portrait of ' + species.name;
+  // Animated portrait (species.artAnim, e.g. Magic Mushroom's gnomes): swap in the static
+  // gnome-free base plate and stack one fading full-frame layer per gnome. The layers are
+  // the same size as the plate and use the same object-fit, so they stay pinned to the
+  // photo at any box size — an absolutely positioned sprite would drift under cover-fit.
+  const artBox = art.parentElement;
+  artBox.querySelectorAll('.ss-gnome').forEach((n) => n.remove());
+  if (species.artAnim === 'gnomes') {
+    art.src = speciesImg(species.img + '-base');
+    for (const n of [1, 2]) {
+      const g = document.createElement('img');
+      g.className = 'ss-gnome g' + n;
+      g.src = speciesLayer(species.img + '-g' + n);
+      g.alt = '';
+      artBox.appendChild(g);
+    }
+  } else {
+    art.src = speciesImg(species.img);
+  }
   ins.wrap.querySelector('#ssIName').textContent = species.name;
   ins.wrap.querySelector('#ssILatin').textContent = species.latin;
   ins.wrap.querySelector('#ssIBlurb').innerHTML = species.blurb;
