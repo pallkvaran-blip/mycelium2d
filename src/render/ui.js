@@ -1492,7 +1492,7 @@ function specialRowHTML(C) {
   const left = Math.max(0, (C.magicCountdown != null) ? C.magicCountdown : every);
   const title = `Special: every ${every} turns a random basic or event card magically appears in your hand. Cannot be sped up.`;
   return `<div class="erow magic" title="${escapeHtml(title)}">`
-    + `<span class="enm">Magically summons a card · every ${every} turns</span>`
+    + `<span class="enm">Magic</span>`
     + cadenceLightsHTML(every, left, 'p', title) + `</div>`;
 }
 
