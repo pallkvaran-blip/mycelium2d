@@ -1097,17 +1097,13 @@
     .ss-d-art img { width:100%; height:100%; object-fit:cover; display:block; }
     .ss-d-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(7,11,10,0.7)), linear-gradient(90deg, transparent 72%, rgba(7,11,10,0.9)); }
     /* Animated portrait (Magic Mushroom): the photo below is a static plate with the gnomes
-       painted out, and these full-frame layers — one per gnome — fade in and out so the
-       gnomes peek and hide while the picture itself stays perfectly still. Same size + the
-       same object-fit as the plate, so they track it at every box size. The two use
-       different periods so they trade off rather than blink in unison. */
+       painted out, and these full-frame layers — one per gnome — carry the moving gnome.
+       Each is an animated WebP whose only opaque region is a soft blob around its own gnome,
+       so the gnomes move while the photograph itself stays perfectly still. No CSS animation
+       is needed (the images animate themselves); same size + the same object-fit as the
+       plate, so they track it at every box size. Reduced motion swaps in the still .png. */
     .ss-d-art .ss-gnome { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-      pointer-events:none; opacity:0; animation:gnomePeek 10s ease-in-out infinite; }
-    .ss-d-art .ss-gnome.g2 { animation-delay:-5s; }   /* half a period out of phase — they take turns */
-    @keyframes gnomePeek { 0%,4% { opacity:0 } 10%,48% { opacity:1 } 54%,100% { opacity:0 } }
-    @media (prefers-reduced-motion:reduce) {
-      .ss-d-art .ss-gnome { animation:none; opacity:1; }   /* no peeking — both gnomes just stay put */
-    }
+      pointer-events:none; }
     .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:14px;
       scrollbar-width:thin; scrollbar-color:rgba(150,185,168,0.5) transparent; }
     /* Thin, rounded scrollbar whose THUMB is inset from the panel's rounded corners
@@ -1497,8 +1493,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1sp2t54";
-globalThis.__BUILD__ = "local 07-25 09:12";
+window.__ASSET_VER = "o4kutb";
+globalThis.__BUILD__ = "local 07-25 09:36";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -12704,7 +12700,13 @@ for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
 
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 const speciesImg = (id) => `assets/species/${id}.jpg${VER}`;
-const speciesLayer = (id) => `assets/species/${id}.png${VER}`;
+const speciesLayer = (id, ext) => `assets/species/${id}.${ext}${VER}`;
+// Animated portrait layers are animated WebP; the .png of the same name is the still
+// fallback used when the viewer asks for reduced motion.
+const wantsStill = () => {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (_) { return false; }
+};
 const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
 
 const RI = {
@@ -12824,17 +12826,20 @@ function openSpeciesDetail(species, opts = {}) {
   const art = ins.wrap.querySelector('#ssIArt');
   art.alt = 'Portrait of ' + species.name;
   // Animated portrait (species.artAnim, e.g. Magic Mushroom's gnomes): swap in the static
-  // gnome-free base plate and stack one fading full-frame layer per gnome. The layers are
-  // the same size as the plate and use the same object-fit, so they stay pinned to the
-  // photo at any box size — an absolutely positioned sprite would drift under cover-fit.
+  // gnome-free base plate and stack one full-frame layer per gnome. Each layer is an
+  // animated WebP whose only opaque region is a soft blob around its gnome, so the gnome
+  // moves while the photograph underneath stays perfectly still. The layers are the same
+  // size as the plate and use the same object-fit, so they stay pinned to the photo at any
+  // box size — an absolutely positioned sprite would drift under cover-fit.
   const artBox = art.parentElement;
   artBox.querySelectorAll('.ss-gnome').forEach((n) => n.remove());
   if (species.artAnim === 'gnomes') {
     art.src = speciesImg(species.img + '-base');
+    const ext = wantsStill() ? 'png' : 'webp';
     for (const n of [1, 2]) {
       const g = document.createElement('img');
       g.className = 'ss-gnome g' + n;
-      g.src = speciesLayer(species.img + '-g' + n);
+      g.src = speciesLayer(species.img + '-g' + n, ext);
       g.alt = '';
       artBox.appendChild(g);
     }
@@ -18335,11 +18340,12 @@ const _load = showLoading();
 const _bootImgs = [].concat(
   CARD_DATA.map((c) => assetUrl('assets/cards/' + cardSlug(c.name) + '.jpg')),
   SPECIES.map((s) => assetUrl('assets/species/' + s.img + '.jpg')),
-  // animated-portrait plates (species.artAnim): static base + one layer per gnome
+  // animated-portrait plates (species.artAnim): static base + one animated layer per gnome
+  // (the .png twins are the reduced-motion stills and are left to load on demand).
   SPECIES.filter((s) => s.artAnim === 'gnomes').reduce((acc, s) => acc.concat([
     assetUrl('assets/species/' + s.img + '-base.jpg'),
-    assetUrl('assets/species/' + s.img + '-g1.png'),
-    assetUrl('assets/species/' + s.img + '-g2.png'),
+    assetUrl('assets/species/' + s.img + '-g1.webp'),
+    assetUrl('assets/species/' + s.img + '-g2.webp'),
   ]), []),
   ['ant', 'trichoderma', 'nematode'].map((s) => assetUrl('assets/tutorial/' + s + '.jpg')),
   ['assets/spores/spore-print.png'],

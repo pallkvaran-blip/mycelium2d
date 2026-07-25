@@ -1102,17 +1102,13 @@
     .ss-d-art img { width:100%; height:100%; object-fit:cover; display:block; }
     .ss-d-art::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, rgba(7,11,10,0.7)), linear-gradient(90deg, transparent 72%, rgba(7,11,10,0.9)); }
     /* Animated portrait (Magic Mushroom): the photo below is a static plate with the gnomes
-       painted out, and these full-frame layers — one per gnome — fade in and out so the
-       gnomes peek and hide while the picture itself stays perfectly still. Same size + the
-       same object-fit as the plate, so they track it at every box size. The two use
-       different periods so they trade off rather than blink in unison. */
+       painted out, and these full-frame layers — one per gnome — carry the moving gnome.
+       Each is an animated WebP whose only opaque region is a soft blob around its own gnome,
+       so the gnomes move while the photograph itself stays perfectly still. No CSS animation
+       is needed (the images animate themselves); same size + the same object-fit as the
+       plate, so they track it at every box size. Reduced motion swaps in the still .png. */
     .ss-d-art .ss-gnome { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-      pointer-events:none; opacity:0; animation:gnomePeek 10s ease-in-out infinite; }
-    .ss-d-art .ss-gnome.g2 { animation-delay:-5s; }   /* half a period out of phase — they take turns */
-    @keyframes gnomePeek { 0%,4% { opacity:0 } 10%,48% { opacity:1 } 54%,100% { opacity:0 } }
-    @media (prefers-reduced-motion:reduce) {
-      .ss-d-art .ss-gnome { animation:none; opacity:1; }   /* no peeking — both gnomes just stay put */
-    }
+      pointer-events:none; }
     .ss-d-body { padding:clamp(18px,2.6vw,28px); overflow-y:auto; min-height:0; display:flex; flex-direction:column; gap:14px;
       scrollbar-width:thin; scrollbar-color:rgba(150,185,168,0.5) transparent; }
     /* Thin, rounded scrollbar whose THUMB is inset from the panel's rounded corners

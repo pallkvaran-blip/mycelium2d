@@ -3786,11 +3786,12 @@ const _load = showLoading();
 const _bootImgs = [].concat(
   CARD_DATA.map((c) => assetUrl('assets/cards/' + cardSlug(c.name) + '.jpg')),
   SPECIES.map((s) => assetUrl('assets/species/' + s.img + '.jpg')),
-  // animated-portrait plates (species.artAnim): static base + one layer per gnome
+  // animated-portrait plates (species.artAnim): static base + one animated layer per gnome
+  // (the .png twins are the reduced-motion stills and are left to load on demand).
   SPECIES.filter((s) => s.artAnim === 'gnomes').reduce((acc, s) => acc.concat([
     assetUrl('assets/species/' + s.img + '-base.jpg'),
-    assetUrl('assets/species/' + s.img + '-g1.png'),
-    assetUrl('assets/species/' + s.img + '-g2.png'),
+    assetUrl('assets/species/' + s.img + '-g1.webp'),
+    assetUrl('assets/species/' + s.img + '-g2.webp'),
   ]), []),
   ['ant', 'trichoderma', 'nematode'].map((s) => assetUrl('assets/tutorial/' + s + '.jpg')),
   ['assets/spores/spore-print.png'],

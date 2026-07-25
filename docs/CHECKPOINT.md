@@ -548,14 +548,34 @@ Both menus are dark, on-theme, with glowing green borders.
     expanded hand overlapped the card + button.
   - **Ledger row** (`ui.js specialRowHTML`): mushroom glyph dropped, label is just **"Magic"** + cadence
     lights (the full mechanic stays in the tooltip). The fixed 238px ledger ellipses anything longer.
-  - **Animated detail-view portrait (`species.artAnim:'gnomes'`).** The two garden gnomes in the photo now
-    **peek and hide** while the picture itself stays still. Three plates in `assets/species/`:
+  - **Animated detail-view portrait (`species.artAnim:'gnomes'`) — now FULLY animated video layers.** The
+    two garden gnomes **move** (lean out, bob, glance around, duck behind a stem) while the photograph itself
+    stays perfectly still. `assets/species/psilocybe-cubensis-g{1,2}.webp` are **animated WebP** (61 frames,
+    12fps, 5.1s seamless loop, ~50/61 KB) built by `scripts/build_gnome_anim.py` from a Kling 2.1 **pro**
+    image-to-video clip (`scratchpad/gen_gnome_video2.py`). They replace the CSS fade; the `.png` twins are
+    kept as the `prefers-reduced-motion` stills (`species_select.js wantsStill()` picks the extension).
+    **Two things make the video usable, and both are load-bearing:**
+    1. **`start_image == end_image`** (pro mode required for `end_image`). Without it the model re-renders
+       progressively: over 5s the gnomes get bigger/glossier (claymation, not the photo's ceramic figurines),
+       walk right out, and the stems/moss drift. Pinning the end frame to the original bounds that drift AND
+       makes the loop seamless. Measured background delta dropped to **~1.5/255** (static) vs gnome-box
+       deltas of 5–10.6; an amplified difference map shows the only moving pixels are gnome-shaped.
+    2. **Generate from an upscaled CROP**, not the whole portrait — each gnome is only ~40×95 px in the
+       560×740 photo, nowhere near enough pixels for a model to animate a figure. `CROP=(158,452,434,684)`
+       upscaled ×4, then scaled back down into place.
+    Scale caveat worth remembering: at the size the portrait renders (~370px box) a gnome is ~40×95 CSS px,
+    so its eyes are ~4px — **eye blinks cannot read**; only body motion does. Blinking would need the gnomes
+    shown much larger.
+    The still-plate version below is still how the layers are composited, and `build_gnome_layers.py` still
+    builds the reduced-motion stills:
+    Three plates in `assets/species/`:
     `psilocybe-cubensis-base.jpg` (gnomes inpainted away — FLUX Fill via `scripts/remove_gnomes.py`, which
     composites ONLY the two gnome boxes back so every other pixel is the original) plus
     `-g1.png`/`-g2.png` (`scripts/build_gnome_layers.py`): full-frame copies of the ORIGINAL photo whose
     alpha is a soft blob around one gnome. `species_select.js openSpeciesDetail` swaps in the base plate and
-    stacks the layers, which **fade** in/out (`@keyframes gnomePeek`, 10s, `.g2` offset `-5s` so they take
-    turns). Two things make it seamless: the layers are the **same size with the same `object-fit:cover`**, so
+    stacks the layers. (Before the video layers these faded in/out on a `@keyframes gnomePeek` cycle so the
+    gnomes took turns peeking — that CSS is gone; animated WebP needs no CSS animation.)
+    Two things make it seamless: the layers are the **same size with the same `object-fit:cover`**, so
     they can't drift like an absolutely positioned sprite would at any box size; and the base differs from the
     original ONLY inside the gnome boxes, so each blob's feathered edge lands where both plates are
     pixel-identical. `build_gnome_layers.py` asserts that base+layers at full opacity reconstruct the

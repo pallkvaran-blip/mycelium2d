@@ -24,7 +24,13 @@ for (const c of CARD_DATA) CARD_BY_NAME[c.name] = c;
 
 const VER = (typeof globalThis !== 'undefined' && globalThis.__ASSET_VER) ? '?v=' + globalThis.__ASSET_VER : '';
 const speciesImg = (id) => `assets/species/${id}.jpg${VER}`;
-const speciesLayer = (id) => `assets/species/${id}.png${VER}`;
+const speciesLayer = (id, ext) => `assets/species/${id}.${ext}${VER}`;
+// Animated portrait layers are animated WebP; the .png of the same name is the still
+// fallback used when the viewer asks for reduced motion.
+const wantsStill = () => {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (_) { return false; }
+};
 const cardImg = (name) => `assets/cards/${cardSlug(name)}.jpg${VER}`;
 
 const RI = {
@@ -144,17 +150,20 @@ function openSpeciesDetail(species, opts = {}) {
   const art = ins.wrap.querySelector('#ssIArt');
   art.alt = 'Portrait of ' + species.name;
   // Animated portrait (species.artAnim, e.g. Magic Mushroom's gnomes): swap in the static
-  // gnome-free base plate and stack one fading full-frame layer per gnome. The layers are
-  // the same size as the plate and use the same object-fit, so they stay pinned to the
-  // photo at any box size — an absolutely positioned sprite would drift under cover-fit.
+  // gnome-free base plate and stack one full-frame layer per gnome. Each layer is an
+  // animated WebP whose only opaque region is a soft blob around its gnome, so the gnome
+  // moves while the photograph underneath stays perfectly still. The layers are the same
+  // size as the plate and use the same object-fit, so they stay pinned to the photo at any
+  // box size — an absolutely positioned sprite would drift under cover-fit.
   const artBox = art.parentElement;
   artBox.querySelectorAll('.ss-gnome').forEach((n) => n.remove());
   if (species.artAnim === 'gnomes') {
     art.src = speciesImg(species.img + '-base');
+    const ext = wantsStill() ? 'png' : 'webp';
     for (const n of [1, 2]) {
       const g = document.createElement('img');
       g.className = 'ss-gnome g' + n;
-      g.src = speciesLayer(species.img + '-g' + n);
+      g.src = speciesLayer(species.img + '-g' + n, ext);
       g.alt = '';
       artBox.appendChild(g);
     }
