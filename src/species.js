@@ -20,7 +20,7 @@ export const SPECIES = [
     name: 'Fairy Ring Champignon', latin: 'Marasmius oreades', img: 'marasmius-oreades',
     cardPos: 'center 20%',   // grid card: pull the visible band up so the cap top isn't cropped (detail view unchanged)
     blurb: 'A grassland saprotroph that grows outward in an ever-widening <b>fairy ring</b> pattern — the colony pushes evenly in every direction from its heart, decomposing the turf as it goes. It is marcescent: it shrivels in a drought and springs back to life once the rain returns, so it banks water and simply waits the dry spells out. Slow, broad and hard to kill — a forgiving way to learn the colony.',
-    res: { energy: 0, water: 30, phosphorus: 0 },
+    res: { energy: 10, water: 40, phosphorus: 0 },   // +10⚡/+10W over the original 0/30 — easier opening
     hand: [
       { name: 'Foraging Fan', count: 4 },
       { name: 'Hyphal Extension', count: 6 },
@@ -32,7 +32,7 @@ export const SPECIES = [
     id: 'armillaria', vibe: 'warm', unlock: null,
     name: 'Honey Fungus', latin: 'Armillaria mellea', img: 'armillaria-ostoyae',
     blurb: 'A notorious tree-killer whose genus boasts the <b>largest living organism on Earth</b> — a single Armillaria in Oregon sprawls across nearly ten square kilometres of forest. It travels on <b>rhizomorphs</b>: bootlace-like cords that shoot far ahead through the soil to strike distant roots. A committed long-range predator, not a gentle forager — it banks energy, drives its cords along a chosen line, and lances across open ground toward the goal.',
-    res: { energy: 10, water: 25, phosphorus: 0 },   // opener Rhizomorph Lance costs 1⚡ to play → start with Energy
+    res: { energy: 20, water: 35, phosphorus: 0 },   // opener Rhizomorph Lance costs 1⚡ to play → start with Energy (+10⚡/+10W over the original 10/25)
     hand: [
       { name: 'Apical Drive', count: 10 },
       { name: 'Rhizomorph Lance', count: 5 },

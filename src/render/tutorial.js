@@ -66,14 +66,14 @@ export function startTutorial(deps) {
       place: 'bottom',
     },
     {
-      text: 'This is your hand.<br><b>Double-click a card to play it.</b>',
+      text: 'This is your hand.<br><b>Click a card to play it.</b>',
       focus: (s) => world(deps.colonyRoot(), 1.1),
       target: () => cardTarget(APICAL),
       glowCard: APICAL,
       hand: 'open',          // needs the carousel visible (points at Apical Drive)
       filter: 'grow',        // showcase the GROWTH cards (Apical Drive lives here)
       place: 'top',
-      // Forced: advance once Apical Drive is armed for aiming (double-clicked).
+      // Forced: advance once Apical Drive is armed for aiming (i.e. clicked).
       gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
     },
     {

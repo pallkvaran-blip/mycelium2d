@@ -520,6 +520,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Cards now play on a SINGLE click, and the two starter species open with more resources.**
+  - `ui.js onCardTap` plays immediately instead of only highlighting. Worth knowing why this was safe: the
+    old **"Play Card" button no longer exists** (`this.el.handplay` is never assigned, so the footer code that
+    enables/disables it is vestigial) — which meant the single-click highlight was a dead step and
+    **double-click was the only way to play a card at all**. The manual double-tap detection
+    (`_lastCardTap`, 320ms) is gone. Targeted cards still enter aim mode from that one click:
+    `onPlayCard` sets `pendingCard`, which `_paintArmed` keeps highlighted, and the card stays in hand until
+    the aim resolves. Tutorial copy updated to "Click a card to play it."
+  - **Starter resources +10⚡/+10W each:** Fairy Ring Champignon 0/30 → **10⚡/40W**, Honey Fungus 10/25 →
+    **20⚡/35W** (`species.js`). Only the two `unlock:null` starters changed.
+  - Verified with `scratchpad/verify-click.mjs`: both starters seed the new values, and ONE click on Apical
+    Drive plus one drag grew the colony 3 → 27 nodes. Note when testing: resources live on the **network**
+    (`state.active.energy/water/phosphorus`), not `state.res`; and `.selected` is painted for BOTH the armed
+    and the aiming card, so it cannot distinguish "highlighted" from "playing" — assert on growth instead.
+  - **NOT changed:** the draft/offer panel still needs select-then-Draft (with double-click as its shortcut).
+    "Played and selected" read as the hand flow; drafting on a single click risks a mis-click permanently
+    altering the deck, so it was left for the owner to confirm.
+
 - **PERF: fixed the cause of "laggy / makes my computer hot".** `SubstrateRenderer.draw`
   (`render/substrate.js`) blitted BOTH world-sized buffers **in full, every frame**, anchored at the world
   origin, and let the canvas clip the overflow. The buffers are world-sized (~2600×3660 = **9.5 Mpx each**), so

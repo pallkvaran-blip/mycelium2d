@@ -1342,28 +1342,17 @@ export class UI {
   }
 
   // --- select / play flow --------------------------------------------------
-  // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
-  // Card" button plays the highlighted card. The carousel stays visible whether
-  // or not a card is played — only the Show/Hide button toggles it. The only
-  // popup is a text preview of what a draw-engine (+5) card shuffles in.
-  //
-  // A DOUBLE tap / double click on the same card plays it straight away (a
-  // shortcut past the select-then-Play step). We detect it manually off the
-  // single `click` so it behaves identically on mouse and touch — a native
-  // `dblclick` would fight the single-tap select/deselect toggle below.
+  // A SINGLE tap / click plays the card. It used to only highlight it, with a
+  // double tap as the shortcut that actually played — but the old "Play Card"
+  // button is long gone, so that highlight was a dead step on the way to the
+  // double tap. The carousel stays visible whether or not a card is played; only
+  // the Show/Hide button toggles it. Targeted cards still go into aim mode from
+  // here (onPlayCard sets pendingCard, which _paintArmed keeps highlighted).
   onCardTap(index, name) {
-    const now = Date.now();
-    const last = this._lastCardTap;
-    const isDouble = last && last.name === name && now - last.t < 320;
-    this._lastCardTap = isDouble ? null : { name, t: now };
-    if (isDouble) {
-      // Arm the intended card, then play it. playArmed() resolves the live hand
-      // index by name at play time, so the stored index can't go stale on us.
-      this.armed = { kind: 'hand', index, name };
-      this.playArmed();
-      return;
-    }
-    this.armCard(index, name);
+    // Arm the intended card, then play it. playArmed() re-resolves the live hand
+    // index by name at play time, so the stored index can't go stale on us.
+    this.armed = { kind: 'hand', index, name };
+    this.playArmed();
   }
   armCard(index, name) {
     // tap the already-selected card again to deselect it (match by NAME — the

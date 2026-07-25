@@ -1493,8 +1493,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "2b31xb";
-globalThis.__BUILD__ = "local 07-25 11:46";
+window.__ASSET_VER = "zfirpq";
+globalThis.__BUILD__ = "local 07-25 12:08";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3325,7 +3325,7 @@ const SPECIES = [
     name: 'Fairy Ring Champignon', latin: 'Marasmius oreades', img: 'marasmius-oreades',
     cardPos: 'center 20%',   // grid card: pull the visible band up so the cap top isn't cropped (detail view unchanged)
     blurb: 'A grassland saprotroph that grows outward in an ever-widening <b>fairy ring</b> pattern — the colony pushes evenly in every direction from its heart, decomposing the turf as it goes. It is marcescent: it shrivels in a drought and springs back to life once the rain returns, so it banks water and simply waits the dry spells out. Slow, broad and hard to kill — a forgiving way to learn the colony.',
-    res: { energy: 0, water: 30, phosphorus: 0 },
+    res: { energy: 10, water: 40, phosphorus: 0 },   // +10⚡/+10W over the original 0/30 — easier opening
     hand: [
       { name: 'Foraging Fan', count: 4 },
       { name: 'Hyphal Extension', count: 6 },
@@ -3337,7 +3337,7 @@ const SPECIES = [
     id: 'armillaria', vibe: 'warm', unlock: null,
     name: 'Honey Fungus', latin: 'Armillaria mellea', img: 'armillaria-ostoyae',
     blurb: 'A notorious tree-killer whose genus boasts the <b>largest living organism on Earth</b> — a single Armillaria in Oregon sprawls across nearly ten square kilometres of forest. It travels on <b>rhizomorphs</b>: bootlace-like cords that shoot far ahead through the soil to strike distant roots. A committed long-range predator, not a gentle forager — it banks energy, drives its cords along a chosen line, and lances across open ground toward the goal.',
-    res: { energy: 10, water: 25, phosphorus: 0 },   // opener Rhizomorph Lance costs 1⚡ to play → start with Energy
+    res: { energy: 20, water: 35, phosphorus: 0 },   // opener Rhizomorph Lance costs 1⚡ to play → start with Energy (+10⚡/+10W over the original 10/25)
     hand: [
       { name: 'Apical Drive', count: 10 },
       { name: 'Rhizomorph Lance', count: 5 },
@@ -12248,28 +12248,17 @@ class UI {
   }
 
   // --- select / play flow --------------------------------------------------
-  // Tapping a card just HIGHLIGHTS it (no popup). The bottom action bar's "Play
-  // Card" button plays the highlighted card. The carousel stays visible whether
-  // or not a card is played — only the Show/Hide button toggles it. The only
-  // popup is a text preview of what a draw-engine (+5) card shuffles in.
-  //
-  // A DOUBLE tap / double click on the same card plays it straight away (a
-  // shortcut past the select-then-Play step). We detect it manually off the
-  // single `click` so it behaves identically on mouse and touch — a native
-  // `dblclick` would fight the single-tap select/deselect toggle below.
+  // A SINGLE tap / click plays the card. It used to only highlight it, with a
+  // double tap as the shortcut that actually played — but the old "Play Card"
+  // button is long gone, so that highlight was a dead step on the way to the
+  // double tap. The carousel stays visible whether or not a card is played; only
+  // the Show/Hide button toggles it. Targeted cards still go into aim mode from
+  // here (onPlayCard sets pendingCard, which _paintArmed keeps highlighted).
   onCardTap(index, name) {
-    const now = Date.now();
-    const last = this._lastCardTap;
-    const isDouble = last && last.name === name && now - last.t < 320;
-    this._lastCardTap = isDouble ? null : { name, t: now };
-    if (isDouble) {
-      // Arm the intended card, then play it. playArmed() resolves the live hand
-      // index by name at play time, so the stored index can't go stale on us.
-      this.armed = { kind: 'hand', index, name };
-      this.playArmed();
-      return;
-    }
-    this.armCard(index, name);
+    // Arm the intended card, then play it. playArmed() re-resolves the live hand
+    // index by name at play time, so the stored index can't go stale on us.
+    this.armed = { kind: 'hand', index, name };
+    this.playArmed();
   }
   armCard(index, name) {
     // tap the already-selected card again to deselect it (match by NAME — the
@@ -13963,14 +13952,14 @@ function startTutorial(deps) {
       place: 'bottom',
     },
     {
-      text: 'This is your hand.<br><b>Double-click a card to play it.</b>',
+      text: 'This is your hand.<br><b>Click a card to play it.</b>',
       focus: (s) => world(deps.colonyRoot(), 1.1),
       target: () => cardTarget(APICAL),
       glowCard: APICAL,
       hand: 'open',          // needs the carousel visible (points at Apical Drive)
       filter: 'grow',        // showcase the GROWTH cards (Apical Drive lives here)
       place: 'top',
-      // Forced: advance once Apical Drive is armed for aiming (double-clicked).
+      // Forced: advance once Apical Drive is armed for aiming (i.e. clicked).
       gate: () => { const pc = deps.pendingCard(); return !!(pc && pc.name === APICAL); },
     },
     {
