@@ -566,36 +566,30 @@ Both menus are dark, on-theme, with glowing green borders.
     Scale caveat worth remembering: at the size the portrait renders (~370px box) a gnome is ~40×95 CSS px,
     so its eyes are ~4px — **eye blinks cannot read**; only body motion does. Blinking would need the gnomes
     shown much larger.
-  - **Two MORE gnomes peeking over the mushroom CAPS (`g3`/`g4`, `artAnimLayers:4`).** Nothing above the cap,
-    then a head lifts up, looks around and sinks back out of sight. These gnomes don't exist in the photo, and
-    getting them right took three attempts — **read this before touching them**:
-    1. ✗ FLUX Fill at native size (`add_cap_gnomes.py`, kept for reference): each gnome is only ~76×84 px
-       there, so the faces came out **smudged**.
-    2. ✗ FLUX Fill into a 4×-upscaled crop: **worse** — the upscale is soft, so the model matched that
-       softness, and one face came out malformed. Upscaling does NOT buy detail it can key off.
-    3. ✓ **Clone a real gnome from the photograph** (`scripts/clone_cap_gnomes.py`). Sharp by construction and
-       the style matches for free. Three things it has to get right:
-       - **Confining the cut.** `diff(original, base)` also lights up the stems/moss the gnome-removal inpaint
-         re-rendered inside its box, so the silhouette is restricted to a hand-placed head/shoulders region,
-         opened with a wide kernel to drop thin slivers, and the stem *directly behind* the gnome — which stays
-         connected to the silhouette, so morphology can't touch it — is removed **by colour** (bright, low
-         R−G, wide G−B; the beard is neutral, skin/hat far redder, clothing too dark). Enclosed holes that
-         colour test punches out of the hat brim and cheek are then refilled.
-       - **Clipping to the cap edge**, so it reads as peering over the rim rather than sitting on top, and its
-         flat cut bottom stays hidden. NB `s.split()[3]` returns a COPY of the alpha channel — it must be
-         `putalpha`'d back or the clip silently does nothing.
-       - **Finding that edge.** The rainbow background contains orange bands, so a colour test alone fails;
-         acceptance needs a long *run* of cap pixels, and flank columns that still latch onto something far
-         below (the big cap's left slope reported ~321 instead of ~250) are rejected as outliers and
-         interpolated from a fit through the good columns.
-    Motion is **video-driven**, same as g1/g2, with one crucial difference: start==end kept the heads up for
-    the entire clip (no hidden phase at all). So `scratchpad/gen_cap_video2.py` uses
-    **`start_image` = nothing above the caps, `end_image` = the cloned heads-up plate**, which forces the rise
-    to happen and guarantees the hidden state; `build_gnome_anim.py` then **mirrors** the clip (`MIRROR`) so
-    the loop rises, holds, sinks and stays hidden, and offsets g4 by 32% so the two don't rise in unison.
-    **Pillow's WebP encoder losslessly merges identical consecutive frames** — a file may report 17 frames
-    instead of 60 while per-frame durations absorb the merge (total still ~5s). Don't "fix" the frame count;
-    verify timing by parsing ANMF chunk durations, since this ffmpeg build cannot demux animated WebP.
+  - **ABANDONED: extra gnomes peeking over the mushroom CAPS.** Two attempts shipped and both were rejected;
+    the portrait is back to **`artAnimLayers: 2`** (only the two gnomes really in the photo). Scripts and the
+    six regenerated portrait candidates are kept as authoring history — `scripts/add_cap_gnomes.py`,
+    `scripts/clone_cap_gnomes.py`, `scripts/gen_magic_gnomes.py`, `assets/species_options/psilocybe-gnomes-o*.jpg`
+    — but **nothing in that list is wired into the game**. Don't restart this without reading why it failed:
+    * **You cannot add a convincing gnome to the finished photo.** Each one is only ~80 px there. FLUX Fill at
+      native size gave **smudged faces**; inpainting into a 4×-upscaled crop was **worse** (the upscale is
+      soft, so the model matched that softness and one face came out malformed) — upscaling does not buy
+      detail a model can key off. Cloning a real gnome out of the photo fixed sharpness, but then the *motion*
+      was the problem.
+    * **Motion:** a Kling pass with `start_image == end_image` simply kept the heads up for the whole clip (no
+      hidden phase at all) and re-rendered the caps. Using `start_image` = nothing above the caps and
+      `end_image` = the heads-up plate did force a genuine rise, and `build_gnome_anim.py` can `MIRROR` a
+      one-way clip into a rise/hold/sink loop — but the owner still judged the result poor.
+    * **The real lesson:** the first animation worked *because the gnomes were already composed into the
+      photograph by the image model*. Retro-fitting them is the thing that doesn't work. If this is revisited,
+      generate a fresh portrait that natively contains the extra gnomes (that's what `gen_magic_gnomes.py`
+      does) and animate that — but note the model tends to plant gnomes among the stems, not over the cap rims,
+      however hard the prompt pushes.
+    Two findings from this worth keeping regardless: **`s.split()[3]` returns a COPY of the alpha channel**, so
+    it must be `putalpha`'d back or per-pixel alpha edits silently do nothing; and **Pillow's WebP encoder
+    losslessly merges identical consecutive frames** — a file may report 17 frames instead of 60 while
+    per-frame durations absorb the merge (total still ~5s), so don't "fix" the frame count, and verify timing
+    by parsing ANMF chunk durations since this ffmpeg build cannot demux animated WebP.
     The still-plate version below is still how the layers are composited, and `build_gnome_layers.py` still
     builds the reduced-motion stills:
     Three plates in `assets/species/`:
