@@ -1499,8 +1499,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1onqsnm";
-globalThis.__BUILD__ = "local 07-25 13:23";
+window.__ASSET_VER = "oxx2lb";
+globalThis.__BUILD__ = "local 07-25 13:43";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -16233,8 +16233,10 @@ function frame(time) {
   }
   const dtFrames = _lastRenderAt > -1e8 ? Math.min(4, (time - _lastRenderAt) / (1000 / 60)) : 1;
   _lastRenderAt = time;
+  const _t0 = _perfNeeded() ? performance.now() : 0;
   try {
     renderFrame(time, dtFrames);
+    if (_t0) _perfSample(performance.now() - _t0);
   } catch (e) {
     const sig = (e && (e.stack || e.message)) || String(e);
     if (sig !== _lastFrameErr) {
@@ -16244,6 +16246,33 @@ function frame(time) {
     }
   }
   requestAnimationFrame(frame);
+}
+
+// --- one-shot performance sample -------------------------------------------
+// Reports how expensive a frame actually is on the player's machine, so the funnel can answer
+// whether laggy players are the ones bailing in the first minute. We measure frame COST, not
+// frame RATE: an idle board is paced to 30fps by design, so fps would read ~30 on a fast
+// machine and prove nothing. Sampled once per session over the first ~90 rendered frames of
+// gameplay, then logged and never touched again (the timing itself is two performance.now()
+// calls, only while sampling).
+let _perfSamples = [], _perfDone = false;
+function _perfNeeded() { return !_perfDone && !!state && !!state.substrate; }
+function _perfSample(ms) {
+  _perfSamples.push(ms);
+  if (_perfSamples.length < 90) return;
+  _perfDone = true;
+  const s = _perfSamples.slice().sort((a, b) => a - b);
+  const med = s[Math.floor(s.length / 2)];
+  const px = canvas.width * canvas.height;
+  try {
+    logEvent('perf', {
+      species: chosenSpecies && chosenSpecies.id,
+      turns: Math.min(30000, Math.round(med * 10)),      // median frame cost, tenths of a ms
+      level: Math.min(1000, Math.round(px / 1e4)),        // device pixels, hundredths of a Mpx
+      cause: med < 8 ? 'ok' : med < 20 ? 'slow' : 'bad',  // bucket, for grouping in the dashboard
+    });
+  } catch (_) {}
+  _perfSamples = [];
 }
 
 let _renderCount = 0;

@@ -520,6 +520,31 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Analytics: Jul-25 deploy cohorts + a `perf` event to test whether lag drives early churn.**
+  - `docs/analytics.html` gains **"Jul 25 deploys — did they move anything?"**: four cohorts split on the
+    actual deploy times (pre / +substrate fix 11:49 / +1-click play & starter buff 12:16 / +resolution cap &
+    30fps pacing 13:13), comparing new players, L1 clear, instant bounce (1 event) and left-mid-L1.
+    Cohorts under `MIN_COHORT` (30) render greyed out and the panel says so — **the day's cohorts are 2/5/1
+    players, i.e. pure noise**, and it must not be read as "the fixes did nothing". It also states the thing
+    that invalidates naive reading: **the itch build only changes when a new zip is uploaded**, so the "after"
+    columns are hosted-build traffic until then.
+  - **New `perf` event** (`main.js _perfSample`): median frame COST over the first ~90 rendered frames of a
+    session, logged once. Cost, not frame rate — an idle board is paced to 30fps deliberately, so fps would
+    read ~30 on a fast machine and prove nothing. Packed into the existing columns since the table has no
+    spare ones: `turns` = median ms ×10, `level` = device pixels ÷1e4 (Mpx×100, fits the ≤1000 policy check),
+    `cause` = ok/slow/bad bucket. Safe because `events.kind` has **no CHECK constraint** — only length limits
+    (`docs/leaderboard-setup.md`), so a new kind inserts fine.
+  - **"Does lag drive players away?"** panel joins each player's perf sample to their first-run outcome by
+    `client_id` (`firstRuns()` now carries `client`), so lag vs L1 drop-off is measurable rather than assumed.
+  - **Verifying the dashboard here:** headless Chromium has no route to Supabase (`Failed to fetch`). Fetch
+    the rows over the shell proxy with curl, then `addInitScript` a `window.fetch` shim that returns them —
+    that runs the real page code against real data. Both new panels render clean with no page errors.
+  - **What the current data says** (167 players, 598 events, Jul 23–25): 39% clear L1; of the 61% who don't,
+    **90% leave no ending event and 86 of 92 last under a minute** — they quit at the board, not to
+    difficulty. Fairy Ring 25.6% L1 clear vs Honey Fungus 53.1% while being picked 1.8× more often (Fairy
+    Ring started on 0 energy — the +10⚡ buff targets exactly this). Energy is 55% of deaths (median 21
+    turns); abandons and water deaths cluster at 6–7 turns. 69% play one run; D1 return 5%.
+
 - **PERF round 2+3: capped render resolution, right-sized the light buffer, and paced an idle board.**
   The first substrate fix was not enough because **all of that profiling was done at 1280×720 — the
   friendliest case there is.** A frame does ~7 FULL-SCREEN passes (background fill, two substrate blits,

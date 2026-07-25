@@ -124,6 +124,7 @@ function firstRuns(rows) {
     });
     if (end && (end.level || 1) - 1 > maxClear) maxClear = (end.level || 1) - 1;   // died on L>=2 => cleared L1
     out.push({
+      client: cid,
       species: start.species || '—', startMs: Date.parse(start.created_at), startLevel: start.level || 1,
       maxClear: maxClear, clearedL1: maxClear >= 1, leftMid: !end,
       endCause: end ? end.cause : null, turns: end ? (end.turns || 0) : null,
@@ -208,7 +209,111 @@ function retentionPanel(rows) {
     spRows.map(function (r) { return '<tr><td>' + esc(spName(r.sp)) + '</td><td>' + r.n + '</td><td>' + r.clr + '%</td><td>' + r.left + '%</td></tr>'; }).join('') +
     '</tbody></table></section>';
 
+  html += jul25Panel(fr);
+  html += lagPanel(rows, fr);
   return html;
+}
+
+// ---- Jul 25: the three deploys, and what moved --------------------------------
+// Deliberately three cohorts rather than one before/after, because the changes went out at
+// different times and pull on different things: PLAY should lift the clear rate (single-click
+// play + more starting resources), PERF should lift the sub-minute bounce IF lag was driving it.
+var JUL25 = [
+  { key: 'pre',  label: 'Before today',            from: 0,                                      to: Date.parse('2026-07-25T11:49:00Z') },
+  { key: 'perf1',label: '+ substrate perf fix',    from: Date.parse('2026-07-25T11:49:00Z'),     to: Date.parse('2026-07-25T12:16:00Z') },
+  { key: 'play', label: '+ 1-click play & buff',   from: Date.parse('2026-07-25T12:16:00Z'),     to: Date.parse('2026-07-25T13:13:00Z') },
+  { key: 'all',  label: '+ resolution cap & 30fps',from: Date.parse('2026-07-25T13:13:00Z'),     to: Infinity }
+];
+var MIN_COHORT = 30;    // below this, differences are noise — the panel says so rather than implying a trend
+
+function jul25Panel(fr) {
+  var cols = JUL25.map(function (c) {
+    var g = fr.filter(function (r) { return r.startMs >= c.from && r.startMs < c.to; });
+    var l1 = g.filter(function (r) { return r.startLevel === 1; });
+    var deaths = g.filter(function (r) { return r.turns != null && !r.clearedL1; }).map(function (r) { return r.turns; });
+    return {
+      label: c.label, n: g.length,
+      clr: g.length ? Math.round(g.filter(function (r) { return r.clearedL1; }).length / g.length * 100) : null,
+      bounce: g.length ? Math.round(g.filter(function (r) { return r.nEvents <= 1; }).length / g.length * 100) : null,
+      left: l1.length ? Math.round(l1.filter(function (r) { return !r.clearedL1 && r.leftMid; }).length / l1.length * 100) : null,
+      med: median(deaths), thin: g.length < MIN_COHORT
+    };
+  });
+  var th = cols.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('');
+  var row = function (name, pick, suf) {
+    return '<tr><td>' + name + '</td>' + cols.map(function (c) {
+      var v = pick(c);
+      if (v == null) return '<td class="muted">—</td>';
+      return '<td' + (c.thin ? ' class="muted"' : '') + '>' + v + (suf || '') + '</td>';
+    }).join('') + '</tr>';
+  };
+  var thin = cols.filter(function (c) { return c.n > 0 && c.thin; }).length;
+  return '<section><h2>Jul 25 deploys — did they move anything?</h2>' +
+    '<table><thead><tr><th>Metric</th>' + th + '</tr></thead><tbody>' +
+    row('New players', function (c) { return c.n; }) +
+    row('Cleared level 1', function (c) { return c.clr; }, '%') +
+    row('Instant bounce (1 event)', function (c) { return c.bounce; }, '%') +
+    row('Left mid-level-1', function (c) { return c.left; }, '%') +
+    row('Median turns at L1 death', function (c) { return c.med; }) +
+    '</tbody></table>' +
+    '<div class="note" style="margin-top:12px"><b>Two things to keep in mind.</b> ' +
+    '<b>(1) The itch build only changes when a new zip is uploaded</b> — until then these “after” ' +
+    'columns are almost entirely hosted-build traffic, so a flat result says nothing about the ' +
+    'players who are actually complaining. ' +
+    '<b>(2)</b> Cohorts under ' + MIN_COHORT + ' players are greyed out' +
+    (thin ? ' (' + thin + ' of these are)' : '') + ': with this few players a 10-point swing is noise. ' +
+    'What to watch: <i>Cleared level 1</i> for the play/balance changes (single-click play, +10⚡/+10W), ' +
+    'and <i>Instant bounce</i> for the perf work — if lag was driving people off in the first minute, ' +
+    'that is the number that should fall.</div></section>';
+}
+
+// ---- Does lag actually drive players away? -----------------------------------
+// Needs the `perf` event (kind 'perf'): turns = median frame cost in tenths of a ms,
+// level = device pixels in hundredths of a Mpx, cause = ok | slow | bad.
+function lagPanel(rows, fr) {
+  var perf = rows.filter(function (e) { return e.kind === 'perf'; });
+  if (!perf.length) {
+    return '<section><h2>Does lag drive players away?</h2><div class="note">' +
+      'No <code>perf</code> samples yet — the build that reports them has to be live, and each player ' +
+      'sends one about 90 rendered frames into their first level. Once data arrives this compares ' +
+      'frame cost against level-1 drop-off, which is the only way to actually test whether laggy ' +
+      'players are the ones leaving.</div></section>';
+  }
+  // one sample per player (the first), joined to that player's first run
+  var seen = {}, byClient = {};
+  perf.slice().sort(function (a, b) { return Date.parse(a.created_at) - Date.parse(b.created_at); })
+    .forEach(function (e) { if (!seen[e.client_id]) { seen[e.client_id] = 1; byClient[e.client_id] = e; } });
+  var runByClient = {};
+  rows.forEach(function (e) { if (e.kind === 'run_start' && !runByClient[e.client_id]) runByClient[e.client_id] = e; });
+
+  var buckets = { ok: [], slow: [], bad: [] };
+  Object.keys(byClient).forEach(function (cid) {
+    var b = byClient[cid].cause; if (buckets[b]) buckets[b].push(byClient[cid]);
+  });
+  var frByClient = {};
+  fr.forEach(function (r) { if (r.client) frByClient[r.client] = r; });
+
+  var label = { ok: 'Smooth (&lt;8ms/frame)', slow: 'Sluggish (8–20ms)', bad: 'Bad (&gt;20ms)' };
+  var body = ['ok', 'slow', 'bad'].map(function (b) {
+    var list = buckets[b]; if (!list.length) return '';
+    var ms = median(list.map(function (e) { return (e.turns || 0) / 10; }));
+    var mpx = median(list.map(function (e) { return (e.level || 0) / 100; }));
+    var runs = list.map(function (e) { return frByClient[e.client_id]; }).filter(Boolean);
+    var clr = runs.length ? Math.round(runs.filter(function (r) { return r.clearedL1; }).length / runs.length * 100) : null;
+    var left = runs.length ? Math.round(runs.filter(function (r) { return !r.clearedL1 && r.leftMid; }).length / runs.length * 100) : null;
+    var thin = list.length < 15;
+    var c = function (v, suf) { return v == null ? '<td class="muted">—</td>' : '<td' + (thin ? ' class="muted"' : '') + '>' + v + (suf || '') + '</td>'; };
+    return '<tr><td>' + label[b] + '</td><td>' + list.length + '</td><td>' + (ms == null ? '—' : ms + ' ms') +
+      '</td><td>' + (mpx == null ? '—' : mpx + ' Mpx') + '</td>' + c(clr, '%') + c(left, '%') + '</tr>';
+  }).join('');
+  return '<section><h2>Does lag drive players away?</h2>' +
+    '<table><thead><tr><th>Frame cost</th><th>Players</th><th>Median frame</th><th>Median canvas</th>' +
+    '<th>Cleared L1</th><th>Left mid-L1</th></tr></thead><tbody>' +
+    (body || '<tr><td colspan="6" class="muted">—</td></tr>') + '</tbody></table>' +
+    '<div class="note" style="margin-top:12px">Frame cost is measured, not inferred — and it is cost, ' +
+    'not frame rate, because an idle board is paced to 30fps deliberately, so fps would read ~30 even ' +
+    'on a fast machine. If the “Bad” row is both sizeable and drops out of level 1 more often than ' +
+    '“Smooth”, lag is a real cause of early churn; if the rows behave alike, it is not.</div></section>';
 }
 
 function render(rows) {
