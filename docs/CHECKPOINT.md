@@ -551,14 +551,33 @@ Both menus are dark, on-theme, with glowing green borders.
     the tray on a portrait phone — that's fine, `enter(0)` runs synchronously inside `onDone`, in the same task
     that removes the overlay, so no frame is ever painted with the tray open over a visible map.
 
-- **Analytics: Jul-25 deploy cohorts + a `perf` event to test whether lag drives early churn.**
-  - `docs/analytics.html` gains **"Jul 25 deploys — did they move anything?"**: four cohorts split on the
-    actual deploy times (pre / +substrate fix 11:49 / +1-click play & starter buff 12:16 / +resolution cap &
-    30fps pacing 13:13), comparing new players, L1 clear, instant bounce (1 event) and left-mid-L1.
-    Cohorts under `MIN_COHORT` (30) render greyed out and the panel says so — **the day's cohorts are 2/5/1
-    players, i.e. pure noise**, and it must not be read as "the fixes did nothing". It also states the thing
-    that invalidates naive reading: **the itch build only changes when a new zip is uploaded**, so the "after"
-    columns are hosted-build traffic until then.
+- **Analytics: the Jul-25 panel is now ONE before/after split, and the `perf` instrument is confirmed
+  working (but nobody is running the build that has it).**
+  - **Panel collapsed to two cohorts** (owner request): split at **11:49 UTC** (`JUL25_SPLIT`, the substrate
+    perf-fix rebuild `0c2a8bd`), everything after bundled into one "after". The four per-deploy cohorts it
+    replaced were 2/5/1 players — **slicing an already-small day into quarters just multiplied the noise**;
+    bundling buys the largest "after" the data can give (16 players as of 14:45 UTC). The cost is attribution:
+    a move belongs to the day, not to any one change, and the note says so. Two cohorts make the delta the
+    point, so there's now a **Change** column (points for rates), greyed whenever either side is under
+    `MIN_COHORT` (30). Earlier commits today (Magic Mushroom art/copy, Dev-button removal) fall in "before".
+  - **The `perf` instrument works — verified, not assumed.** `scratchpad/verify-perfevent.mjs` intercepts the
+    Supabase POSTs (nothing reaches the real DB) and drives rAF by hand, because headless throttles rAF to
+    ~1–2 fps so 90 rendered frames would otherwise take a minute: hook `window.requestAnimationFrame` to
+    queue callbacks and step them at +34ms (past the 30fps idle gate). **Hook it only AFTER the level starts**
+    — the loading screen animates on rAF, so stealing callbacks during boot stalls it at 0%. Emits exactly one
+    well-formed row. (The frame cost it reports in headless is absurd — software rasterisation — which is why
+    this env can measure *whether* it fires, never *what* real machines see.)
+  - **So the production zero is real and it means something:** ~50 min after the perf build went live
+    (commit 13:43 UTC, Pages a few min later) there were 6 players / 7 run_starts and **0 perf rows**. If those
+    were on Pages you'd expect ~one row each. Read: essentially all traffic is the **itch** build, which
+    predates every fix today — the perf work, single-click play, the starter buff, the 1200-Spore Magic
+    Mushroom and the carousel fix are all sitting on Pages reaching nobody. **A fresh itch upload gates all
+    of it**, and until then this panel's "after" column cannot say anything about the complaining players.
+  - **Traffic shape Jul 24 vs Jul 25** (same window 00:00–14:20 UTC): run_starts 86 → 59 (−31%), players
+    53 → 34, new players 52 → 29 (−44%). But the whole deficit is overnight: 00:00–11:00 was 72 → 23 runs
+    (−68%) while **11:00–14:20 was 14 → 36 (+157%)**. Nothing deployed today can explain it (all deploys land
+    after the shortfall) — it's day-3 discovery decay, and new players falling much faster than sessions is
+    exactly that signature.
   - **New `perf` event** (`main.js _perfSample`): median frame COST over the first ~90 rendered frames of a
     session, logged once. Cost, not frame rate — an idle board is paced to 30fps deliberately, so fps would
     read ~30 on a fast machine and prove nothing. Packed into the existing columns since the table has no

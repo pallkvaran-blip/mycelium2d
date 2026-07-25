@@ -214,15 +214,15 @@ function retentionPanel(rows) {
   return html;
 }
 
-// ---- Jul 25: the three deploys, and what moved --------------------------------
-// Deliberately three cohorts rather than one before/after, because the changes went out at
-// different times and pull on different things: PLAY should lift the clear rate (single-click
-// play + more starting resources), PERF should lift the sub-minute bounce IF lag was driving it.
+// ---- Jul 25: before vs after today's updates ----------------------------------
+// ONE split, at the first of the day's deploys, with everything after it bundled together.
+// (An earlier version split the day into four per-deploy cohorts. Slicing an already-small
+// day into quarters just multiplied the noise; bundling buys the biggest "after" sample the
+// data can give. The cost is attribution — a move here belongs to the day, not to one change.)
+var JUL25_SPLIT = Date.parse('2026-07-25T11:49:00Z');   // substrate perf fix (rebuild 0c2a8bd)
 var JUL25 = [
-  { key: 'pre',  label: 'Before today',            from: 0,                                      to: Date.parse('2026-07-25T11:49:00Z') },
-  { key: 'perf1',label: '+ substrate perf fix',    from: Date.parse('2026-07-25T11:49:00Z'),     to: Date.parse('2026-07-25T12:16:00Z') },
-  { key: 'play', label: '+ 1-click play & buff',   from: Date.parse('2026-07-25T12:16:00Z'),     to: Date.parse('2026-07-25T13:13:00Z') },
-  { key: 'all',  label: '+ resolution cap & 30fps',from: Date.parse('2026-07-25T13:13:00Z'),     to: Infinity }
+  { key: 'pre',  label: 'Before (everything to 11:49 UTC)', from: 0, to: JUL25_SPLIT },
+  { key: 'post', label: 'After today’s updates', from: JUL25_SPLIT, to: Infinity }
 ];
 var MIN_COHORT = 30;    // below this, differences are noise — the panel says so rather than implying a trend
 
@@ -239,32 +239,49 @@ function jul25Panel(fr) {
       med: median(deaths), thin: g.length < MIN_COHORT
     };
   });
-  var th = cols.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('');
-  var row = function (name, pick, suf) {
-    return '<tr><td>' + name + '</td>' + cols.map(function (c) {
+  var th = cols.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '<th>Change</th>';
+  // With only two cohorts the delta is the whole point, so show it — greyed whenever either
+  // side is too thin to support it, and only for rates (a headcount delta is meaningless here).
+  var thinAny = cols.some(function (c) { return c.n > 0 && c.thin; }) || cols.some(function (c) { return !c.n; });
+  var row = function (name, pick, suf, delta) {
+    var cells = cols.map(function (c) {
       var v = pick(c);
       if (v == null) return '<td class="muted">—</td>';
       return '<td' + (c.thin ? ' class="muted"' : '') + '>' + v + (suf || '') + '</td>';
-    }).join('') + '</tr>';
+    }).join('');
+    var d = '<td class="muted">—</td>';
+    if (delta) {
+      var a = pick(cols[0]), b = pick(cols[1]);
+      if (a != null && b != null) {
+        var diff = b - a;
+        var unit = suf === '%' ? (Math.abs(diff) === 1 ? ' pt' : ' pts') : '';
+        d = '<td' + (thinAny ? ' class="muted"' : '') + '>' + (diff > 0 ? '+' : '') + diff + unit + '</td>';
+      }
+    }
+    return '<tr><td>' + name + '</td>' + cells + d + '</tr>';
   };
-  var thin = cols.filter(function (c) { return c.n > 0 && c.thin; }).length;
-  return '<section><h2>Jul 25 deploys — did they move anything?</h2>' +
+  return '<section><h2>Before vs after today’s updates</h2>' +
     '<table><thead><tr><th>Metric</th>' + th + '</tr></thead><tbody>' +
     row('New players', function (c) { return c.n; }) +
-    row('Cleared level 1', function (c) { return c.clr; }, '%') +
-    row('Instant bounce (1 event)', function (c) { return c.bounce; }, '%') +
-    row('Left mid-level-1', function (c) { return c.left; }, '%') +
-    row('Median turns at L1 death', function (c) { return c.med; }) +
+    row('Cleared level 1', function (c) { return c.clr; }, '%', true) +
+    row('Instant bounce (1 event)', function (c) { return c.bounce; }, '%', true) +
+    row('Left mid-level-1', function (c) { return c.left; }, '%', true) +
+    row('Median turns at L1 death', function (c) { return c.med; }, '', true) +
     '</tbody></table>' +
-    '<div class="note" style="margin-top:12px"><b>Two things to keep in mind.</b> ' +
-    '<b>(1) The itch build only changes when a new zip is uploaded</b> — until then these “after” ' +
-    'columns are almost entirely hosted-build traffic, so a flat result says nothing about the ' +
-    'players who are actually complaining. ' +
-    '<b>(2)</b> Cohorts under ' + MIN_COHORT + ' players are greyed out' +
-    (thin ? ' (' + thin + ' of these are)' : '') + ': with this few players a 10-point swing is noise. ' +
-    'What to watch: <i>Cleared level 1</i> for the play/balance changes (single-click play, +10⚡/+10W), ' +
-    'and <i>Instant bounce</i> for the perf work — if lag was driving people off in the first minute, ' +
-    'that is the number that should fall.</div></section>';
+    '<div class="note" style="margin-top:12px">Split at <b>11:49 UTC</b>, the first of the day’s ' +
+    'deploys (the substrate perf fix). Everything after it — the resolution cap, 30fps idle pacing, ' +
+    'single-click play, +10⚡/+10W starting resources — is bundled into one “after”, so a move here ' +
+    'belongs to the day as a whole and can’t be pinned on any one change. Earlier commits today ' +
+    '(Magic Mushroom art and copy, removing the Dev buttons) fall in “before”. ' +
+    '<b>Two things to keep in mind.</b> ' +
+    '<b>(1) The itch build only changes when a new zip is uploaded</b> — until then “after” is ' +
+    'almost entirely hosted-build traffic, so a flat result says nothing about the players who are ' +
+    'actually complaining. ' +
+    '<b>(2)</b> A cohort under ' + MIN_COHORT + ' players is greyed out' +
+    (thinAny ? ' (one here is)' : '') + ': at that size a 10-point swing is noise. ' +
+    'What to watch: <i>Cleared level 1</i> for the play and balance changes, and <i>Instant bounce</i> ' +
+    'for the perf work — if lag was driving people off in the first minute, that is the number that ' +
+    'should fall.</div></section>';
 }
 
 // ---- Does lag actually drive players away? -----------------------------------
