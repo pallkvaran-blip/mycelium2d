@@ -161,7 +161,7 @@ export const SPECIES = [
     special: 'magic', magicEvery: 4,
     specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
     name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
-    blurb: 'A golden-capped dung-loving fungus steeped in folklore and psychedelia, and the winner of the Reddit community vote. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air.',
+    blurb: 'Psilocybe cubensis — the "golden teacher" — is a dung-loving mushroom named for Cuba, where it was first described, and now found all over the planet. Steeped in folklore and psychedelia, it bruises deep indigo and won the Reddit community vote in a landslide. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air. Nobody\'s quite sure where the cards come from. Best not ask — just go with the flow.',
     res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
     hand: [
       { name: 'Rhizomorph Lance', count: 10 },

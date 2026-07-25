@@ -1224,6 +1224,8 @@
       color:var(--ss-mint); font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
     .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }
     .ss-win-cards .ss-card { flex:0 0 auto; width:min(60vw,168px); }
+    /* Reveal popup: a little breathing room between the message and the species card. */
+    #ssSpeciesUnlocked .ss-win-cards { margin-top:clamp(8px,1.8vh,18px); }
     .ss-win-btn { margin-top:clamp(8px,2vh,20px); cursor:pointer; font-family:var(--ss-sans); font-weight:600;
       font-size:clamp(14px,1.9vw,17px); letter-spacing:.05em; color:#fff; background:#000; border:1px solid rgba(255,255,255,0.3);
       border-radius:10px; padding:12px 40px; box-shadow:0 6px 22px -6px rgba(0,0,0,0.9);

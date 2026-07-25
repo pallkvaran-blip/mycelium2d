@@ -1225,6 +1225,8 @@
       color:var(--ss-mint); font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
     .ss-win-cards { display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }
     .ss-win-cards .ss-card { flex:0 0 auto; width:min(60vw,168px); }
+    /* Reveal popup: a little breathing room between the message and the species card. */
+    #ssSpeciesUnlocked .ss-win-cards { margin-top:clamp(8px,1.8vh,18px); }
     .ss-win-btn { margin-top:clamp(8px,2vh,20px); cursor:pointer; font-family:var(--ss-sans); font-weight:600;
       font-size:clamp(14px,1.9vw,17px); letter-spacing:.05em; color:#fff; background:#000; border:1px solid rgba(255,255,255,0.3);
       border-radius:10px; padding:12px 40px; box-shadow:0 6px 22px -6px rgba(0,0,0,0.9);
@@ -1490,8 +1492,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "39r4am";
-globalThis.__BUILD__ = "local 07-25 08:19";
+window.__ASSET_VER = "1qny7ut";
+globalThis.__BUILD__ = "local 07-25 08:35";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3463,7 +3465,7 @@ const SPECIES = [
     special: 'magic', magicEvery: 4,
     specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',
     name: 'Magic Mushroom', latin: 'Psilocybe cubensis', img: 'psilocybe-cubensis',
-    blurb: 'A golden-capped dung-loving fungus steeped in folklore and psychedelia, and the winner of the Reddit community vote. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air.',
+    blurb: 'Psilocybe cubensis — the "golden teacher" — is a dung-loving mushroom named for Cuba, where it was first described, and now found all over the planet. Steeped in folklore and psychedelia, it bruises deep indigo and won the Reddit community vote in a landslide. This colony defies the rules of the game itself: every 4 turns a card magically appears in your hand, conjured out of thin air. Nobody\'s quite sure where the cards come from. Best not ask — just go with the flow.',
     res: { energy: 14, water: 40, phosphorus: 10 },   // 40W/10P as requested; a little Energy so the opening grows can actually be played
     hand: [
       { name: 'Rhizomorph Lance', count: 10 },
@@ -16258,7 +16260,12 @@ function touchRockface() {
   try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
   if (state.log) state.log('You brushed an old troll stone... it stirs, and a new species is revealed.', 'good');
   const sp = SPECIES.find((s) => s.id === 'psilocybe');
-  if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
+  if (sp) {
+    // Collapse the hand carousel while the reveal popup is up — its layout clears the
+    // COLLAPSED strip, so an expanded hand would overlap the card + Continue button.
+    if (ui && ui.setHandOpen) ui.setHandOpen(false);
+    showSpeciesUnlocked({ species: sp, onContinue: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); uiDirty = true; } });
+  }
 }
 
 // Draw the rockface with a soft pulsing magical aura so the player is drawn to touch it.

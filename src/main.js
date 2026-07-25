@@ -1739,7 +1739,12 @@ function touchRockface() {
   try { logEvent('unlock_rock', { species: 'psilocybe', level: currentLevel }); } catch (_) {}
   if (state.log) state.log('You brushed an old troll stone... it stirs, and a new species is revealed.', 'good');
   const sp = SPECIES.find((s) => s.id === 'psilocybe');
-  if (sp) showSpeciesUnlocked({ species: sp, onContinue: () => { uiDirty = true; } });
+  if (sp) {
+    // Collapse the hand carousel while the reveal popup is up — its layout clears the
+    // COLLAPSED strip, so an expanded hand would overlap the card + Continue button.
+    if (ui && ui.setHandOpen) ui.setHandOpen(false);
+    showSpeciesUnlocked({ species: sp, onContinue: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); uiDirty = true; } });
+  }
 }
 
 // Draw the rockface with a soft pulsing magical aura so the player is drawn to touch it.
