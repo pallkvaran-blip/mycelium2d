@@ -520,6 +520,25 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **PERF: fixed the cause of "laggy / makes my computer hot".** `SubstrateRenderer.draw`
+  (`render/substrate.js`) blitted BOTH world-sized buffers **in full, every frame**, anchored at the world
+  origin, and let the canvas clip the overflow. The buffers are world-sized (~2600×3660 = **9.5 Mpx each**), so
+  each frame sampled **~19 Mpx of source to fill a ~1 Mpx viewport**, with the destination quad ~7× the
+  viewport area. A CPU profile put those **two calls at 96% of total frame time** (`drawImage` alone was ~90%
+  of all render self-time). Now the buffer's on-screen rect is intersected with the viewport and mapped back to
+  source pixels, so cost scales with what's visible: **source 19 → 2.56 Mpx, destination 13.75 → 1.85 Mpx**
+  (≈1:1 with the viewport), aggregate frame time 620 → 464 ms in headless software raster (which inflates fixed
+  costs — a ~1 Mpx blit is trivial on a real GPU). Output is pixel-identical: same world→screen mapping, minus
+  the off-screen remainder. Verified with `scratchpad/verify-substrate.mjs` — no void pixels at min zoom, 2.5×
+  zoom, or with the camera jammed into any corner.
+  **Measuring this in headless needs care:** rAF is throttled to ~1 fps so fps/CPU% readings are worthless —
+  hook `requestAnimationFrame`, *wait* for the loop to enqueue, then invoke the callback synchronously N times
+  to time real frames. Per-call `drawImage` timings are noisy (canvas ops flush lazily); trust the pixel counts.
+  **Still outstanding (deliberately not changed):** the loop renders the full scene on EVERY rAF with no dirty
+  check or frame cap, so a turn-based board that isn't moving still costs 60 full redraws/second. A frame cap
+  (~40 fps) would cut steady-state load further at some cost to the smoothness of the ambient drift — owner's
+  call.
+
 - **Release prep: Dev buttons removed for a fresh itch cut.** `config.dev.enabled:false` (gates
   "Dev: win level") + removed the picker `#ssDev`/`#ssDevUnlock` buttons and their listeners; the `.ss-dev`
   CSS, the invisible `#dev` hash route and the `window.__game` test hooks all stay. Rebuilt dist and verified

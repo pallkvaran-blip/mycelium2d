@@ -1493,8 +1493,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1uif7g1";
-globalThis.__BUILD__ = "local 07-25 11:03";
+window.__ASSET_VER = "1cdpc49";
+globalThis.__BUILD__ = "local 07-25 11:37";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -9266,14 +9266,34 @@ class SubstrateRenderer {
   rebake() { this._bakeBase(); this.dynamicDirty = true; }
 
   // --- draw (per frame) ----------------------------------------------------
+  // Blit only the VISIBLE SLICE of the two world-sized buffers.
+  //
+  // This used to hand the whole buffer to drawImage at world scale and let the canvas clip
+  // the overflow. The buffers are the size of the world (~2600x3660 = 9.5Mpx each), so every
+  // frame sampled ~19Mpx of source to fill a ~1Mpx viewport — profiling put these two calls
+  // at 96% of total frame time, which is what made the game lag and heat machines up. Now the
+  // buffer's on-screen rect is intersected with the viewport and mapped back to source pixels,
+  // so the work scales with what you can actually see. Output is pixel-identical: same
+  // world->screen mapping, just without the off-screen remainder.
   draw(ctx, camera, time) {
     if (this.dynamicDirty) this._bakeDynamic();
+    const z = camera.zoom;
     const tl = camera.worldToScreen(0, 0);
-    const W = this.base.width * camera.zoom;
-    const H = this.base.height * camera.zoom;
+    const bw = this.base.width, bh = this.base.height;
+    if (!(z > 0) || bw <= 0 || bh <= 0) return;
+
+    let sx = (0 - tl.x) / z, sy = (0 - tl.y) / z;
+    let ex = (camera.viewW - tl.x) / z, ey = (camera.viewH - tl.y) / z;
+    // one pixel of slop so edge filtering can't show a seam at the viewport border
+    sx = Math.max(0, Math.floor(sx) - 1); sy = Math.max(0, Math.floor(sy) - 1);
+    ex = Math.min(bw, Math.ceil(ex) + 1); ey = Math.min(bh, Math.ceil(ey) + 1);
+    const sw = ex - sx, sh = ey - sy;
+    if (sw <= 0 || sh <= 0) return;                  // buffers entirely off-screen
+
+    const dx = tl.x + sx * z, dy = tl.y + sy * z, dw = sw * z, dh = sh * z;
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.base, 0, 0, this.base.width, this.base.height, tl.x, tl.y, W, H);
-    ctx.drawImage(this.dyn, 0, 0, this.dyn.width, this.dyn.height, tl.x, tl.y, W, H);
+    ctx.drawImage(this.base, sx, sy, sw, sh, dx, dy, dw, dh);
+    ctx.drawImage(this.dyn, sx, sy, sw, sh, dx, dy, dw, dh);
   }
 
   // =========================================================================
