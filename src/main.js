@@ -904,6 +904,14 @@ function begin(newState) {
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => forceFruitAbandon(),
+    // Frame-pacing diagnostic: which signal (if any) is holding the loop at full rate.
+    paceInfo: () => ({
+      idleFps: IDLE_FPS, fullRate: needsFullRate(lastTime), renders: _renderCount, frameCalls: _frameCalls,
+      sinceInputMs: Math.round(performance.now() - _lastInputAt),
+      camFocus: !!camFocus, draftIntro: !!draftIntro, winCele: !!winCele,
+      previewFruit: !!previewFruit, tutorial: !!(tutorial && tutorial.active),
+      revealing: (() => { try { return !!anyRevealing(lastTime); } catch (_) { return null; } })(),
+    }),
     // Tutorial hooks (used by the future "replay tutorial" button + tests).
     startTutorial: () => beginTutorial(),
     resetTutorial: () => { try { localStorage.removeItem(TUT_KEY); } catch (_) {} },
@@ -1427,6 +1435,7 @@ function fireAim(a) {
 
 function setupInput() {
   canvas.addEventListener('pointerdown', (e) => {
+    noteInput();
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     canvas.setPointerCapture(e.pointerId);
     if (pointers.size === 1) {
@@ -1441,6 +1450,7 @@ function setupInput() {
     }
   });
   canvas.addEventListener('pointermove', (e) => {
+    noteInput();
     if (pointers.has(e.pointerId)) {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size >= 2) {
@@ -1466,6 +1476,7 @@ function setupInput() {
     }
   });
   const endPointer = (e) => {
+    noteInput();   // release often starts an animation (grow, play) — stay at full rate
     const had = pointers.has(e.pointerId);
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchDist = 0;
@@ -1544,6 +1555,7 @@ function setupInput() {
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
   canvas.addEventListener('wheel', (e) => {
+    noteInput();
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     camera.zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
@@ -1597,6 +1609,33 @@ function resize() {
 // with a half-drawn canvas (the symptom we chased). A bad frame is logged once
 // (console + in-game Log) and the loop keeps animating.
 let _lastFrameErr = null;
+
+// --- frame pacing ------------------------------------------------------------
+// This is a TURN-BASED game: most of the time the board is completely still, yet the loop
+// redrew the whole scene (~7 full-screen passes) 60 times a second, which is a big part of
+// why machines ran hot even once the frames themselves got cheaper. So an idle board renders
+// at IDLE_FPS instead.
+//
+// The catch with a flat cap is that it makes dragging and animations feel worse, so we only
+// pace when nothing is happening: any recent pointer input, a camera tween, a strand growing,
+// the draft intro, the win celebration, a fruit preview or the tutorial all keep full rate.
+// Gameplay is unaffected either way — the world only advances via tickWorld() on player
+// actions, never per frame.
+const IDLE_FPS = 30;
+const INPUT_GRACE_MS = 450;      // after the last pointer event, stay at full rate this long
+let _lastInputAt = -1e9;
+let _lastRenderAt = -1e9;
+let _frameCalls = 0;   // loop invocations that reached the pacing decision (diagnostic)
+function noteInput() { _lastInputAt = performance.now(); }
+
+function needsFullRate(time) {
+  if (performance.now() - _lastInputAt < INPUT_GRACE_MS) return true;
+  if (camFocus || draftIntro || winCele || previewFruit) return true;
+  if (tutorial && tutorial.active) return true;
+  try { if (anyRevealing(time)) return true; } catch (_) {}
+  return false;
+}
+
 function frame(time) {
   // The species picker runs before the first run is created; there's nothing to
   // render until then, so idle the loop (keeps requesting frames) while state is null.
@@ -1607,8 +1646,16 @@ function frame(time) {
   // stall the tab. These ids are only in the DOM while their menu is up, and never during
   // the run-start reveal handshake or the death celebration, so gameplay still renders.
   if (document.getElementById('titleScreen') || document.getElementById('speciesSelect') || document.getElementById('loadoutSelect')) { requestAnimationFrame(frame); return; }
+  _frameCalls++;
+  // Pace an idle board (see the notes above). The slack keeps a 60Hz display landing on every
+  // other frame instead of drifting to every third.
+  if (!needsFullRate(time) && time - _lastRenderAt < (1000 / IDLE_FPS) - 4) {
+    requestAnimationFrame(frame); return;
+  }
+  const dtFrames = _lastRenderAt > -1e8 ? Math.min(4, (time - _lastRenderAt) / (1000 / 60)) : 1;
+  _lastRenderAt = time;
   try {
-    renderFrame(time);
+    renderFrame(time, dtFrames);
   } catch (e) {
     const sig = (e && (e.stack || e.message)) || String(e);
     if (sig !== _lastFrameErr) {
@@ -1620,7 +1667,9 @@ function frame(time) {
   requestAnimationFrame(frame);
 }
 
-function renderFrame(time) {
+let _renderCount = 0;
+function renderFrame(time, dtFrames = 1) {
+  _renderCount++;
   lastTime = time;
   updateCamFocus(time);         // advance the tutorial's smooth camera "zoom-in" tween
   updateDraftIntro(time);       // advance the food-pile → card-draft intro (sets ghost/icon alphas)
@@ -1688,7 +1737,7 @@ function renderFrame(time) {
   drawNematodes(time);
   drawTraps(time);
   drawTargetingCursor(time);
-  drawFloaters(time);           // floating "+N⚡" energy labels over piles (on top of the map)
+  drawFloaters(time, dtFrames);  // floating "+N⚡" energy labels over piles (on top of the map)
   if (winCele) drawWinCelebration(time);   // win: mushrooms fruit + spores drift off on the wind
 
   if (uiDirty) { ui.update(); uiDirty = false; }
@@ -2412,7 +2461,7 @@ function floodFoodCells(sub, col0, row0) {
 // Draw + age the floating energy labels (screen space, on top of the map). Pins the
 // base device-pixel transform + source-over compositing so a prior world-space /
 // 'lighter' pass can't fling the text off-screen or composite it away.
-function drawFloaters(time) {
+function drawFloaters(time, dtFrames = 1) {
   if (!floaters.length) return;
   ctx.save();
   const dpr = renderScale();     // must match resize()'s transform, budget cap included
@@ -2422,7 +2471,10 @@ function drawFloaters(time) {
   ctx.textAlign = 'left';
   for (let i = floaters.length - 1; i >= 0; i--) {
     const f = floaters[i];
-    f.age += 1;                                   // frame-based aging (immune to rAF timestamp jumps)
+    // Ages in 60fps-frame units, advanced by however many elapsed: still immune to rAF
+    // timestamp jumps (dtFrames is clamped), but a paced idle board can't stretch the label's
+    // wall-clock lifetime the way a flat `+= 1` would.
+    f.age += dtFrames;
     const p = f.age / f.life;
     if (p >= 1) { floaters.splice(i, 1); continue; }
     const alpha = p < 0.08 ? p / 0.08 : 1 - (p - 0.08) / 0.92;   // near-instant fade-in, gentle ease-out

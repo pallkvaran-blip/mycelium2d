@@ -156,7 +156,7 @@ export const SPECIES = [
     // render/species_select.js showSpeciesUnlocked). `unlock:'?'` keeps it in the communal
     // mystery tier; `revealBy:'rockface'` routes its reveal through the rock, not level clears
     // (see isRevealed). `special:'magic'` wires the conjure-a-card power (engine/cards.js).
-    id: 'psilocybe', vibe: 'spore', unlock: '?', cost: 2000,
+    id: 'psilocybe', vibe: 'spore', unlock: '?', cost: 1200,
     revealBy: 'rockface', revealHint: 'Touch rockface',
     special: 'magic', magicEvery: 4,
     specialText: 'Every 4 turns, a random basic or event card magically appears in your hand. Cannot be sped up.',

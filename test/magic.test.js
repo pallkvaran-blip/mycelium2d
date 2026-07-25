@@ -21,7 +21,7 @@ console.log('# Magic Mushroom: species definition');
   ok(!!m, 'Magic Mushroom (psilocybe) is in the roster');
   ok(m.name === 'Magic Mushroom' && m.latin === 'Psilocybe cubensis', 'named correctly');
   ok(m.special === 'magic' && m.magicEvery === 4, 'special:magic, every 4 turns');
-  ok(m.unlock === '?' && m.cost === 2000, "in the '?' tier, costs 2000 spores");
+  ok(m.unlock === '?' && m.cost === 1200, "in the '?' tier, costs 1200 spores");
   ok(m.revealBy === 'rockface' && m.revealHint === 'Touch rockface', 'revealed by rockface, hint = Touch rockface');
   ok(m.res && m.res.water === 40 && m.res.phosphorus === 10, 'starts 40 W / 10 P');
   const total = m.hand.reduce((n, h) => n + h.count, 0);

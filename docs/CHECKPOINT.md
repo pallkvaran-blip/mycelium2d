@@ -520,6 +520,38 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **PERF round 2+3: capped render resolution, right-sized the light buffer, and paced an idle board.**
+  The first substrate fix was not enough because **all of that profiling was done at 1280×720 — the
+  friendliest case there is.** A frame does ~7 FULL-SCREEN passes (background fill, two substrate blits,
+  building the light buffer, lighting's multiply + additive bloom, atmosphere), so cost tracks the canvas's
+  DEVICE-pixel count, which was unbounded. Measured ms/frame (headless software raster, so treat as
+  directional and noisy): 0.92 Mpx → 267, 2.07 → 1300, 3.69 → 2357, 5.18 (Retina) → 1583.
+  - **`renderScale()` (main.js)** keeps the DPR cap at 2 and adds a **~2.3 Mpx budget**: past that we render
+    fewer pixels than the display has and let the browser upscale (CSS size unchanged, so layout is
+    identical). Only the painterly world softens — HUD/cards/text are DOM and stay crisp. 720p, 1080p and
+    phones are under the budget and untouched. `drawFloaters` shares the same function so its pinned
+    transform still matches.
+  - **`lighting.compose` buffer is sized in RENDER pixels, not CSS pixels.** Capping the canvas alone cut 38%
+    of the pixels on 1440p but only 12% of the time, because this buffer stayed full-size — it was then
+    *larger* than the canvas it lights, and it is composited twice. A `setTransform` keeps every drawing call
+    inside compose in CSS units. Retina went 1583 → 964 → **559** ms/frame across the two fixes.
+  - **Idle frame pacing (`IDLE_FPS` = 30).** This is a turn-based game: the board is usually still, yet the
+    loop redrew everything 60×/s. `needsFullRate()` keeps full 60 for recent pointer input (450ms grace),
+    camera tweens, growing strands (`anyRevealing`), the draft intro, win celebration, fruit preview and the
+    tutorial — so only a genuinely idle board is paced. Gameplay is unaffected: the world advances via
+    `tickWorld()` on player actions, never per frame. The one **frame-counted** animation (the floating
+    "+N⚡" labels) now ages by elapsed 60fps-frame units (clamped), or a paced board would have stretched
+    their lifetime.
+  - `window.__game.paceInfo()` reports `{idleFps, fullRate, renders, frameCalls, ...}` — added because this
+    was genuinely hard to measure. **Traps for the next attempt:** headless throttles rAF to ~1fps, so fps and
+    CPU% readings are worthless; counting `clearRect` cannot distinguish a skipped frame (≈9 calls per
+    render); and when you hook rAF and drive callbacks yourself, you must advance the synthetic timestamps at
+    **double** rate or consecutive game frames land 33ms apart and the pacing correctly renders them all —
+    that produced two false FAILs and one false PASS before the render:loop-call ratio settled it
+    (idle 0.5, dragging 1.0).
+  - **Magic Mushroom now costs 1200 Spores** (was 2000); `test/magic.test.js` asserts the price, so it caught
+    the stale value.
+
 - **Cards now play on a SINGLE click, and the two starter species open with more resources.**
   - `ui.js onCardTap` plays immediately instead of only highlighting. Worth knowing why this was safe: the
     old **"Play Card" button no longer exists** (`this.el.handplay` is never assigned, so the footer code that
@@ -670,7 +702,7 @@ Both menus are dark, on-theme, with glowing green borders.
     mid-field cell on level 1 — only while unrevealed; `checkRockfaceTouch()` (per frame) fires
     `touchRockface()` when any strand node reaches it → `revealSpecies('psilocybe')` + `showSpeciesUnlocked`
     overlay (win-screen look, grown "UNLOCKED" wordmark), then the level continues. Once revealed the rock is
-    never placed again. Then it's a normal Spore purchase: **`cost:2000`** (`unlockCost` honours `sp.cost`).
+    never placed again. Then it's a normal Spore purchase: **`cost:1200`** (`unlockCost` honours `sp.cost`).
   - **Picker:** first tile of the communal `'?'` row; while unrevealed it shows a "✦ Touch rockface" hint
     inside the "?" tile (`mysteryCard(hint)` + `.ss-hint` CSS).
   - **Stats:** starts 40 W / 10 P (+14 Energy so the opening grows are playable — the requested 40/10 alone
