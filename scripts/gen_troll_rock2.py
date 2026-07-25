@@ -104,10 +104,26 @@ def cutout(im, dest, T=None, pad=8, feather=1.2, close=9, margin=22):
     seeds=[(1,1),(w-2,1),(1,h-2),(w-2,h-2),(w//2,1),(w//2,h-2),(1,h//2),(w-2,h//2)]
     for s in seeds:
         if wl[s[0],s[1]]==0: ImageDraw.floodfill(work,s,128,thresh=0)
-    alpha=Image.new("L",(w,h),255); ap=alpha.load(); wl=work.load()
-    for y in range(h):
-        for x in range(w):
-            if wl[x,y]==128: ap[x,y]=0
+    # SOLID = rock + its interior holes (everything the border-flood did NOT reach)
+    solid = Image.eval(work, lambda v: 0 if v == 128 else 255)
+    # keep ONLY the largest/central blob — drops disconnected debris (e.g. loose grass-skirt
+    # fragments) that would otherwise float beside the rock.
+    sp = solid.load(); sx=sy=cnt=0
+    for y in range(0,h,3):
+        for x in range(0,w,3):
+            if sp[x,y]==255: sx+=x; sy+=y; cnt+=1
+    if cnt:
+        cx,cy = sx//cnt, sy//cnt
+        if sp[cx,cy]!=255:                       # snap seed onto the blob if centroid lands in a hole
+            best=None
+            for yy in range(0,h,2):
+                for xx in range(0,w,2):
+                    if sp[xx,yy]==255:
+                        d=(xx-cx)**2+(yy-cy)**2
+                        if best is None or d<best[0]: best=(d,xx,yy)
+            if best: cx,cy=best[1],best[2]
+        ImageDraw.floodfill(solid,(cx,cy),128,thresh=0)   # main blob -> 128
+    alpha = Image.eval(solid, lambda v: 255 if v==128 else 0)
     alpha=alpha.filter(ImageFilter.GaussianBlur(feather))
     out=im.convert("RGBA"); out.putalpha(alpha)
     bb=out.getbbox()
