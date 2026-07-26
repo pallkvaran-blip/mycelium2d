@@ -421,6 +421,58 @@ function applyFilter() {
   render(SOURCE_FILTER === 'all' ? ALL_ROWS : ALL_ROWS.filter(function (e) { return srcOf(e) === SOURCE_FILTER; }));
 }
 
+// ---- player return (the "are people coming back?" view) ---------------------------------
+// Day boundary is shifted -6h so a US evening gaming session (peaks 00:00–06:00 UTC) stays
+// inside ONE day instead of being split across the UTC midnight — otherwise a single night's
+// player looks like they "returned" the next day. 'anon' is the localStorage-blocked fallback
+// id (many real devices collapsed into one), so it's excluded from per-player retention.
+var DAY_SHIFT_MS = 6 * 3600 * 1000;
+function dayKey(ts) { return new Date(Date.parse(ts) - DAY_SHIFT_MS).toISOString().slice(0, 10); }
+function retention(rows) {
+  var daysByClient = {}, runsByClient = {};
+  rows.forEach(function (e) {
+    if (!e.client_id || e.client_id === 'anon' || !e.created_at) return;
+    (daysByClient[e.client_id] = daysByClient[e.client_id] || {})[dayKey(e.created_at)] = 1;
+    if (e.kind === 'run_start') runsByClient[e.client_id] = (runsByClient[e.client_id] || 0) + 1;
+  });
+  var firstDay = {};
+  Object.keys(daysByClient).forEach(function (c) { firstDay[c] = Object.keys(daysByClient[c]).sort()[0]; });
+  // per-day new vs returning
+  var perDay = {};
+  Object.keys(daysByClient).forEach(function (c) {
+    Object.keys(daysByClient[c]).forEach(function (d) {
+      var p = perDay[d] = perDay[d] || { total: 0, ret: 0 };
+      p.total++; if (firstDay[c] !== d) p.ret++;
+    });
+  });
+  var days = Object.keys(perDay).sort();
+  // cohorts
+  var multiDay = Object.keys(daysByClient).filter(function (c) { return Object.keys(daysByClient[c]).length >= 2; });
+  var loyal = Object.keys(daysByClient).filter(function (c) { return Object.keys(daysByClient[c]).length >= 3; });
+  var hooked = Object.keys(daysByClient).filter(function (c) {
+    return Object.keys(daysByClient[c]).length >= 2 || (runsByClient[c] || 0) >= 5;
+  });
+  return { days: days, perDay: perDay, multiDay: multiDay.length, loyal: loyal.length, hooked: hooked.length };
+}
+function retentionSection(rows) {
+  var r = retention(rows);
+  if (!r.days.length) return '';
+  var maxTot = Math.max.apply(null, r.days.map(function (d) { return r.perDay[d].total; }).concat([1]));
+  var rowsHtml = r.days.slice(-21).map(function (d) {
+    var p = r.perDay[d], newN = p.total - p.ret;
+    var pct = p.total ? Math.round(p.ret / p.total * 100) : 0;
+    // one stacked bar: returning (bright) beside new (dim), scaled to the busiest day
+    var w = Math.round(p.total / maxTot * 100);
+    var retW = p.total ? Math.round(p.ret / p.total * 100) : 0;
+    return '<div class="row"><div class="k">' + esc(d) + '</div>' +
+      '<div class="track" style="width:' + w + '%"><div class="fill" style="width:' + retW + '%"></div></div>' +
+      '<div class="v">' + p.ret + '<span class="muted" style="font-weight:400">/' + p.total + '</span></div></div>';
+  }).join('');
+  return '<section><h2>Do players come back? (returning per day)</h2>' +
+    '<div class="muted" style="margin:-4px 0 10px">Bar length = players that day; bright part = ones seen on an earlier day. ' +
+    'Watch the bright segment grow over the next weeks — that\'s the hook taking.</div>' + rowsHtml + '</section>';
+}
+
 function render(rows) {
   statusEl.textContent = rows.length + (SOURCE_FILTER === 'all' ? '' : ' of ' + ALL_ROWS.length) +
     ' events' + (SOURCE_FILTER === 'all' ? '' : ' · ' + SOURCE_FILTER) + ' · ' + new Date().toLocaleString();
@@ -454,10 +506,14 @@ function render(rows) {
       'events tag themselves <code>pages</code> / <code>itch</code> / <code>dev</code>. Existing rows stay ' +
       '<code>legacy</code>. No rush: the game and this page both work before it runs.<pre>' + esc(MIGRATE_SQL) + '</pre></div>';
   }
+  var ret = retention(rows);
   html += '<div class="grid">' +
     tile(nPlayers, 'Players') + tile(Object.keys(sessions).length, 'Sessions') +
-    tile(starts.length, 'Runs started') + tile(wins.length, 'Wins') +
-    tile(deaths.length, 'Deaths') + tile(buys.length, 'Purchases') + '</div>';
+    tile(starts.length, 'Runs started') + tile(buys.length, 'Purchases') +
+    tile(ret.hooked, 'Hooked (2+ days / 5+ runs)') + tile(ret.loyal, 'Loyal (3+ days)') + '</div>';
+
+  // The signal being watched for campaign-mode go/no-go: are people returning at all?
+  html += retentionSection(rows);
 
   // Run-length: distribution of the level a run ENDED on (how far people get)
   var endLevels = countBy(ends, function (e) { return e.level; });
