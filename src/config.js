@@ -464,7 +464,7 @@ export const CONFIG = {
     // updateDevWinBtn) AND the picker's Dev quick-start / Dev: unlock all buttons
     // (render/species_select.js). ON for owner testing — set to FALSE before cutting an
     // itch zip, and confirm with scratchpad/verify-nodev.mjs.
-    enabled: true,
+    enabled: false,
     cheatEnergy: 100,
     cheatSpores: 100,
   },
