@@ -58,7 +58,8 @@ Tap-Root Rhizomorph→**Sinker Rhizomorph**, Hyphal Imbibition→**Hyphal Osmosi
 reflavored to phosphate. Names are load-bearing: each moved in lockstep across cards.json, the
 `EFFECTS`/`DRAW_ENGINES`/`ARCHIVED` maps in `engine/cards.js`, tests, art slugs, `cards-data.js` + `dist/`;
 61/61 tests + a 20-check per-card engine pass green — see §9. — earlier: **first-run tutorial:** a scripted
-10-step B&W popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run —
+10-step B&W popup walkthrough (`src/render/tutorial.js`) fires on EVERY NEW of a real species run (once per
+browser until Jul 26) —
 zooms the camera to each subject, FORCES the first grow (click Apical Drive → drag; double-click until
 the Jul-25 one-click change), and shows
 FLUX-generated threat portraits (ant D / nematode B / a relatable moldy-bread trichoderma). Now with
@@ -533,6 +534,22 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **Subtitle typeface → MONOSPACE, and the tutorial now fires on every New.**
+  - `.li-sub` drops the italic serif for `ui-monospace` (owner: the serif "looks too AI"). It also justifies
+    itself: the copy is the developers heckling the player — "You officially broke the game", "Somewhere, a
+    spreadsheet is screaming" — meta-commentary rather than in-world narration, so a console/system voice
+    fits. Sized down a step (17px cap, was 21px) because mono runs wider per character; the longest line
+    (L75, 64 chars) still holds ONE row at 1280px. Colour unchanged at `#c0281f`.
+  - **Tutorial on every New** — see §10 for the full rules (level-1 only, flag consumed on any run start,
+    `mycelium.tutorial.v1` no longer a gate).
+  - `level_intro.js` now **logs** rather than silently swallowing a throw from `onDismiss`/`onDone`. Nothing
+    was actually throwing — but that catch would have hidden a broken deferred tutorial completely, and it
+    cost real time chasing a test flake that looked exactly like one.
+  - **Two test traps this turn, both worth remembering.** (1) Dismissing the level intro with a corner click
+    is FLAKY in Playwright; press **Enter** (bound on `document`). A missed click leaves the intro up, the
+    deferred tutorial never starts, and it reads as a product bug. (2) `#tutorial` / `.tut-pop` existing
+    proves nothing about whether the tutorial is RUNNING — assert `window.__game.paceInfo().tutorial`.
 
 - **Escalation subtitle is dark red now, and the Dev buttons are BACK — properly gated this time.**
   - `.li-sub` colour amber → **`#c0281f`** with a red glow (owner call). Kept at the light end of "dark red":
@@ -3506,17 +3523,28 @@ Both menus are dark, on-theme, with glowing green borders.
   - Also: give **one browser per case** in multi-case scripts; a third full boot in a reused browser times out
     waiting for the species picker.
 
-- **First-run tutorial is ONCE-PER-BROWSER (localStorage `mycelium.tutorial.v1`), and marked seen the
-  INSTANT level 1 starts.** `main.js`: `onNew` arms `tutorialPending = !tutorialSeen()`; `begin()` calls
-  `markTutorialSeen()` at line ~818 — *before* the tutorial is even visible (it's deferred behind the level
-  intro). So (a) it only arms from **New**, never **Old/continue**; (b) any prior start — even a few-second
-  one that never reached the tutorial — consumes the flag. On **itch this bites**: itch reuses the SAME
-  game-hosting subdomain across re-uploads, so a browser that touched an earlier upload already has the flag
-  set and the new build correctly skips the tutorial. This was the "tutorial didn't play on my first itch
-  play" report — NOT a bug (verified end-to-end with fresh localStorage: New→pick→dismiss level intro →
-  `#tutorial` appears, flag flips to "1"). Replay it via the gear/settings menu → **"Replay tutorial"**
-  (`onReplayTutorial`, ungated) or clear site storage / private window. If a localStorage read throws
-  (sandboxed iframe/private mode), `tutorialSeen()` returns false → tutorial fires EVERY time, never never.
+- **The tutorial fires on EVERY press of New** (changed Jul 26 — it used to be once per browser).
+  `main.js onNew` sets `tutorialPending = true` unconditionally; `begin()` consumes it. Rules worth knowing:
+  - Armed only by **New**, never **Old/continue** — which is why repeating it is cheap: a returning player
+    presses Old, so New reads as "start me over" and a repeat walkthrough costs them nothing.
+  - It only RUNS when the run begins on **level 1**. A New run that picks a higher-tier colony starts on 3/5
+    (`START_LEVEL_SHIFT`), where the tutorial's scripted props (an injected Apical Drive, a guaranteed duff
+    pile) don't belong. But the flag is **consumed on any real run start**, level 1 or not — leaving it armed
+    would fire the walkthrough on some LATER level-1 run (die → picker → pick a level-1 colony), which is
+    baffling mid-session.
+  - **`localStorage mycelium.tutorial.v1` is still written but gates NOTHING.** `tutorialSeen()` is gone.
+    Keep the key for "has this browser ever seen it" (analytics, a future first-run-only tweak); do not
+    reintroduce it as a condition.
+  - This retires the old itch non-bug: itch reuses ONE game-hosting subdomain across re-uploads, so a browser
+    that touched an earlier upload already had the flag and the tutorial was correctly skipped forever. That
+    was the "tutorial didn't play on my first itch play" report. New now always shows it.
+  - Also replayable from the gear/settings menu → **"Replay tutorial"** (`onReplayTutorial`, ungated).
+  - **Testing trap:** dismiss the level intro with **`keyboard.press('Enter')`**, not a corner click. The
+    tutorial is DEFERRED behind the intro's `onDone`, so if the click misses, the intro stays up and the
+    tutorial never starts — which looks exactly like "the feature is broken". A corner click proved flaky in
+    Playwright; Enter/Escape/Space are bound on `document` and can't be intercepted. Equally, don't assert on
+    `#tutorial` / `.tut-pop` existing — assert `window.__game.paceInfo().tutorial`, which reflects the live
+    controller. See `scratchpad/verify-tutfont.mjs`.
 
 - **`growMyceliumTitle` (reusable wordmark) is sized by its CONTAINER, and races the font load.** Used in 4
   places now — title screen, high-scores heading (`.hs-title-myc`), species picker, and the level intro

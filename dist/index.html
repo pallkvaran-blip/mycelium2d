@@ -1461,14 +1461,20 @@
        part of the title, not as a third section. */
     .li-head { display:flex; flex-direction:column; align-items:center; gap:clamp(4px,1vh,12px); }
     /* The taunt shown on levels where the threat rate steps up (species.js escalationNote).
-       Dark blood red against the black card so it reads as a threat, not as body copy. Kept
-       at the light end of "dark red" (#c0281f, not #8b0000) because a true dark red on pure
-       black loses too much contrast to read at a glance; the faint red glow does the rest. */
-    .li-sub { font-family:var(--serif); font-style:italic; font-weight:600;
-      font-size:clamp(13px,2.3vw,21px); line-height:1.3; text-wrap:balance;
-      color:#c0281f; max-width:min(660px,90vw);
+       MONOSPACE, not the italic serif it started as: the copy is the developers heckling the
+       player ("You officially broke the game", "Somewhere, a spreadsheet is screaming") —
+       meta-commentary, not in-world narration — so a console/system voice fits it, and the
+       serif italic read as generic AI slop. Sizes down a step because mono runs wider per
+       character (the longest line must still hold one row on desktop).
+       Dark blood red against the black card so it reads as a threat, kept at the light end of
+       "dark red" (#c0281f, not #8b0000) because a true dark red on pure black loses too much
+       contrast to read at a glance; the faint red glow does the rest. */
+    .li-sub { font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+      font-style:normal; font-weight:600; letter-spacing:0.01em;
+      font-size:clamp(11.5px,1.85vw,17px); line-height:1.4; text-wrap:balance;
+      color:#c0281f; max-width:min(700px,92vw);
       text-shadow:0 0 20px rgba(190,30,22,0.45); }
-    @media (max-width:720px) { .li-sub { font-size:clamp(12px,3.4vw,16px); } }
+    @media (max-width:720px) { .li-sub { font-size:clamp(11px,2.9vw,14px); } }
     .li-threats { display:flex; align-items:flex-start; justify-content:center;
       gap:clamp(16px,4.4vw,46px); flex-wrap:wrap; }
     .li-threat { display:flex; flex-direction:column; align-items:center; gap:clamp(10px,1.6vh,16px); }
@@ -1520,8 +1526,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "ltsvro";
-globalThis.__BUILD__ = "local 07-26 10:27";
+window.__ASSET_VER = "u15wyu";
+globalThis.__BUILD__ = "local 07-26 10:43";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -14812,14 +14818,17 @@ function showLevelIntro(opts) {
     unbind();
     // Let the caller restore its HUD FIRST, while the overlay is still fully opaque, so
     // any layout change lands behind black and the fade reveals a settled screen.
-    try { onDismiss && onDismiss(); } catch (_) {}
+    // Log rather than swallow: a throw in here used to vanish, which hid a real failure in
+    // the deferred tutorial for a whole session (the walkthrough half-rendered while main.js
+    // still believed no tutorial was running).
+    try { onDismiss && onDismiss(); } catch (e) { console.error('[levelIntro] onDismiss failed:', e); }
     root.classList.add('li-out');            // CSS fades opacity 1 -> 0
     let removed = false;
     const finishOut = () => {
       if (removed) return; removed = true;
       killMyc();
       root.remove();
-      try { onDone && onDone(); } catch (_) {}
+      try { onDone && onDone(); } catch (e) { console.error('[levelIntro] onDone failed:', e); }
     };
     root.addEventListener('transitionend', (e) => { if (e.target === root && e.propertyName === 'opacity') finishOut(); });
     setTimeout(finishOut, 1700);             // fallback if transitionend never fires
@@ -15147,16 +15156,21 @@ const REVEAL_END_WAIT = 2800;          // hard cap (ms) so a stuck reveal can ne
 const REVEAL_START_GRACE = 450;        // wait this long for a grow's reveal to START before giving up on it (a non-grow death then shows after this brief beat)
 const networkRenderers = new Map();
 
-// First-run tutorial: a scripted popup walkthrough that fires ONCE, the first
-// time the player presses NEW. `tutorialPending` is armed by the title's New
-// button (if never seen) and consumed by begin() on level 1; `tutorial` is the
-// live controller while it runs. See render/tutorial.js.
+// Tutorial: a scripted popup walkthrough that fires on EVERY press of NEW, not just the
+// first (owner call — a returning player presses Old, so New reads as "I want to start over"
+// and a repeat walkthrough costs them nothing; it also fixes the itch problem where one
+// game subdomain is reused across uploads, so a browser that touched an earlier build could
+// never see the tutorial again). `tutorialPending` is armed by the title's New button and
+// consumed by begin(); `tutorial` is the live controller while it runs. See render/tutorial.js.
+//
+// TUT_KEY is no longer a gate — nothing reads it to decide whether to fire. It's kept written
+// so "has this browser ever seen the tutorial?" stays answerable (analytics, a future
+// first-run-only tweak) and so clearing site data behaves as players expect.
 let tutorial = null;
 let tutorialPending = false;
 let tutorialDevForce = false;          // TEMP dev title button: fire the tutorial (random species) without marking it seen
 let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
 const TUT_KEY = 'mycelium.tutorial.v1';
-function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
 function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch (_) {} }
 
 let uiDirty = true;
@@ -15787,7 +15801,7 @@ function showMainMenu() {
     // New Game collects the player's high-score name (pre-filled with their last one).
     playerName: loadPlayerName(),
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-    onNew: (name) => { savePlayerName(name); resetProgress(); clearResume(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onNew: (name) => { savePlayerName(name); resetProgress(); clearResume(); tutorialPending = true; showPicker(); },
     // "Old" = continue last game: if a mid-run level was saved (tab closed mid-run),
     // re-enter that level (fresh map, saved deck); otherwise fall back to the picker.
     onContinue: () => {
@@ -16065,17 +16079,20 @@ function begin(newState) {
   updateLevelChip();
   updateDevWinBtn();
   placeRockface();   // Magic Mushroom unlock object — level 1 only, until it's been revealed
-  // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
-  // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
-  // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
-  // it seen — so it never interferes with testing the real first-run flow. It is
-  // DEFERRED behind the level intro (below) so its camera zooms / popups only begin
-  // once the black "Level 1" screen clears and the map is on show.
+  // Tutorial: fires on every NEW → level 1 of a real species run (not puzzle/dev). The TEMP
+  // dev title button (tutorialDevForce) fires it too, but WITHOUT marking it seen — so it
+  // never interferes with testing the real New flow. It is DEFERRED behind the level intro
+  // (below) so its camera zooms / popups only begin once the black "Level 1" screen clears
+  // and the map is on show.
   let afterIntro = null;
-  if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
+  if ((tutorialPending || tutorialDevForce) && state.mode !== 'puzzle') {
     const devForced = tutorialDevForce;
+    // Consume the flag on ANY real run start, not only a level-1 one. A New run that picks a
+    // higher-tier colony begins on level 3+ (START_LEVEL_SHIFT), where the tutorial's scripted
+    // props don't belong — but leaving it armed would fire the walkthrough on some LATER
+    // level-1 run (die → picker → pick a level-1 colony), which is baffling mid-session.
     tutorialPending = false; tutorialDevForce = false;
-    if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
+    if (currentLevel === 1 && chosenSpecies && state.config.cards && state.config.cards.enabled) {
       if (!devForced) markTutorialSeen();
       afterIntro = () => beginTutorial();
     }

@@ -104,14 +104,17 @@ export function showLevelIntro(opts) {
     unbind();
     // Let the caller restore its HUD FIRST, while the overlay is still fully opaque, so
     // any layout change lands behind black and the fade reveals a settled screen.
-    try { onDismiss && onDismiss(); } catch (_) {}
+    // Log rather than swallow: a throw in here used to vanish, which hid a real failure in
+    // the deferred tutorial for a whole session (the walkthrough half-rendered while main.js
+    // still believed no tutorial was running).
+    try { onDismiss && onDismiss(); } catch (e) { console.error('[levelIntro] onDismiss failed:', e); }
     root.classList.add('li-out');            // CSS fades opacity 1 -> 0
     let removed = false;
     const finishOut = () => {
       if (removed) return; removed = true;
       killMyc();
       root.remove();
-      try { onDone && onDone(); } catch (_) {}
+      try { onDone && onDone(); } catch (e) { console.error('[levelIntro] onDone failed:', e); }
     };
     root.addEventListener('transitionend', (e) => { if (e.target === root && e.propertyName === 'opacity') finishOut(); });
     setTimeout(finishOut, 1700);             // fallback if transitionend never fires

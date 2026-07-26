@@ -63,16 +63,21 @@ const REVEAL_END_WAIT = 2800;          // hard cap (ms) so a stuck reveal can ne
 const REVEAL_START_GRACE = 450;        // wait this long for a grow's reveal to START before giving up on it (a non-grow death then shows after this brief beat)
 const networkRenderers = new Map();
 
-// First-run tutorial: a scripted popup walkthrough that fires ONCE, the first
-// time the player presses NEW. `tutorialPending` is armed by the title's New
-// button (if never seen) and consumed by begin() on level 1; `tutorial` is the
-// live controller while it runs. See render/tutorial.js.
+// Tutorial: a scripted popup walkthrough that fires on EVERY press of NEW, not just the
+// first (owner call — a returning player presses Old, so New reads as "I want to start over"
+// and a repeat walkthrough costs them nothing; it also fixes the itch problem where one
+// game subdomain is reused across uploads, so a browser that touched an earlier build could
+// never see the tutorial again). `tutorialPending` is armed by the title's New button and
+// consumed by begin(); `tutorial` is the live controller while it runs. See render/tutorial.js.
+//
+// TUT_KEY is no longer a gate — nothing reads it to decide whether to fire. It's kept written
+// so "has this browser ever seen the tutorial?" stays answerable (analytics, a future
+// first-run-only tweak) and so clearing site data behaves as players expect.
 let tutorial = null;
 let tutorialPending = false;
 let tutorialDevForce = false;          // TEMP dev title button: fire the tutorial (random species) without marking it seen
 let tutorialDuff = null;               // world centre of the tutorial's guaranteed yellow pile
 const TUT_KEY = 'mycelium.tutorial.v1';
-function tutorialSeen() { try { return localStorage.getItem(TUT_KEY) === '1'; } catch (_) { return false; } }
 function markTutorialSeen() { try { localStorage.setItem(TUT_KEY, '1'); } catch (_) {} }
 
 let uiDirty = true;
@@ -703,7 +708,7 @@ function showMainMenu() {
     // New Game collects the player's high-score name (pre-filled with their last one).
     playerName: loadPlayerName(),
     // The tutorial runs ONCE — the first time NEW is pressed (arm it here if unseen).
-    onNew: (name) => { savePlayerName(name); resetProgress(); clearResume(); tutorialPending = !tutorialSeen(); showPicker(); },
+    onNew: (name) => { savePlayerName(name); resetProgress(); clearResume(); tutorialPending = true; showPicker(); },
     // "Old" = continue last game: if a mid-run level was saved (tab closed mid-run),
     // re-enter that level (fresh map, saved deck); otherwise fall back to the picker.
     onContinue: () => {
@@ -981,17 +986,20 @@ function begin(newState) {
   updateLevelChip();
   updateDevWinBtn();
   placeRockface();   // Magic Mushroom unlock object — level 1 only, until it's been revealed
-  // First-run tutorial: fires ONCE, on the first NEW → level 1 of a real species
-  // run (not puzzle/dev). Consume the pending flag either way so it never re-fires.
-  // The TEMP dev title button (tutorialDevForce) fires it too, but WITHOUT marking
-  // it seen — so it never interferes with testing the real first-run flow. It is
-  // DEFERRED behind the level intro (below) so its camera zooms / popups only begin
-  // once the black "Level 1" screen clears and the map is on show.
+  // Tutorial: fires on every NEW → level 1 of a real species run (not puzzle/dev). The TEMP
+  // dev title button (tutorialDevForce) fires it too, but WITHOUT marking it seen — so it
+  // never interferes with testing the real New flow. It is DEFERRED behind the level intro
+  // (below) so its camera zooms / popups only begin once the black "Level 1" screen clears
+  // and the map is on show.
   let afterIntro = null;
-  if ((tutorialPending || tutorialDevForce) && currentLevel === 1 && state.mode !== 'puzzle') {
+  if ((tutorialPending || tutorialDevForce) && state.mode !== 'puzzle') {
     const devForced = tutorialDevForce;
+    // Consume the flag on ANY real run start, not only a level-1 one. A New run that picks a
+    // higher-tier colony begins on level 3+ (START_LEVEL_SHIFT), where the tutorial's scripted
+    // props don't belong — but leaving it armed would fire the walkthrough on some LATER
+    // level-1 run (die → picker → pick a level-1 colony), which is baffling mid-session.
     tutorialPending = false; tutorialDevForce = false;
-    if (chosenSpecies && state.config.cards && state.config.cards.enabled) {
+    if (currentLevel === 1 && chosenSpecies && state.config.cards && state.config.cards.enabled) {
       if (!devForced) markTutorialSeen();
       afterIntro = () => beginTutorial();
     }

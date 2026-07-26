@@ -103,10 +103,13 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   (an archived card never renders, so no dup). Card art displays in a 3:2 `object-fit:cover` box.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
-- **First-run tutorial fires ONCE PER BROWSER** (localStorage `mycelium.tutorial.v1`), armed only by **New**
-  (not Old) and marked seen the instant level 1 starts. itch reuses one game subdomain across re-uploads, so
-  a browser that touched an earlier build won't see it again — that's the "tutorial didn't play on itch"
-  non-bug. Replay via gear menu → "Replay tutorial". Full detail in CHECKPOINT §10.
+- **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,
+  never **Old**, and only when the run actually begins on **level 1** (a higher-tier colony starting on 3/5
+  skips it, but still consumes the flag so it can't ambush a later level-1 run). localStorage
+  `mycelium.tutorial.v1` is still written but **no longer gates anything** — keep it for "has this browser
+  ever seen it", don't reintroduce it as a condition. This also retires the old itch non-bug where one reused
+  game subdomain meant a returning browser could never see the tutorial again. Replay via gear menu →
+  "Replay tutorial". Full detail in CHECKPOINT §10.
 - **`growMyceliumTitle(container,{word})` (`render/mycelium_title.js`) is the reusable wordmark** — title
   screen, high-scores heading, species picker, and the level intro (`.li-level`, spelled "LEVEL ONE"…).
   It sizes to its container (`min(H·0.72, width-cap)`), so resize the container to scale it; box metrics
