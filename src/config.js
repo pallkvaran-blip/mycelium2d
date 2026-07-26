@@ -460,7 +460,11 @@ export const CONFIG = {
   },
 
   dev: {
-    enabled: false,             // gates the in-game "Dev: win level" button (off for release)
+    // Gates every visible dev shortcut: the in-game "Dev: win level" button (main.js
+    // updateDevWinBtn) AND the picker's Dev quick-start / Dev: unlock all buttons
+    // (render/species_select.js). ON for owner testing — set to FALSE before cutting an
+    // itch zip, and confirm with scratchpad/verify-nodev.mjs.
+    enabled: true,
     cheatEnergy: 100,
     cheatSpores: 100,
   },

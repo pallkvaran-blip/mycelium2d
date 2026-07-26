@@ -15,6 +15,7 @@
 
 import { SPECIES, LOCKED_TIERS, isRevealed, isPlayable, unlockCost, sporesBalance, purchaseSpecies, loadProgress, devUnlockAll, levelFromUnlock, startLevelRange, defaultStartLevel, loadDeathCarry } from '../species.js';
 import { CARD_DATA } from '../cards-data.js';
+import { CONFIG } from '../config.js';
 import { cardSlug, SPORE_ICON } from './ui.js';
 import { logEvent } from '../net_scores.js';
 import { growMyceliumTitle } from './mycelium_title.js';
@@ -287,9 +288,20 @@ function mysteryCard(hint) {
 export function showSpeciesSelect({ onPick, onDev }) {
   let progress = loadProgress();
   const root = el('div'); root.id = 'speciesSelect';
+  // Dev shortcuts (owner testing only), GATED on config.dev.enabled — the same flag as the
+  // in-game "Dev: win level" button, so cutting a release is one flag flip. They were once
+  // deleted outright for the itch cut, which meant re-typing them to test again; don't do
+  // that. `scratchpad/verify-nodev.mjs` is the release-clean check and is EXPECTED to fail
+  // while the flag is on.
+  const devOn = !!(CONFIG.dev && CONFIG.dev.enabled);
+  const devBtns = devOn
+    ? '<button class="ss-dev" id="ssDev" type="button" title="Skip selection and start the default dev run (300 of each resource, 5 of each card)">Dev quick-start ▸</button>' +
+      '<button class="ss-dev ss-dev2" id="ssDevUnlock" type="button" title="DEV: reveal + unlock every species">Dev: unlock all ▸</button>'
+    : '';
   root.innerHTML =
     '<div class="ss-title" aria-label="Mycelium"></div>' +
     '<div class="ss-console" role="dialog" aria-label="Select your species">' +
+      devBtns +
       '<header class="ss-head">' +
         '<div class="ss-headrow"><h1>Select your species</h1>' +
           '<span class="ss-spores ss-wallet" id="ssWallet" title="Spores — earned by finishing levels, spent to unlock species"></span></div>' +
@@ -355,6 +367,10 @@ export function showSpeciesSelect({ onPick, onDev }) {
 
   updateWallet();
   renderLocked();
+  if (devOn) {
+    root.querySelector('#ssDev').addEventListener('click', () => { hide(); onDev && onDev(); });
+    root.querySelector('#ssDevUnlock').addEventListener('click', () => { devUnlockAll(); refresh(); });
+  }
   return { hide, root };
 }
 

@@ -534,6 +534,27 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Escalation subtitle is dark red now, and the Dev buttons are BACK — properly gated this time.**
+  - `.li-sub` colour amber → **`#c0281f`** with a red glow (owner call). Kept at the light end of "dark red":
+    a true `#8b0000` on the pure-black intro card loses too much contrast to read at a glance.
+  - **`config.dev.enabled` = `true`**, and it now gates BOTH the in-game "Dev: win level" button AND the
+    picker's Dev quick-start / Dev: unlock all. Those picker buttons had been **deleted outright** for the itch
+    cut, so getting them back meant re-typing them; they're restored behind the flag (`devOn` in
+    `species_select.js`, which now imports `CONFIG`) so the next release cut is one flag flip.
+    `scratchpad/verify-nodev.mjs` is the release-clean check and is **expected to FAIL while the flag is on** —
+    that's it doing its job, not a regression.
+  - **Found a real latent bug doing this: `clearsFor(progress, level)` did not fall back to storage**, while
+    its sibling `isPurchased` always did. So `isRevealed(sp)` / `isPlayable(sp)` called with ONE argument read
+    0 clears and reported every level-gated species as locked no matter what the player had cleared — which is
+    why "Dev: unlock all" appeared to do nothing (it correctly wrote `clears`/`purchased`; the read lied).
+    Every in-game caller happens to pass `progress`, so it never surfaced in play. Fixed by giving `clearsFor`
+    the same `progress || loadProgress()` fallback; existing two-arg callers are unaffected, and a fresh
+    profile still shows only the 2 free species. The trap worth remembering: it answered "locked" silently
+    instead of throwing.
+  - Verified in the built game (`scratchpad/verify-devred.mjs`): both picker buttons visible, unlock-all takes
+    the roster 2 → 12 playable, "Dev: win level" present in-game, and the level-7 subtitle computes to
+    `rgb(192, 40, 31)` — red-dominant, dark rather than alert-bright, no amber cast left.
+
 - **Top three unlock tiers repriced: 10 000 / 25 000 / 50 000 → 7 500 / 10 000 / 15 000** (`species.js
   TIER_COST`; full table now L1 1 000 · L3 5 000 · L5 7 500 · L7 10 000 · L10 15 000). Those prices assumed
   players routinely reached level 10–15, which the compounding threat curve no longer permits: **spore income

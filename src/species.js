@@ -467,8 +467,15 @@ export function devUnlockAll() {
   saveProgress(p);
   return p;
 }
+// Clears recorded for a level. `progress` is optional and falls back to storage — matching
+// isPurchased, which always did. Without that fallback, calling isRevealed(sp) / isPlayable(sp)
+// with no progress argument read 0 clears and so reported EVERY level-gated species as locked,
+// however much the player had cleared. Every in-game caller happens to pass progress, so this
+// was latent rather than visible, but the sibling functions disagreeing is a trap: it silently
+// answers "locked" instead of throwing. (Found while checking that "Dev: unlock all" works.)
 export function clearsFor(progress, level) {
-  return (progress && progress.clears && progress.clears[level]) || 0;
+  const p = progress || loadProgress();
+  return (p && p.clears && p.clears[level]) || 0;
 }
 // Record one more clear of a level; returns the updated progress.
 export function recordLevelCleared(level) {
