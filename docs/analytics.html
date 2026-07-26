@@ -85,11 +85,31 @@ var SETUP_SQL =
   "  and coalesce(level,0) between 0 and 1000 );\n" +
   "create policy events_read on public.events for select to anon using (true);";
 
+// Fetch EVERY row, in pages. PostgREST enforces a server-side row cap (`db-max-rows`,
+// 1000 on Supabase) that silently overrides any bigger `limit=` — so the old single
+// `limit=10000` request only ever returned the newest 1000 events. Past 1000 total that
+// means the oldest events vanish from every count AND the "N events" headline sticks at
+// 1000, which reads as "capped, not recording new ones" even though inserts are fine.
+// Page with offset/limit (each page still <=1000) until a short page ends the run.
+var PAGE_SIZE = 1000;
 function fetchEvents() {
-  statusEl.textContent = 'Loading…';
-  var url = URL_.replace(/\/+$/, '') + '/rest/v1/events?select=created_at,client_id,session_id,kind,species,level,cause,turns&order=created_at.desc&limit=10000';
-  return fetch(url, { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
-    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  var base = URL_.replace(/\/+$/, '') + '/rest/v1/events' +
+    '?select=created_at,client_id,session_id,kind,species,level,cause,turns&order=created_at.desc';
+  var all = [];
+  function page(from) {
+    statusEl.textContent = 'Loading… ' + (all.length || '') + (all.length ? ' events' : '');
+    var url = base + '&offset=' + from + '&limit=' + PAGE_SIZE;
+    return fetch(url, { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (chunk) {
+        if (!Array.isArray(chunk)) throw new Error('bad response');
+        all = all.concat(chunk);
+        // Stop on a short page (the last one) — or at a hard ceiling so a runaway can't hang.
+        if (chunk.length < PAGE_SIZE || all.length >= 500000) return all;
+        return page(from + PAGE_SIZE);
+      });
+  }
+  return page(0);
 }
 
 function bar(k, v, max, warn) {
