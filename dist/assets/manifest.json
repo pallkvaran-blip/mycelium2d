@@ -324,6 +324,54 @@
    "key": "troll",
    "file": "rockface/troll.png",
    "kind": "sprite"
+  },
+  {
+   "key": "rockform15",
+   "file": "rockform15.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform16",
+   "file": "rockform16.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform17",
+   "file": "rockform17.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform18",
+   "file": "rockform18.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform19",
+   "file": "rockform19.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform20",
+   "file": "rockform20.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform21",
+   "file": "rockform21.png",
+   "kind": "sprite",
+   "theme": "veined"
+  },
+  {
+   "key": "rockform22",
+   "file": "rockform22.png",
+   "kind": "sprite",
+   "theme": "veined"
   }
  ]
 }
