@@ -41,7 +41,20 @@ node --test test/*.js            # smoke + card tests (NOT `test/` — Node 22 t
   source. **All CSS lives in `index.html` `<style>`** (the build pulls it from there).
 - **`src/cards-data.js` is GENERATED** from `docs/cards.json` via
   `node scripts/gen-carddata.mjs`. Edit `cards.json`, regenerate, then rebuild — never
-  hand-edit `cards-data.js`.
+  hand-edit `cards-data.js`. Same deal for **`src/levels-data.js`** ← `docs/levels/*.json` via
+  `node scripts/gen-levels.mjs`.
+
+## Hand-authored levels (level editor)
+
+`docs/level-editor.html` (hosted at `<site>/level-editor.html`) is the owner's map-authoring tool:
+drag/rotate/resize the real assets onto a blank map, **▶ Test in game** to play the draft instantly
+(stashes it in localStorage, opens `index.html#level`), **Copy JSON** to hand it over. To wire a map
+into the campaign: drop the export in `docs/levels/`, `node scripts/gen-levels.mjs`, `node build.mjs`
+— a level whose `campaignLevel` is set replaces the procedural map for that number. Format + loader:
+`src/engine/level.js`; run seeding: `state.js createLevelState`; full notes in `docs/levels/README.md`
+and CHECKPOINT §9. Two things that bite: **rocks are never baked into cells** (they're a sprite list
+that `solidifyRock` stamps, so collision == the drawn art), and an authored map has **no guaranteed
+winnable corridor** — only the entry/goal channels are dug clear, so always playtest.
 
 ## Hard-won gotchas (see CHECKPOINT §10 for the full list)
 

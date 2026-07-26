@@ -37,6 +37,27 @@ export function seedAnts(substrate, config, rng, network) {
   return nests;
 }
 
+// Hand-authored maps (level editor): place nests at EXACTLY the columns the
+// designer dropped them on — no random search, no colony-distance rule. Same
+// nest shape + first retarget/trail stamp as seedAnts, so they behave
+// identically from turn 1.
+export function placeAntNests(substrate, config, cols) {
+  const a = config.ants;
+  const nests = (cols || []).map((c) => {
+    const col = Math.max(0, Math.min(substrate.cols - 1, c | 0));
+    const ctr = substrate.cellCenter(col, 0);
+    const nest = {
+      col, x: ctr.x, y: substrate.surfaceY,
+      hp: a.maxHp, maxHp: a.maxHp,
+      target: null, path: [], phase: 0, dormant: false,
+    };
+    retarget(substrate, nest);
+    return nest;
+  });
+  setTrailFields(substrate, nests);
+  return nests;
+}
+
 // Per-turn: each nest harvests its target food (retargeting when it's gone),
 // then we re-stamp the trail barrier and eat any strands a trail moved onto.
 export function stepAnts(state) {

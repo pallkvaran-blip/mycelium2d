@@ -10,9 +10,10 @@ import { makeRng } from './rng.js';
 import { generateSubstrate, Substrate } from './substrate.js';
 import { Network } from './network.js';
 import { seedTrichoderma, placeClouds } from './threats.js';
-import { seedAnts } from './ants.js';
-import { seedNematodes } from './nematodes.js';
+import { seedAnts, placeAntNests } from './ants.js';
+import { seedNematodes, placeNematodes } from './nematodes.js';
 import { buildPuzzle } from './puzzle.js';
+import { buildLevel, configForLevelDef } from './level.js';
 import { setByPath } from '../config.js';
 
 // Standard (procedural, random) run.
@@ -36,6 +37,30 @@ export function createState(config, seed) {
   const nematodes = seedNematodes(substrate, config, rng, network);
 
   return assembleState(config, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants, nematodes });
+}
+
+// HAND-AUTHORED level run (level editor / campaign): identical to createState in
+// every respect except that the geometry and the threat positions come from a
+// level definition instead of the generator. Same rules, same economy, same
+// carry-over — only the map is designed rather than rolled. `level` is a parsed
+// `mycelium-level` object (see engine/level.js).
+export function createLevelState(config, seed, level) {
+  const cfg = configForLevelDef(config, level);
+  const rng = makeRng(seed >>> 0 || 1);
+  const { substrate, spawns, startCol } = buildLevel(cfg, level);
+
+  const network = new Network(cfg);
+  network.seed(substrate, rng, startCol);
+
+  // Authored spawns: exactly what the designer placed, in the order they placed
+  // it. An empty list means that threat simply isn't on this map.
+  const clouds = placeClouds(substrate, spawns.clouds, cfg);
+  const ants = placeAntNests(substrate, cfg, spawns.ants);
+  const nematodes = placeNematodes(rng, spawns.nematodes);
+
+  const state = assembleState(cfg, rng, seed, substrate, [network], clouds, { mode: 'sandbox', ants, nematodes });
+  state.levelDef = level;                 // kept for debugging / the editor's playtest loop
+  return state;
 }
 
 // Fixed hand-authored PUZZLE run: reach the treasure chest. Builds its own world

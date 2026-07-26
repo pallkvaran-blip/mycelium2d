@@ -8,7 +8,9 @@
 // =============================================================================
 
 import { CONFIG } from './config.js';
-import { createState, createPuzzleState } from './engine/state.js';
+import { createState, createPuzzleState, createLevelState } from './engine/state.js';
+import { isLevel } from './engine/level.js';
+import { levelForNumber } from './levels-data.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
 import { tickWorld } from './engine/turn.js';
@@ -180,8 +182,30 @@ function configForLevel(level) {
   }
   return cfg;
 }
+// Level-editor PLAYTEST: `#level` boots straight into whatever map is open in
+// docs/level-editor.html — the editor stashes the JSON here before opening the
+// game — so a designer can play what they just drew with no rebuild. Null in
+// normal play, and it survives level-to-level so you can keep replaying the draft.
+const PLAYTEST_KEY = 'mycelium.editor.playtest';
+let playtestLevel = null;
+function loadPlaytestLevel() {
+  try {
+    const obj = JSON.parse(localStorage.getItem(PLAYTEST_KEY) || 'null');
+    return isLevel(obj) ? obj : null;
+  } catch (_) { return null; }
+}
+
+// The map for a campaign level: the playtest draft if one is loaded, else a
+// hand-authored level claiming this slot (src/levels-data.js, GENERATED from
+// docs/levels/*.json), else null → the procedural generator.
+function levelDefFor(n) {
+  return playtestLevel || levelForNumber(n);
+}
+
 function start(seed) {
-  begin(createState(configForLevel(currentLevel), seed));
+  const cfg = configForLevel(currentLevel);
+  const def = levelDefFor(currentLevel);
+  begin(def ? createLevelState(cfg, seed, def) : createState(cfg, seed));
 }
 function startRun() { start((Date.now() & 0x7fffffff) || 1); }
 
@@ -1725,6 +1749,7 @@ function renderFrame(time, dtFrames = 1) {
   drawRockPiles();              // lone boulders (gated) — over food/earth
   drawRockFormations();         // large AI rock-formation sprites (gated) — over food/earth, embedded in soil
   drawRockColumns();            // path-blocking vertical rock columns (gated) — barriers from the surface down
+  drawLevelRocks();             // hand-authored rock sprites (level editor) — no-op on generated maps
   drawLakes();                  // lake basins (matted) — over rocks so a boulder can't spill into the water
   drawReservoirs();             // underground water pockets (matted) — small water sources along the route
   drawMountains();              // mountain barriers rendered as a sprite over the wall (gated)
@@ -2967,6 +2992,16 @@ function solidifyRock() {
     return a && b;
   };
 
+  // HAND-AUTHORED maps (engine/level.js): collide the explicit sprite list the level
+  // editor wrote — the very same list drawLevelRocks() draws, so what you see is
+  // exactly what blocks. The three procedural derivations below are no-ops on an
+  // authored map (it flags no rock / formation / column cells for them to group).
+  for (const s of (sub.levelSprites || [])) {
+    const img = asset(s.key);
+    if (!img) { ready = false; continue; }
+    if (!stamp(img, s.x, s.y, s.w, s.h, s.rot)) ready = false;
+  }
+
   // Boulders (drawRockPiles / drawBoulder geometry, k=0, mult=1).
   for (const g of rockGroups()) {
     if (!g.palette.length) continue;
@@ -3069,6 +3104,35 @@ function solidifyRock() {
   // Publish the FINE growth-collision mask (read by substrate.solidAtWorld / network _placeOk).
   sub._fineSolid = fine; sub._fineSize = fSize; sub._fineCols = fCols; sub._fineRows = fRows;
   sub._rockSolidified = true;
+}
+
+// HAND-AUTHORED rock sprites — every boulder / formation the level editor placed,
+// each drawn at its OWN size and rotation from `sub.levelSprites` (engine/level.js).
+// This is the same list solidifyRock() stamps, so collision tracks the art exactly.
+// Boulders blit plain; formations go through _blitFormation so their base melts
+// into the soil like the procedural ones. No-op on generated maps.
+function drawLevelRocks() {
+  const sprites = state.substrate.levelSprites;
+  if (!sprites || !sprites.length) return;
+  const sub = state.substrate, z = camera.zoom, cs = sub.cellSize;
+  const soil = _rgb(state.config.render.soilDeep || '#2a1d12');
+  for (const s of sprites) {
+    const img = asset(s.key);
+    if (!img) continue;
+    const sw = s.w * z, sh = s.h * z;
+    const c = camera.worldToScreen(s.x, s.y);
+    const bound = Math.hypot(sw, sh) / 2;                    // covers any rotation
+    if (c.x < -bound || c.x > camera.viewW + bound || c.y < -bound || c.y > camera.viewH + bound) continue;
+    if (s.style === 'formation') {
+      _blitFormation(img, sw, sh, c.x - sw / 2, c.y - sh / 2, z, cs, soil, true, s.rot);
+    } else {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      if (s.rot) ctx.rotate(s.rot);
+      ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+      ctx.restore();
+    }
+  }
 }
 
 function drawRockFormations() {
@@ -3363,7 +3427,10 @@ function drawLakes() {
   const seed = (state.seed || 1) >>> 0;
   for (const run of runs) {
     if (run.maxD <= 0) continue;
-    const img = asset(keys[(seed + run.c0) % keys.length]);
+    // Hand-authored maps name their water art (sub.lakeArt, keyed by the run's
+    // first column); generated ones pick from the seed.
+    const authored = sub.lakeArt && sub.lakeArt[run.c0];
+    const img = asset(authored && hasAsset(authored) ? authored : keys[(seed + run.c0) % keys.length]);
     if (!img) continue;
     const tl = camera.worldToScreen(run.c0 * cs, sub.surfaceY);   // top-left at the waterline
     const sw = (run.c1 - run.c0 + 1) * cs * z;
@@ -3422,7 +3489,9 @@ function drawReservoirs() {
   const OV = 0.4;   // teardrop overhang (cells) past the water footprint so the pool's feathered
                     // edge just covers every water cell and bleeds into soil.
   list.forEach((r, i) => {
-    const key = order[i % order.length];
+    // A hand-authored pocket carries its own art choice (r.key); generated ones
+    // take the next entry of the seeded shuffle.
+    const key = (r.key && hasAsset(r.key)) ? r.key : order[i % order.length];
     const img = asset(key);
     if (!img) return;
     const ob = RESERVOIR_OPAQUE[key] || { x: 0, y: 0, w: 1, h: 1 };
@@ -3875,6 +3944,12 @@ setupInput();
 // loading screen's "Click" so the game always opens on a fully-decoded frame.
 function enterGame() {
   if (location.hash === '#puzzle') startPuzzle();
+  // Level-editor playtest: boot straight into the draft map the editor stashed.
+  else if (location.hash === '#level') {
+    playtestLevel = loadPlaytestLevel();
+    if (!playtestLevel) { showMainMenu(); return; }
+    chosenSpecies = null; currentLevel = playtestLevel.campaignLevel || 1; runStartLevel = currentLevel; startRun();
+  }
   else if (location.hash === '#notrich' || location.hash === '#ants') { noTrich = true; currentLevel = 1; runStartLevel = 1; startRun(); }
   else if (location.hash === '#dev') { chosenSpecies = null; currentLevel = 1; runStartLevel = 1; startRun(); }   // skip the picker
   else if (location.hash === '#tutorial') { tutorialPending = true; showPicker(); }             // force the first-run tutorial (testing)

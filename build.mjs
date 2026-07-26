@@ -23,6 +23,7 @@ const R = (p) => join(root, p);
 const MODULES = [
   'src/config.js',
   'src/cards-data.js',
+  'src/levels-data.js',
   'src/species.js',
   'src/highscores.js',
   'src/net_scores.js',
@@ -33,6 +34,7 @@ const MODULES = [
   'src/engine/threats.js',
   'src/engine/ants.js',
   'src/engine/puzzle.js',
+  'src/engine/level.js',
   'src/engine/state.js',
   'src/engine/cards.js',
   'src/engine/turn.js',
@@ -208,6 +210,15 @@ if (existsSync(R('docs/species-editor.html'))) {
     '<script id="injectedData" type="application/json">' + data + '</script>');
   writeFileSync(R('dist/species-editor.html'), seHtml);
   console.log('Copied docs/species-editor.html -> dist/species-editor.html (roster injected)');
+}
+
+// Publish the level editor at <site>/level-editor.html. It's fully self-contained
+// (no src/ imports) and finds the sprite folder itself — ../assets/ from the source
+// tree, assets/ from dist/ — so a plain copy is all it needs. Owner tool; excluded
+// from the itch zip, which ships only index.html + assets/.
+if (existsSync(R('docs/level-editor.html'))) {
+  cpSync(R('docs/level-editor.html'), R('dist/level-editor.html'));
+  console.log('Copied docs/level-editor.html -> dist/level-editor.html');
 }
 
 console.log('Built dist/index.html and dist/artifact.html');

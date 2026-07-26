@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Level editor</title>
+<!-- Placeholder so the browser doesn't fire an automatic /favicon.ico request; boot()
+     points it at the real icon once it knows where the assets folder is. -->
+<link rel="icon" id="favi" href="data:,">
+<style>
+:root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
+  --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --water:#6cc7ff; --phos:#c79bff;
+  --edit:#ffd76a; --red:#ff9a8a; --top:52px; --pal:224px; --insp:270px; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{color:var(--ink);font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));font-size:13px}
+#app{display:grid;grid-template-columns:var(--pal) 1fr var(--insp);grid-template-rows:var(--top) 1fr;height:100%}
+
+/* ---- top bar ---- */
+.top{grid-column:1/4;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);
+  border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+.top .brand{font-weight:800;letter-spacing:-.01em;color:var(--mint);margin-right:4px}
+.top .sep{width:1px;height:24px;background:var(--line);margin:0 4px;flex:0 0 auto}
+.btn{font:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:6px 10px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);flex:0 0 auto}
+.btn:hover{border-color:var(--mint)} .btn:disabled{opacity:.35;cursor:default}
+.btn.primary{background:linear-gradient(180deg,#12271e,#0c1c15);border-color:rgba(126,240,192,.4);color:var(--mint)}
+.btn.warn{border-color:rgba(255,120,120,.35);color:var(--red)}
+.btn.on{background:var(--mint);color:#04140d;border-color:transparent}
+.namein{font:inherit;font-size:13px;font-weight:700;border-radius:8px;padding:6px 9px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--ink);width:190px;flex:0 0 auto}
+input:focus,select:focus{outline:none;border-color:var(--mint)}
+.spacer{flex:1 1 auto}
+.hint{color:var(--dim);font-size:11px}
+
+/* ---- palette ---- */
+.palette{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:8px 8px 60px}
+.pgroup{margin:0 0 10px}
+.pgroup>h3{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+  margin:8px 2px 6px;display:flex;align-items:center;gap:6px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.pgrid.wide{grid-template-columns:repeat(2,1fr)}
+.pitem{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px;cursor:grab;
+  display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;touch-action:none}
+.pitem:hover{border-color:var(--mint)}
+.pitem img,.pitem canvas{width:100%;height:38px;object-fit:contain;pointer-events:none}
+.pitem .lbl{font-size:8.5px;color:var(--dim);text-align:center;line-height:1.15;word-break:break-word}
+#ghost{position:fixed;pointer-events:none;z-index:999;opacity:.85;transform:translate(-50%,-50%);display:none;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
+
+/* ---- stage ---- */
+.stage{position:relative;overflow:hidden;background:#05070d}
+#map{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.stagebar{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;align-items:center;
+  background:rgba(8,17,13,.86);border:1px solid var(--line);border-radius:9px;padding:5px 8px;backdrop-filter:blur(4px)}
+.stagebar .btn{padding:4px 8px;font-size:11px}
+.coords{position:absolute;right:10px;bottom:10px;background:rgba(8,17,13,.86);border:1px solid var(--line);
+  border-radius:9px;padding:5px 9px;color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums}
+
+/* ---- inspector ---- */
+.inspector{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px 10px 60px}
+.sect{margin:0 0 14px}
+.sect>h3{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin:0 0 7px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin:0 0 6px}
+.fld{display:flex;flex-direction:column;gap:3px;flex:1 1 60px;min-width:0}
+.fld label{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.fld input,.fld select{font:inherit;font-size:12px;border-radius:7px;padding:5px 7px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--ink);width:100%;min-width:0}
+.fld input[type=range]{padding:0}
+.chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin:4px 0}
+.empty{color:var(--dim);font-size:12px;line-height:1.5;padding:6px 2px}
+.kindpill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:3px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--mint)}
+.warn{font-size:11px;line-height:1.45;color:var(--amber);background:rgba(255,185,94,.07);
+  border:1px solid rgba(255,185,94,.25);border-radius:8px;padding:6px 8px;margin:0 0 6px}
+.warn.bad{color:var(--red);background:rgba(255,120,120,.07);border-color:rgba(255,120,120,.25)}
+.ok{font-size:11px;color:var(--mint)}
+.stat{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);padding:2px 0}
+.stat b{color:var(--ink);font-variant-numeric:tabular-nums}
+.layers{max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.lrow{display:flex;align-items:center;gap:6px;padding:4px 7px;font-size:11.5px;cursor:pointer;border-bottom:1px solid rgba(126,240,192,.07)}
+.lrow:last-child{border-bottom:0}
+.lrow:hover{background:rgba(126,240,192,.06)}
+.lrow.sel{background:rgba(126,240,192,.14);color:var(--mint)}
+.lrow .t{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .n{color:var(--dim);font-variant-numeric:tabular-nums;font-size:10px}
+textarea.json{width:100%;height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;
+  border-radius:8px;padding:7px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);resize:vertical}
+kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:10px;font-family:inherit}
+.keys{font-size:10.5px;line-height:1.7;color:var(--dim)}
+@media (max-width:1000px){ :root{--pal:150px;--insp:200px} .pgrid{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <span class="brand">Level editor</span>
+    <input id="lvName" class="namein" placeholder="Level name">
+    <span class="sep"></span>
+    <button class="btn" id="bNew">New</button>
+    <button class="btn" id="bOpen">Open…</button>
+    <button class="btn primary" id="bSave">Save .json</button>
+    <button class="btn" id="bCopy">Copy JSON</button>
+    <span class="sep"></span>
+    <button class="btn" id="bUndo" title="Ctrl+Z">↶</button>
+    <button class="btn" id="bRedo" title="Ctrl+Shift+Z">↷</button>
+    <span class="sep"></span>
+    <button class="btn" id="bSnap" title="Snap to the substrate cell grid">Snap</button>
+    <button class="btn" id="bGrid" title="Show the cell grid">Grid</button>
+    <span class="sep"></span>
+    <button class="btn primary" id="bTest" title="Play this map in the game right now">▶ Test in game</button>
+    <span class="spacer"></span>
+    <span class="hint" id="saveState">—</span>
+    <input type="file" id="fileIn" accept="application/json,.json" hidden>
+  </header>
+
+  <aside class="palette" id="palette"></aside>
+
+  <main class="stage">
+    <canvas id="map"></canvas>
+    <div class="stagebar">
+      <button class="btn" id="bZoomOut">−</button>
+      <button class="btn" id="bZoomFit">Fit</button>
+      <button class="btn" id="bZoomIn">+</button>
+    </div>
+    <div class="coords" id="coords">—</div>
+  </main>
+
+  <aside class="inspector">
+    <div class="sect" id="selSect">
+      <h3>Selection</h3>
+      <div id="selBody" class="empty">Nothing selected. Drag an asset from the left onto the map.</div>
+    </div>
+
+    <div class="sect">
+      <h3>Level</h3>
+      <div class="row">
+        <div class="fld"><label>Campaign level</label><input id="lvNum" type="number" min="1" max="100" placeholder="none"></div>
+        <div class="fld"><label>Cell size</label><input id="wCell" type="number" min="8" max="128"></div>
+      </div>
+      <div class="row">
+        <div class="fld"><label>World width</label><input id="wW" type="number" min="600" step="36"></div>
+        <div class="fld"><label>World height</label><input id="wH" type="number" min="600" step="36"></div>
+      </div>
+      <div class="row">
+        <div class="fld"><label>Surface Y</label><input id="wSurf" type="number" min="0" step="10"></div>
+        <div class="fld"><label>Start cols</label><input id="lStart" type="number" min="1" max="20"></div>
+      </div>
+      <div class="row">
+        <div class="fld"><label>Goal cols</label><input id="lGoal" type="number" min="2" max="30"></div>
+        <div class="fld"><label>Summer cols</label><input id="lSummer" type="number" min="0" max="40"></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="lChan" checked> Dig clear entry + goal channels</label>
+    </div>
+
+    <div class="sect">
+      <h3>Checks</h3>
+      <div id="checks"></div>
+    </div>
+
+    <div class="sect">
+      <h3>Contents</h3>
+      <div id="stats"></div>
+    </div>
+
+    <div class="sect">
+      <h3>Layers <span class="hint">(top of list = drawn last)</span></h3>
+      <div class="layers" id="layers"></div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="bFront" style="flex:1">Bring front</button>
+        <button class="btn" id="bBack" style="flex:1">Send back</button>
+        <button class="btn warn" id="bDel" style="flex:1">Delete</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3>Keys</h3>
+      <div class="keys">
+        <kbd>drag</kbd> move · <kbd>shift+click</kbd> multi-select<br>
+        <kbd>←↑↓→</kbd> nudge (<kbd>shift</kbd> ×10)<br>
+        <kbd>[</kbd> <kbd>]</kbd> rotate 5° (<kbd>shift</kbd> 15°)<br>
+        <kbd>-</kbd> <kbd>=</kbd> scale · <kbd>ctrl+D</kbd> duplicate<br>
+        <kbd>del</kbd> delete · <kbd>esc</kbd> deselect<br>
+        <kbd>space+drag</kbd> / middle-drag pan · <kbd>wheel</kbd> zoom
+      </div>
+    </div>
+  </aside>
+</div>
+<img id="ghost" alt="">
+
+<script>
+// =============================================================================
+// Mycelium level editor — authoring tool for hand-made campaign maps.
+//
+// Writes a `mycelium-level` JSON document (see src/engine/level.js for the format
+// and the loader that turns it into a playable Substrate). Every object carries
+// its own world geometry, so what you place / rotate / resize here is EXACTLY what
+// the game draws and collides against: the game stamps rock collision from the
+// same sprite list at the same size and rotation.
+//
+// Standalone: no build step, no imports from src/. Reads the real sprite PNGs out
+// of assets/ so the preview matches the game art.
+// =============================================================================
+
+// ---- asset base: ../assets/ from the source tree, assets/ from dist/ ---------
+let ASSET = '../assets/';
+
+const ROCK_KEYS = ['rockSlate', 'rockBasalt', 'rockRiver', 'rockVeined', 'rockMossy'];
+const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
+const LAKE_KEYS = ['lake1', 'lake2', 'lake3'];
+const RESERVOIR_KEYS = ['reservoir1', 'reservoir2', 'reservoir3'];
+const ORANGE_LEAF_KEYS = ['leafOak', 'leafMaple'];
+const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
+const YELLOW_LEAF_KEYS = ['leafYellowHophornbeam', 'leafYellowSassafras', 'leafYellowMulberry', 'leafYellowRedbud', 'leafYellowSycamore'];
+const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3', 'mountain4', 'mountain5'];
+// Opaque teardrop box inside each reservoir PNG (mirrors main.js RESERVOIR_OPAQUE)
+// so the preview pool lands on the same cells the game floods.
+const RESERVOIR_OPAQUE = {
+  reservoir1: { x: 0.25, y: 0.15, w: 0.50, h: 0.72 },
+  reservoir2: { x: 0.19, y: 0.17, w: 0.64, h: 0.62 },
+  reservoir3: { x: 0.13, y: 0.18, w: 0.72, h: 0.62 },
+};
+// Reservoir water profile (mirrors substrate.js RESERVOIR_PROFILE) — the pocket is
+// carved as a teardrop, not a disc, so the editor previews that shape.
+const RESERVOIR_PROFILE = [0.02, 0.56, 0.76, 0.88, 0.95, 0.96, 0.88, 0.68, 0.10];
+function reservoirHalfWidth(dr, rad) {
+  const t = Math.max(0, Math.min(1, (dr + rad) / (2 * rad)));
+  const f = t * (RESERVOIR_PROFILE.length - 1);
+  const i = Math.min(RESERVOIR_PROFILE.length - 2, Math.floor(f));
+  const k = f - i;
+  return (RESERVOIR_PROFILE[i] * (1 - k) + RESERVOIR_PROFILE[i + 1] * k) * rad;
+}
+
+const IMG = new Map();
+function img(key) { return IMG.get(key) || null; }
+function loadImg(key) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => { IMG.set(key, im); res(im); };
+    im.onerror = () => res(null);
+    im.src = ASSET + key + '.png';
+  });
+}
+
+// ---- level document ---------------------------------------------------------
+const FORMAT = 'mycelium-level', VERSION = 1;
+const STORE_KEY = 'mycelium.editor.level';       // autosave of the level being edited
+const PLAYTEST_KEY = 'mycelium.editor.playtest'; // what `index.html#level` boots
+
+function blankLevel() {
+  return {
+    format: FORMAT, version: VERSION,
+    name: 'Untitled level', campaignLevel: null,
+    world: { width: 2600, height: 1500, surfaceY: 380, cellSize: 36 },
+    layout: { startCols: 2, goalCols: 6, summerCols: 7, clearChannels: true },
+    objects: [],
+  };
+}
+
+let level = blankLevel();
+let nextId = 1;
+let sel = [];                                    // selected object ids
+const undoStack = [], redoStack = [];
+
+// Every object gets a transient id so selection + layers survive undo (which
+// restores from a JSON snapshot and would otherwise break object identity). Ids
+// are stripped on export — they aren't part of the format.
+function tagIds() { for (const o of level.objects) if (!o.id) o.id = nextId++; }
+function byId(id) { return level.objects.find((o) => o.id === id) || null; }
+function selObjs() { return sel.map(byId).filter(Boolean); }
+
+// ---- object defaults --------------------------------------------------------
+const cs = () => level.world.cellSize || 36;
+
+function makeObject(spec, x, y) {
+  const o = { t: spec.t, id: nextId++ };
+  if (spec.t === 'boulder' || spec.t === 'formation') {
+    const im = img(spec.key);
+    const aspect = im ? im.width / im.height : 1;
+    const h = spec.t === 'formation' ? cs() * 2.6 : cs() * 2.0;
+    o.key = spec.key; o.x = x; o.y = y; o.h = h; o.w = h * aspect; o.rot = 0;
+  } else if (spec.t === 'lake') {
+    o.key = spec.key; o.x = x; o.w = cs() * 9; o.h = Math.round(cs() * 9 / 2.8);
+  } else if (spec.t === 'reservoir') {
+    o.key = spec.key; o.x = x; o.y = y; o.r = cs() * 2.5;
+  } else if (spec.t === 'food') {
+    o.kind = spec.kind; o.x = x; o.y = y; o.r = 1;
+    o.energy = spec.kind === 'cache-engine' ? 4 : spec.kind === 'duff' ? 2 : 3;
+  } else if (spec.t === 'ant') {
+    o.x = x;
+  } else if (spec.t === 'nematode') {
+    o.x = x; o.y = y;
+  } else if (spec.t === 'trichoderma') {
+    o.x = x; o.y = y; o.r = cs() * 1.2;
+  } else if (spec.t === 'mountain') {
+    o.x = x; o.w = cs() * 4;
+  }
+  return o;
+}
+
+const TYPE_LABEL = {
+  boulder: 'Boulder', formation: 'Formation', lake: 'Lake', reservoir: 'Reservoir',
+  food: 'Leaf pile', ant: 'Ant nest', nematode: 'Nematode', trichoderma: 'Trichoderma',
+  mountain: 'Mountain',
+};
+const FOOD_LABEL = { duff: 'Duff (yellow)', cache: 'Cache (orange)', 'cache-engine': 'Engine (red)' };
+const ROTATABLE = new Set(['boulder', 'formation']);
+const SIZEABLE = new Set(['boulder', 'formation', 'lake', 'reservoir', 'food', 'trichoderma', 'mountain']);
+// Objects pinned to the soil line: the game places them there regardless.
+const SURFACE_BOUND = new Set(['lake', 'ant', 'mountain']);
+
+// ---- camera -----------------------------------------------------------------
+const cam = { x: -60, y: -60, z: 0.5 };
+const canvas = document.getElementById('map');
+const cx2d = canvas.getContext('2d');
+function W2S(x, y) { return { x: (x - cam.x) * cam.z, y: (y - cam.y) * cam.z }; }
+function S2W(x, y) { return { x: x / cam.z + cam.x, y: y / cam.z + cam.y }; }
+
+function fitView() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const z = Math.min(w / (level.world.width + 80), h / (level.world.height + 80));
+  cam.z = Math.max(0.05, z);
+  cam.x = level.world.width / 2 - w / (2 * cam.z);
+  cam.y = level.world.height / 2 - h / (2 * cam.z);
+  draw();
+}
+
+function resize() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
+  canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  cx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+
+// ---- geometry ---------------------------------------------------------------
+// Every object's world-space box, as {x,y,w,h,rot} — the one place that knows how
+// each type maps onto a rectangle. Selection, handles and hit-testing all use it.
+function boxOf(o) {
+  switch (o.t) {
+    case 'boulder': case 'formation':
+      return { x: o.x, y: o.y, w: o.w, h: o.h, rot: o.rot || 0 };
+    case 'lake':
+      return { x: o.x, y: level.world.surfaceY + o.h / 2, w: o.w, h: o.h, rot: 0 };
+    case 'reservoir':
+      return { x: o.x, y: o.y, w: o.r * 2, h: o.r * 2, rot: 0 };
+    case 'food': {
+      const s = (o.r * 2 + 1) * cs();
+      return { x: o.x, y: o.y, w: s, h: s, rot: 0 };
+    }
+    case 'trichoderma':
+      return { x: o.x, y: o.y, w: o.r * 2, h: o.r * 2, rot: 0 };
+    case 'ant': {
+      const s = cs() * 2;
+      return { x: o.x, y: level.world.surfaceY - s * 0.3, w: s, h: s, rot: 0 };
+    }
+    case 'nematode':
+      return { x: o.x, y: o.y, w: cs() * 1.2, h: cs() * 1.2, rot: 0 };
+    case 'mountain':
+      return { x: o.x, y: level.world.surfaceY - cs() * 1.5, w: o.w, h: cs() * 3, rot: 0 };
+    default:
+      return { x: o.x || 0, y: o.y || 0, w: cs(), h: cs(), rot: 0 };
+  }
+}
+function hitTest(o, wx, wy) {
+  const b = boxOf(o);
+  const dx = wx - b.x, dy = wy - b.y;
+  const c = Math.cos(-b.rot), s = Math.sin(-b.rot);
+  const lx = c * dx - s * dy, ly = s * dx + c * dy;
+  const pad = 4 / cam.z;                                   // easier to grab when zoomed out
+  return Math.abs(lx) <= b.w / 2 + pad && Math.abs(ly) <= b.h / 2 + pad;
+}
+function corners(b) {
+  const c = Math.cos(b.rot), s = Math.sin(b.rot);
+  const hw = b.w / 2, hh = b.h / 2;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]
+    .map(([lx, ly]) => ({ x: b.x + c * lx - s * ly, y: b.y + s * lx + c * ly }));
+}
+
+// ---- drawing ----------------------------------------------------------------
+function hashf(a, b) {                                     // matches main.js _hashf's role: stable jitter
+  let t = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
+  return t - Math.floor(t);
+}
+
+let showGrid = true, snap = true;
+
+function draw() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const W = level.world.width, H = level.world.height, SY = level.world.surfaceY, C = cs();
+  cx2d.clearRect(0, 0, w, h);
+  cx2d.fillStyle = '#05070d'; cx2d.fillRect(0, 0, w, h);
+
+  const tl = W2S(0, 0), br = W2S(W, H);
+  // sky + soil
+  const skyH = (SY - 0) * cam.z;
+  cx2d.fillStyle = '#0b1526';
+  cx2d.fillRect(tl.x, tl.y, br.x - tl.x, skyH);
+  const soilTop = W2S(0, SY);
+  const g = cx2d.createLinearGradient(0, soilTop.y, 0, br.y);
+  g.addColorStop(0, '#4a3220'); g.addColorStop(1, '#22160d');
+  cx2d.fillStyle = g;
+  cx2d.fillRect(tl.x, soilTop.y, br.x - tl.x, br.y - soilTop.y);
+
+  // start / goal / summer bands
+  const cols = Math.floor(W / C);
+  const goalCols = Math.max(2, Math.min(cols - 4, level.layout.goalCols || 6));
+  const startCols = Math.max(1, Math.min(cols - goalCols - 1, level.layout.startCols || 2));
+  const goalStart = cols - goalCols;
+  const summerCols = Math.max(0, Math.min(goalStart - startCols - 2, level.layout.summerCols || 0));
+  const band = (c0, c1, fill) => {
+    const a = W2S(c0 * C, 0), b = W2S(c1 * C, H);
+    cx2d.fillStyle = fill; cx2d.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+  };
+  band(0, startCols, 'rgba(126,240,192,.10)');
+  band(goalStart - summerCols, goalStart, 'rgba(126,240,192,.05)');
+  band(goalStart, cols, 'rgba(126,240,192,.14)');
+
+  // cell grid
+  if (showGrid && C * cam.z > 4) {
+    cx2d.strokeStyle = 'rgba(255,255,255,.05)'; cx2d.lineWidth = 1;
+    cx2d.beginPath();
+    for (let c = 0; c <= cols; c++) { const s = W2S(c * C, 0); cx2d.moveTo(s.x, tl.y); cx2d.lineTo(s.x, br.y); }
+    const rows = Math.floor((H - SY) / C);
+    for (let r = 0; r <= rows; r++) { const s = W2S(0, SY + r * C); cx2d.moveTo(tl.x, s.y); cx2d.lineTo(br.x, s.y); }
+    cx2d.stroke();
+  }
+
+  // surface line
+  cx2d.strokeStyle = 'rgba(126,240,192,.5)'; cx2d.lineWidth = 1.5;
+  cx2d.beginPath(); cx2d.moveTo(tl.x, soilTop.y); cx2d.lineTo(br.x, soilTop.y); cx2d.stroke();
+
+  // world bounds
+  cx2d.strokeStyle = 'rgba(126,240,192,.35)'; cx2d.lineWidth = 1;
+  cx2d.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // objects, in document order (later = on top), matching the game's draw order
+  // closely enough to judge composition: piles under rocks, water over rocks.
+  const order = { food: 0, mountain: 1, boulder: 2, formation: 2, lake: 3, reservoir: 3, ant: 4, nematode: 4, trichoderma: 4 };
+  const list = level.objects.map((o, i) => ({ o, i })).sort((a, b) => (order[a.o.t] - order[b.o.t]) || (a.i - b.i));
+  for (const { o } of list) drawObject(o);
+
+  // selection chrome on top
+  for (const o of selObjs()) drawSelection(o, selObjs().length === 1);
+  if (marquee) {
+    cx2d.strokeStyle = 'rgba(126,240,192,.9)'; cx2d.setLineDash([4, 3]); cx2d.lineWidth = 1;
+    cx2d.strokeRect(marquee.x0, marquee.y0, marquee.x1 - marquee.x0, marquee.y1 - marquee.y0);
+    cx2d.setLineDash([]);
+  }
+}
+
+function drawObject(o) {
+  const b = boxOf(o), z = cam.z, C = cs();
+  const s = W2S(b.x, b.y);
+  const sw = b.w * z, sh = b.h * z;
+  const bound = Math.hypot(sw, sh) / 2 + 20;
+  if (s.x < -bound || s.x > canvas.clientWidth + bound || s.y < -bound || s.y > canvas.clientHeight + bound) return;
+
+  if (o.t === 'boulder' || o.t === 'formation') {
+    const im = img(o.key);
+    cx2d.save();
+    cx2d.translate(s.x, s.y);
+    if (b.rot) cx2d.rotate(b.rot);
+    if (im) cx2d.drawImage(im, -sw / 2, -sh / 2, sw, sh);
+    else { cx2d.fillStyle = 'rgba(160,150,140,.5)'; cx2d.fillRect(-sw / 2, -sh / 2, sw, sh); }
+    cx2d.restore();
+    return;
+  }
+
+  if (o.t === 'lake') {
+    // Same semi-ellipse bowl the game clips its lake art to (main.js drawLakes).
+    const top = W2S(b.x - b.w / 2, level.world.surfaceY);
+    const im = img(o.key) || img(LAKE_KEYS[0]);
+    cx2d.save();
+    cx2d.beginPath();
+    cx2d.moveTo(top.x, top.y); cx2d.lineTo(top.x + sw, top.y);
+    cx2d.ellipse(top.x + sw / 2, top.y, sw / 2, sh, 0, 0, Math.PI);
+    cx2d.closePath();
+    cx2d.clip();
+    if (im) cx2d.drawImage(im, top.x, top.y, sw, sh);
+    else { cx2d.fillStyle = 'rgba(70,150,210,.75)'; cx2d.fill(); }
+    cx2d.restore();
+    return;
+  }
+
+  if (o.t === 'reservoir') {
+    const im = img(o.key) || img(RESERVOIR_KEYS[0]);
+    const ob = RESERVOIR_OPAQUE[o.key] || { x: 0, y: 0, w: 1, h: 1 };
+    // Preview the CELL footprint the loader will flood, then lay the art over it.
+    const rad = Math.max(1, Math.round(o.r / C));
+    const cxc = Math.floor(b.x / C), cyc = Math.floor((b.y - level.world.surfaceY) / C);
+    cx2d.fillStyle = 'rgba(90,180,235,.22)';
+    for (let dr = -rad; dr <= rad; dr++)
+      for (let dc = -rad; dc <= rad; dc++) {
+        if (dc * dc + dr * dr > rad * rad) continue;
+        if (Math.abs(dc) > reservoirHalfWidth(dr, rad)) continue;
+        const p = W2S((cxc + dc) * C, level.world.surfaceY + (cyc + dr) * C);
+        cx2d.fillRect(p.x, p.y, C * z + 1, C * z + 1);
+      }
+    if (im) {
+      const OV = 0.4;
+      const tW = (2 * rad + 1 + 2 * OV) * C, tH = (2 * rad + 1 + 2 * OV) * C;
+      const tx = (cxc - rad - OV) * C, ty = (cyc - rad - OV) * C + level.world.surfaceY;
+      const dW = tW / ob.w, dH = tH / ob.h;
+      const tl2 = W2S(tx - ob.x * dW, ty - ob.y * dH);
+      cx2d.drawImage(im, tl2.x, tl2.y, dW * z, dH * z);
+    }
+    return;
+  }
+
+  if (o.t === 'food') {
+    // A heap of the real leaf sprites over the diamond of cells the loader stamps.
+    const set = (o.kind === 'cache-engine' ? RED_LEAF_KEYS : o.kind === 'duff' ? YELLOW_LEAF_KEYS : ORANGE_LEAF_KEYS)
+      .map(img).filter(Boolean);
+    const col = Math.floor(b.x / C), row = Math.floor((b.y - level.world.surfaceY) / C);
+    const tint = o.kind === 'cache-engine' ? 'rgba(226,92,74,.20)' : o.kind === 'duff' ? 'rgba(232,196,84,.18)' : 'rgba(232,146,64,.20)';
+    for (let dr = -o.r; dr <= o.r; dr++)
+      for (let dc = -o.r; dc <= o.r; dc++) {
+        if (Math.abs(dr) + Math.abs(dc) > o.r) continue;
+        const p = W2S((col + dc) * C, level.world.surfaceY + (row + dr) * C);
+        cx2d.fillStyle = tint; cx2d.fillRect(p.x, p.y, C * z + 1, C * z + 1);
+        if (!set.length) continue;
+        const base = C * (o.kind === 'duff' ? 0.52 : 0.64) * z;
+        for (let k = 0; k < 7; k++) {
+          const h1 = hashf((col + dc) * 7.1 + k * 13.3, (row + dr) * 11.7 + k * 5.2);
+          const h2 = hashf((col + dc) * 3.3 + k * 17.1, (row + dr) * 19.3 + k * 7.7);
+          const h3 = hashf((col + dc) * 23.7 + k * 2.1, (row + dr) * 29.1 + k * 3.3);
+          const im = set[Math.floor(h3 * set.length) % set.length];
+          const lw = base * (0.7 + h1 * 0.55), lh = lw * (im.height / im.width);
+          cx2d.save();
+          cx2d.translate(p.x + C * z * 0.5 + (h1 - 0.5) * C * z * 0.8, p.y + C * z * 0.5 + (h2 - 0.5) * C * z * 0.8);
+          cx2d.rotate((h3 - 0.5) * 3);
+          cx2d.drawImage(im, -lw / 2, -lh / 2, lw, lh);
+          cx2d.restore();
+        }
+      }
+    return;
+  }
+
+  if (o.t === 'trichoderma') {
+    const r = o.r * z;
+    const grd = cx2d.createRadialGradient(s.x, s.y, 0, s.x, s.y, Math.max(1, r));
+    grd.addColorStop(0, 'rgba(150,220,90,.55)');
+    grd.addColorStop(1, 'rgba(120,190,70,0)');
+    cx2d.fillStyle = grd;
+    cx2d.beginPath(); cx2d.arc(s.x, s.y, Math.max(1, r), 0, Math.PI * 2); cx2d.fill();
+    cx2d.strokeStyle = 'rgba(170,235,110,.8)'; cx2d.lineWidth = 1; cx2d.setLineDash([3, 3]);
+    cx2d.beginPath(); cx2d.arc(s.x, s.y, Math.max(1, r), 0, Math.PI * 2); cx2d.stroke();
+    cx2d.setLineDash([]);
+    return;
+  }
+
+  if (o.t === 'ant') {
+    const im = img('antColonyA');
+    if (im) {
+      const hh = C * 2.2 * z, ww = hh * (im.width / im.height);
+      const base = W2S(b.x, level.world.surfaceY);
+      cx2d.drawImage(im, base.x - ww / 2, base.y - hh * 0.82, ww, hh);
+    } else {
+      cx2d.fillStyle = '#d08a3a';
+      cx2d.beginPath(); cx2d.arc(s.x, s.y, 8, 0, Math.PI * 2); cx2d.fill();
+    }
+    const base = W2S(b.x, level.world.surfaceY);
+    cx2d.strokeStyle = 'rgba(255,185,94,.8)'; cx2d.lineWidth = 1.5;
+    cx2d.beginPath(); cx2d.moveTo(base.x, base.y - 6); cx2d.lineTo(base.x, base.y + 6); cx2d.stroke();
+    return;
+  }
+
+  if (o.t === 'nematode') {
+    const r = Math.max(5, C * 0.5 * z);
+    cx2d.strokeStyle = '#f2e2b0'; cx2d.lineWidth = Math.max(1.5, r * 0.28); cx2d.lineCap = 'round';
+    cx2d.beginPath();
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12, px = s.x - r + t * r * 2, py = s.y + Math.sin(t * Math.PI * 2) * r * 0.35;
+      i ? cx2d.lineTo(px, py) : cx2d.moveTo(px, py);
+    }
+    cx2d.stroke();
+    return;
+  }
+
+  if (o.t === 'mountain') {
+    const im = img(MOUNTAIN_KEYS[0]);
+    const base = W2S(b.x, level.world.surfaceY);
+    if (im) {
+      const ww = b.w * z, hh = ww * (im.height / im.width);
+      cx2d.globalAlpha = 0.85;
+      cx2d.drawImage(im, base.x - ww / 2, base.y - hh, ww, hh);
+      cx2d.globalAlpha = 1;
+    } else {
+      cx2d.fillStyle = 'rgba(150,160,175,.6)';
+      cx2d.beginPath(); cx2d.moveTo(base.x - sw / 2, base.y); cx2d.lineTo(base.x, base.y - sh); cx2d.lineTo(base.x + sw / 2, base.y); cx2d.fill();
+    }
+  }
+}
+
+const HANDLE = 7;
+function drawSelection(o, withHandles) {
+  const b = boxOf(o);
+  const pts = corners(b).map((p) => W2S(p.x, p.y));
+  cx2d.strokeStyle = 'rgba(126,240,192,.95)'; cx2d.lineWidth = 1.5;
+  cx2d.beginPath();
+  pts.forEach((p, i) => (i ? cx2d.lineTo(p.x, p.y) : cx2d.moveTo(p.x, p.y)));
+  cx2d.closePath(); cx2d.stroke();
+  if (!withHandles) return;
+  if (SIZEABLE.has(o.t)) {
+    cx2d.fillStyle = '#7ef0c0';
+    for (const p of pts) cx2d.fillRect(p.x - HANDLE / 2, p.y - HANDLE / 2, HANDLE, HANDLE);
+  }
+  if (ROTATABLE.has(o.t)) {
+    const h = rotHandlePos(b);
+    const mid = W2S((corners(b)[0].x + corners(b)[1].x) / 2, (corners(b)[0].y + corners(b)[1].y) / 2);
+    cx2d.strokeStyle = 'rgba(126,240,192,.6)';
+    cx2d.beginPath(); cx2d.moveTo(mid.x, mid.y); cx2d.lineTo(h.x, h.y); cx2d.stroke();
+    cx2d.fillStyle = '#ffd76a';
+    cx2d.beginPath(); cx2d.arc(h.x, h.y, HANDLE / 2 + 1, 0, Math.PI * 2); cx2d.fill();
+  }
+}
+// The rotate grip: the object's local (0, −off) point, i.e. straight "up" out of
+// its top edge in its OWN frame, so the grip follows the object as it turns.
+function rotHandlePos(b) {
+  const c = Math.cos(b.rot), s = Math.sin(b.rot);
+  const off = b.h / 2 + 26 / cam.z;
+  return W2S(b.x + s * off, b.y - c * off);
+}
+
+// ---- history ----------------------------------------------------------------
+function snapshot() {
+  undoStack.push(JSON.stringify(level));
+  if (undoStack.length > 80) undoStack.shift();
+  redoStack.length = 0;
+  markDirty();
+}
+function restore(json) {
+  level = JSON.parse(json);
+  tagIds();
+  sel = sel.filter((id) => byId(id));
+  syncForms(); draw(); renderSide();
+}
+function undo() { if (!undoStack.length) return; redoStack.push(JSON.stringify(level)); restore(undoStack.pop()); markDirty(); }
+function redo() { if (!redoStack.length) return; undoStack.push(JSON.stringify(level)); restore(redoStack.pop()); markDirty(); }
+
+let dirtyTimer = 0;
+function markDirty() {
+  document.getElementById('saveState').textContent = 'unsaved…';
+  clearTimeout(dirtyTimer);
+  dirtyTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(exportLevel()));
+      document.getElementById('saveState').textContent = 'autosaved';
+    } catch (_) { document.getElementById('saveState').textContent = 'autosave failed'; }
+  }, 500);
+}
+
+// ---- export -----------------------------------------------------------------
+// Strips editor-only ids and rounds coordinates — the file should be readable and
+// diff-able, and sub-pixel placement means nothing on a 36px cell grid.
+function exportLevel() {
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  return {
+    format: FORMAT, version: VERSION,
+    name: level.name || 'Untitled level',
+    campaignLevel: level.campaignLevel == null ? null : (level.campaignLevel | 0),
+    world: { ...level.world },
+    layout: { ...level.layout },
+    objects: level.objects.map((o) => {
+      const out = { t: o.t };
+      if (o.key) out.key = o.key;
+      if (o.kind) out.kind = o.kind;
+      if (o.x != null) out.x = r1(o.x);
+      if (o.y != null && !SURFACE_BOUND.has(o.t)) out.y = r1(o.y);
+      if (o.w != null) out.w = r1(o.w);
+      if (o.h != null) out.h = r1(o.h);
+      if (o.r != null) out.r = o.t === 'food' ? (o.r | 0) : r1(o.r);
+      if (o.rot) out.rot = r3(o.rot);
+      if (o.energy != null) out.energy = o.energy | 0;
+      return out;
+    }),
+  };
+}
+function levelJSON() { return JSON.stringify(exportLevel(), null, 1); }
+
+// Adopt a parsed level document (file open, autosave restore, the test hook).
+// Merging over blankLevel() means an older or hand-trimmed file still gets every
+// field the editor expects.
+function loadLevel(obj) {
+  if (!obj || obj.format !== FORMAT) throw new Error('not a mycelium-level file');
+  const base = blankLevel();
+  level = { ...base, ...obj };
+  level.world = { ...base.world, ...(obj.world || {}) };
+  level.layout = { ...base.layout, ...(obj.layout || {}) };
+  level.objects = (obj.objects || []).map((o) => ({ ...o }));
+  tagIds(); sel = [];
+  syncForms(); draw(); renderSide();
+}
+
+// ---- checks -----------------------------------------------------------------
+// Cheap, high-signal authoring checks. Deliberately NOT a solver: whether the
+// colony can physically thread your rocks is what "Test in game" is for.
+function runChecks() {
+  const out = [];
+  const W = level.world.width, H = level.world.height, SY = level.world.surfaceY, C = cs();
+  const cols = Math.floor(W / C);
+  const goalCols = Math.max(2, Math.min(cols - 4, level.layout.goalCols || 6));
+  const startCols = Math.max(1, Math.min(cols - goalCols - 1, level.layout.startCols || 2));
+  const goalStart = cols - goalCols;
+
+  const foods = level.objects.filter((o) => o.t === 'food');
+  if (!foods.length) out.push({ bad: true, msg: 'No leaf piles — the colony has no Energy income and will stall.' });
+  else if (!foods.some((o) => o.x < W * 0.35)) out.push({ bad: false, msg: 'No leaf pile in the left third — the opening may be starved.' });
+
+  for (const o of level.objects) {
+    const b = boxOf(o);
+    if (b.x < 0 || b.x > W) { out.push({ bad: true, msg: `A ${TYPE_LABEL[o.t]} sits outside the world width.` }); break; }
+  }
+  for (const o of level.objects) {
+    if (SURFACE_BOUND.has(o.t)) continue;
+    if (o.y != null && o.y < SY) { out.push({ bad: true, msg: `A ${TYPE_LABEL[o.t]} is above the soil line — it will not render underground.` }); break; }
+    if (o.y != null && o.y > H) { out.push({ bad: true, msg: `A ${TYPE_LABEL[o.t]} is below the world floor.` }); break; }
+  }
+  const inZone = level.objects.filter((o) => {
+    const col = Math.floor(o.x / C);
+    return (o.t === 'boulder' || o.t === 'formation') && (col < startCols + 1 || col > goalStart - 2);
+  });
+  if (inZone.length && level.layout.clearChannels !== false)
+    out.push({ bad: false, msg: `${inZone.length} rock(s) sit in the entry/goal channels — those are dug clear, so they'll be drawn but won't block.` });
+
+  if (!level.objects.some((o) => o.t === 'food' && o.kind === 'cache-engine'))
+    out.push({ bad: false, msg: 'No red engine pile — the player can never draft an engine card on this map.' });
+
+  const el = document.getElementById('checks');
+  el.innerHTML = out.length
+    ? out.map((c) => `<div class="warn${c.bad ? ' bad' : ''}">${esc(c.msg)}</div>`).join('')
+    : '<div class="ok">✓ Nothing obviously wrong.</div>';
+}
+
+function renderStats() {
+  const n = (t) => level.objects.filter((o) => o.t === t).length;
+  const food = (k) => level.objects.filter((o) => o.t === 'food' && o.kind === k).length;
+  const rows = [
+    ['Boulders', n('boulder')], ['Formations', n('formation')],
+    ['Lakes', n('lake')], ['Reservoirs', n('reservoir')],
+    ['Duff piles', food('duff')], ['Cache piles', food('cache')], ['Engine piles', food('cache-engine')],
+    ['Ant nests', n('ant')], ['Nematodes', n('nematode')], ['Trichoderma', n('trichoderma')],
+    ['Mountains', n('mountain')],
+  ];
+  document.getElementById('stats').innerHTML =
+    rows.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+function renderLayers() {
+  const el = document.getElementById('layers');
+  const items = level.objects.map((o, i) => ({ o, i })).reverse();
+  el.innerHTML = items.map(({ o, i }) =>
+    `<div class="lrow${sel.includes(o.id) ? ' sel' : ''}" data-id="${o.id}">` +
+    `<span class="t">${TYPE_LABEL[o.t]}${o.key ? ' · ' + o.key : ''}${o.kind ? ' · ' + o.kind : ''}</span>` +
+    `<span class="n">#${i}</span></div>`).join('') || '<div class="empty" style="padding:8px">Empty</div>';
+  el.querySelectorAll('.lrow').forEach((r) => r.addEventListener('click', (e) => {
+    const id = +r.dataset.id;
+    sel = e.shiftKey ? (sel.includes(id) ? sel.filter((s) => s !== id) : sel.concat(id)) : [id];
+    renderSide(); draw();
+  }));
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function renderInspector() {
+  const el = document.getElementById('selBody');
+  const objs = selObjs();
+  if (!objs.length) { el.className = 'empty'; el.innerHTML = 'Nothing selected. Drag an asset from the left onto the map.'; return; }
+  if (objs.length > 1) {
+    el.className = '';
+    el.innerHTML = `<div class="kindpill">${objs.length} selected</div>
+      <div class="empty">Move with drag or the arrow keys. Select one to resize or rotate.</div>`;
+    return;
+  }
+  const o = objs[0];
+  el.className = '';
+  let html = `<div class="kindpill">${TYPE_LABEL[o.t]}</div>`;
+
+  if (o.t === 'boulder' || o.t === 'formation') {
+    const pool = o.t === 'boulder' ? ROCK_KEYS : ROCKFORM_KEYS;
+    html += `<div class="row" style="margin-top:8px"><div class="fld"><label>Sprite</label><select data-f="key">` +
+      pool.map((k) => `<option value="${k}"${k === o.key ? ' selected' : ''}>${k}</option>`).join('') + `</select></div></div>`;
+  }
+  if (o.t === 'lake') {
+    html += `<div class="row" style="margin-top:8px"><div class="fld"><label>Water art</label><select data-f="key">` +
+      LAKE_KEYS.map((k) => `<option value="${k}"${k === o.key ? ' selected' : ''}>${k}</option>`).join('') + `</select></div></div>`;
+  }
+  if (o.t === 'reservoir') {
+    html += `<div class="row" style="margin-top:8px"><div class="fld"><label>Pool art</label><select data-f="key">` +
+      RESERVOIR_KEYS.map((k) => `<option value="${k}"${k === o.key ? ' selected' : ''}>${k}</option>`).join('') + `</select></div></div>`;
+  }
+  if (o.t === 'food') {
+    html += `<div class="row" style="margin-top:8px"><div class="fld"><label>Litter</label><select data-f="kind">` +
+      Object.keys(FOOD_LABEL).map((k) => `<option value="${k}"${k === o.kind ? ' selected' : ''}>${FOOD_LABEL[k]}</option>`).join('') +
+      `</select></div></div>`;
+  }
+
+  html += '<div class="row">';
+  html += `<div class="fld"><label>X</label><input type="number" data-f="x" step="1" value="${Math.round(o.x)}"></div>`;
+  if (o.y != null && !SURFACE_BOUND.has(o.t))
+    html += `<div class="fld"><label>Y</label><input type="number" data-f="y" step="1" value="${Math.round(o.y)}"></div>`;
+  html += '</div>';
+
+  if (o.w != null || o.h != null) {
+    html += '<div class="row">';
+    if (o.w != null) html += `<div class="fld"><label>${o.t === 'lake' ? 'Width' : 'W'}</label><input type="number" data-f="w" step="1" value="${Math.round(o.w)}"></div>`;
+    if (o.h != null) html += `<div class="fld"><label>${o.t === 'lake' ? 'Depth' : 'H'}</label><input type="number" data-f="h" step="1" value="${Math.round(o.h)}"></div>`;
+    html += '</div>';
+  }
+  if (o.r != null) {
+    html += o.t === 'food'
+      ? `<div class="row"><div class="fld"><label>Radius (cells)</label><input type="number" data-f="r" min="0" max="6" step="1" value="${o.r}"></div>
+         <div class="fld"><label>Energy</label><input type="number" data-f="energy" min="0" max="20" step="1" value="${o.energy}"></div></div>`
+      : `<div class="row"><div class="fld"><label>Radius</label><input type="number" data-f="r" min="4" step="1" value="${Math.round(o.r)}"></div></div>`;
+  }
+  if (ROTATABLE.has(o.t)) {
+    html += `<div class="row"><div class="fld"><label>Rotation °</label>
+      <input type="number" data-f="rotDeg" step="1" value="${Math.round((o.rot || 0) * 180 / Math.PI)}"></div>
+      <div class="fld"><label>&nbsp;</label><button class="btn" id="bFlat">Reset</button></div></div>`;
+  }
+  if (o.t === 'boulder' || o.t === 'formation')
+    html += `<div class="row"><div class="fld"><label>&nbsp;</label><button class="btn" id="bAspect">Fix aspect to art</button></div></div>`;
+  if (o.t === 'food' && o.r > 0)
+    html += `<div class="hint">Diamond footprint: ${1 + 2 * o.r * (o.r + 1)} cells at radius ${o.r}.</div>`;
+  if (o.t === 'mountain')
+    html += `<div class="hint">Surface decor only — no collision. The game picks the peak art per map.</div>`;
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('[data-f]').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      snapshot();
+      const f = inp.dataset.f;
+      const obj = byId(o.id); if (!obj) return;
+      if (f === 'rotDeg') obj.rot = (+inp.value || 0) * Math.PI / 180;
+      else if (f === 'key' || f === 'kind') obj[f] = inp.value;
+      else obj[f] = +inp.value || 0;
+      if (f === 'kind') obj.energy = obj.kind === 'cache-engine' ? 4 : obj.kind === 'duff' ? 2 : 3;
+      draw(); renderSide();
+    });
+  });
+  const flat = document.getElementById('bFlat');
+  if (flat) flat.addEventListener('click', () => { snapshot(); byId(o.id).rot = 0; draw(); renderSide(); });
+  const asp = document.getElementById('bAspect');
+  if (asp) asp.addEventListener('click', () => {
+    const im = img(o.key); if (!im) return;
+    snapshot(); const ob = byId(o.id); ob.w = ob.h * (im.width / im.height); draw(); renderSide();
+  });
+}
+
+function renderSide() { renderInspector(); renderLayers(); renderStats(); runChecks(); }
+
+// ---- palette ----------------------------------------------------------------
+function buildPalette() {
+  const groups = [
+    { name: 'Boulders', wide: false, items: ROCK_KEYS.map((k) => ({ t: 'boulder', key: k, label: k.replace('rock', '') })) },
+    { name: 'Rock formations', wide: false, items: ROCKFORM_KEYS.map((k) => ({ t: 'formation', key: k, label: k.replace('rockform', 'form ') })) },
+    { name: 'Water', wide: true, items: [
+      ...LAKE_KEYS.map((k) => ({ t: 'lake', key: k, label: 'Lake ' + k.slice(-1) })),
+      ...RESERVOIR_KEYS.map((k) => ({ t: 'reservoir', key: k, label: 'Pool ' + k.slice(-1) })),
+    ] },
+    { name: 'Leaf piles', wide: true, items: [
+      { t: 'food', kind: 'duff', label: 'Duff · yellow', leaf: YELLOW_LEAF_KEYS[0] },
+      { t: 'food', kind: 'cache', label: 'Cache · orange', leaf: ORANGE_LEAF_KEYS[0] },
+      { t: 'food', kind: 'cache-engine', label: 'Engine · red', leaf: RED_LEAF_KEYS[0] },
+    ] },
+    { name: 'Threats', wide: true, items: [
+      { t: 'ant', label: 'Ant nest', glyph: 'ant' },
+      { t: 'nematode', label: 'Nematode', glyph: 'worm' },
+      { t: 'trichoderma', label: 'Trichoderma', glyph: 'mould' },
+    ] },
+    { name: 'Surface', wide: true, items: [{ t: 'mountain', label: 'Mountain', key: MOUNTAIN_KEYS[0] }] },
+  ];
+  const host = document.getElementById('palette');
+  host.innerHTML = groups.map((g) =>
+    `<div class="pgroup"><h3>${g.name}</h3><div class="pgrid${g.wide ? ' wide' : ''}">` +
+    g.items.map((it, i) => {
+      const key = it.key || it.leaf;
+      const thumb = key ? `<img src="${ASSET + key}.png" alt="">` : `<canvas data-glyph="${it.glyph}" width="60" height="38"></canvas>`;
+      return `<div class="pitem" data-g="${groups.indexOf(g)}" data-i="${i}">${thumb}<span class="lbl">${esc(it.label)}</span></div>`;
+    }).join('') + '</div></div>').join('');
+
+  host.querySelectorAll('canvas[data-glyph]').forEach((c) => drawGlyph(c, c.dataset.glyph));
+  host.querySelectorAll('.pitem').forEach((el) => {
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const g = groups[+el.dataset.g], it = g.items[+el.dataset.i];
+      startPaletteDrag(it, el, e);
+    });
+  });
+  return groups;
+}
+
+function drawGlyph(c, kind) {
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  if (kind === 'ant') {
+    g.fillStyle = '#d08a3a';
+    for (const [x, r] of [[22, 5], [30, 4], [38, 6]]) { g.beginPath(); g.arc(x, 19, r, 0, 7); g.fill(); }
+    g.strokeStyle = '#d08a3a'; g.lineWidth = 1.4;
+    for (const dx of [-6, 0, 6]) { g.beginPath(); g.moveTo(30 + dx, 15); g.lineTo(30 + dx * 1.6, 8); g.stroke(); g.beginPath(); g.moveTo(30 + dx, 23); g.lineTo(30 + dx * 1.6, 30); g.stroke(); }
+  } else if (kind === 'worm') {
+    g.strokeStyle = '#f2e2b0'; g.lineWidth = 4; g.lineCap = 'round';
+    g.beginPath();
+    for (let i = 0; i <= 20; i++) { const t = i / 20; const x = 8 + t * 44, y = 19 + Math.sin(t * Math.PI * 2) * 7; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+  } else {
+    const grd = g.createRadialGradient(30, 19, 0, 30, 19, 17);
+    grd.addColorStop(0, 'rgba(150,220,90,.85)'); grd.addColorStop(1, 'rgba(120,190,70,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(30, 19, 17, 0, 7); g.fill();
+  }
+}
+
+// Pointer-based palette drag: works with mouse, pen and touch, and lets us drop
+// straight onto the world under the cursor (HTML5 DnD gives no reliable
+// coordinates on touch).
+let pending = null;
+const ghost = document.getElementById('ghost');
+function startPaletteDrag(spec, el, e) {
+  pending = spec;
+  const im = el.querySelector('img');
+  if (im) { ghost.src = im.src; ghost.style.width = '54px'; ghost.style.display = 'block'; }
+  else { ghost.style.display = 'none'; }
+  moveGhost(e.clientX, e.clientY);
+  const move = (ev) => moveGhost(ev.clientX, ev.clientY);
+  const up = (ev) => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    ghost.style.display = 'none';
+    const r = canvas.getBoundingClientRect();
+    if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+      dropAt(spec, ev.clientX - r.left, ev.clientY - r.top);
+    }
+    pending = null;
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+function moveGhost(x, y) { ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; }
+
+function dropAt(spec, sx, sy) {
+  const p = S2W(sx, sy);
+  snapshot();
+  const o = makeObject(spec, snapV(p.x), snapV(Math.max(level.world.surfaceY + cs() / 2, p.y)));
+  if (SURFACE_BOUND.has(o.t)) delete o.y;
+  level.objects.push(o);
+  sel = [o.id];
+  draw(); renderSide();
+}
+function snapV(v) { return snap ? Math.round(v / (cs() / 2)) * (cs() / 2) : v; }
+
+// ---- canvas interaction -----------------------------------------------------
+let drag = null, marquee = null, spaceDown = false;
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  const w = S2W(sx, sy);
+
+  if (e.button === 1 || spaceDown) { drag = { mode: 'pan', sx, sy, cx: cam.x, cy: cam.y }; return; }
+
+  // handles first (single selection only)
+  const objs = selObjs();
+  if (objs.length === 1) {
+    const o = objs[0], b = boxOf(o);
+    if (ROTATABLE.has(o.t)) {
+      const h = rotHandlePos(b);
+      if (Math.hypot(h.x - sx, h.y - sy) < HANDLE + 5) {
+        snapshot();
+        drag = { mode: 'rotate', id: o.id, cx: b.x, cy: b.y, start: Math.atan2(w.y - b.y, w.x - b.x), rot0: o.rot || 0 };
+        return;
+      }
+    }
+    if (SIZEABLE.has(o.t)) {
+      const pts = corners(b).map((p) => W2S(p.x, p.y));
+      for (let i = 0; i < 4; i++) {
+        if (Math.abs(pts[i].x - sx) < HANDLE && Math.abs(pts[i].y - sy) < HANDLE) {
+          snapshot();
+          drag = { mode: 'scale', id: o.id, b0: { ...b }, o0: JSON.parse(JSON.stringify(o)), corner: i };
+          return;
+        }
+      }
+    }
+  }
+
+  // body hit (topmost by draw order)
+  let hit = null;
+  for (let i = level.objects.length - 1; i >= 0; i--) {
+    if (hitTest(level.objects[i], w.x, w.y)) { hit = level.objects[i]; break; }
+  }
+  if (hit) {
+    if (e.shiftKey) sel = sel.includes(hit.id) ? sel.filter((s) => s !== hit.id) : sel.concat(hit.id);
+    else if (!sel.includes(hit.id)) sel = [hit.id];
+    snapshot();
+    drag = { mode: 'move', wx: w.x, wy: w.y, orig: selObjs().map((o) => ({ id: o.id, x: o.x, y: o.y })) };
+    renderSide(); draw();
+    return;
+  }
+  if (!e.shiftKey) sel = [];
+  marquee = { x0: sx, y0: sy, x1: sx, y1: sy };
+  renderSide(); draw();
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  const w = S2W(sx, sy);
+  const C = cs();
+  document.getElementById('coords').textContent =
+    `x ${Math.round(w.x)} · y ${Math.round(w.y)}   col ${Math.floor(w.x / C)} · row ${Math.floor((w.y - level.world.surfaceY) / C)}   ${Math.round(cam.z * 100)}%`;
+
+  if (!drag && !marquee) return;
+  if (marquee) { marquee.x1 = sx; marquee.y1 = sy; draw(); return; }
+
+  if (drag.mode === 'pan') {
+    cam.x = drag.cx - (sx - drag.sx) / cam.z;
+    cam.y = drag.cy - (sy - drag.sy) / cam.z;
+    draw(); return;
+  }
+  if (drag.mode === 'move') {
+    const dx = w.x - drag.wx, dy = w.y - drag.wy;
+    for (const rec of drag.orig) {
+      const o = byId(rec.id); if (!o) continue;
+      o.x = snapV(rec.x + dx);
+      if (o.y != null && !SURFACE_BOUND.has(o.t)) o.y = snapV(rec.y + dy);
+    }
+    draw(); return;
+  }
+  if (drag.mode === 'rotate') {
+    const o = byId(drag.id); if (!o) return;
+    let rot = drag.rot0 + (Math.atan2(w.y - drag.cy, w.x - drag.cx) - drag.start);
+    if (e.shiftKey) rot = Math.round(rot / (Math.PI / 12)) * (Math.PI / 12);   // 15° steps
+    o.rot = rot;
+    draw(); renderInspector(); return;
+  }
+  if (drag.mode === 'scale') {
+    const o = byId(drag.id); if (!o) return;
+    const b = drag.b0;
+    // Distance from the centre in the object's own frame → a scale factor. Uniform
+    // by default (shift = free w/h), which is what keeps sprites undistorted.
+    const c = Math.cos(-b.rot), s = Math.sin(-b.rot);
+    const dx = w.x - b.x, dy = w.y - b.y;
+    const lx = Math.abs(c * dx - s * dy), ly = Math.abs(s * dx + c * dy);
+    const fx = Math.max(0.08, lx / Math.max(1, b.w / 2)), fy = Math.max(0.08, ly / Math.max(1, b.h / 2));
+    const f = e.shiftKey ? null : Math.max(fx, fy);
+    const o0 = drag.o0;
+    if (o.t === 'food') o.r = Math.max(0, Math.min(6, Math.round((Math.max(lx, ly) / cs()) - 0.5)));
+    else if (o.r != null) o.r = Math.max(cs() * 0.4, Math.max(lx, ly));
+    else {
+      if (o.w != null) o.w = Math.max(8, o0.w * (f || fx));
+      if (o.h != null) o.h = Math.max(8, o0.h * (f || fy));
+    }
+    draw(); renderInspector(); return;
+  }
+});
+
+canvas.addEventListener('pointerup', () => {
+  if (marquee) {
+    const a = S2W(Math.min(marquee.x0, marquee.x1), Math.min(marquee.y0, marquee.y1));
+    const b = S2W(Math.max(marquee.x0, marquee.x1), Math.max(marquee.y0, marquee.y1));
+    if (Math.abs(b.x - a.x) > 4 / cam.z || Math.abs(b.y - a.y) > 4 / cam.z) {
+      for (const o of level.objects) {
+        const bb = boxOf(o);
+        if (bb.x >= a.x && bb.x <= b.x && bb.y >= a.y && bb.y <= b.y && !sel.includes(o.id)) sel.push(o.id);
+      }
+    }
+    marquee = null; renderSide(); draw();
+  }
+  if (drag && drag.mode !== 'pan') { markDirty(); renderSide(); }
+  drag = null;
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  const before = S2W(sx, sy);
+  cam.z = Math.max(0.06, Math.min(4, cam.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+  const after = S2W(sx, sy);
+  cam.x += before.x - after.x; cam.y += before.y - after.y;
+  draw();
+}, { passive: false });
+
+// ---- keyboard ---------------------------------------------------------------
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { spaceDown = true; canvas.style.cursor = 'grab'; }
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (ctrl && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicate(); return; }
+  if (ctrl && e.key.toLowerCase() === 'a') { e.preventDefault(); sel = level.objects.map((o) => o.id); renderSide(); draw(); return; }
+
+  const objs = selObjs();
+  if (e.key === 'Escape') { sel = []; renderSide(); draw(); return; }
+  if (!objs.length) return;
+
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); del(); return; }
+  const step = (e.shiftKey ? 10 : 1) * (snap ? cs() / 2 : 1);
+  const nudge = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (nudge) {
+    e.preventDefault(); snapshot();
+    for (const o of objs) { o.x += nudge[0]; if (o.y != null && !SURFACE_BOUND.has(o.t)) o.y += nudge[1]; }
+    draw(); renderSide(); return;
+  }
+  if (e.key === '[' || e.key === ']') {
+    snapshot();
+    const d = (e.key === '[' ? -1 : 1) * (e.shiftKey ? 15 : 5) * Math.PI / 180;
+    for (const o of objs) if (ROTATABLE.has(o.t)) o.rot = (o.rot || 0) + d;
+    draw(); renderSide(); return;
+  }
+  if (e.key === '-' || e.key === '=' || e.key === '+') {
+    snapshot();
+    const f = e.key === '-' ? 1 / 1.1 : 1.1;
+    for (const o of objs) {
+      if (o.t === 'food') o.r = Math.max(0, Math.min(6, o.r + (f > 1 ? 1 : -1)));
+      else if (o.r != null) o.r *= f;
+      else { if (o.w != null) o.w *= f; if (o.h != null) o.h *= f; }
+    }
+    draw(); renderSide();
+  }
+});
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') { spaceDown = false; canvas.style.cursor = 'crosshair'; } });
+
+function duplicate() {
+  const objs = selObjs(); if (!objs.length) return;
+  snapshot();
+  const clones = objs.map((o) => {
+    const c = JSON.parse(JSON.stringify(o));
+    c.id = nextId++; c.x += cs();
+    return c;
+  });
+  level.objects.push(...clones);
+  sel = clones.map((c) => c.id);
+  draw(); renderSide();
+}
+function del() {
+  if (!sel.length) return;
+  snapshot();
+  level.objects = level.objects.filter((o) => !sel.includes(o.id));
+  sel = [];
+  draw(); renderSide();
+}
+
+// ---- forms ------------------------------------------------------------------
+function syncForms() {
+  document.getElementById('lvName').value = level.name || '';
+  document.getElementById('lvNum').value = level.campaignLevel == null ? '' : level.campaignLevel;
+  document.getElementById('wW').value = level.world.width;
+  document.getElementById('wH').value = level.world.height;
+  document.getElementById('wSurf').value = level.world.surfaceY;
+  document.getElementById('wCell').value = level.world.cellSize;
+  document.getElementById('lStart').value = level.layout.startCols;
+  document.getElementById('lGoal').value = level.layout.goalCols;
+  document.getElementById('lSummer').value = level.layout.summerCols;
+  document.getElementById('lChan').checked = level.layout.clearChannels !== false;
+}
+function wireForms() {
+  const bind = (id, apply) => document.getElementById(id).addEventListener('change', (e) => {
+    snapshot(); apply(e.target); draw(); renderSide();
+  });
+  bind('lvName', (t) => { level.name = t.value; });
+  bind('lvNum', (t) => { level.campaignLevel = t.value === '' ? null : Math.max(1, Math.min(100, +t.value | 0)); });
+  bind('wW', (t) => { level.world.width = Math.max(600, +t.value | 0); });
+  bind('wH', (t) => { level.world.height = Math.max(600, +t.value | 0); });
+  bind('wSurf', (t) => { level.world.surfaceY = Math.max(0, +t.value | 0); });
+  bind('wCell', (t) => { level.world.cellSize = Math.max(8, +t.value | 0); });
+  bind('lStart', (t) => { level.layout.startCols = Math.max(1, +t.value | 0); });
+  bind('lGoal', (t) => { level.layout.goalCols = Math.max(2, +t.value | 0); });
+  bind('lSummer', (t) => { level.layout.summerCols = Math.max(0, +t.value | 0); });
+  bind('lChan', (t) => { level.layout.clearChannels = t.checked; });
+}
+
+// ---- top-bar actions --------------------------------------------------------
+function wireTop() {
+  document.getElementById('bNew').addEventListener('click', () => {
+    if (level.objects.length && !confirm('Discard the current level and start blank?')) return;
+    snapshot(); level = blankLevel(); sel = []; syncForms(); fitView(); renderSide(); markDirty();
+  });
+  document.getElementById('bOpen').addEventListener('click', () => document.getElementById('fileIn').click());
+  document.getElementById('fileIn').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        snapshot();
+        loadLevel(JSON.parse(fr.result));
+        fitView(); markDirty();
+      } catch (err) { alert('Could not load: ' + err.message); }
+    };
+    fr.readAsText(f);
+    e.target.value = '';
+  });
+  document.getElementById('bSave').addEventListener('click', () => {
+    const name = (level.name || 'level').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
+    const blob = new Blob([levelJSON()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    document.getElementById('saveState').textContent = 'saved ' + a.download;
+  });
+  document.getElementById('bCopy').addEventListener('click', async () => {
+    const btn = document.getElementById('bCopy');
+    try { await navigator.clipboard.writeText(levelJSON()); btn.textContent = 'Copied ✓'; }
+    catch (_) { window.prompt('Copy the level JSON:', levelJSON()); btn.textContent = 'Copy JSON'; }
+    setTimeout(() => (btn.textContent = 'Copy JSON'), 1400);
+  });
+  document.getElementById('bUndo').addEventListener('click', undo);
+  document.getElementById('bRedo').addEventListener('click', redo);
+  const snapBtn = document.getElementById('bSnap'), gridBtn = document.getElementById('bGrid');
+  const syncToggles = () => { snapBtn.classList.toggle('on', snap); gridBtn.classList.toggle('on', showGrid); };
+  snapBtn.addEventListener('click', () => { snap = !snap; syncToggles(); });
+  gridBtn.addEventListener('click', () => { showGrid = !showGrid; syncToggles(); draw(); });
+  syncToggles();
+  document.getElementById('bTest').addEventListener('click', () => {
+    try { localStorage.setItem(PLAYTEST_KEY, JSON.stringify(exportLevel())); }
+    catch (err) { alert('Could not stash the level: ' + err.message); return; }
+    // The game reads PLAYTEST_KEY on `#level` (main.js enterGame).
+    window.open(ASSET === 'assets/' ? 'index.html#level' : '../index.html#level', '_blank');
+  });
+  document.getElementById('bZoomIn').addEventListener('click', () => { cam.z = Math.min(4, cam.z * 1.25); draw(); });
+  document.getElementById('bZoomOut').addEventListener('click', () => { cam.z = Math.max(0.06, cam.z / 1.25); draw(); });
+  document.getElementById('bZoomFit').addEventListener('click', fitView);
+  document.getElementById('bDel').addEventListener('click', del);
+  document.getElementById('bFront').addEventListener('click', () => {
+    const objs = selObjs(); if (!objs.length) return;
+    snapshot();
+    level.objects = level.objects.filter((o) => !sel.includes(o.id)).concat(objs);
+    draw(); renderSide();
+  });
+  document.getElementById('bBack').addEventListener('click', () => {
+    const objs = selObjs(); if (!objs.length) return;
+    snapshot();
+    level.objects = objs.concat(level.objects.filter((o) => !sel.includes(o.id)));
+    draw(); renderSide();
+  });
+}
+
+// ---- boot -------------------------------------------------------------------
+async function boot() {
+  // Source tree serves assets at ../assets/; the built copy in dist/ at assets/.
+  try {
+    const r = await fetch('../assets/manifest.json', { method: 'GET' });
+    if (!r.ok) throw new Error('no');
+  } catch (_) { ASSET = 'assets/'; }
+  document.getElementById('favi').href = ASSET + 'favicon.svg';
+
+  const keys =[...ROCK_KEYS, ...ROCKFORM_KEYS, ...LAKE_KEYS, ...RESERVOIR_KEYS,
+    ...ORANGE_LEAF_KEYS, ...RED_LEAF_KEYS, ...YELLOW_LEAF_KEYS, ...MOUNTAIN_KEYS, 'antColonyA'];
+  buildPalette();
+  wireTop();
+  wireForms();
+
+  // Restore the autosaved draft so a reload never loses work.
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (saved && saved.format === FORMAT) loadLevel(saved);
+  } catch (_) {}
+  tagIds();
+  syncForms();
+
+  window.addEventListener('resize', resize);
+  resize(); fitView(); renderSide();
+
+  await Promise.all(keys.map(loadImg));
+  buildPalette();                        // rebuild so thumbnails resolve
+  draw(); renderSide();
+}
+
+// Invisible test/debug hook, mirroring the game's `window.__game`. Used by
+// scratchpad/verify-leveleditor.mjs to drive the editor headlessly; harmless in
+// normal use.
+window.__ed = {
+  level: () => level,
+  objects: () => level.objects,
+  export: exportLevel,
+  load: (obj) => loadLevel(obj),
+  select: (i) => { const o = level.objects[i]; if (o) { sel = [o.id]; renderSide(); draw(); } },
+  selection: () => sel.slice(),
+  rotGrip: () => rotHandlePos(boxOf(selObjs()[0])),
+  corner: (i) => { const p = corners(boxOf(selObjs()[0]))[i]; return W2S(p.x, p.y); },
+  cam, draw, fit: fitView,
+};
+
+boot();
+</script>
+</body>
+</html>

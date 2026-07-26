@@ -135,11 +135,13 @@ function spawnFarCloud(state) {
   state.clouds.push(makeCloud(spot.x, spot.y, (t.cloudRadiusMin + t.cloudRadiusMax) / 2));
 }
 
-// Place clouds at fixed world positions (puzzle mode) and stamp the field.
+// Place clouds at fixed world positions (puzzle mode, hand-authored levels) and
+// stamp the field. A position may carry its own `r` — the level editor sizes each
+// cloud individually; anything else gets the config's mid radius.
 export function placeClouds(substrate, positions, config) {
   const t = config.trichoderma;
   const r = (t.cloudRadiusMin + t.cloudRadiusMax) / 2;
-  const clouds = positions.map((p) => makeCloud(p.x, p.y, r));
+  const clouds = positions.map((p) => makeCloud(p.x, p.y, p.r > 0 ? p.r : r));
   stampCloudField(substrate, clouds);
   return clouds;
 }

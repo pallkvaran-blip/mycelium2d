@@ -33,6 +33,13 @@ export function seedNematodes(substrate, config, rng, network) {
   return worms;
 }
 
+// Hand-authored maps (level editor): one worm per authored point, in place.
+// Heading/phase still come off the run RNG so their idle animation varies.
+export function placeNematodes(rng, points) {
+  return (points || []).map((p) =>
+    makeWorm(p.x, p.y, rng ? rng.range(0, Math.PI * 2) : 0, rng ? rng.range(0, Math.PI * 2) : 0));
+}
+
 // Dev cheat / spawn hook: drop a worm at a world point.
 export function spawnNematodeAt(state, x, y) {
   if (!state.nematodes) state.nematodes = [];

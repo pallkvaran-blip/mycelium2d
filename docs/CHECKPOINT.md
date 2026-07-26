@@ -151,6 +151,7 @@ build.mjs                   # mechanical bundler: strips import/export, wraps in
 src/main.js                 # wiring: input -> handlers -> engine -> renderers; window.__game debug hook
 src/config.js               # CONFIG: every gameplay number incl. the `cards:` block
 src/cards-data.js           # GENERATED from docs/cards.json (CARD_DATA, CARD_BY_NAME) — do not hand-edit
+src/levels-data.js          # GENERATED from docs/levels/*.json (LEVELS, levelForNumber) — do not hand-edit
 src/species.js              # starter-species roster: id/name/latin/vibe/blurb/portrait + starting hand ({name,count}) + resources; shared by the picker AND run seeding
 
 src/engine/                 # pure simulation (no DOM)
@@ -165,6 +166,7 @@ src/engine/                 # pure simulation (no DOM)
   turn.js                   # move/turn loop + end-turn resolution (tickWorld)
   cards.js                  # CARD RUNTIME: initCards, drawCard, skipRound, playCard, EFFECTS, offers/rewards
   puzzle.js                 # puzzle-mode setups
+  level.js                  # HAND-AUTHORED maps: the `mycelium-level` format + buildLevel() (see §9)
 
 src/render/                 # rendering (canvas), driven from state
   camera.js                 # world<->screen, pan/zoom
@@ -177,8 +179,10 @@ src/render/                 # rendering (canvas), driven from state
   assets.js                 # sprite loading via assets/manifest.json
   lighting.js, noise.js     # visual helpers
 
-test/smoke.test.js, test/cards.test.js
+test/smoke.test.js, test/cards.test.js, test/level.test.js
 docs/                       # cards-design.md, cards-review.md, cards.json (SOURCE), cards.csv, ASSETS.md, STYLE_GUIDE.md
+docs/level-editor.html      # the level editor (owner tool) — writes docs/levels/*.json
+docs/levels/                # hand-authored maps (SOURCE for src/levels-data.js); see its README
 ```
 
 `window.__game` (set in `main.js`) is an invisible debug hook exposing
@@ -529,6 +533,54 @@ Both menus are dark, on-theme, with glowing green borders.
 ---
 
 ## 9. Recent work log (most recent first)
+
+- **LEVEL EDITOR — hand-authored maps.** Every map so far has been rolled by
+  `generateSubstrate` from a seed. There is now a second path: a drag-and-drop authoring tool
+  (`docs/level-editor.html`, hosted at `<site>/level-editor.html`) that writes a `mycelium-level`
+  JSON document, and a loader that turns one into a playable Substrate. Same rules, same economy,
+  same carry-over — only the **geometry** is designed instead of generated.
+  - **The editor.** Blank map → a palette of every real asset (5 boulders · 14 rock formations ·
+    3 lakes · 3 reservoirs · 3 leaf-pile tiers · ant nest / nematode / Trichoderma · mountain),
+    dragged onto the canvas with pointer events (works on touch). Select to **move, rotate and
+    resize**: 4 corner handles (uniform by default, `shift` = free w/h) and a rotate grip that
+    follows the object's own frame. Marquee + `shift`-click multi-select, arrow-key nudge, `[` `]`
+    rotate, `-`/`=` scale, `ctrl+D` duplicate, `ctrl+Z/Y` undo-redo (80 deep), layer list with
+    bring-front/send-back, snap-to-half-cell, wheel zoom, `space`-drag pan. Right rail: a live
+    property inspector, level/world settings (world box, `surfaceY`, start/goal/summer columns),
+    a **contents** tally and a **checks** panel (no food, nothing in the left third, no red engine
+    pile, objects above the soil line or out of bounds). Autosaves to `localStorage` every edit.
+  - **It previews with the real art**, at the real geometry: lakes clipped to the same
+    `√(1−t²)` bowl the game clips to, reservoirs carved to the same `RESERVOIR_PROFILE` teardrop,
+    leaf heaps built from the same yellow/orange/red sprite sets.
+  - **Rocks are NOT baked into cells.** They ship as a sprite list on `sub.levelSprites`; `main.js`
+    `drawLevelRocks()` draws it and `solidifyRock()` stamps the *same* list — so an authored rock's
+    collision is its opaque silhouette at exactly the size and rotation you placed it. That's the
+    existing WYSIWYG guarantee, reused rather than reimplemented: the three procedural derivations
+    (`rockGroups` / `formationGroups` / `rockColumns`) are natural no-ops on an authored map because
+    it flags no rock/formation/column cells for them to group. Everything the sim reads directly —
+    water cells, `foodPiles`, `reservoirs`, surface barriers — IS baked, in exactly the shapes
+    `generateSubstrate` produces, so no downstream system can tell the two apart.
+  - **No guaranteed corridor.** A generated map always carves a winnable route under its barriers.
+    An authored one carves only the entry + goal channels (`layout.clearChannels`, on by default) —
+    the route is whatever you left open. So **playtest every map**; that's what the ▶ button is for.
+  - **▶ Test in game** stashes the draft in `localStorage` and opens `index.html#level`, which boots
+    straight into it (no rebuild, no commit) using the dev card scaffold so you probe geometry rather
+    than fight the economy. **Copy JSON** puts the document on the clipboard to paste into a chat.
+  - **Wiring one into the campaign:** drop the export in `docs/levels/`, `node scripts/gen-levels.mjs`
+    (→ **GENERATED** `src/levels-data.js`; it throws if two files claim the same slot), `node build.mjs`.
+    A level with a `campaignLevel` replaces the procedural map for that number — `main.js start()` asks
+    `levelDefFor(n)` and calls `createLevelState` instead of `createState`. `docs/levels/` currently
+    holds only its README, so the shipped campaign is unchanged until a map is added.
+  - **Threat counts come from the objects, not `LEVEL_THREATS`** — an authored map is exactly what was
+    drawn (pinned by a test). New engine exports for placement-in-place: `ants.js placeAntNests`,
+    `nematodes.js placeNematodes`, and `placeClouds` now honours a per-cloud radius. Authored lake /
+    reservoir **art choices** are honoured too (`sub.lakeArt`, `reservoir.key`).
+  - Files: `src/engine/level.js` (format + `buildLevel`), `state.js createLevelState`,
+    `scripts/gen-levels.mjs`, `docs/level-editor.html`, `docs/levels/README.md`.
+    Verified by `test/level.test.js` (50 checks, engine-side) and
+    `scratchpad/verify-leveleditor.mjs` (Playwright: the editor's real drag/rotate/resize gestures,
+    then the game booting that export — sprites solidified, `solidAtWorld` true inside a formation and
+    a boulder and false in open ground, threats at their authored coordinates, colony grows).
 
 - **The hand carousel no longer pops in a beat after the level starts.** Owner report: "the card carousel
   pops in awkwardly when the level starts."
