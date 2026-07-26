@@ -88,7 +88,6 @@ export class UI {
     this.pendingAction = null;        // index into cards.actions[] awaiting a map target
     this.armed = null;                // {kind:'hand'|'offer', index?, name} a card awaiting Confirm
     this.armedOffer = null;           // name of the highlighted draft card awaiting Draft-confirm
-    this._lastCardTap = null;         // {name, t} — for double-tap/double-click-to-play detection
     this.handFilter = 'all';          // active card-hand filter group key
     this.handOpen = true;             // the hand carousel starts visible on every screen; only the Show/Hide button toggles it
     this.defaultHint = '';            // cached card-mode hint, restored on cancel
@@ -224,7 +223,9 @@ export class UI {
     }
     // In card mode there is no separate action bar: the controls ride ON the hand
     // bar's filter row — a show/hide arrow at the far left and a Skip chip at the
-    // far right — and a card is played by double-clicking it (no Play button).
+    // far right — and a card is played by a SINGLE click on it (no Play button).
+    // (The draft/offer panel is different: there, single click previews and a
+    // double click drafts. Only the HAND is one-click.)
 
     // ---- Hand bar (card layer) ----
     if (cardsOn) {

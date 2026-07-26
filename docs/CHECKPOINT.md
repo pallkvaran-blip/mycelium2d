@@ -59,7 +59,8 @@ reflavored to phosphate. Names are load-bearing: each moved in lockstep across c
 `EFFECTS`/`DRAW_ENGINES`/`ARCHIVED` maps in `engine/cards.js`, tests, art slugs, `cards-data.js` + `dist/`;
 61/61 tests + a 20-check per-card engine pass green — see §9. — earlier: **first-run tutorial:** a scripted
 10-step B&W popup walkthrough (`src/render/tutorial.js`) fires ONCE on the first NEW of a real species run —
-zooms the camera to each subject, FORCES the first grow (double-click Apical Drive → drag), and shows
+zooms the camera to each subject, FORCES the first grow (click Apical Drive → drag; double-click until
+the Jul-25 one-click change), and shows
 FLUX-generated threat portraits (ant D / nematode B / a relatable moldy-bread trichoderma). Now with
 **portrait-phone** support (minimise carousel, zoom out ~50%, frame the subject in the top half), a **TEMP
 dev launcher** button on the title, and **no map-dimming** during the tutorial. `#tutorial` hash or
@@ -395,12 +396,15 @@ Both menus are dark, on-theme, with glowing green borders.
   Hand** button in the action bar (`toggleHand`). (The old
   `collapseHand`/`expandHand`/`_isNarrow`/`_watchViewport` auto-minimize plumbing
   was removed.)
-- **Select → play flow (name-based):** tapping a card **highlights** it
-  (`armCard`, toggles by name — tap again to deselect). `Play Card` runs
-  `playArmed`, which resolves the hand index **by name at play time** (never a
-  stored index, which can go stale after the hand splices). A successful play
-  **deselects** the card but leaves the carousel visible. There is **no Cancel
-  button**; the only popup is the +5 draw-engine text preview.
+- **Play flow — ONE tap on a hand card plays it** (since Jul 25). `onCardTap` arms the card and calls
+  `playArmed()` in the same handler; `playArmed` resolves the hand index **by name at play time** (never a
+  stored index, which goes stale when the hand splices — e.g. a pending targeted card resolving on the map
+  shifts every later index down). A successful play **deselects** the card but leaves the carousel visible.
+  There is **no Cancel button**; the only popup is the +5 draw-engine text preview. Notes for anyone reading
+  older entries: (a) there is **no `Play Card` button in the DOM** — `el.handplay` is never assigned, which is
+  precisely why double-click had been the only way to play at all; `_renderHandFooter` still guards on it
+  (`if (play) …`) so it's harmless dead weight; (b) the **draft/offer panel is different** — single click
+  previews, double click drafts — so "double-click to play" in an old §9 entry is history, not current.
 - **Aiming chip** — when a targeted card is waiting for a map tap, a "Aiming: X ✕"
   chip shows in the hand header; its ✕ cancels the aim. (Aiming no longer hides
   the carousel; tap the map anywhere outside the tray to aim, or Hide Hand first.)
@@ -426,9 +430,15 @@ Both menus are dark, on-theme, with glowing green borders.
   white glow border) with an ×count from the live threat seed, then fades itself out on a
   click anywhere — the finished map is already drawn opaque behind it, so that fade is the
   map fading in. `main.js begin()` arms `pendingLevelIntro`; `revealMap()` shows it after
-  the first drawn frame (puzzle mode keeps the old direct canvas fade). The first-run
-  tutorial rides `pendingLevelIntro.onContinue`, so it starts only AFTER the intro clears —
-  never under the black screen. CSS `#levelIntro` / `.li-*` (z 1300, above the tutorial's
+  the first drawn frame (puzzle mode keeps the old direct canvas fade).
+  **Two callbacks, and which one you pick is visible to the player:** `onDismiss` fires on the
+  click *before* the fade starts, while the screen is still solid black — that's where anything
+  changing HUD **layout** goes, so it settles unseen and the fade reveals a finished screen
+  (`main.js` re-expands the hand carousel here; doing it on `onDone` made the tray pop in a beat
+  after the map was already up). `onDone` fires after the fade, node removed — for anything that
+  needs a **visible** map, which is why the first-run tutorial rides it (its camera moves and
+  popups would otherwise play under the black screen). A superseding `begin()` calls `destroy()`,
+  which runs neither. CSS `#levelIntro` / `.li-*` (z 1300, above the tutorial's
   1200); `.li-out` drops `pointer-events` on dismiss so the fading overlay can't eat a tap.
 - **Bottom dirt buffer** — `substrate.worldHeight` is the CONTENT region (grid +
   all generation/engine bounds stay inside it). `substrate.viewHeight =
@@ -2220,7 +2230,8 @@ Both menus are dark, on-theme, with glowing green borders.
   popup walkthrough that fires **ONCE**, the first time NEW is pressed on a real species run (guarded by
   `localStorage 'mycelium.tutorial.v1'`; `tutorialSeen`/`markTutorialSeen`). Steps zoom the camera to
   whatever they describe (`focusWorld`/`focusBounds` eased tween in main.js, advanced by `updateCamFocus`)
-  and, on two steps, **force an interaction** before advancing: double-click Apical Drive (armed), then
+  and, on two steps, **force an interaction** before advancing: click Apical Drive to arm+play it (a DOUBLE-
+  click until Jul 25 — the hand is one-click now; only the draft panel still needs two), then
   drag-to-grow (gated on node count rising). `startTutorial(deps)` returns a controller `{tick,destroy,
   active}`; main.js `tutorialDeps()` supplies the live camera/state/DOM hooks and `threats()` /
   `colonyRoot()` / `goalPoint()` / `duffPile()` anchor points. `begin()` injects the two scripted props
@@ -3361,6 +3372,42 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 10. Known caveats / watch-items
 
+- **"Deployed" ≠ "the players have it." itch only updates when the owner uploads a zip.** A push to the dev
+  branch redeploys the **Pages** URL, which is a dev/preview link almost nobody plays. Hard evidence (Jul 25):
+  ~50 min after a build carrying the new `perf` event went live on Pages (commit 13:43 UTC), production saw
+  6 players / 7 `run_start`s and **0 `perf` rows** — if any had been on Pages you'd expect roughly one row
+  each, so essentially all traffic was the older itch zip. Consequences to hold onto: (a) never tell the owner
+  a fix has reached players on a push alone; (b) any "after the fix" analytics cohort is hosted-build traffic
+  until a new zip goes up, so a flat result there says **nothing** about the people complaining; (c) the
+  `events` table has **no source column**, so the dashboard genuinely cannot separate itch from Pages — don't
+  invent an attribution it can't support. Before concluding "the instrument is broken", verify the instrument
+  (see the next item); before concluding "the fix didn't work", check whether the fix was ever uploaded.
+
+- **This headless environment cannot measure animation timing. Test ORDER, not clocks.** rAF *and*
+  `setInterval` are throttled to ~1–2 Hz and CSS transitions don't advance, so any wall-clock sampling of a
+  fade, an fps figure, or a frame budget is fiction. This has produced **false PASSes and false FAILs more
+  than once** (a rAF recorder got 5 samples in 3 s; a 1.4 s overlay read as already-removed 30 ms after the
+  click; the fps/CPU% readings during the perf work were worthless until frames were driven by hand).
+  What actually works:
+  - **Order proofs.** A `MutationObserver` callback runs at the end of the task that mutated the DOM. So to
+    prove "X happens in the same task as Y" (e.g. *the hand tray expands while the intro is still opaque*),
+    observe Y's class change and read X's state inside that callback. Clock-free and deterministic — reads
+    `false` pre-fix and `true` post-fix. Careful: **the relative order of two observers firing in one task is
+    just their registration order**, so never read a sequence log as DOM order.
+  - **Hand-driven frames.** Hook `window.requestAnimationFrame` to queue callbacks and invoke them yourself
+    with synthetic timestamps. Two traps: hook it **only once the level is running** (the loading screen
+    animates on rAF, so stealing callbacks during boot stalls it at 0%), and advance the timestamp by
+    **>29 ms** or `main.js`'s 30 fps idle gate skips the frame (driving at a synthetic 60 Hz once made the
+    pacing check pass for the wrong reason — consecutive game frames were already 33 ms apart).
+  - **Real numbers come from a real machine, not from here.** Headless software rasterisation reports absurd
+    frame costs (the verified `perf` sample read ~1345 ms/frame at 1280×800). This env can prove *whether* an
+    instrument fires; only production telemetry says *what* players experience.
+  - **Default headless is `prefers-reduced-motion: reduce`** — pass `reducedMotion:'no-preference'` for the
+    normal path. Several of our animations are disabled under reduced motion, and it collapses the level-intro
+    fade to ~0 ms, which silently invalidates any timing assertion built on it.
+  - Also: give **one browser per case** in multi-case scripts; a third full boot in a reused browser times out
+    waiting for the species picker.
+
 - **First-run tutorial is ONCE-PER-BROWSER (localStorage `mycelium.tutorial.v1`), and marked seen the
   INSTANT level 1 starts.** `main.js`: `onNew` arms `tutorialPending = !tutorialSeen()`; `begin()` calls
   `markTutorialSeen()` at line ~818 — *before* the tutorial is even visible (it's deferred behind the level
@@ -3552,13 +3599,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
+- **⚠ OWNER ACTION, GATES EVERYTHING ELSE: upload a fresh itch zip.** Every change from Jul 25 — the three
+  perf fixes (substrate slice-blit, render-resolution cap, 30 fps idle pacing), single-click card play, the
+  +10⚡/+10W starter buff, Magic Mushroom at 1200 Spores, and the hand-carousel entrance fix — is live on Pages
+  and reaching **nobody**, because itch still serves the older zip (see §10). The players who reported lag are
+  on the pre-fix build. Nothing else on this list can be measured until the upload happens; the analytics
+  before/after panel stays uninformative for the same reason. Zip recipe: `CLAUDE.md` (Dev buttons already off,
+  `config.dev.enabled = false`).
 - **Retention: the level-1 first minute is the biggest leak** (from the analytics — see §9 + `analytics.html`).
   ~68% of new players are one-and-done and most bail *during* level 1 without ever dying, so death-carry can't
   reach them; Fairy Ring (the default first species) bleeds hardest. Highest-leverage next work = first-minute
   onboarding / level-1 pacing & difficulty, not more content. Re-check real D1 retention after a few more days
   of data (web-game bar ≈ 10–15% D1; top titles convert 80%+ of players to ≥1 min of play).
-- **Before the next itch cut: turn the Dev buttons OFF** (currently ON for owner testing — `config.dev.enabled`
-  + the picker `#ssDev`/`#ssDevUnlock` buttons; see the "Dev buttons RE-ENABLED" §9 entry for the one-step flip).
+- ~~Before the next itch cut: turn the Dev buttons OFF~~ — **DONE** (Jul 25, `5e0d17f`). Note the two are
+  handled differently: `config.dev.enabled = false` **gates** the in-game "Dev: win level" button (flip to
+  `true` for owner testing, off again before a cut), while the picker's Dev quick-start / Dev: unlock-all
+  buttons were **deleted outright** from `species_select.js` — `#ssDev`/`#ssDevUnlock` no longer exist, so no
+  flag brings them back. The `.ss-dev` CSS, the invisible `#dev` hash route and every `window.__game` hook
+  stay, so tests are unaffected. Release-clean check: `scratchpad/verify-nodev.mjs`.
 - **Campaign / level progression + species unlocks — BUILT** (see §9, commit `0989061`). 11
   procedural levels, per-level threat-count scaling (`LEVEL_THREATS`), carry deck+resources
   between levels, death → picker, localStorage unlock persistence. Follow-ups: only **Complete
