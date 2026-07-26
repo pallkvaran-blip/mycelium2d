@@ -534,6 +534,33 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Late-game threat bonus: extra nematodes + Trichoderma from level 7 up.** Player report: they built a
+  good engine, the ladder went trivial, and they quit at level 20 out of boredom. Owner-specified curve, added
+  as `species.js threatBonusForLevel` on top of the existing base counts:
+  | level | 1–6 | 7–9 | 10–14 | 15–19 | 20–24 | 25–29 | 30–34 | … | 100 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | bonus | +0 | +2 | +3 | +4 | +5 | +6 | +7 | +1 per 5 | +21 |
+  | seeded each | =level | 9–11 | 13–17 | 19–23 | 25–29 | 31–35 | 37–41 | | 121 |
+  - **Ants deliberately excluded** — they keep their own curve and the `MAX_ANT_NESTS`=8 cap. The **1–6
+    on-ramp is untouched**, since the complaint was about the mid game and the punishing early game is canon.
+  - `threatsForLevel` now returns a **fresh object** instead of the shared `LEVEL_THREATS` row — a caller
+    mutating the old return value would have permanently rewritten the authored curve for the session.
+    `LEVEL_THREATS` rows are now BASE counts; the seeded count is base + bonus.
+  - **Verified end-to-end, not just as arithmetic.** `test/threats.test.js` (64 checks) pins every breakpoint
+    and the level either side of it, asserts ants/levels 1–6 are untouched, that counts never decrease across
+    1..100, and — mirroring `configForLevel`, which is browser-only — that `createState` really seeds 9/25/37
+    entities at L7/20/30 with every worm in open soil (a silently dropped placement would otherwise hide).
+    `scratchpad/verify-threatcurve.mjs` then walks the REAL win→next-level path in the built game to level 7:
+    live state 9 worms / 9 clouds / 4 nests, intro roster ×4 ×9 ×9, no page errors.
+  - **Cost is fine** (`scratchpad/probe-threatcost.mjs`, Node — real timing, unlike headless): map build
+    4–17 ms and 0.3–1.2 ms/tick even at 121 worms + 121 clouds with a seed colony; ~4 ms/tick with a ~250-node
+    colony and the swarm at its 150 cap. This is per-TURN work, so it never touches framerate.
+  - **Two things the owner should know about the deep end** (flagged, deliberately NOT changed): (a) worms
+    breed to `config.nematodes.maxPopulation` = 150 once they reach the colony, so at high levels the seed
+    count front-loads pressure rather than raising the ceiling — L100's 121 leaves only 29 of breeding
+    headroom; (b) if deep levels still feel soft, the stronger levers are `maxPopulation` / `breedChance` /
+    per-threat lethality, not the seed count.
+
 - **LEVEL EDITOR — hand-authored maps.** Every map so far has been rolled by
   `generateSubstrate` from a seed. There is now a second path: a drag-and-drop authoring tool
   (`docs/level-editor.html`, hosted at `<site>/level-editor.html`) that writes a `mycelium-level`

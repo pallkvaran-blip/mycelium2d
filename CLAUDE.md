@@ -159,9 +159,13 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   every card). `docs/species-select.html` is a FROZEN standalone design mock (inlined
   data/images) — the in-game picker is the living version.
 - **Campaign (CHECKPOINT §9):** a run is 100 procedural levels (`MAX_LEVEL`); only threat counts scale per
-  level — nematodes = Trichoderma = level #, ant nests climb but cap at `MAX_ANT_NESTS`=8 (levels 1–11 keep
-  the hand-authored `species.js LEVEL_THREATS` table, 12+ computed by `threatsForLevel`; applied by
-  `main.js configForLevel`). Winning carries deck+resources
+  level. Base curve: nematodes = Trichoderma = level #, ant nests climb but cap at `MAX_ANT_NESTS`=8 (levels
+  1–11 keep the hand-authored `species.js LEVEL_THREATS` table, 12+ computed by `threatsForLevel`; applied by
+  `main.js configForLevel`). **On top of that, `threatBonusForLevel` adds EXTRA nematodes + Trichoderma from
+  level 7 up** so a strong engine stops trivialising the ladder: +2 at L7, +3 at L10, then +1 more every 5
+  levels from L15 (L20 → 25 of each, L30 → 37, L100 → 121). Ants take no bonus. So `LEVEL_THREATS` rows are
+  BASE counts, not what gets seeded — read `threatsForLevel`, and note it now returns a fresh object rather
+  than the shared table row. Pinned by `test/threats.test.js`. Winning carries deck+resources
   to the next level (`snapshotCarry`/`applyCarry`); death → picker. Finishing a level pays **Spores**
   (`sporesForLevel` = 100 × level) into a persistent wallet (localStorage `mycelium.progress.v2` =
   `{clears:{level:n}, spores:N, purchased:{id:true}}`). Species unlock in **two steps**:

@@ -1507,8 +1507,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "12aqgg9";
-globalThis.__BUILD__ = "local 07-26 08:05";
+window.__ASSET_VER = "1h8kihp";
+globalThis.__BUILD__ = "local 07-26 08:56";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3536,10 +3536,13 @@ const LOCKED_TIERS = [
 // only per-level scaling is the number of each threat present. Beat MAX_LEVEL to
 // win the game.
 //
-// Scaling rule (see threatsForLevel): nematodes and Trichoderma always equal the
-// level number; ant nests keep climbing but never exceed MAX_ANT_NESTS. Levels
-// 1..11 keep their hand-authored ant curve (LEVEL_THREATS below); level 12 and up
-// are computed so the ladder can run all the way to 100 without a 100-row table.
+// Scaling rule (see threatsForLevel): a BASE curve of nematodes and Trichoderma
+// equal to the level number, plus a LATE-GAME BONUS on top of both (see
+// threatBonusForLevel) so a player who has assembled a strong engine still gets
+// buried instead of coasting. Ant nests keep climbing but never exceed
+// MAX_ANT_NESTS and take no bonus. Levels 1..11 keep their hand-authored base
+// curve (LEVEL_THREATS below); level 12 and up is computed so the ladder can run
+// all the way to 100 without a 100-row table.
 // =============================================================================
 const MAX_LEVEL = 100;
 
@@ -3547,8 +3550,10 @@ const MAX_LEVEL = 100;
 const MAX_ANT_NESTS = 8;
 
 // index by level (1-based); [0] unused. Each: ant nests / nematodes / mould patches.
-// This is the AUTHORED early curve (levels 1..11); deeper levels are computed by
+// This is the AUTHORED early BASE curve (levels 1..11); deeper levels are computed by
 // threatsForLevel (nematodes = trych = level, ants ramp on to the MAX_ANT_NESTS cap).
+// NOTE these are BASE counts — from level 7 up, threatBonusForLevel adds more nematodes
+// and Trichoderma on top, so the seeded count is higher than the row shown here.
 const LEVEL_THREATS = [
   null,
   { ants: 1, nematodes: 1,  trych: 1 },   // 1
@@ -3571,10 +3576,33 @@ function antsForLevel(level) {
   return Math.min(MAX_ANT_NESTS, 6 + Math.floor((level - 11) / 4));
 }
 
+// EXTRA nematodes + Trichoderma piled on top of the base curve, so a good engine stops
+// trivialising the mid/late ladder (owner call after a player cleared to 20 unopposed and
+// quit out of boredom). Ants are deliberately excluded — they keep their own capped curve.
+//   L1–6 → +0   (the on-ramp is unchanged)
+//   L7–9 → +2, L10–14 → +3, then +1 more every 5 levels from 15:
+//   L15 +4, L20 +5, L25 +6, L30 +7, … L100 +21.
+// So the seeded count is level + bonus for each: L7 → 9, L10 → 13, L20 → 25, L30 → 37,
+// L100 → 121 (still under `config.nematodes.maxPopulation` = 150, so seeding can't blow
+// the hard cap — but note it leaves little breeding headroom that deep).
+function threatBonusForLevel(level) {
+  const lvl = Math.max(1, level | 0);
+  if (lvl < 7) return 0;
+  if (lvl < 10) return 2;
+  if (lvl < 15) return 3;
+  return 4 + Math.floor((lvl - 15) / 5);
+}
+
 function threatsForLevel(level) {
   const lvl = Math.max(1, level | 0);
-  if (lvl < LEVEL_THREATS.length) return LEVEL_THREATS[lvl];   // authored early curve (1..11)
-  return { ants: antsForLevel(lvl), nematodes: lvl, trych: lvl };
+  // Base counts: the authored early curve (1..11), else computed.
+  const base = lvl < LEVEL_THREATS.length
+    ? LEVEL_THREATS[lvl]
+    : { ants: antsForLevel(lvl), nematodes: lvl, trych: lvl };
+  const bonus = threatBonusForLevel(lvl);
+  // Always a FRESH object — never hand back the shared LEVEL_THREATS row, or a caller
+  // mutating it would permanently rewrite the authored curve for the rest of the session.
+  return { ants: base.ants, nematodes: base.nematodes + bonus, trych: base.trych + bonus };
 }
 
 // Spores earned for finishing a level: 100 for level 1, 200 for level 2, and so on.
@@ -3872,7 +3900,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatBonusForLevel, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/highscores.js =====================
