@@ -5,11 +5,15 @@ Vanilla HTML + `<canvas>` + **ES modules**, no framework. Hosted (auto-deploys o
 push to the dev branch): https://pallkvaran-blip.github.io/mycelium2d/
 
 **SHIPPED** — first public release is live on **itch.io** (free HTML5 build; Survival mode; global
-Supabase leaderboard on). Release marketing/copy is owner-driven. To cut a fresh itch zip: check
-`src/config.js` `dev.enabled` is `false` (it gates the "Dev: win level" button — the picker's Dev buttons were
-deleted outright, so no flag revives them; `scratchpad/verify-nodev.mjs` checks release-clean), `node build.mjs`,
-then zip **`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and
-the `*-editor.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON, mobile-friendly ON, 1280×720).
+Supabase leaderboard on). Release marketing/copy is owner-driven. To cut a fresh itch zip:
+1. `src/config.js` `dev.enabled` → **`false`**. That one flag gates **all three** dev controls — the in-game
+   "Dev: win level" AND the picker's Dev quick-start / Dev: unlock all. (They're gated, not deleted, so flip it
+   back to `true` for testing. Don't grep the bundle to check: their markup is still there as a string.)
+2. `node build.mjs`, then **both release gates**: `node scratchpad/verify-nodev.mjs` (nothing dev RENDERS) and
+   `node scratchpad/boot-itchzip.mjs` (the extracted zip actually plays) — see CHECKPOINT §8.
+3. Zip **`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and
+   the `*-editor.html` / `analytics.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON,
+   mobile-friendly ON, 1280×720).
 
 > **⚠ ITCH IS WHERE THE PLAYERS ARE, AND IT ONLY UPDATES WHEN THE OWNER UPLOADS A ZIP.** Pushing to the dev
 > branch redeploys the Pages link above, which is a dev/preview URL almost nobody plays. Measured Jul 25:
@@ -17,6 +21,9 @@ the `*-editor.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON, mobil
 > it — i.e. essentially all traffic was the older itch zip. So a fix is not "shipped" when it's pushed; it's
 > shipped when the zip goes up. Say so plainly rather than implying players have it, and remember the
 > analytics can't tell the two builds apart (no source field on `events`).
+>
+> **Status:** a release-clean zip was built and handed over **Jul 26** (see CHECKPOINT §11) covering all the
+> Jul 25–26 work. Everything in it is unreleased until the owner uploads — check §11 before claiming otherwise.
 
 ## Read these first (authoritative — don't re-derive)
 
@@ -175,17 +182,22 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   `threatBonusForLevel` is the running total, so counts grow **quadratically**: L7 → 9 of each, L8 → 12,
   L10 → 19, L15 → 40, L20 → 66, L30 → 133, L100 → 1162. Ants take no bonus. So `LEVEL_THREATS` rows are
   BASE counts, not what gets seeded — read `threatsForLevel`, and note it now returns a fresh object rather
-  than the shared table row. Consequence to know: **from L33 the seed alone exceeds
+  than the shared table row. Each step-up level also shows a one-line taunt under the intro wordmark
+  (`escalationNote` → `showLevelIntro({note})` → `.li-sub`, monospace dark red); the "+N per level" tail is
+  generated from the live rate, so retuning the curve can't leave the copy lying. Consequence to know: **from L33 the seed alone exceeds
   `config.nematodes.maxPopulation` (150)**, which seeding never consults, so deep levels start above their own
   breeding ceiling; and past ~L35 the ladder is realistically unwinnable by design. Pinned by
-  `test/threats.test.js` (88 checks). Winning carries deck+resources
+  `test/threats.test.js` (also covers the taunts, START_LEVEL_SHIFT and TIER_COST). Winning carries deck+resources
   to the next level (`snapshotCarry`/`applyCarry`); death → picker. Finishing a level pays **Spores**
   (`sporesForLevel` = 100 × level) into a persistent wallet (localStorage `mycelium.progress.v2` =
   `{clears:{level:n}, spores:N, purchased:{id:true}}`). Species unlock in **two steps**:
   clearing the required level **REVEALS** a species (`isRevealed`, staggered — the k-th species in a
   tier reveals on the (k+1)-th clear; its "?" tile flips to a viewable **Locked** card), then spending
   Spores **UNLOCKS** it for play (`isPlayable = isRevealed && isPurchased`; `purchaseSpecies`,
-  cost = `unlockCost` / species `cost`). Spore icon = `SPORE_ICON` (ui.js) — an `<img>` of the matted
+  cost = `unlockCost` / species `cost`). **`TIER_COST` = L1 1 000 · L3 5 000 · L5 7 500 · L7 10 000 ·
+  L10 15 000** (top three cut Jul 26 — a level-1→5 clear pays 1 500, so that's 1 / 4 / 5 / 7 / 10 such runs;
+  whole roster 63 200 ≈ 43). `docs/species-editor.html` keeps its OWN copy of `TIER_COST` — change both.
+  Careful: `clearsFor(progress, level)` falls back to storage, but pass `progress` in loops. Spore icon = `SPORE_ICON` (ui.js) — an `<img>` of the matted
   spore-print art `assets/spores/spore-print.png` (Replicate; options in `assets/spore_options/`). Test with the top-right **"Dev: win level"** button (=
   `window.__game.winLevel()`); `killColony()` forces death (its overlay shows the run's Spore total).
 

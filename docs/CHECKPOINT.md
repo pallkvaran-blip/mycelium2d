@@ -526,6 +526,16 @@ Both menus are dark, on-theme, with glowing green borders.
   hand) and `window.__game.skip()` to force a UI re-render, then assert DOM state.
   Deterministic no-op card for "affordable but does nothing" tests:
   **Constricting Ring** with `state.nematodes = []`.
+- **Release gates (run BOTH before handing over an itch zip):**
+  - `scratchpad/verify-nodev.mjs` — boots `dist/` and asserts no dev control RENDERS (title, picker, in-run
+    HUD). Assert on the DOM, never on a grep: the picker's Dev buttons are flag-gated now, so `ssDev` /
+    `ssDevUnlock` still appear as strings in the bundle while rendering nothing.
+  - `scratchpad/boot-itchzip.mjs` — serves the EXTRACTED zip the way itch does (`index.html` + `assets/` at the
+    root) and walks loading → title → New → picker → level 1, watching page errors and same-origin request
+    failures, then spot-checks that the release's gameplay actually shipped. Two aborts are expected and must
+    be filtered or the gate cries wolf: the menu mp3 (aborted when the level theme takes over) and the
+    Supabase `events` POST. Also note blanking `globalThis.MYCELIUM_SUPABASE` does NOT disable telemetry —
+    `net_scores cfg()` does `(g && g.url) || SUPABASE_URL`, so an empty string falls back to the real endpoint.
 - **Adversarial review workflow:** for larger diffs, run a Workflow that fans out
   review dimensions → **independently verifies each finding** (skeptics try to
   refute) → only confirmed bugs get fixed. This caught the stale-index and
@@ -644,7 +654,7 @@ Both menus are dark, on-theme, with glowing green borders.
   - `threatsForLevel` now returns a **fresh object** instead of the shared `LEVEL_THREATS` row — a caller
     mutating the old return value would have permanently rewritten the authored curve for the session.
     `LEVEL_THREATS` rows are now BASE counts; the seeded count is base + accumulated extras.
-  - **Verified end-to-end, not just as arithmetic.** `test/threats.test.js` (88 checks) pins every rate
+  - **Verified end-to-end, not just as arithmetic.** `test/threats.test.js` (153 checks, having since absorbed the taunts / start-shift / prices) pins every rate
     breakpoint and the level either side, the accumulated totals, that the STEP between levels widens (the one
     thing that distinguishes this from the flat version), that ants/levels 1–6 are untouched, and — mirroring
     `configForLevel`, which is browser-only — that `createState` really seeds 9/12/66/133/1162 entities at
@@ -3743,24 +3753,29 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
-- **⚠ OWNER ACTION, GATES EVERYTHING ELSE: upload a fresh itch zip.** Every change from Jul 25 — the three
-  perf fixes (substrate slice-blit, render-resolution cap, 30 fps idle pacing), single-click card play, the
-  +10⚡/+10W starter buff, Magic Mushroom at 1200 Spores, and the hand-carousel entrance fix — is live on Pages
-  and reaching **nobody**, because itch still serves the older zip (see §10). The players who reported lag are
-  on the pre-fix build. Nothing else on this list can be measured until the upload happens; the analytics
-  before/after panel stays uninformative for the same reason. Zip recipe: `CLAUDE.md` (Dev buttons already off,
-  `config.dev.enabled = false`).
+- **⚠ OWNER ACTION, GATES EVERYTHING ELSE: upload the itch zip.** A release-clean zip was **built and handed
+  to the owner on Jul 26** (22 MB, 175 files, `index.html` + `assets/` at the root; `config.dev.enabled` false,
+  `verify-nodev.mjs` 7/7, extracted and booted end to end — see §9). It is NOT live until the owner uploads it.
+  Everything below is sitting on Pages reaching **nobody** while itch serves the older zip (see §10):
+  - **Jul 25:** three perf fixes (substrate slice-blit, render-resolution cap, 30 fps idle pacing),
+    single-click card play, +10⚡/+10W starter buff, Magic Mushroom at 1200 Spores, hand-carousel entrance.
+  - **Jul 26:** the compounding threat curve, escalation taunts on the level intro, `START_LEVEL_SHIFT` = 2,
+    the repriced top three tiers (7 500 / 10 000 / 15 000), the monospace dark-red subtitle, and the tutorial
+    firing on every New.
+  Until the upload lands, the analytics before/after panel stays uninformative and the lag reports stay
+  unaddressed for the people who filed them. Zip recipe: `CLAUDE.md`.
 - **Retention: the level-1 first minute is the biggest leak** (from the analytics — see §9 + `analytics.html`).
   ~68% of new players are one-and-done and most bail *during* level 1 without ever dying, so death-carry can't
   reach them; Fairy Ring (the default first species) bleeds hardest. Highest-leverage next work = first-minute
   onboarding / level-1 pacing & difficulty, not more content. Re-check real D1 retention after a few more days
   of data (web-game bar ≈ 10–15% D1; top titles convert 80%+ of players to ≥1 min of play).
-- ~~Before the next itch cut: turn the Dev buttons OFF~~ — **DONE** (Jul 25, `5e0d17f`). Note the two are
-  handled differently: `config.dev.enabled = false` **gates** the in-game "Dev: win level" button (flip to
-  `true` for owner testing, off again before a cut), while the picker's Dev quick-start / Dev: unlock-all
-  buttons were **deleted outright** from `species_select.js` — `#ssDev`/`#ssDevUnlock` no longer exist, so no
-  flag brings them back. The `.ss-dev` CSS, the invisible `#dev` hash route and every `window.__game` hook
-  stay, so tests are unaffected. Release-clean check: `scratchpad/verify-nodev.mjs`.
+- ~~Before the next itch cut: turn the Dev buttons OFF~~ — **DONE, and it's now ONE flag.**
+  `config.dev.enabled` gates all three: the in-game "Dev: win level" and the picker's Dev quick-start /
+  Dev: unlock all. Currently **`false`** (the Jul 26 release cut); flip to `true` for owner testing and back
+  before any cut. History worth knowing: the picker pair was *deleted* on Jul 25 (`5e0d17f`) and *restored
+  behind the flag* on Jul 26 (`5b49cff`) — so **don't grep the bundle for `ssDev` as a release check**, the
+  markup is present as a string and gated at runtime. `verify-nodev.mjs` asserts on the rendered DOM instead.
+  The `.ss-dev` CSS, the invisible `#dev` hash route and every `window.__game` hook are unaffected either way.
 - **Campaign / level progression + species unlocks — BUILT** (see §9, commit `0989061`). 11
   procedural levels, per-level threat-count scaling (`LEVEL_THREATS`), carry deck+resources
   between levels, death → picker, localStorage unlock persistence. Follow-ups: only **Complete
