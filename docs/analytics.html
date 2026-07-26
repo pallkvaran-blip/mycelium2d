@@ -38,6 +38,14 @@
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #16211c; white-space: nowrap; }
   th { color: #8aa093; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
   .err { color: #e0a86f; }
+  .srcbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .srcbar .lbl { color: #7f948a; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-right: 2px; }
+  .schip { font: 600 12px/1 inherit; color: #cfe0d6; cursor: pointer; background: #12191600; background: #101a15;
+    border: 1px solid #24332b; border-radius: 999px; padding: 6px 11px; }
+  .schip:hover { border-color: #3a5a49; }
+  .schip.on { color: #04140d; background: #6fe0b0; border-color: #6fe0b0; }
+  .schip .c { opacity: .7; font-weight: 400; margin-left: 4px; }
+  .schip.on .c { opacity: .85; }
 </style>
 </head>
 <body>
@@ -48,6 +56,7 @@
     <button id="refresh">Refresh</button>
     <span class="sub" id="status">Loading…</span>
   </div>
+  <div class="srcbar" id="srcbar"></div>
 </header>
 <main id="out"></main>
 
@@ -76,14 +85,26 @@ var SETUP_SQL =
   "  id bigint generated always as identity primary key,\n" +
   "  created_at timestamptz not null default now(),\n" +
   "  client_id text, session_id text,\n" +
-  "  kind text not null,          -- run_start | level_clear | run_end | purchase\n" +
-  "  species text, level int, cause text, turns int\n" +
+  "  kind text not null,          -- run_start | level_clear | run_end | purchase | perf\n" +
+  "  species text, level int, cause text, turns int,\n" +
+  "  source text                  -- pages | itch | dev | web:<host> (null = pre-migration)\n" +
   ");\n" +
   "alter table public.events enable row level security;\n" +
   "create policy events_insert on public.events for insert to anon with check (\n" +
   "  char_length(kind) <= 24 and coalesce(char_length(species),0) <= 32\n" +
+  "  and coalesce(char_length(source),0) <= 24\n" +
   "  and coalesce(level,0) between 0 and 1000 );\n" +
   "create policy events_read on public.events for select to anon using (true);";
+
+// Shown once so the owner can add the source column to a table that predates it. The client
+// and this dashboard both degrade gracefully until it's run (insert retries without source;
+// select falls back to source-less columns), so there's no rush and no ordering constraint.
+var MIGRATE_SQL =
+  "alter table public.events add column if not exists source text;\n" +
+  "alter policy events_insert on public.events with check (\n" +
+  "  char_length(kind) <= 24 and coalesce(char_length(species),0) <= 32\n" +
+  "  and coalesce(char_length(source),0) <= 24\n" +
+  "  and coalesce(level,0) between 0 and 1000 );";
 
 // Fetch EVERY row, in pages. PostgREST enforces a server-side row cap (`db-max-rows`,
 // 1000 on Supabase) that silently overrides any bigger `limit=` — so the old single
@@ -93,23 +114,35 @@ var SETUP_SQL =
 // Page with offset/limit (each page still <=1000) until a short page ends the run.
 var PAGE_SIZE = 1000;
 function fetchEvents() {
-  var base = URL_.replace(/\/+$/, '') + '/rest/v1/events' +
-    '?select=created_at,client_id,session_id,kind,species,level,cause,turns&order=created_at.desc';
-  var all = [];
-  function page(from) {
-    statusEl.textContent = 'Loading… ' + (all.length || '') + (all.length ? ' events' : '');
-    var url = base + '&offset=' + from + '&limit=' + PAGE_SIZE;
-    return fetch(url, { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(function (chunk) {
-        if (!Array.isArray(chunk)) throw new Error('bad response');
-        all = all.concat(chunk);
-        // Stop on a short page (the last one) — or at a hard ceiling so a runaway can't hang.
-        if (chunk.length < PAGE_SIZE || all.length >= 500000) return all;
-        return page(from + PAGE_SIZE);
-      });
+  var root = URL_.replace(/\/+$/, '') + '/rest/v1/events';
+  var cols = 'created_at,client_id,session_id,kind,species,level,cause,turns';
+  // Try WITH the source column; if it isn't migrated yet PostgREST 400s the whole select, so
+  // fall back to the source-less columns and treat every row as legacy. Same resilience the
+  // client insert has — the dashboard works either side of the migration.
+  function attempt(withSource) {
+    var base = root + '?select=' + cols + (withSource ? ',source' : '') + '&order=created_at.desc';
+    var all = [];
+    function page(from) {
+      statusEl.textContent = 'Loading… ' + (all.length || '') + (all.length ? ' events' : '');
+      var url = base + '&offset=' + from + '&limit=' + PAGE_SIZE;
+      return fetch(url, { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
+        .then(function (r) {
+          if (!r.ok) {
+            if (withSource && r.status === 400) return attempt(false);   // column not there yet
+            throw new Error('HTTP ' + r.status);
+          }
+          return r.json().then(function (chunk) {
+            if (!Array.isArray(chunk)) throw new Error('bad response');
+            all = all.concat(chunk);
+            // Stop on a short page (the last one) — or at a hard ceiling so a runaway can't hang.
+            if (chunk.length < PAGE_SIZE || all.length >= 500000) return all;
+            return page(from + PAGE_SIZE);
+          });
+        });
+    }
+    return page(0);
   }
-  return page(0);
+  return attempt(true);
 }
 
 function bar(k, v, max, warn) {
@@ -353,9 +386,45 @@ function lagPanel(rows, fr) {
     '“Smooth”, lag is a real cause of early churn; if the rows behave alike, it is not.</div></section>';
 }
 
+// ---- source separation ------------------------------------------------------------------
+// Every event now carries a `source` (net_scores.js classifySource: pages | itch | dev |
+// web:<host>). Rows written before that column existed have none → shown as 'legacy'. The
+// chip bar lets the owner slice to one build; 'dev' is local/test traffic (which the fixed
+// telemetry switch keeps out of production going forward, so it should stay ~0).
+var ALL_ROWS = [];
+var SOURCE_FILTER = 'all';
+function srcOf(e) { return e.source || 'legacy'; }
+function srcChip(key, label, n) {
+  return '<span class="schip' + (SOURCE_FILTER === key ? ' on' : '') + '" data-s="' + esc(key) + '">' +
+    esc(label) + '<span class="c">' + n + '</span></span>';
+}
+function renderSourceChips() {
+  var bar = document.getElementById('srcbar');
+  if (!bar) return;
+  var counts = countBy(ALL_ROWS, srcOf);
+  var order = ['pages', 'itch', 'dev', 'legacy'];
+  var keys = Object.keys(counts).sort(function (a, b) {
+    var ia = order.indexOf(a); if (ia < 0) ia = 90;
+    var ib = order.indexOf(b); if (ib < 0) ib = 90;
+    return ia - ib || (counts[b] - counts[a]);
+  });
+  if (keys.length <= 1) { bar.innerHTML = ''; return; }   // nothing to separate yet
+  var chips = ['<span class="lbl">Source</span>', srcChip('all', 'all', ALL_ROWS.length)];
+  keys.forEach(function (k) { chips.push(srcChip(k, k, counts[k])); });
+  bar.innerHTML = chips.join('');
+  Array.prototype.forEach.call(bar.querySelectorAll('.schip'), function (el) {
+    el.addEventListener('click', function () { SOURCE_FILTER = el.getAttribute('data-s'); applyFilter(); });
+  });
+}
+function applyFilter() {
+  renderSourceChips();
+  render(SOURCE_FILTER === 'all' ? ALL_ROWS : ALL_ROWS.filter(function (e) { return srcOf(e) === SOURCE_FILTER; }));
+}
+
 function render(rows) {
-  statusEl.textContent = rows.length + ' events · ' + new Date().toLocaleString();
-  if (!rows.length) { out.innerHTML = '<div class="note">No events yet. Once players run the current build (and the <code>events</code> table exists), data appears here.</div>' + setupBlock(); return; }
+  statusEl.textContent = rows.length + (SOURCE_FILTER === 'all' ? '' : ' of ' + ALL_ROWS.length) +
+    ' events' + (SOURCE_FILTER === 'all' ? '' : ' · ' + SOURCE_FILTER) + ' · ' + new Date().toLocaleString();
+  if (!rows.length) { out.innerHTML = '<div class="note">No events for this source yet.</div>' + setupBlock(); return; }
 
   var starts = rows.filter(function (e) { return e.kind === 'run_start'; });
   var ends = rows.filter(function (e) { return e.kind === 'run_end'; });
@@ -378,6 +447,13 @@ function render(rows) {
   var returningPlayers = Object.keys(daysByPlayer).filter(function (c) { return Object.keys(daysByPlayer[c]).length >= 2; }).length;
 
   var html = '';
+  // One-time nudge: if NOTHING carries a source yet, the column hasn't been added. Everything
+  // still works (rows read as 'legacy'); this just shows the copy-paste to start separating.
+  if (ALL_ROWS.length && !ALL_ROWS.some(function (e) { return e.source; })) {
+    html += '<div class="note"><b>Turn on source separation</b> — run once in the Supabase SQL editor, then new ' +
+      'events tag themselves <code>pages</code> / <code>itch</code> / <code>dev</code>. Existing rows stay ' +
+      '<code>legacy</code>. No rush: the game and this page both work before it runs.<pre>' + esc(MIGRATE_SQL) + '</pre></div>';
+  }
   html += '<div class="grid">' +
     tile(nPlayers, 'Players') + tile(Object.keys(sessions).length, 'Sessions') +
     tile(starts.length, 'Runs started') + tile(wins.length, 'Wins') +
@@ -422,8 +498,8 @@ function render(rows) {
 
   // Recent events
   var recent = rows.slice(0, 40);
-  html += '<section><h2>Recent events</h2><table><thead><tr><th>When</th><th>Kind</th><th>Species</th><th>Lvl</th><th>Cause</th></tr></thead><tbody>' +
-    recent.map(function (e) { return '<tr><td>' + esc(String(e.created_at).replace('T', ' ').slice(0, 16)) + '</td><td>' + esc(e.kind) + '</td><td>' + esc(e.species ? spName(e.species) : '') + '</td><td>' + (e.level == null ? '' : e.level) + '</td><td>' + esc(e.cause || '') + '</td></tr>'; }).join('') +
+  html += '<section><h2>Recent events</h2><table><thead><tr><th>When</th><th>Source</th><th>Kind</th><th>Species</th><th>Lvl</th><th>Cause</th></tr></thead><tbody>' +
+    recent.map(function (e) { return '<tr><td>' + esc(String(e.created_at).replace('T', ' ').slice(0, 16)) + '</td><td>' + esc(srcOf(e)) + '</td><td>' + esc(e.kind) + '</td><td>' + esc(e.species ? spName(e.species) : '') + '</td><td>' + (e.level == null ? '' : e.level) + '</td><td>' + esc(e.cause || '') + '</td></tr>'; }).join('') +
     '</tbody></table></section>';
 
   out.innerHTML = html;
@@ -434,7 +510,11 @@ function setupBlock() {
 }
 
 function load() {
-  fetchEvents().then(render).catch(function (err) {
+  fetchEvents().then(function (rows) {
+    ALL_ROWS = rows;
+    SOURCE_FILTER = 'all';
+    applyFilter();
+  }).catch(function (err) {
     statusEl.textContent = '';
     out.innerHTML = '<div class="note err">Could not read the <code>events</code> table (' + esc(err.message) + '). If this is the first time, create it:</div>' + setupBlock();
   });

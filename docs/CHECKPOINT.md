@@ -545,6 +545,19 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Telemetry hardening + source separation (Jul 26).** Three things, all in `src/net_scores.js` +
+  `docs/analytics.html`: (1) `cfg()` now treats an explicitly-empty override as OFF, so the
+  `{url:'',anonKey:''}` every Playwright harness sets truly disables the backend — before, it fell back to
+  the live endpoint and perf/verify boots leaked `run_start`/`perf` self-play into `events` (the Jul 26
+  `perf` batch was `perf5.mjs`'s monitor-size sweep, NOT players). (2) The dashboard paged past PostgREST's
+  1000-row `db-max-rows` cap that was silently truncating every count. (3) Every event now carries a
+  `source` (`classifySource(location.hostname)` → `pages`/`itch`/`dev`/`web:<host>`), so real traffic
+  self-separates by build — a baked flag couldn't, since itch and Pages ship the identical `dist/`. Both the
+  client insert and the dashboard select degrade gracefully until the column migration runs (insert retries
+  without `source` on a 400; select falls back to source-less), so there's NO deploy-vs-migration ordering
+  constraint. Owner runs `MIGRATE_SQL` (shown in the dashboard as a nudge until then). Pre-`source` rows read
+  as `legacy`. Pinned by `test/telemetry.test.js` (10 checks).
+
 - **Level editor: rock-formation THEMES + filter, all game sprites placeable, and 8 new veined-rock candidates.**
   - **Themes live in `assets/manifest.json`** — each rockform entry carries a `theme`
     (`veined` 1,5 · `crystal` 3,7,10,13,14 · `ember` 2,6,9,12 · `fungal` 4,8,11), read off the art itself

@@ -4,7 +4,7 @@
 // silently fell back to the baked-in endpoint. These pin the config resolution.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scoresEnabled, logEvent, submitGlobalScore } from '../src/net_scores.js';
+import { scoresEnabled, logEvent, submitGlobalScore, classifySource } from '../src/net_scores.js';
 
 function withOverride(v, fn) {
   const had = Object.prototype.hasOwnProperty.call(globalThis, 'MYCELIUM_SUPABASE');
@@ -65,4 +65,49 @@ test('telemetry enabled (custom endpoint) → logEvent DOES call fetch', async (
     logEvent('run_start', { species: 'marasmius', level: 1 });
   });
   assert.equal(hits, 1);
+});
+
+// ---- source separation ------------------------------------------------------------------
+
+test('classifySource buckets real origins the way the dashboard filters on', () => {
+  assert.equal(classifySource('pallkvaran-blip.github.io'), 'pages');
+  assert.equal(classifySource('html-classic.itch.zone'), 'itch');
+  assert.equal(classifySource('v6p9d9t4.ssl.hwcdn.net'), 'itch');       // itch's CDN host
+  assert.equal(classifySource('random.itch.io'), 'itch');
+  assert.equal(classifySource('localhost'), 'dev');
+  assert.equal(classifySource('127.0.0.1'), 'dev');
+  assert.equal(classifySource('192.168.1.9'), 'dev');
+  assert.equal(classifySource(''), 'dev');                              // no host = local file/boot
+  assert.equal(classifySource('example.com'), 'web:example.com');       // unknown kept verbatim
+  assert.ok(classifySource('a'.repeat(99) + '.com').length <= 24);      // capped
+});
+
+// Capture POST bodies so we can assert the stamped source and the 400-fallback.
+async function capture(responderFn, body) {
+  const realFetch = globalThis.fetch;
+  const bodies = [];
+  let i = 0;
+  globalThis.fetch = (url, opts) => { bodies.push(JSON.parse(opts.body)); return Promise.resolve(responderFn(i++)); };
+  const prev = globalThis.MYCELIUM_SUPABASE;
+  globalThis.MYCELIUM_SUPABASE = { url: 'https://x.example.co', anonKey: 'k' };
+  try { await body(); await new Promise((r) => setTimeout(r, 5)); }
+  finally { globalThis.fetch = realFetch; globalThis.MYCELIUM_SUPABASE = prev; }
+  return bodies;
+}
+
+test('logEvent stamps a source on the row (dev in node, no location)', async () => {
+  const bodies = await capture(() => ({ ok: true, status: 201 }), async () => {
+    logEvent('run_start', { species: 'marasmius', level: 1 });
+  });
+  assert.equal(bodies.length, 1);
+  assert.equal(bodies[0].source, 'dev');
+});
+
+test('on a 400 (source column missing) it retries once WITHOUT source', async () => {
+  const bodies = await capture((n) => (n === 0 ? { ok: false, status: 400 } : { ok: true, status: 201 }), async () => {
+    logEvent('run_start', { species: 'marasmius', level: 1 });
+  });
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].source, 'dev');            // first attempt carries source
+  assert.equal('source' in bodies[1], false);       // retry drops it so the insert lands
 });

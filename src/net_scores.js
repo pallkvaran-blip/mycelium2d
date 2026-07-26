@@ -109,6 +109,30 @@ function clientId() {
 let _sid = null;
 function sessionId() { return _sid || (_sid = uuid()); }
 
+// Which build an event came from, derived from the page's OWN origin so real traffic
+// self-separates with zero maintenance: the itch HTML5 build runs inside itch's game-host
+// domains, Pages on github.io, and anything local/dev (including a stray Playwright boot that
+// slips past the telemetry switch) on localhost. A build-baked flag couldn't do this — itch and
+// Pages ship the identical dist/. Unknown hosts keep their name ('web:<host>') so we can SEE and
+// reclassify them later instead of silently lumping them into 'other'. Exported for tests.
+export function classifySource(hostname) {
+  const h = String(hostname || '').toLowerCase();
+  if (!h || h === 'localhost' || h === '[::1]' || h.endsWith('.local') ||
+      /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return 'dev';
+  if (h.endsWith('github.io')) return 'pages';
+  if (h.includes('itch.') || h.endsWith('itch.zone') || h.includes('hwcdn.net') ||
+      h.includes('itchusercontent')) return 'itch';
+  return ('web:' + h).slice(0, 24);
+}
+function eventSource() {
+  try { return classifySource(typeof location !== 'undefined' ? location.hostname : ''); }
+  catch (_) { return 'unknown'; }
+}
+
+function postEvent(body) {
+  return fetchT(EVENTS_REST(), { method: 'POST', headers: headers({ Prefer: 'return=minimal' }), body: JSON.stringify(body), keepalive: true }, 3000);
+}
+
 // Fire-and-forget one event. Returns nothing; never throws.
 export function logEvent(kind, fields) {
   if (!scoresEnabled()) return;
@@ -119,7 +143,12 @@ export function logEvent(kind, fields) {
     if (f.level != null) row.level = f.level | 0;
     if (f.cause != null) row.cause = String(f.cause).slice(0, 16);
     if (f.turns != null) row.turns = f.turns | 0;
-    fetchT(EVENTS_REST(), { method: 'POST', headers: headers({ Prefer: 'return=minimal' }), body: JSON.stringify(row), keepalive: true }, 3000)
+    // `source` is the newest column. If the migration that adds it hasn't run yet, PostgREST
+    // 400s the whole row (PGRST204, unknown column) — so on a 400 retry ONCE without source,
+    // and telemetry never goes dark during the rollout. Once the column exists the first POST
+    // succeeds and there's no retry. Order of deploy vs migration stops mattering.
+    postEvent(Object.assign({ source: eventSource() }, row))
+      .then((r) => { if (r && !r.ok && r.status === 400) postEvent(row).catch(() => {}); })
       .catch(() => {});
   } catch (_) { /* never let telemetry break the game */ }
 }
