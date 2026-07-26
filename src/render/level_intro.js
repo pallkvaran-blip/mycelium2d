@@ -10,7 +10,9 @@
 //
 // threats: [{ slug, label, count }, ...] — already filtered to count > 0 by the
 // caller. `slug` names the art file assets/tutorial/<slug>.jpg (reused from the
-// first-run tutorial).
+// first-run tutorial). `note` is an optional one-line subtitle under the wordmark —
+// main.js passes `species.js escalationNote(level)`, which is non-null only on the
+// levels where the threat rate steps up.
 //
 // Two callbacks, and the difference matters visually:
 //   onDismiss — fires the instant the player clicks, BEFORE the fade begins, while the
@@ -53,10 +55,17 @@ export function showLevelIntro(opts) {
   const inner = el('div', 'li-inner');
   // The level title is the procedural mycelium wordmark ("LEVEL ONE", …), grown
   // once when the card appears (mirrors the title screen / high-scores heading).
+  // Title + optional escalation subtitle share a `.li-head` wrapper so the subtitle
+  // sits TIGHT under the wordmark: `.li-inner`'s gap between sections is large, and
+  // `.li-level` is a fixed-size box that growMyceliumTitle measures, so the subtitle
+  // can't just live inside it.
+  const head = el('div', 'li-head');
   const titleWrap = el('div', 'li-level');
   titleWrap.setAttribute('role', 'img');
   titleWrap.setAttribute('aria-label', 'Level ' + level);
-  inner.appendChild(titleWrap);
+  head.appendChild(titleWrap);
+  if (opts && opts.note) head.appendChild(el('div', 'li-sub', String(opts.note)));
+  inner.appendChild(head);
 
   const row = el('div', 'li-threats');
   for (const th of threats) {

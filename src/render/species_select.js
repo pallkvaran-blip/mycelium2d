@@ -194,8 +194,8 @@ function openSpeciesDetail(species, opts = {}) {
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     // Which campaign level this colony begins on. Fixed for most species; an adjustable-start
-    // colony (Split Gill, 3–10) gets a "Lvl: X" stepper the player dials in right next to
-    // Start game. onStart carries the chosen level to onPick.
+    // colony (Split Gill, 1–8 since START_LEVEL_SHIFT) gets a "Lvl: X" stepper the player
+    // dials in right next to Start game. onStart carries the chosen level to onPick.
     const range = startLevelRange(species);
     let lvl = defaultStartLevel(species);
     const stepper = range.adjustable

@@ -534,6 +534,28 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Two counterweights to the compounding threat curve: everything starts 2 levels earlier, and the intro
+  now announces each escalation.**
+  - **`species.js START_LEVEL_SHIFT` = 2.** Every colony opens two levels earlier than its tier implies, so a
+    higher-tier species gets quiet levels to assemble an engine before the ramp bites at 7. L3 tier → starts
+    on **1**, L5 → **3**, L7 → **5**, Split Gill's dial → **1–8** (defaults to 8, was 10); species already on
+    level 1 stay there. Applied inside `startLevelRange` (and via it `defaultStartLevel`), which is the single
+    source both the picker badge and the ± stepper read, so nothing else needed touching. **The UNLOCK
+    requirement is deliberately untouched** — you still earn Wine Cap by clearing level 5, you just begin its
+    run on 3. Pinned per-species in `test/threats.test.js`, including that no start level exceeds its own
+    unlock level and that the unlock labels didn't move.
+  - **Escalation subtitle on the level intro** (`species.js escalationNote` → `showLevelIntro({note})` →
+    `.li-sub`). Shown ONLY on levels where `threatRatePerLevel` steps up — all 20 of them (7, 10, then every 5
+    to 100) — so the player is told the ladder got steeper instead of quietly wondering why they died. Levels
+    7–30 are the owner's wording; 35+ continue the voice. **The "+N per level" tail is appended from the live
+    rate, not typed into each string**, so retuning the curve can never leave the copy lying; a step-up with no
+    authored line falls back to a neutral one rather than going silent. Warm amber italic serif, in a `.li-head`
+    wrapper with the wordmark so it reads as part of the title (`.li-inner`'s own gap is section-sized, and
+    `.li-level` is a fixed box that `growMyceliumTitle` measures, so the subtitle can't live inside it).
+    Verified in the built game (`scratchpad/shot-escalation.mjs`): the REAL level-7 intro carries it, level 1
+    has none, geometry sits below the wordmark and clear of the threat row, and the longest line (L75, 64
+    chars) wraps to two balanced lines at 430 px.
+
 - **Late-game threat ramp: the extras COMPOUND from level 7 up.** Player report: they built a good engine,
   the ladder went trivial, and they quit at level 20 out of boredom. Owner-specified, and note the shape —
   `threatRatePerLevel` is how many more nematodes + Trichoderma a level adds **than the one before it**, and

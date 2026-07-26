@@ -7,9 +7,13 @@
 // 15), so the numbers are pinned exactly rather than described — a change here should be a
 // deliberate balance decision, not a refactor accident.
 
+// Also covers the two things tied to that curve: the escalation taunt shown on each step-up
+// level, and START_LEVEL_SHIFT (every species opens 2 levels earlier, to buy engine-building
+// runway before the escalation bites).
+
 import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
-import { LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, threatsForLevel, threatBonusForLevel, threatRatePerLevel } from '../src/species.js';
+import { SPECIES, LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, START_LEVEL_SHIFT, threatsForLevel, threatBonusForLevel, threatRatePerLevel, escalationNote, startLevelRange, defaultStartLevel, levelFromUnlock } from '../src/species.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -148,6 +152,74 @@ console.log('\n# The numbers actually reach the map');
     ok(s.nematodes.every((w) => { const c = s.substrate.cellAtWorld(w.x, w.y); return c && !c.rock; }),
       `level ${lvl}: every worm seeded in open soil`);
   }
+}
+
+console.log('\n# Escalation taunt (level-intro subtitle)');
+{
+  // Exactly the levels where the rate steps up, and nowhere else.
+  const steps = [7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+  const got = [];
+  for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) if (escalationNote(lvl)) got.push(lvl);
+  ok(got.join(',') === steps.join(','), `a taunt appears on exactly the ${steps.length} step-up levels (got ${got.length})`);
+  ok(!escalationNote(1) && !escalationNote(6) && !escalationNote(8) && !escalationNote(21),
+    'quiet levels get no subtitle (1, 6, 8, 21)');
+
+  // The "+N per level" tail is generated from the live rate, so it can never disagree with
+  // the curve. If someone retunes threatRatePerLevel, this keeps the copy honest.
+  let tailsMatch = true;
+  for (const lvl of steps) if (!escalationNote(lvl).endsWith('+' + threatRatePerLevel(lvl) + ' per level')) tailsMatch = false;
+  ok(tailsMatch, 'every taunt ends with the level\'s REAL rate');
+
+  // The owner's own wording, verbatim.
+  const authored = {
+    7: 'Time to turn up the heat: +2 per level',
+    10: "You're doing well. Time to die. +3 per level",
+    15: "Think you're unstoppable? +4 per level",
+    20: 'How are you still alive? +5 per level',
+    25: 'Ok, now this is just getting too weird. +6 per level',
+    30: 'You officially broke the game. +7 per level',
+  };
+  for (const [lvl, want] of Object.entries(authored)) {
+    ok(escalationNote(+lvl) === want, `level ${lvl}: "${want}"`);
+  }
+  ok(steps.every((l) => escalationNote(l).length <= 80), 'no taunt runs long enough to wrap badly on a phone');
+}
+
+console.log('\n# Start levels shift 2 earlier (START_LEVEL_SHIFT)');
+{
+  ok(START_LEVEL_SHIFT === 2, 'the shift is 2 levels');
+  // id → the start level a player should now see.
+  const want = {
+    marasmius: 1, armillaria: 1, ganoderma: 1, pleurotus: 1,   // already at the floor
+    suillus: 1, hydnellum: 1,                                   // were 3
+    stropharia: 3, scleroderma: 3,                              // were 5
+    cortinarius: 5, serpula: 5,                                 // were 7
+    psilocybe: 1,                                               // communal tier, no level in its label
+  };
+  for (const [id, lvl] of Object.entries(want)) {
+    const sp = SPECIES.find((s) => s.id === id);
+    ok(!!sp, `species ${id} exists`);
+    if (sp) ok(defaultStartLevel(sp) === lvl, `${sp.name} starts on level ${lvl} (got ${defaultStartLevel(sp)})`);
+  }
+  // The adjustable memory colony: range and default both move down by 2.
+  const split = SPECIES.find((s) => s.id === 'schizophyllum');
+  const r = startLevelRange(split);
+  ok(r.min === 1 && r.max === 8 && r.adjustable, `Split Gill dials 1–8 (got ${r.min}–${r.max})`);
+  ok(defaultStartLevel(split) === 8, `Split Gill defaults to 8 (got ${defaultStartLevel(split)})`);
+
+  // Never below level 1, and never above the level you unlocked it on.
+  for (const sp of SPECIES) {
+    const rr = startLevelRange(sp);
+    ok(rr.min >= 1 && rr.max >= rr.min, `${sp.name}: range is sane (${rr.min}–${rr.max})`);
+    const u = levelFromUnlock(sp.unlock);
+    if (u) ok(rr.max <= u, `${sp.name}: start (${rr.max}) never exceeds its unlock level (${u})`);
+  }
+
+  // The UNLOCK requirement must NOT have moved — you still earn the species the same way.
+  const unlocks = SPECIES.map((s) => s.id + ':' + (s.unlock || 'none')).join(' ');
+  ok(unlocks.includes('stropharia:Complete level 5') && unlocks.includes('cortinarius:Complete level 7')
+    && unlocks.includes('schizophyllum:Complete level 10'),
+    'unlock labels are untouched (only the START level moved)');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

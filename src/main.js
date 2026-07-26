@@ -25,7 +25,7 @@ import { showLoadoutSelect } from './render/loadout_select.js';
 import { showTitleScreen } from './render/title_screen.js';
 import { startTutorial } from './render/tutorial.js';
 import { showLevelIntro } from './render/level_intro.js';
-import { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } from './species.js';
+import { SPECIES, MAX_LEVEL, threatsForLevel, escalationNote, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } from './species.js';
 import { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } from './render/assets.js';
 import { initMusic, playMenuMusic, playLevelMusic } from './render/music.js';
 import { initSfx } from './render/sfx.js';
@@ -99,6 +99,7 @@ function revealMap() {
     levelIntro = showLevelIntro({
       level: info.level,
       threats: info.threats,
+      note: info.note,                // escalation taunt, on the levels where the rate steps up
       onDismiss: info.onDismiss,      // re-expand the hand while the screen is still black
       onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
     });
@@ -1007,7 +1008,7 @@ function begin(newState) {
     // tutorial still waits for DONE: its camera moves and popups need a visible map.
     const deferred = afterIntro;
     pendingLevelIntro = {
-      level: currentLevel, threats: levelThreatList(),
+      level: currentLevel, threats: levelThreatList(), note: escalationNote(currentLevel),
       onDismiss: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); },
       onContinue: () => { if (deferred) deferred(); },
     };

@@ -131,6 +131,11 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   memory colony** (default 8-card pick, no engine cap, fixed level-1 start) — deliberately the
   first thing a new player unlocks, as an early "something exciting to work towards". Its old L5
   slot went to **Earthball** (renamed from "Common Earthball"), now an L5 fixed-start species.
+- **The tier levels above are UNLOCK levels, not START levels.** `species.js START_LEVEL_SHIFT` = 2 opens
+  every colony two levels earlier than its tier (runway to build an engine before the threat curve steps up
+  at 7): L3 tier → starts on **1**, L5 → **3**, L7 → **5**, Split Gill's dial → **1–8** defaulting to **8**.
+  What you must clear to earn a species is unchanged. `startLevelRange`/`defaultStartLevel` apply the shift,
+  so the picker's "Starts on level N" badge and the ± stepper follow automatically.
 - All 11 species portraits are **real, CC-licensed photos** (`assets/species/<img>.jpg`, 560×720) from a
   MIX of sources — iNaturalist, **Wikimedia Commons** (Fairy Ring Champignon = Thomas Pruß, CC BY-SA 3.0),
   and **Flickr** (Honey Fungus = stu7009, CC BY-SA 2.0) — credited in the title-screen Credits popup

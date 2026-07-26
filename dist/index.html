@@ -1456,6 +1456,17 @@
     /* Level title is the procedural mycelium wordmark ("LEVEL ONE", …); it grows to
        fill this box (size = min of height·0.72 and a width-derived cap). */
     .li-level { width:min(720px,92vw); height:clamp(84px,14vh,128px); }
+    /* Wordmark + escalation subtitle, kept tight together as one block: `.li-inner`'s own
+       gap is large (it separates title / threats / hint), and the subtitle must read as
+       part of the title, not as a third section. */
+    .li-head { display:flex; flex-direction:column; align-items:center; gap:clamp(4px,1vh,12px); }
+    /* The taunt shown on levels where the threat rate steps up (species.js escalationNote).
+       Warm amber against the black card so it reads as a warning, not as body copy. */
+    .li-sub { font-family:var(--serif); font-style:italic; font-weight:600;
+      font-size:clamp(13px,2.3vw,21px); line-height:1.3; text-wrap:balance;
+      color:rgba(255,206,150,0.88); max-width:min(660px,90vw);
+      text-shadow:0 0 18px rgba(255,170,90,0.28); }
+    @media (max-width:720px) { .li-sub { font-size:clamp(12px,3.4vw,16px); } }
     .li-threats { display:flex; align-items:flex-start; justify-content:center;
       gap:clamp(16px,4.4vw,46px); flex-wrap:wrap; }
     .li-threat { display:flex; flex-direction:column; align-items:center; gap:clamp(10px,1.6vh,16px); }
@@ -1507,8 +1518,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "9a329o";
-globalThis.__BUILD__ = "local 07-26 09:18";
+window.__ASSET_VER = "wow0b0";
+globalThis.__BUILD__ = "local 07-26 09:34";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3605,6 +3616,45 @@ function threatBonusForLevel(level) {
   return sum;
 }
 
+// The level intro shows a one-line taunt whenever the rate STEPS UP, so the player is told
+// the ladder just got steeper rather than quietly wondering why they died. Keyed by the level
+// where the step happens — i.e. every breakpoint in threatRatePerLevel: 7, 10, then every 5
+// from 15 to 100. Each entry carries its own trailing punctuation; the "+N per level" tail is
+// appended from the LIVE rate (escalationNote below) so the number can never drift from the
+// curve. Levels 7–30 are the owner's wording; 35+ continue the voice.
+const ESCALATION_TAUNTS = {
+  7:  'Time to turn up the heat:',
+  10: "You're doing well. Time to die.",
+  15: "Think you're unstoppable?",
+  20: 'How are you still alive?',
+  25: 'Ok, now this is just getting too weird.',
+  30: 'You officially broke the game.',
+  35: 'We wrote this level for nobody. Enjoy.',
+  40: 'The playtesters never came back.',
+  45: "Double digits. We're as surprised as you.",
+  50: 'Halfway. Nobody has ever needed this sentence.',
+  55: 'The mould has started taking notes.',
+  60: 'Unlucky for some. Specifically, you.',
+  65: 'Are you a fungus? Blink twice.',
+  70: 'The nematodes have unionised.',
+  75: 'Three quarters. This was supposed to be impossible.',
+  80: "We're just adding numbers now.",
+  85: 'Somewhere, a spreadsheet is screaming.',
+  90: 'Ten to go. Please seek sunlight.',
+  95: 'We stopped counting. The soil did not.',
+  100: 'Last one. Whatever you are, you win.',
+};
+
+// The escalation line for `level`, or null on a level where the rate didn't change.
+// A step-up with no authored taunt falls back to a neutral line rather than going silent —
+// the player being TOLD it got harder matters more than the joke.
+function escalationNote(level) {
+  const lvl = Math.max(1, level | 0);
+  const rate = threatRatePerLevel(lvl);
+  if (rate <= 0 || rate === threatRatePerLevel(lvl - 1)) return null;
+  return (ESCALATION_TAUNTS[lvl] || 'The soil turns against you.') + ' +' + rate + ' per level';
+}
+
 function threatsForLevel(level) {
   const lvl = Math.max(1, level | 0);
   // Base counts: the authored early curve (1..11), else computed.
@@ -3628,25 +3678,36 @@ function levelFromUnlock(label) {
   return m ? +m[1] : null;
 }
 
+// Every species starts this many levels EARLIER than its tier would imply. Added when the
+// threat curve was made to compound (threatRatePerLevel): the escalation now begins at level
+// 7, so a higher-tier colony that opened on 5 or 7 got almost no quiet levels to assemble an
+// engine before being buried. Two extra levels of runway is the counterweight. This moves the
+// START level only — the UNLOCK requirement ("Complete level 5") is untouched, so the ladder
+// you must climb to earn a species is the same; you just begin its run sooner.
+const START_LEVEL_SHIFT = 2;
+
 // Which campaign level a species BEGINS its run on. Higher-tier species skip the
-// early grind: a fixed-start species opens on its unlock level (ungated → level 1).
-// A "choose your start" species (the memory colonies) instead exposes a range
-// [startLevelMin, startLevelMax] the player dials in next to the Start button.
-//   Slippery Jack / Bleeding Tooth → 3 · Wine Cap / Earthball → 5 · Violet Webcap / Dry Rot → 7
-//   Split Gill → adjustable 3–10 · Artist's Conk → fixed level 1 (memory colony, first reveal)
+// early grind: a fixed-start species opens on its unlock level minus the shift
+// (ungated → level 1). A "choose your start" species (the memory colonies) instead
+// exposes a range [startLevelMin, startLevelMax] the player dials in next to the
+// Start button — both ends shift too. Everything floors at level 1.
+//   Slippery Jack / Bleeding Tooth → 1 (was 3) · Wine Cap / Earthball → 3 (was 5)
+//   Violet Webcap / Dry Rot → 5 (was 7) · Split Gill → adjustable 1–8 (was 3–10)
+//   Artist's Conk → fixed level 1 (memory colony, first reveal — already at the floor)
 // Returns { min, max, adjustable }.
 function startLevelRange(sp) {
+  const shift = (n) => Math.max(1, (n | 0) - START_LEVEL_SHIFT);
   if (sp && sp.startLevelMin != null && sp.startLevelMax != null) {
-    const min = Math.max(1, sp.startLevelMin | 0);
-    const max = Math.max(min, sp.startLevelMax | 0);
+    const min = shift(sp.startLevelMin);
+    const max = Math.max(min, shift(sp.startLevelMax));
     return { min, max, adjustable: max > min };
   }
-  const lvl = levelFromUnlock(sp && sp.unlock) || 1;
+  const lvl = shift(levelFromUnlock(sp && sp.unlock) || 1);
   return { min: lvl, max: lvl, adjustable: false };
 }
-// The level a species starts on by default. Fixed species = their only level;
-// adjustable species default to their unlock level (the high end of the range),
-// clamped into the allowed range — so the toggle only ever DIALS DOWN from there.
+// The level a species starts on by default. Fixed species = their only level; adjustable
+// species aim for their unlock level and get clamped into the (already shifted) range — so
+// Split Gill defaults to 8 rather than 10, and the toggle only ever DIALS DOWN from there.
 function defaultStartLevel(sp) {
   const r = startLevelRange(sp);
   if (!r.adjustable) return r.min;
@@ -3912,7 +3973,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatRatePerLevel, threatBonusForLevel, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatRatePerLevel, threatBonusForLevel, escalationNote, threatsForLevel, sporesForLevel, levelFromUnlock, START_LEVEL_SHIFT, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/highscores.js =====================
@@ -13286,8 +13347,8 @@ function openSpeciesDetail(species, opts = {}) {
   const actions = ins.wrap.querySelector('#ssIActions');
   if (opts.mode === 'start') {
     // Which campaign level this colony begins on. Fixed for most species; an adjustable-start
-    // colony (Split Gill, 3–10) gets a "Lvl: X" stepper the player dials in right next to
-    // Start game. onStart carries the chosen level to onPick.
+    // colony (Split Gill, 1–8 since START_LEVEL_SHIFT) gets a "Lvl: X" stepper the player
+    // dials in right next to Start game. onStart carries the chosen level to onPick.
     const range = startLevelRange(species);
     let lvl = defaultStartLevel(species);
     const stepper = range.adjustable
@@ -14622,7 +14683,9 @@ const __m_render_level_intro = (function () {
 //
 // threats: [{ slug, label, count }, ...] — already filtered to count > 0 by the
 // caller. `slug` names the art file assets/tutorial/<slug>.jpg (reused from the
-// first-run tutorial).
+// first-run tutorial). `note` is an optional one-line subtitle under the wordmark —
+// main.js passes `species.js escalationNote(level)`, which is non-null only on the
+// levels where the threat rate steps up.
 //
 // Two callbacks, and the difference matters visually:
 //   onDismiss — fires the instant the player clicks, BEFORE the fade begins, while the
@@ -14664,10 +14727,17 @@ function showLevelIntro(opts) {
   const inner = el('div', 'li-inner');
   // The level title is the procedural mycelium wordmark ("LEVEL ONE", …), grown
   // once when the card appears (mirrors the title screen / high-scores heading).
+  // Title + optional escalation subtitle share a `.li-head` wrapper so the subtitle
+  // sits TIGHT under the wordmark: `.li-inner`'s gap between sections is large, and
+  // `.li-level` is a fixed-size box that growMyceliumTitle measures, so the subtitle
+  // can't just live inside it.
+  const head = el('div', 'li-head');
   const titleWrap = el('div', 'li-level');
   titleWrap.setAttribute('role', 'img');
   titleWrap.setAttribute('aria-label', 'Level ' + level);
-  inner.appendChild(titleWrap);
+  head.appendChild(titleWrap);
+  if (opts && opts.note) head.appendChild(el('div', 'li-sub', String(opts.note)));
+  inner.appendChild(head);
 
   const row = el('div', 'li-threats');
   for (const th of threats) {
@@ -14994,7 +15064,7 @@ const __m_main = (function () {
   const { showTitleScreen } = __m_render_title_screen;
   const { startTutorial } = __m_render_tutorial;
   const { showLevelIntro } = __m_render_level_intro;
-  const { SPECIES, MAX_LEVEL, threatsForLevel, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } = __m_species;
+  const { SPECIES, MAX_LEVEL, threatsForLevel, escalationNote, recordLevelCleared, newlyRevealedByClear, sporesForLevel, addSpores, sporesBalance, loadProgress, resetProgress, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, revealSpecies, isSpeciesRevealed } = __m_species;
   const { loadAssets, hasAsset, asset, pattern, assetMeta, assetUrl, preloadImages } = __m_render_assets;
   const { initMusic, playMenuMusic, playLevelMusic } = __m_render_music;
   const { initSfx } = __m_render_sfx;
@@ -15077,6 +15147,7 @@ function revealMap() {
     levelIntro = showLevelIntro({
       level: info.level,
       threats: info.threats,
+      note: info.note,                // escalation taunt, on the levels where the rate steps up
       onDismiss: info.onDismiss,      // re-expand the hand while the screen is still black
       onDone: () => { levelIntro = null; if (info.onContinue) info.onContinue(); },
     });
@@ -15985,7 +16056,7 @@ function begin(newState) {
     // tutorial still waits for DONE: its camera moves and popups need a visible map.
     const deferred = afterIntro;
     pendingLevelIntro = {
-      level: currentLevel, threats: levelThreatList(),
+      level: currentLevel, threats: levelThreatList(), note: escalationNote(currentLevel),
       onDismiss: () => { if (ui && ui.setHandOpen) ui.setHandOpen(true); },
       onContinue: () => { if (deferred) deferred(); },
     };

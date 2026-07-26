@@ -264,6 +264,45 @@ export function threatBonusForLevel(level) {
   return sum;
 }
 
+// The level intro shows a one-line taunt whenever the rate STEPS UP, so the player is told
+// the ladder just got steeper rather than quietly wondering why they died. Keyed by the level
+// where the step happens — i.e. every breakpoint in threatRatePerLevel: 7, 10, then every 5
+// from 15 to 100. Each entry carries its own trailing punctuation; the "+N per level" tail is
+// appended from the LIVE rate (escalationNote below) so the number can never drift from the
+// curve. Levels 7–30 are the owner's wording; 35+ continue the voice.
+const ESCALATION_TAUNTS = {
+  7:  'Time to turn up the heat:',
+  10: "You're doing well. Time to die.",
+  15: "Think you're unstoppable?",
+  20: 'How are you still alive?',
+  25: 'Ok, now this is just getting too weird.',
+  30: 'You officially broke the game.',
+  35: 'We wrote this level for nobody. Enjoy.',
+  40: 'The playtesters never came back.',
+  45: "Double digits. We're as surprised as you.",
+  50: 'Halfway. Nobody has ever needed this sentence.',
+  55: 'The mould has started taking notes.',
+  60: 'Unlucky for some. Specifically, you.',
+  65: 'Are you a fungus? Blink twice.',
+  70: 'The nematodes have unionised.',
+  75: 'Three quarters. This was supposed to be impossible.',
+  80: "We're just adding numbers now.",
+  85: 'Somewhere, a spreadsheet is screaming.',
+  90: 'Ten to go. Please seek sunlight.',
+  95: 'We stopped counting. The soil did not.',
+  100: 'Last one. Whatever you are, you win.',
+};
+
+// The escalation line for `level`, or null on a level where the rate didn't change.
+// A step-up with no authored taunt falls back to a neutral line rather than going silent —
+// the player being TOLD it got harder matters more than the joke.
+export function escalationNote(level) {
+  const lvl = Math.max(1, level | 0);
+  const rate = threatRatePerLevel(lvl);
+  if (rate <= 0 || rate === threatRatePerLevel(lvl - 1)) return null;
+  return (ESCALATION_TAUNTS[lvl] || 'The soil turns against you.') + ' +' + rate + ' per level';
+}
+
 export function threatsForLevel(level) {
   const lvl = Math.max(1, level | 0);
   // Base counts: the authored early curve (1..11), else computed.
@@ -287,25 +326,36 @@ export function levelFromUnlock(label) {
   return m ? +m[1] : null;
 }
 
+// Every species starts this many levels EARLIER than its tier would imply. Added when the
+// threat curve was made to compound (threatRatePerLevel): the escalation now begins at level
+// 7, so a higher-tier colony that opened on 5 or 7 got almost no quiet levels to assemble an
+// engine before being buried. Two extra levels of runway is the counterweight. This moves the
+// START level only — the UNLOCK requirement ("Complete level 5") is untouched, so the ladder
+// you must climb to earn a species is the same; you just begin its run sooner.
+export const START_LEVEL_SHIFT = 2;
+
 // Which campaign level a species BEGINS its run on. Higher-tier species skip the
-// early grind: a fixed-start species opens on its unlock level (ungated → level 1).
-// A "choose your start" species (the memory colonies) instead exposes a range
-// [startLevelMin, startLevelMax] the player dials in next to the Start button.
-//   Slippery Jack / Bleeding Tooth → 3 · Wine Cap / Earthball → 5 · Violet Webcap / Dry Rot → 7
-//   Split Gill → adjustable 3–10 · Artist's Conk → fixed level 1 (memory colony, first reveal)
+// early grind: a fixed-start species opens on its unlock level minus the shift
+// (ungated → level 1). A "choose your start" species (the memory colonies) instead
+// exposes a range [startLevelMin, startLevelMax] the player dials in next to the
+// Start button — both ends shift too. Everything floors at level 1.
+//   Slippery Jack / Bleeding Tooth → 1 (was 3) · Wine Cap / Earthball → 3 (was 5)
+//   Violet Webcap / Dry Rot → 5 (was 7) · Split Gill → adjustable 1–8 (was 3–10)
+//   Artist's Conk → fixed level 1 (memory colony, first reveal — already at the floor)
 // Returns { min, max, adjustable }.
 export function startLevelRange(sp) {
+  const shift = (n) => Math.max(1, (n | 0) - START_LEVEL_SHIFT);
   if (sp && sp.startLevelMin != null && sp.startLevelMax != null) {
-    const min = Math.max(1, sp.startLevelMin | 0);
-    const max = Math.max(min, sp.startLevelMax | 0);
+    const min = shift(sp.startLevelMin);
+    const max = Math.max(min, shift(sp.startLevelMax));
     return { min, max, adjustable: max > min };
   }
-  const lvl = levelFromUnlock(sp && sp.unlock) || 1;
+  const lvl = shift(levelFromUnlock(sp && sp.unlock) || 1);
   return { min: lvl, max: lvl, adjustable: false };
 }
-// The level a species starts on by default. Fixed species = their only level;
-// adjustable species default to their unlock level (the high end of the range),
-// clamped into the allowed range — so the toggle only ever DIALS DOWN from there.
+// The level a species starts on by default. Fixed species = their only level; adjustable
+// species aim for their unlock level and get clamped into the (already shifted) range — so
+// Split Gill defaults to 8 rather than 10, and the toggle only ever DIALS DOWN from there.
 export function defaultStartLevel(sp) {
   const r = startLevelRange(sp);
   if (!r.adjustable) return r.min;
