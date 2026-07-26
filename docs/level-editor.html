@@ -40,6 +40,11 @@ input:focus,select:focus{outline:none;border-color:var(--mint)}
 .pgroup>h3{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
   margin:8px 2px 6px;display:flex;align-items:center;gap:6px}
 .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.pfilter{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 6px}
+.pchip{font:600 9px/1 inherit;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 7px}
+.pchip:hover{color:var(--ink);border-color:var(--mint)}
+.pchip.on{color:var(--bg);background:var(--mint);border-color:var(--mint)}
 .pgrid.wide{grid-template-columns:repeat(2,1fr)}
 .pitem{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px;cursor:grab;
   display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;touch-action:none}
@@ -210,6 +215,13 @@ let ASSET = '../assets/';
 
 const ROCK_KEYS = ['rockSlate', 'rockBasalt', 'rockRiver', 'rockVeined', 'rockMossy'];
 const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
+// Rock-formation THEMES are read from assets/manifest.json (each rockform entry carries a
+// `theme`), so the taxonomy lives in exactly one place and the game sees the same one via
+// assets.js assetMeta(). Filled in at boot; empty = show them ungrouped.
+let ROCKFORM_THEME = {};                 // key -> theme id
+const THEME_LABEL = { veined: 'Veined', crystal: 'Crystal', ember: 'Ember', fungal: 'Fungal' };
+const THEME_ORDER = ['veined', 'crystal', 'ember', 'fungal'];
+let formFilter = 'all';                  // active Rock-formations filter chip
 const LAKE_KEYS = ['lake1', 'lake2', 'lake3'];
 const RESERVOIR_KEYS = ['reservoir1', 'reservoir2', 'reservoir3'];
 const ORANGE_LEAF_KEYS = ['leafOak', 'leafMaple'];
@@ -217,11 +229,19 @@ const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRed
 const YELLOW_LEAF_KEYS = ['leafYellowHophornbeam', 'leafYellowSassafras', 'leafYellowMulberry', 'leafYellowRedbud', 'leafYellowSycamore'];
 const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3', 'mountain4', 'mountain5'];
 const CITY_KEYS = ['skyline1', 'skyline2', 'skyline3', 'skyline4', 'skyline5', 'skyline6'];
+// Above-ground decor sprites the game can draw (main.js surfaceProps / drawGoalProps).
+// NOT placeable, deliberately: `moon` + `range1/2` (sky backdrop the game positions itself),
+// `goalhill` (the goal's fixed backdrop), `acorn`/`chestnut`/`pinecone` (drawn INSIDE food
+// piles), `troll` (the level-1 Magic-Mushroom rock, placed by main.js placeRockface) and
+// `antColonyA/B` (a nest alternates art by column on its own).
+const PROP_KEYS = ['tree', 'goalbush', 'house'];
+const PROP_LABEL = { tree: 'Tree', goalbush: 'Bush', house: 'House' };
 // Mirrors of the GAME's surface rules, used by "Generate surface" so a generated map is
 // shaped like a procedural one. Keep in sync with the sources named on each line.
 const GEN = {
   cityWMin: 7, cityWMax: 12, cityMinRun: 5,   // main.js CITY_W_MIN / CITY_W_MAX / CITY_MIN_RUN
   cityEmbed: 0.04,                            // main.js CITY_EMBED_FRAC — flat base sits on the soil line
+  mtnEmbed: 0.10, propEmbed: 24,              // main.js MOUNTAIN_EMBED_FRAC / the props' `embed`
   wallWidthCols: 3, wallCountMin: 1, wallCountMax: 3,   // substrate.js generateSubstrate (config has no
                                               //   wallWidthCols/wallCount*, so these are its fallbacks)
   lakeCountMin: 1, lakeCountMax: 1,           // config.js substrate.lakeCount*
@@ -307,7 +327,9 @@ function makeObject(spec, x, y) {
   } else if (spec.t === 'trichoderma') {
     o.x = x; o.y = y; o.r = cs() * 1.2;
   } else if (spec.t === 'mountain') {
-    o.x = x; o.w = cs() * 4;
+    o.key = spec.key; o.x = x; o.w = cs() * 4;
+  } else if (spec.t === 'prop') {
+    o.key = spec.key; o.x = x; o.h = spec.key === 'tree' ? 124 : 70;
   } else if (spec.t === 'city') {
     // Default width sits mid-range of the game's 7–12 tiles.
     o.key = spec.key; o.x = x; o.w = cs() * 9;
@@ -318,13 +340,13 @@ function makeObject(spec, x, y) {
 const TYPE_LABEL = {
   boulder: 'Boulder', formation: 'Formation', lake: 'Lake', reservoir: 'Reservoir',
   food: 'Leaf pile', ant: 'Ant nest', nematode: 'Nematode', trichoderma: 'Trichoderma',
-  mountain: 'Mountain', city: 'City skyline',
+  mountain: 'Mountain', city: 'City skyline', prop: 'Surface prop',
 };
 const FOOD_LABEL = { duff: 'Duff (yellow)', cache: 'Cache (orange)', 'cache-engine': 'Engine (red)' };
 const ROTATABLE = new Set(['boulder', 'formation']);
-const SIZEABLE = new Set(['boulder', 'formation', 'lake', 'reservoir', 'food', 'trichoderma', 'mountain', 'city']);
+const SIZEABLE = new Set(['boulder', 'formation', 'lake', 'reservoir', 'food', 'trichoderma', 'mountain', 'city', 'prop']);
 // Objects pinned to the soil line: the game places them there regardless.
-const SURFACE_BOUND = new Set(['lake', 'ant', 'mountain', 'city']);
+const SURFACE_BOUND = new Set(['lake', 'ant', 'mountain', 'city', 'prop']);
 
 // ---- camera -----------------------------------------------------------------
 const cam = { x: -60, y: -60, z: 0.5 };
@@ -373,8 +395,17 @@ function boxOf(o) {
     }
     case 'nematode':
       return { x: o.x, y: o.y, w: cs() * 1.2, h: cs() * 1.2, rot: 0 };
-    case 'mountain':
-      return { x: o.x, y: level.world.surfaceY - cs() * 1.5, w: o.w, h: cs() * 3, rot: 0 };
+    case 'mountain': {
+      // Height from the chosen peak's aspect, base buried like the game (MOUNTAIN_EMBED_FRAC).
+      const im = img(o.key || MOUNTAIN_KEYS[0]);
+      const h = o.w * (im ? im.height / im.width : 0.75);
+      return { x: o.x, y: level.world.surfaceY + h * GEN.mtnEmbed - h / 2, w: o.w, h, rot: 0 };
+    }
+    case 'prop': {
+      const im = img(o.key);
+      const h = o.h || 124, w = h * (im ? im.width / im.height : 0.6);
+      return { x: o.x, y: level.world.surfaceY - h / 2 + GEN.propEmbed, w, h, rot: 0 };
+    }
     case 'city': {
       // Same geometry as main.js drawCities: width drives height via the art aspect, and
       // the flat base sits just ON the soil line (embedded by cityEmbed).
@@ -460,7 +491,7 @@ function draw() {
 
   // objects, in document order (later = on top), matching the game's draw order
   // closely enough to judge composition: piles under rocks, water over rocks.
-  const order = { city: -1, food: 0, mountain: 1, boulder: 2, formation: 2, lake: 3, reservoir: 3, ant: 4, nematode: 4, trichoderma: 4 };
+  const order = { city: -1, food: 0, mountain: 1, prop: 1.5, boulder: 2, formation: 2, lake: 3, reservoir: 3, ant: 4, nematode: 4, trichoderma: 4 };
   const list = level.objects.map((o, i) => ({ o, i })).sort((a, b) => (order[a.o.t] - order[b.o.t]) || (a.i - b.i));
   for (const { o } of list) drawObject(o);
 
@@ -618,13 +649,26 @@ function drawObject(o) {
     return;
   }
 
+  if (o.t === 'prop') {
+    const im = img(o.key);
+    const base = W2S(b.x, level.world.surfaceY);
+    if (im) {
+      const hh = (o.h || 124) * z, ww = hh * (im.width / im.height);
+      cx2d.drawImage(im, base.x - ww / 2, base.y - hh + GEN.propEmbed * z, ww, hh);
+    } else {
+      cx2d.fillStyle = 'rgba(90,180,110,.6)';
+      cx2d.fillRect(base.x - sw / 2, base.y - sh, sw, sh);
+    }
+    return;
+  }
+
   if (o.t === 'mountain') {
-    const im = img(MOUNTAIN_KEYS[0]);
+    const im = img(o.key || MOUNTAIN_KEYS[0]);
     const base = W2S(b.x, level.world.surfaceY);
     if (im) {
       const ww = b.w * z, hh = ww * (im.height / im.width);
       cx2d.globalAlpha = 0.85;
-      cx2d.drawImage(im, base.x - ww / 2, base.y - hh, ww, hh);
+      cx2d.drawImage(im, base.x - ww / 2, base.y + hh * GEN.mtnEmbed - hh, ww, hh);
       cx2d.globalAlpha = 1;
     } else {
       cx2d.fillStyle = 'rgba(150,160,175,.6)';
@@ -766,7 +810,7 @@ function generateSurface() {
     let wc = Math.round(innerLo + frac * (innerHi - innerLo) + (Math.random() * 4 - 2));
     wc = Math.max(innerLo, Math.min(innerHi, wc));
     const c1 = wc + wallW - 1;                          // flagged span is [wc, wc+wallW-1]
-    out.push({ t: 'mountain', id: nextId++, x: midX(wc, c1), w: wallW * C });
+    out.push({ t: 'mountain', id: nextId++, key: pick(MOUNTAIN_KEYS), x: midX(wc, c1), w: wallW * C });
     // The game reserves a margin around each band so lakes keep clear (c0-2 … c0+wallW+1).
     for (let c = wc - 2; c <= wc + wallW + 1; c++) if (c >= 0 && c < cols) occupied[c] = true;
   }
@@ -868,7 +912,7 @@ function renderStats() {
     ['Lakes', n('lake')], ['Reservoirs', n('reservoir')],
     ['Duff piles', food('duff')], ['Cache piles', food('cache')], ['Engine piles', food('cache-engine')],
     ['Ant nests', n('ant')], ['Nematodes', n('nematode')], ['Trichoderma', n('trichoderma')],
-    ['Mountains', n('mountain')], ['City skylines', n('city')],
+    ['Mountains', n('mountain')], ['City skylines', n('city')], ['Surface props', n('prop')],
   ];
   document.getElementById('stats').innerHTML =
     rows.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
@@ -951,7 +995,9 @@ function renderInspector() {
   if (o.t === 'food' && o.r > 0)
     html += `<div class="hint">Diamond footprint: ${1 + 2 * o.r * (o.r + 1)} cells at radius ${o.r}.</div>`;
   if (o.t === 'mountain')
-    html += `<div class="hint">Surface decor only — no collision. The game picks the peak art per map.</div>`;
+    html += `<div class="hint">Flags its columns impassable and draws the peak you picked. Width sets how big the peak looks; height follows the art.</div>`;
+  if (o.t === 'prop')
+    html += `<div class="hint">Above-ground decor only — no collision, changes no cell. Procedural maps scatter trees over open soil; an authored map has none, so place them here.</div>`;
   if (o.t === 'city')
     html += `<div class="hint">Sky backdrop only — no collision, changes no cell. Placing ANY skyline means the game uses <i>only</i> the ones you place. Keep it off mountains and lakes: the surface flag wins there, so the art would sit on top of them.</div>`;
 
@@ -984,7 +1030,9 @@ function renderSide() { renderInspector(); renderLayers(); renderStats(); runChe
 function buildPalette() {
   const groups = [
     { name: 'Boulders', wide: false, items: ROCK_KEYS.map((k) => ({ t: 'boulder', key: k, label: k.replace('rock', '') })) },
-    { name: 'Rock formations', wide: false, items: ROCKFORM_KEYS.map((k) => ({ t: 'formation', key: k, label: k.replace('rockform', 'form ') })) },
+    // Formations are ordered BY THEME (and filtered by the chips above the grid) — a
+    // campaign level uses one theme throughout, so the palette should read that way.
+    { name: 'Rock formations', wide: false, filter: 'form', items: sortedFormations() },
     { name: 'Water', wide: true, items: [
       ...LAKE_KEYS.map((k) => ({ t: 'lake', key: k, label: 'Lake ' + k.slice(-1) })),
       ...RESERVOIR_KEYS.map((k) => ({ t: 'reservoir', key: k, label: 'Pool ' + k.slice(-1) })),
@@ -1000,19 +1048,27 @@ function buildPalette() {
       { t: 'trichoderma', label: 'Trichoderma', glyph: 'mould' },
     ] },
     { name: 'Surface', wide: true, items: [
-      { t: 'mountain', label: 'Mountain', key: MOUNTAIN_KEYS[0] },
+      ...MOUNTAIN_KEYS.map((k, i) => ({ t: 'mountain', key: k, label: 'Peak ' + (i + 1) })),
       ...CITY_KEYS.map((k, i) => ({ t: 'city', key: k, label: 'City ' + (i + 1) })),
+      ...PROP_KEYS.map((k) => ({ t: 'prop', key: k, label: PROP_LABEL[k] || k })),
     ] },
   ];
   const host = document.getElementById('palette');
   host.innerHTML = groups.map((g) =>
-    `<div class="pgroup"><h3>${g.name}</h3><div class="pgrid${g.wide ? ' wide' : ''}">` +
+    `<div class="pgroup"><h3>${g.name}</h3>${g.filter === 'form' ? formFilterHTML() : ''}` +
+    `<div class="pgrid${g.wide ? ' wide' : ''}">` +
     g.items.map((it, i) => {
       const key = it.key || it.leaf;
       const thumb = key ? `<img src="${ASSET + key}.png" alt="">` : `<canvas data-glyph="${it.glyph}" width="60" height="38"></canvas>`;
-      return `<div class="pitem" data-g="${groups.indexOf(g)}" data-i="${i}">${thumb}<span class="lbl">${esc(it.label)}</span></div>`;
+      // Filtered-out items are HIDDEN, never removed: data-i is an index into g.items and
+      // dropping entries would renumber the survivors and drag the wrong sprite.
+      const hide = g.filter === 'form' && formFilter !== 'all' && ROCKFORM_THEME[key] !== formFilter;
+      return `<div class="pitem"${hide ? ' hidden' : ''} data-g="${groups.indexOf(g)}" data-i="${i}">${thumb}<span class="lbl">${esc(it.label)}</span></div>`;
     }).join('') + '</div></div>').join('');
 
+  host.querySelectorAll('.pchip[data-f]').forEach((c) => {
+    c.addEventListener('click', () => { formFilter = c.dataset.f; buildPalette(); });
+  });
   host.querySelectorAll('canvas[data-glyph]').forEach((c) => drawGlyph(c, c.dataset.glyph));
   host.querySelectorAll('.pitem').forEach((el) => {
     el.addEventListener('pointerdown', (e) => {
@@ -1022,6 +1078,31 @@ function buildPalette() {
     });
   });
   return groups;
+}
+
+// Formation keys ordered by theme (THEME_ORDER, then numerically), so the palette groups
+// visually even with the filter set to All. Untagged keys sort last.
+function sortedFormations() {
+  const rank = (k) => {
+    const i = THEME_ORDER.indexOf(ROCKFORM_THEME[k]);
+    return i < 0 ? THEME_ORDER.length : i;
+  };
+  const num = (k) => parseInt(k.replace('rockform', ''), 10) || 0;
+  return ROCKFORM_KEYS.slice()
+    .sort((a, b) => (rank(a) - rank(b)) || (num(a) - num(b)))
+    .map((k) => ({ t: 'formation', key: k,
+      label: (THEME_LABEL[ROCKFORM_THEME[k]] || 'form') + ' ' + num(k) }));
+}
+
+// The chip row above the Rock-formations grid: All + one per theme, each with its count.
+function formFilterHTML() {
+  const count = (t) => ROCKFORM_KEYS.filter((k) => ROCKFORM_THEME[k] === t).length;
+  const chip = (f, label, n) =>
+    `<button class="pchip${formFilter === f ? ' on' : ''}" data-f="${f}">${esc(label)}${n != null ? ' ' + n : ''}</button>`;
+  const themes = THEME_ORDER.filter((t) => count(t) > 0);
+  if (!themes.length) return '';
+  return '<div class="pfilter">' + chip('all', 'All', ROCKFORM_KEYS.length) +
+    themes.map((t) => chip(t, THEME_LABEL[t] || t, count(t))).join('') + '</div>';
 }
 
 function drawGlyph(c, kind) {
@@ -1389,15 +1470,24 @@ function wireTop() {
 // ---- boot -------------------------------------------------------------------
 async function boot() {
   // Source tree serves assets at ../assets/; the built copy in dist/ at assets/.
+  // Also the ONE source of the rock-formation themes (each rockform entry has a `theme`).
+  let manifest = null;
   try {
     const r = await fetch('../assets/manifest.json', { method: 'GET' });
     if (!r.ok) throw new Error('no');
-  } catch (_) { ASSET = 'assets/'; }
+    manifest = await r.json();
+  } catch (_) {
+    ASSET = 'assets/';
+    try { const r2 = await fetch('assets/manifest.json'); if (r2.ok) manifest = await r2.json(); } catch (__) {}
+  }
+  for (const a of (manifest && manifest.assets) || []) {
+    if (a && a.key && a.theme) ROCKFORM_THEME[a.key] = a.theme;
+  }
   document.getElementById('favi').href = ASSET + 'favicon.svg';
 
   const keys = [...ROCK_KEYS, ...ROCKFORM_KEYS, ...LAKE_KEYS, ...RESERVOIR_KEYS,
     ...ORANGE_LEAF_KEYS, ...RED_LEAF_KEYS, ...YELLOW_LEAF_KEYS, ...MOUNTAIN_KEYS,
-    ...CITY_KEYS, 'antColonyA'];
+    ...CITY_KEYS, ...PROP_KEYS, 'antColonyA'];
   buildPalette();
   wireTop();
   wireForms();

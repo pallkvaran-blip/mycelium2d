@@ -545,6 +545,36 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Level editor: rock-formation THEMES + filter, all game sprites placeable, and 8 new veined-rock candidates.**
+  - **Themes live in `assets/manifest.json`** — each rockform entry carries a `theme`
+    (`veined` 1,5 · `crystal` 3,7,10,13,14 · `ember` 2,6,9,12 · `fungal` 4,8,11), read off the art itself
+    (`scratchpad/rockforms-sheet.png`). ONE source: the editor fetches the manifest it was already fetching,
+    and the game gets the same field free via `assets.js assetMeta()` — no second hardcoded table. The palette
+    orders formations by theme and chip-filters to one (a campaign level uses a single theme throughout).
+    Note `main.js COLUMN_STYLES` is a NARROWER list (only themes chunky enough to stack into a rock column) —
+    it is not the taxonomy.
+  - **Filtered items are HIDDEN, never removed:** `data-i` is an index into the group's item array, so dropping
+    entries renumbers the survivors and drags the wrong sprite.
+  - **All five mountain peaks are selectable** (owner: "only see one in the level editor"). `mountain` gains a
+    `key`; `sub.authoredMountains` + `main.js mountainRuns()` return the authored spans so `drawMountains`
+    uses the chosen art instead of its seeded shuffle. Same authored-beats-derived rule as cities.
+  - **New `prop { key, x, h, flip }`** — tree / goalbush / house on the soil line. Worth knowing WHY: the
+    procedural scatter keys off `surf.soil && !surf.goal`, and an authored map's non-goal surface is all
+    `concrete`, so **authored maps had no surface greenery at all**. `sub.authoredProps` → `surfaceProps()`.
+  - **Audited the manifest against the palette** and recorded what is deliberately NOT placeable, so nobody
+    "fixes" it: `moon` + `range1/2` (sky backdrop spanning the map), `goalhill` (fixed goal backdrop),
+    `acorn`/`chestnut`/`pinecone` (drawn INSIDE food piles), `antColonyA/B` (a nest alternates art by column
+    on its own), `troll` (placed by `placeRockface`). `house` is in the palette but the game's own scatter
+    stopped using it — the skylines are the man-made surface now.
+  - **8 veined-rock candidates** (`scripts/gen_veined_rocks.py` → `assets/rock_options/veined-*.png`): four
+    shape briefs deliberately far apart — long low ridge (640×77/116), tall spire (326×640), enormous massif
+    with an arch (640×350), compact chunk (640×395/519) — two seeds each. Reuses the troll-rock cutout
+    (adaptive CORNER-sampled threshold, because FLUX ignores "pure black background" often enough to matter).
+    **They came out ~1.5× too bright** vs the shipped pair (mean HSV value 0.34 vs 0.22), so
+    `assets/rock_options/toned/` holds a gamma-matched copy per candidate (gamma solved per image to hit
+    0.235; gamma not a multiply, so the near-white vein cores survive) plus a yellow-green → mint hue nudge
+    on the moss. Awaiting the owner's pick of 4. **No numpy in this env** — the tone pass uses PIL `HSV` mode.
+
 - **Level editor: right-drag pan, placeable city skylines, and a "Generate surface" re-roll.**
   - **Right-drag pans** (`e.button === 2` joins middle-drag / space+drag), with `contextmenu`
     preventDefault on the canvas so the pan doesn't end in a browser menu, and the cursor restored on

@@ -3241,6 +3241,13 @@ let _propState = null, _props = null;
 function surfaceProps() {
   if (_propState === state) return _props;
   const sub = state.substrate, seed = (state.seed || 1) * 0.013, props = [];
+  // An AUTHORED map places its own decor (level editor → Surface palette). Return exactly
+  // those: the scatter below keys off `surf.soil && !surf.goal`, and an authored map's
+  // non-goal surface is all 'concrete', so it would otherwise get no trees at all.
+  if (sub.authoredProps && sub.authoredProps.length) {
+    _propState = state; _props = sub.authoredProps.slice();
+    return _props;
+  }
   let lastTree = -99;
   for (let c = 2; c < sub.cols - 2; c++) {
     const surf = sub.surface[c];
@@ -3265,6 +3272,12 @@ let _rangeBuf = null;   // offscreen buffer for the faded range backdrop
 function mountainRuns() {
   if (_mtnState === state) return _mtns;
   const sub = state.substrate, runs = [];
+  // Authored peaks carry the art the designer picked; width still comes from the span they
+  // drew rather than the seeded jitter used for procedural runs.
+  if (sub.authoredMountains && sub.authoredMountains.length) {
+    _mtnState = state; _mtns = sub.authoredMountains.slice();
+    return _mtns;
+  }
   let c = 0;
   while (c < sub.cols) {
     if (sub.surface[c] && sub.surface[c].barrier === 'mountain') {
@@ -3362,7 +3375,9 @@ function drawMountains() {
     .sort((a, b) => a.r - b.r)
     .map((o) => o.k);
   runs.forEach((run, i) => {
-    const img = asset(order[i % order.length]);
+    // An authored run names its peak art; a procedural one takes the next from the shuffle.
+    const img = asset(run.key && hasAsset(run.key) ? run.key : order[i % order.length]);
+    if (!img) return;
     const aspect = img.height / img.width;
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);

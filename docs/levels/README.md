@@ -51,14 +51,43 @@ The document shape and the loader live in [`src/engine/level.js`](../../src/engi
     { "t": "ant",         "x": 1150 },
     { "t": "nematode",    "x": 1000, "y": 900 },
     { "t": "trichoderma", "x": 1450, "y": 700, "r": 46 },
-    { "t": "mountain",    "x": 700, "w": 160 },
-    { "t": "city",        "key": "skyline3", "x": 500, "w": 360 }
+    { "t": "mountain",    "key": "mountain4", "x": 700, "w": 160 },
+    { "t": "city",        "key": "skyline3",  "x": 500, "w": 360 },
+    { "t": "prop",        "key": "tree",      "x": 820, "h": 124 }
   ]
 }
 ```
 
 Coordinates are **world units** (the grid is `cellSize` = 36 per cell, rows measured
 down from `surfaceY`), except a food pile's `r`, which is a radius in **cells**.
+
+## Rock-formation themes
+
+The 14 formations fall into four themes, tagged in `assets/manifest.json` (each rockform entry
+carries a `theme`) — one place, read by both the editor's filter chips and the game via
+`assets.js assetMeta()`:
+
+| theme | look | keys |
+|---|---|---|
+| `veined` | plain dark slate, mint/cyan glow veins, green moss | 1, 5 |
+| `crystal` | dark slate hosting blue/purple gem clusters | 3, 7, 10, 13, 14 |
+| `ember` | red-brown rock split by orange lava cracks | 2, 6, 9, 12 |
+| `fungal` | dark rock crowned with glowing mushroom caps | 4, 8, 11 |
+
+The palette orders formations by theme and the chips above the grid filter to one. A campaign
+level is meant to use a single theme throughout. (`main.js COLUMN_STYLES` is a narrower list —
+just the themes whose sprites are chunky enough to stack into a rock column.)
+
+## What is and isn't placeable
+
+Everything the game draws from a level document is in the palette. The sprites deliberately
+**not** placeable, so nobody "fixes" it later:
+
+- `moon`, `range1/2` — sky backdrop, positioned by the game across the whole map.
+- `goalhill` — the goal zone's fixed backdrop.
+- `acorn`, `chestnut`, `pinecone` — drawn *inside* food piles, not standalone.
+- `antColonyA/B` — a nest alternates art by column on its own; the `ant` object needs no key.
+- `troll` — the level-1 Magic Mushroom rock, placed by `main.js placeRockface()`.
 
 ## Surface skylines
 
@@ -72,6 +101,13 @@ affects collision or growth. Two rules:
 - **Keep them off mountains and lakes.** Those columns carry their own surface flag and art;
   a skyline placed over one just sits on top of it. The generator never does this, and the
   editor shows the overlap plainly.
+
+## Surface props
+
+`prop { key, x, h, flip }` stands a decor sprite on the soil line — `tree`, `goalbush` or
+`house`. Decor only: no collision, no cell changes. Worth knowing **why it exists**: procedural
+maps scatter trees over open fruitable soil, and an authored map's non-goal surface is all
+`concrete`, so without placing them by hand an authored map has no surface greenery at all.
 
 ## Two things worth knowing
 

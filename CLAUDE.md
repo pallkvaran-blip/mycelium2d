@@ -59,8 +59,15 @@ drag/rotate/resize the real assets onto a blank map, **▶ Test in game** to pla
 **Pan with right-drag** (also middle-drag / space+drag). **⛰ Generate surface** re-rolls mountains +
 one lake + city skylines from mirrored copies of the game's own rules (`GEN` in the editor — keep it in
 sync with `substrate.js generateSubstrate` and `main.js` CITY_*), replacing only those three types.
-**City skylines are placeable** (`city {key,x,w}`): a map with ANY city object gets exactly those,
-otherwise the game derives one per wide 'concrete' run as before. To wire a map
+**Every sprite the game draws from a level doc is placeable**: all 5 mountain peaks
+(`mountain {key,x,w}`), all 6 `city {key,x,w}` skylines, and `prop {key,x,h}` decor
+(tree/bush/house — procedural maps scatter trees over open soil, which an authored map has none
+of, so without these it gets no greenery). Authored beats derived: a map with ANY city/mountain
+object gets exactly those, else the game shuffles art in as before. Formations are grouped and
+**filtered by THEME** — `veined`/`crystal`/`ember`/`fungal`, tagged per rockform in
+`assets/manifest.json` (one source; the game sees it via `assets.js assetMeta`). Deliberately NOT
+placeable: `moon`, `range1/2`, `goalhill`, `acorn`/`chestnut`/`pinecone`, `antColonyA/B`, `troll`
+— see `docs/levels/README.md`. To wire a map
 into the campaign: drop the export in `docs/levels/`, `node scripts/gen-levels.mjs`, `node build.mjs`
 — a level whose `campaignLevel` is set replaces the procedural map for that number. Format + loader:
 `src/engine/level.js`; run seeding: `state.js createLevelState`; full notes in `docs/levels/README.md`

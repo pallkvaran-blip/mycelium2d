@@ -1520,8 +1520,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "h3k6p4";
-globalThis.__BUILD__ = "local 07-26 11:35";
+window.__ASSET_VER = "1g9cj89";
+globalThis.__BUILD__ = "local 07-26 11:56";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -7410,7 +7410,10 @@ const __m_engine_level = (function () {
 //   ant         { x }                         nest on the surface at this x
 //   nematode    { x, y }                      worm
 //   trichoderma { x, y, r }                   mould cloud
-//   mountain    { x, w }                      surface mountain landmark (barrier)
+//   mountain    { key, x, w }                 surface mountain landmark (barrier); `key` picks
+//                                             which mountainN peak art (omit → the game shuffles)
+//   prop        { key, x, h, flip }           above-ground decor sprite standing on the soil
+//                                             line (tree / goalbush / house). Decor only.
 //   city        { key, x, w }                 skyline backdrop over the surface; `key` picks
 //                                             which skylineN art (omit → the game shuffles one in)
 //
@@ -7487,6 +7490,8 @@ function buildLevel(config, level) {
   sub.reservoirs = [];
   sub.foodPiles = [];
   sub.authoredCities = [];          // { c0, c1, wCells, key } — explicit skylines (main.js cityRuns)
+  sub.authoredMountains = [];       // { c0, c1, wCells, key } — explicit peaks (main.js mountainRuns)
+  sub.authoredProps = [];           // { key, col, h, embed, flip } — surface decor (main.js surfaceProps)
 
   // --- surface layout: impassable middle, fruitable goal + summery approach ----
   for (let c = 0; c < sub.cols; c++) {
@@ -7539,6 +7544,21 @@ function buildLevel(config, level) {
       case 'mountain': {
         const { c0, c1 } = spanCols(+o.x || 0, +o.w || cs);
         for (let c = c0; c <= c1; c++) if (!sub.surface[c].goal) sub.surface[c].barrier = 'mountain';
+        // Record the span + chosen peak art so the renderer can honour it instead of
+        // shuffling one in (main.js mountainRuns). The barrier flags above are what makes
+        // the surface impassable; this list only decides which sprite is drawn.
+        sub.authoredMountains.push({ c0, c1, wCells: c1 - c0 + 1, key: o.key || null });
+        break;
+      }
+      case 'prop': {
+        // Above-ground decor. Procedural maps scatter trees over fruitable soil, which an
+        // authored map has none of outside the goal — so without this an authored map gets
+        // no surface greenery at all.
+        if (!o.key) break;
+        sub.authoredProps.push({
+          key: String(o.key), col: sub.colAtX(+o.x || 0),
+          h: Math.max(8, +o.h || 124), embed: 24, flip: !!o.flip,
+        });
         break;
       }
       case 'city': {
@@ -18354,6 +18374,13 @@ let _propState = null, _props = null;
 function surfaceProps() {
   if (_propState === state) return _props;
   const sub = state.substrate, seed = (state.seed || 1) * 0.013, props = [];
+  // An AUTHORED map places its own decor (level editor → Surface palette). Return exactly
+  // those: the scatter below keys off `surf.soil && !surf.goal`, and an authored map's
+  // non-goal surface is all 'concrete', so it would otherwise get no trees at all.
+  if (sub.authoredProps && sub.authoredProps.length) {
+    _propState = state; _props = sub.authoredProps.slice();
+    return _props;
+  }
   let lastTree = -99;
   for (let c = 2; c < sub.cols - 2; c++) {
     const surf = sub.surface[c];
@@ -18378,6 +18405,12 @@ let _rangeBuf = null;   // offscreen buffer for the faded range backdrop
 function mountainRuns() {
   if (_mtnState === state) return _mtns;
   const sub = state.substrate, runs = [];
+  // Authored peaks carry the art the designer picked; width still comes from the span they
+  // drew rather than the seeded jitter used for procedural runs.
+  if (sub.authoredMountains && sub.authoredMountains.length) {
+    _mtnState = state; _mtns = sub.authoredMountains.slice();
+    return _mtns;
+  }
   let c = 0;
   while (c < sub.cols) {
     if (sub.surface[c] && sub.surface[c].barrier === 'mountain') {
@@ -18475,7 +18508,9 @@ function drawMountains() {
     .sort((a, b) => a.r - b.r)
     .map((o) => o.k);
   runs.forEach((run, i) => {
-    const img = asset(order[i % order.length]);
+    // An authored run names its peak art; a procedural one takes the next from the shuffle.
+    const img = asset(run.key && hasAsset(run.key) ? run.key : order[i % order.length]);
+    if (!img) return;
     const aspect = img.height / img.width;
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);

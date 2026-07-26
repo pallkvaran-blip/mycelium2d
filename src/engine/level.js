@@ -28,7 +28,10 @@
 //   ant         { x }                         nest on the surface at this x
 //   nematode    { x, y }                      worm
 //   trichoderma { x, y, r }                   mould cloud
-//   mountain    { x, w }                      surface mountain landmark (barrier)
+//   mountain    { key, x, w }                 surface mountain landmark (barrier); `key` picks
+//                                             which mountainN peak art (omit → the game shuffles)
+//   prop        { key, x, h, flip }           above-ground decor sprite standing on the soil
+//                                             line (tree / goalbush / house). Decor only.
 //   city        { key, x, w }                 skyline backdrop over the surface; `key` picks
 //                                             which skylineN art (omit → the game shuffles one in)
 //
@@ -106,6 +109,8 @@ export function buildLevel(config, level) {
   sub.reservoirs = [];
   sub.foodPiles = [];
   sub.authoredCities = [];          // { c0, c1, wCells, key } — explicit skylines (main.js cityRuns)
+  sub.authoredMountains = [];       // { c0, c1, wCells, key } — explicit peaks (main.js mountainRuns)
+  sub.authoredProps = [];           // { key, col, h, embed, flip } — surface decor (main.js surfaceProps)
 
   // --- surface layout: impassable middle, fruitable goal + summery approach ----
   for (let c = 0; c < sub.cols; c++) {
@@ -158,6 +163,21 @@ export function buildLevel(config, level) {
       case 'mountain': {
         const { c0, c1 } = spanCols(+o.x || 0, +o.w || cs);
         for (let c = c0; c <= c1; c++) if (!sub.surface[c].goal) sub.surface[c].barrier = 'mountain';
+        // Record the span + chosen peak art so the renderer can honour it instead of
+        // shuffling one in (main.js mountainRuns). The barrier flags above are what makes
+        // the surface impassable; this list only decides which sprite is drawn.
+        sub.authoredMountains.push({ c0, c1, wCells: c1 - c0 + 1, key: o.key || null });
+        break;
+      }
+      case 'prop': {
+        // Above-ground decor. Procedural maps scatter trees over fruitable soil, which an
+        // authored map has none of outside the goal — so without this an authored map gets
+        // no surface greenery at all.
+        if (!o.key) break;
+        sub.authoredProps.push({
+          key: String(o.key), col: sub.colAtX(+o.x || 0),
+          h: Math.max(8, +o.h || 124), embed: 24, flip: !!o.flip,
+        });
         break;
       }
       case 'city': {
