@@ -614,9 +614,13 @@ Both menus are dark, on-theme, with glowing green borders.
   - **Two request aborts are expected in that harness and are NOT zip faults:** the menu mp3 (the browser
     aborts its range request when the level theme takes over) and the Supabase `events` POST. Filter to
     same-origin non-mp3 requests, or the gate cries wolf every run.
-  - **Worth knowing: blanking `globalThis.MYCELIUM_SUPABASE` does NOT disable telemetry.** `net_scores cfg()`
-    does `(g && g.url) || SUPABASE_URL`, so an empty string is falsy and falls through to the built-in
-    endpoint. To truly silence it in a test, shim `window.fetch` for `/rest/v1/` (see `verify-perfevent.mjs`).
+  - **`globalThis.MYCELIUM_SUPABASE = {url:'', anonKey:''}` now DOES disable telemetry (fixed Jul 26).**
+    `net_scores cfg()` used to do `(g && g.url) || SUPABASE_URL`, so an empty string fell through to the
+    built-in endpoint — and Playwright perf/verify scripts that boot the real game leaked `run_start`/`perf`
+    events into the live `events` table (a batch of `perf` rows on Jul 26 was self-play from `perf5.mjs`'s
+    monitor-size sweep, not real players). `cfg()` now honours an explicitly-set key even when empty (only a
+    MISSING key falls back), so the `{url:'',anonKey:''}` any test already sets truly silences it. Pinned by
+    `test/telemetry.test.js`. Shimming `window.fetch` for `/rest/v1/` still works as a belt-and-braces.
   - The picker Dev buttons are now flag-gated rather than deleted, so `ssDev`/`ssDevUnlock` still appear as
     STRINGS in the bundle while rendering nothing. Grep is no longer a valid release check — `verify-nodev.mjs`
     asserts on the rendered DOM, which is the thing that matters.
