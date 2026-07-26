@@ -545,6 +545,34 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Level editor: right-drag pan, placeable city skylines, and a "Generate surface" re-roll.**
+  - **Right-drag pans** (`e.button === 2` joins middle-drag / space+drag), with `contextmenu`
+    preventDefault on the canvas so the pan doesn't end in a browser menu, and the cursor restored on
+    pointerup. Checked in a browser: the camera moves with the drag, zoom is untouched, no object is
+    created or selected, and no menu opens.
+  - **City skylines are a placeable object** — `city { key, x, w }`, all six `skylineN` arts in the Surface
+    palette. New in `level.js` (`sub.authoredCities`), `main.js cityRuns()` and `drawCities`, plus the
+    editor's boxOf / drawObject / inspector / stats / draw order (a skyline is the FAR backdrop, so it
+    draws behind everything). **Rule: any city object means the map owns its skylines outright; a map with
+    none keeps the derived "one per wide concrete run" behaviour**, so the levels already in `docs/levels/`
+    render identically. A skyline changes no cell and no surface flag — pure backdrop.
+  - **⛰ Generate surface** re-rolls mountains + one lake + skylines from the game's own rules, mirrored into
+    a `GEN` constant block in the editor (it's standalone — no imports from `src/`) with each line naming its
+    source. Replaces only mountain / lake / city, leaves rocks / piles / threats alone, and is a single undo
+    step. Verified: band count within the game's 1–3, exactly one lake, distinct art per skyline, nothing
+    inside the goal or its summery approach, mountains and lake never overlap, no skyline over a mountain or
+    lake, hand-placed objects survive, one undo restores exactly, and 7 presses gave 7 different layouts.
+  - **Found and fixed a real off-by-one in the loader while testing this.** `spanCols` (new) replaces
+    `colAtX(x + w/2)` for the right edge of a surface object: `colAtX` is `floor(x/cs)`, so an edge landing
+    exactly on a cell boundary — the normal case, since widths are whole cells — reported the NEXT column and
+    the span came out one column too wide. **Authored mountains had flagged one extra column since the level
+    editor shipped.** Now `ceil(right/cs) - 1`, which is also correct for a mid-cell edge (a partially covered
+    column still counts, matching the drawn art). Pinned with hand-built aligned/half-offset objects.
+  - **Two testing notes.** The Surface palette is the LAST group in a scrollable aside, so a simulated
+    palette drag needs `scrollIntoViewIfNeeded()` first or the mouse-down lands nowhere. And don't assert
+    `wCells === c1 - c0 + 1` — that's true by construction and cannot catch the bug above; compare against a
+    span computed independently from the object, or use a deliberately aligned object.
+
 - **Release cut for itch (Jul 26).** `config.dev.enabled` → `false`, rebuilt, `scratchpad/verify-nodev.mjs`
   7/7 release-clean, zip = `dist/index.html` (as `index.html`) + `dist/assets/` at the ROOT, 22 MB / 175 files,
   no `artifact.html` / `*-editor.html` / `analytics.html`, no `*_options` or `card_art_archive` asset dirs.

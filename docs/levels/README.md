@@ -19,6 +19,11 @@ so a slot can never be silently double-booked.
 ## Authoring loop
 
 1. Open the editor, drag assets onto the map, resize/rotate them.
+   Pan with a **right-drag** (or middle-drag, or space+drag); zoom with the wheel.
+   **⛰ Generate surface** rolls mountains, one lake and city skylines using the game's own
+   placement rules — press it until the shape reads well, then nudge things by hand. It
+   replaces every mountain / lake / city on the map and leaves rocks, piles and threats
+   alone; it's a single undo step.
 2. **▶ Test in game** — plays the current draft immediately (no rebuild, no commit);
    it stashes the JSON in `localStorage` and opens the game on `#level`. The
    playtest run uses the dev scaffold (300 of each resource, 5× every card) so you
@@ -46,13 +51,27 @@ The document shape and the loader live in [`src/engine/level.js`](../../src/engi
     { "t": "ant",         "x": 1150 },
     { "t": "nematode",    "x": 1000, "y": 900 },
     { "t": "trichoderma", "x": 1450, "y": 700, "r": 46 },
-    { "t": "mountain",    "x": 700, "w": 160 }
+    { "t": "mountain",    "x": 700, "w": 160 },
+    { "t": "city",        "key": "skyline3", "x": 500, "w": 360 }
   ]
 }
 ```
 
 Coordinates are **world units** (the grid is `cellSize` = 36 per cell, rows measured
 down from `surfaceY`), except a food pile's `r`, which is a radius in **cells**.
+
+## Surface skylines
+
+The `city` object is a **sky backdrop** — it changes no cell and no surface flag, so it never
+affects collision or growth. Two rules:
+
+- **Placing any `city` takes over.** A map with at least one city object gets exactly the
+  skylines it names, in the art it names. A map with none keeps the automatic behaviour (the
+  game draws a skyline over every run of plain surface ≥ 5 cells wide), so maps authored
+  before cities existed are unchanged.
+- **Keep them off mountains and lakes.** Those columns carry their own surface flag and art;
+  a skyline placed over one just sits on top of it. The generator never does this, and the
+  editor shows the overlap plainly.
 
 ## Two things worth knowing
 

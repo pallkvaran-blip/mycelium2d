@@ -106,6 +106,8 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padd
     <button class="btn" id="bUndo" title="Ctrl+Z">↶</button>
     <button class="btn" id="bRedo" title="Ctrl+Shift+Z">↷</button>
     <span class="sep"></span>
+    <button class="btn" id="bGenSurface" title="Roll a fresh surface using the game's own rules (mountains, one lake, city skylines). REPLACES every mountain / lake / city already on the map; rocks, piles and threats are untouched. Undoable.">⛰ Generate surface</button>
+    <span class="sep"></span>
     <button class="btn" id="bSnap" title="Snap to the substrate cell grid">Snap</button>
     <button class="btn" id="bGrid" title="Show the cell grid">Grid</button>
     <span class="sep"></span>
@@ -182,7 +184,7 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padd
         <kbd>[</kbd> <kbd>]</kbd> rotate 5° (<kbd>shift</kbd> 15°)<br>
         <kbd>-</kbd> <kbd>=</kbd> scale · <kbd>ctrl+D</kbd> duplicate<br>
         <kbd>del</kbd> delete · <kbd>esc</kbd> deselect<br>
-        <kbd>space+drag</kbd> / middle-drag pan · <kbd>wheel</kbd> zoom
+        right-drag / <kbd>space+drag</kbd> / middle-drag pan · <kbd>wheel</kbd> zoom
       </div>
     </div>
   </aside>
@@ -214,6 +216,17 @@ const ORANGE_LEAF_KEYS = ['leafOak', 'leafMaple'];
 const RED_LEAF_KEYS = ['leafRedMaple', 'leafRedOak', 'leafRedSweetgum', 'leafRedJapanese', 'leafRedDogwood', 'leafRedBeech'];
 const YELLOW_LEAF_KEYS = ['leafYellowHophornbeam', 'leafYellowSassafras', 'leafYellowMulberry', 'leafYellowRedbud', 'leafYellowSycamore'];
 const MOUNTAIN_KEYS = ['mountain1', 'mountain2', 'mountain3', 'mountain4', 'mountain5'];
+const CITY_KEYS = ['skyline1', 'skyline2', 'skyline3', 'skyline4', 'skyline5', 'skyline6'];
+// Mirrors of the GAME's surface rules, used by "Generate surface" so a generated map is
+// shaped like a procedural one. Keep in sync with the sources named on each line.
+const GEN = {
+  cityWMin: 7, cityWMax: 12, cityMinRun: 5,   // main.js CITY_W_MIN / CITY_W_MAX / CITY_MIN_RUN
+  cityEmbed: 0.04,                            // main.js CITY_EMBED_FRAC — flat base sits on the soil line
+  wallWidthCols: 3, wallCountMin: 1, wallCountMax: 3,   // substrate.js generateSubstrate (config has no
+                                              //   wallWidthCols/wallCount*, so these are its fallbacks)
+  lakeCountMin: 1, lakeCountMax: 1,           // config.js substrate.lakeCount*
+  lakeWMinCols: 8, lakeWMaxCols: 14, lakeAspect: 2.8,  // config.js substrate.lakeWidth*/lakeAspect
+};
 // Opaque teardrop box inside each reservoir PNG (mirrors main.js RESERVOIR_OPAQUE)
 // so the preview pool lands on the same cells the game floods.
 const RESERVOIR_OPAQUE = {
@@ -295,6 +308,9 @@ function makeObject(spec, x, y) {
     o.x = x; o.y = y; o.r = cs() * 1.2;
   } else if (spec.t === 'mountain') {
     o.x = x; o.w = cs() * 4;
+  } else if (spec.t === 'city') {
+    // Default width sits mid-range of the game's 7–12 tiles.
+    o.key = spec.key; o.x = x; o.w = cs() * 9;
   }
   return o;
 }
@@ -302,13 +318,13 @@ function makeObject(spec, x, y) {
 const TYPE_LABEL = {
   boulder: 'Boulder', formation: 'Formation', lake: 'Lake', reservoir: 'Reservoir',
   food: 'Leaf pile', ant: 'Ant nest', nematode: 'Nematode', trichoderma: 'Trichoderma',
-  mountain: 'Mountain',
+  mountain: 'Mountain', city: 'City skyline',
 };
 const FOOD_LABEL = { duff: 'Duff (yellow)', cache: 'Cache (orange)', 'cache-engine': 'Engine (red)' };
 const ROTATABLE = new Set(['boulder', 'formation']);
-const SIZEABLE = new Set(['boulder', 'formation', 'lake', 'reservoir', 'food', 'trichoderma', 'mountain']);
+const SIZEABLE = new Set(['boulder', 'formation', 'lake', 'reservoir', 'food', 'trichoderma', 'mountain', 'city']);
 // Objects pinned to the soil line: the game places them there regardless.
-const SURFACE_BOUND = new Set(['lake', 'ant', 'mountain']);
+const SURFACE_BOUND = new Set(['lake', 'ant', 'mountain', 'city']);
 
 // ---- camera -----------------------------------------------------------------
 const cam = { x: -60, y: -60, z: 0.5 };
@@ -359,6 +375,13 @@ function boxOf(o) {
       return { x: o.x, y: o.y, w: cs() * 1.2, h: cs() * 1.2, rot: 0 };
     case 'mountain':
       return { x: o.x, y: level.world.surfaceY - cs() * 1.5, w: o.w, h: cs() * 3, rot: 0 };
+    case 'city': {
+      // Same geometry as main.js drawCities: width drives height via the art aspect, and
+      // the flat base sits just ON the soil line (embedded by cityEmbed).
+      const im = img(o.key || CITY_KEYS[0]);
+      const h = o.w * (im ? im.height / im.width : 0.42);
+      return { x: o.x, y: level.world.surfaceY + h * GEN.cityEmbed - h / 2, w: o.w, h, rot: 0 };
+    }
     default:
       return { x: o.x || 0, y: o.y || 0, w: cs(), h: cs(), rot: 0 };
   }
@@ -437,7 +460,7 @@ function draw() {
 
   // objects, in document order (later = on top), matching the game's draw order
   // closely enough to judge composition: piles under rocks, water over rocks.
-  const order = { food: 0, mountain: 1, boulder: 2, formation: 2, lake: 3, reservoir: 3, ant: 4, nematode: 4, trichoderma: 4 };
+  const order = { city: -1, food: 0, mountain: 1, boulder: 2, formation: 2, lake: 3, reservoir: 3, ant: 4, nematode: 4, trichoderma: 4 };
   const list = level.objects.map((o, i) => ({ o, i })).sort((a, b) => (order[a.o.t] - order[b.o.t]) || (a.i - b.i));
   for (const { o } of list) drawObject(o);
 
@@ -579,6 +602,22 @@ function drawObject(o) {
     return;
   }
 
+  if (o.t === 'city') {
+    const im = img(o.key || CITY_KEYS[0]);
+    const base = W2S(b.x, level.world.surfaceY);
+    if (im) {
+      const ww = b.w * z, hh = ww * (im.height / im.width);
+      cx2d.save();
+      cx2d.filter = 'brightness(0.85) saturate(0.92)';   // matches the game's dimmed backdrop
+      cx2d.drawImage(im, base.x - ww / 2, base.y + hh * GEN.cityEmbed - hh, ww, hh);
+      cx2d.restore();
+    } else {
+      cx2d.fillStyle = 'rgba(120,140,170,.5)';
+      cx2d.fillRect(base.x - sw / 2, base.y - sh, sw, sh);
+    }
+    return;
+  }
+
   if (o.t === 'mountain') {
     const im = img(MOUNTAIN_KEYS[0]);
     const base = W2S(b.x, level.world.surfaceY);
@@ -695,6 +734,92 @@ function loadLevel(obj) {
   syncForms(); draw(); renderSide();
 }
 
+// ---- generate surface -------------------------------------------------------
+// Rolls mountains, one lake and city skylines using the GAME's own placement rules, so a
+// generated map is shaped like a procedural one and can then be nudged by hand. Mirrors
+// substrate.js generateSubstrate (mountain bands → lake in the widest free span) and
+// main.js cityRuns (a skyline over each wide run of plain 'concrete' surface).
+//
+// REPLACES every mountain / lake / city on the map — rocks, piles and threats are left
+// alone — and is a single undo step. Press it until the shape looks right, then drag.
+function generateSurface() {
+  const C = cs(), cols = Math.floor(level.world.width / C);
+  const goalCols = Math.max(2, Math.min(cols - 4, level.layout.goalCols || 6));
+  const startCols = Math.max(1, Math.min(cols - goalCols - 1, level.layout.startCols || 2));
+  const goalStart = cols - goalCols;
+  const summerCols = Math.max(0, Math.min(goalStart - startCols - 2,
+    level.layout.summerCols != null ? level.layout.summerCols : 7));
+  const homeCols = Math.max(6, startCols + 4);          // substrate.js sub.homeCols
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));   // inclusive, like rng.int
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const midX = (c0, c1) => ((c0 + c1 + 1) / 2) * C;     // world x at the centre of an inclusive span
+
+  const out = [];
+  const occupied = new Array(cols).fill(false);
+
+  // --- mountains: 1–3 bands of wallWidthCols, spread evenly with ±2 jitter ---
+  const wallW = GEN.wallWidthCols;
+  const nWalls = ri(GEN.wallCountMin, GEN.wallCountMax);
+  const innerLo = startCols + 3, innerHi = goalStart - 3 - wallW - summerCols;
+  for (let i = 0; i < nWalls && innerHi > innerLo; i++) {
+    const frac = (i + 1) / (nWalls + 1);
+    let wc = Math.round(innerLo + frac * (innerHi - innerLo) + (Math.random() * 4 - 2));
+    wc = Math.max(innerLo, Math.min(innerHi, wc));
+    const c1 = wc + wallW - 1;                          // flagged span is [wc, wc+wallW-1]
+    out.push({ t: 'mountain', id: nextId++, x: midX(wc, c1), w: wallW * C });
+    // The game reserves a margin around each band so lakes keep clear (c0-2 … c0+wallW+1).
+    for (let c = wc - 2; c <= wc + wallW + 1; c++) if (c >= 0 && c < cols) occupied[c] = true;
+  }
+
+  // --- lake: dropped into the WIDEST free span, centred, width 8–14 cols ---
+  const lakeLo = startCols + 3, lakeHi = goalStart - 3 - summerCols;
+  const spans = [];
+  let sc = -1;
+  for (let c = lakeLo; c <= lakeHi; c++) {
+    if (!occupied[c]) { if (sc < 0) sc = c; }
+    else if (sc >= 0) { spans.push([sc, c - 1]); sc = -1; }
+  }
+  if (sc >= 0) spans.push([sc, lakeHi]);
+  spans.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  let lakes = 0;
+  const wantLakes = ri(GEN.lakeCountMin, GEN.lakeCountMax);
+  for (const [s0, s1] of spans) {
+    if (lakes >= wantLakes) break;
+    const spanW = s1 - s0 + 1;
+    if (spanW < GEN.lakeWMinCols + 1) continue;         // no room for even a min lake (+margin)
+    const lw = Math.min(ri(GEN.lakeWMinCols, GEN.lakeWMaxCols), spanW - 1);
+    const c0 = s0 + Math.floor((spanW - lw) / 2);
+    const w = lw * C;
+    out.push({ t: 'lake', id: nextId++, key: pick(LAKE_KEYS), x: midX(c0, c0 + lw - 1),
+      w, h: Math.round(w / GEN.lakeAspect) });          // depth follows the art aspect
+    for (let c = c0; c < c0 + lw; c++) occupied[c] = true;
+    lakes++;
+  }
+
+  // --- cities: one skyline per remaining wide run of plain surface ---
+  // Same rule as main.js cityRuns: runs of non-mountain/non-lake surface at least
+  // cityMinRun wide, never under the left home hill, width 7–12 capped at the run.
+  const artOrder = CITY_KEYS.slice().sort(() => Math.random() - 0.5);   // distinct art, no repeats
+  let placedCities = 0;
+  for (let c = homeCols; c < goalStart - summerCols; ) {
+    if (occupied[c]) { c++; continue; }
+    let end = c;
+    while (end < goalStart - summerCols && !occupied[end]) end++;
+    const runCells = end - c;
+    if (runCells >= GEN.cityMinRun && placedCities < artOrder.length) {
+      const wCells = Math.min(ri(GEN.cityWMin, GEN.cityWMax), runCells);
+      out.push({ t: 'city', id: nextId++, key: artOrder[placedCities++],
+        x: midX(c, end - 1), w: wCells * C });
+    }
+    c = end;
+  }
+
+  snapshot();
+  level.objects = level.objects.filter((o) => o.t !== 'mountain' && o.t !== 'lake' && o.t !== 'city').concat(out);
+  sel = [];
+  markDirty(); renderSide(); draw();
+}
+
 // ---- checks -----------------------------------------------------------------
 // Cheap, high-signal authoring checks. Deliberately NOT a solver: whether the
 // colony can physically thread your rocks is what "Test in game" is for.
@@ -743,7 +868,7 @@ function renderStats() {
     ['Lakes', n('lake')], ['Reservoirs', n('reservoir')],
     ['Duff piles', food('duff')], ['Cache piles', food('cache')], ['Engine piles', food('cache-engine')],
     ['Ant nests', n('ant')], ['Nematodes', n('nematode')], ['Trichoderma', n('trichoderma')],
-    ['Mountains', n('mountain')],
+    ['Mountains', n('mountain')], ['City skylines', n('city')],
   ];
   document.getElementById('stats').innerHTML =
     rows.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
@@ -827,6 +952,8 @@ function renderInspector() {
     html += `<div class="hint">Diamond footprint: ${1 + 2 * o.r * (o.r + 1)} cells at radius ${o.r}.</div>`;
   if (o.t === 'mountain')
     html += `<div class="hint">Surface decor only — no collision. The game picks the peak art per map.</div>`;
+  if (o.t === 'city')
+    html += `<div class="hint">Sky backdrop only — no collision, changes no cell. Placing ANY skyline means the game uses <i>only</i> the ones you place. Keep it off mountains and lakes: the surface flag wins there, so the art would sit on top of them.</div>`;
 
   el.innerHTML = html;
 
@@ -872,7 +999,10 @@ function buildPalette() {
       { t: 'nematode', label: 'Nematode', glyph: 'worm' },
       { t: 'trichoderma', label: 'Trichoderma', glyph: 'mould' },
     ] },
-    { name: 'Surface', wide: true, items: [{ t: 'mountain', label: 'Mountain', key: MOUNTAIN_KEYS[0] }] },
+    { name: 'Surface', wide: true, items: [
+      { t: 'mountain', label: 'Mountain', key: MOUNTAIN_KEYS[0] },
+      ...CITY_KEYS.map((k, i) => ({ t: 'city', key: k, label: 'City ' + (i + 1) })),
+    ] },
   ];
   const host = document.getElementById('palette');
   host.innerHTML = groups.map((g) =>
@@ -961,7 +1091,14 @@ canvas.addEventListener('pointerdown', (e) => {
   const sx = e.clientX - r.left, sy = e.clientY - r.top;
   const w = S2W(sx, sy);
 
-  if (e.button === 1 || spaceDown) { drag = { mode: 'pan', sx, sy, cx: cam.x, cy: cam.y }; return; }
+  // Pan on RIGHT-drag (button 2) as well as middle-drag and space+drag. Right is the
+  // comfortable one — no keyboard hand, no three-button mouse — so it comes first and
+  // returns before any selection/handle work, and the context menu is suppressed below.
+  if (e.button === 1 || e.button === 2 || spaceDown) {
+    drag = { mode: 'pan', sx, sy, cx: cam.x, cy: cam.y };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
 
   // handles first (single selection only)
   const objs = selObjs();
@@ -1004,6 +1141,9 @@ canvas.addEventListener('pointerdown', (e) => {
   marquee = { x0: sx, y0: sy, x1: sx, y1: sy };
   renderSide(); draw();
 });
+
+// Without this the right-button pan ends with the browser's context menu over the map.
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 canvas.addEventListener('pointermove', (e) => {
   const r = canvas.getBoundingClientRect();
@@ -1071,6 +1211,7 @@ canvas.addEventListener('pointerup', () => {
     marquee = null; renderSide(); draw();
   }
   if (drag && drag.mode !== 'pan') { markDirty(); renderSide(); }
+  if (drag && drag.mode === 'pan') canvas.style.cursor = spaceDown ? 'grab' : 'crosshair';
   drag = null;
 });
 
@@ -1215,6 +1356,7 @@ function wireTop() {
   });
   document.getElementById('bUndo').addEventListener('click', undo);
   document.getElementById('bRedo').addEventListener('click', redo);
+  document.getElementById('bGenSurface').addEventListener('click', generateSurface);
   const snapBtn = document.getElementById('bSnap'), gridBtn = document.getElementById('bGrid');
   const syncToggles = () => { snapBtn.classList.toggle('on', snap); gridBtn.classList.toggle('on', showGrid); };
   snapBtn.addEventListener('click', () => { snap = !snap; syncToggles(); });
@@ -1253,8 +1395,9 @@ async function boot() {
   } catch (_) { ASSET = 'assets/'; }
   document.getElementById('favi').href = ASSET + 'favicon.svg';
 
-  const keys =[...ROCK_KEYS, ...ROCKFORM_KEYS, ...LAKE_KEYS, ...RESERVOIR_KEYS,
-    ...ORANGE_LEAF_KEYS, ...RED_LEAF_KEYS, ...YELLOW_LEAF_KEYS, ...MOUNTAIN_KEYS, 'antColonyA'];
+  const keys = [...ROCK_KEYS, ...ROCKFORM_KEYS, ...LAKE_KEYS, ...RESERVOIR_KEYS,
+    ...ORANGE_LEAF_KEYS, ...RED_LEAF_KEYS, ...YELLOW_LEAF_KEYS, ...MOUNTAIN_KEYS,
+    ...CITY_KEYS, 'antColonyA'];
   buildPalette();
   wireTop();
   wireForms();

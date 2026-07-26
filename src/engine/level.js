@@ -29,6 +29,13 @@
 //   nematode    { x, y }                      worm
 //   trichoderma { x, y, r }                   mould cloud
 //   mountain    { x, w }                      surface mountain landmark (barrier)
+//   city        { key, x, w }                 skyline backdrop over the surface; `key` picks
+//                                             which skylineN art (omit → the game shuffles one in)
+//
+// A map that places ANY `city` object takes full control of its skylines — main.js
+// cityRuns() returns exactly those. A map with none keeps the derived behaviour (a
+// skyline over every wide run of 'concrete' surface), so levels authored before cities
+// existed look unchanged.
 // =============================================================================
 
 import { Substrate, reservoirHalfWidth } from './substrate.js';
@@ -98,6 +105,7 @@ export function buildLevel(config, level) {
   sub.lakeArt = {};                 // first column of a lake -> the art the author picked
   sub.reservoirs = [];
   sub.foodPiles = [];
+  sub.authoredCities = [];          // { c0, c1, wCells, key } — explicit skylines (main.js cityRuns)
 
   // --- surface layout: impassable middle, fruitable goal + summery approach ----
   for (let c = 0; c < sub.cols; c++) {
@@ -115,6 +123,17 @@ export function buildLevel(config, level) {
 
   const spawns = { ants: [], nematodes: [], clouds: [] };
   const N = config.substrate.foodCellNutrient || 50;
+
+  // Column span covered by a surface object centred at `x` with width `w`. The right edge
+  // needs ceil-1, NOT colAtX: colAtX is floor(x/cs), so an edge landing exactly on a cell
+  // boundary — which is the normal case, since the editor snaps widths to whole cells —
+  // reports the NEXT column and the span comes out one column too wide. (Authored mountains
+  // had that off-by-one from the start: they flagged one more column than the art covers.)
+  const spanCols = (x, w) => {
+    const c0 = Math.max(0, sub.colAtX(x - w / 2));
+    const c1 = Math.min(sub.cols - 1, Math.max(c0, Math.ceil((x + w / 2) / cs) - 1));
+    return { c0, c1 };
+  };
 
   // --- objects ---------------------------------------------------------------
   // Order matters only where objects overwrite cells: lakes and reservoirs carve
@@ -137,9 +156,16 @@ export function buildLevel(config, level) {
       case 'reservoir': stampReservoir(sub, o); break;
       case 'food':      stampFood(sub, o, N); break;
       case 'mountain': {
-        const c0 = Math.max(0, sub.colAtX((+o.x || 0) - (+o.w || cs) / 2));
-        const c1 = Math.min(sub.cols - 1, sub.colAtX((+o.x || 0) + (+o.w || cs) / 2));
+        const { c0, c1 } = spanCols(+o.x || 0, +o.w || cs);
         for (let c = c0; c <= c1; c++) if (!sub.surface[c].goal) sub.surface[c].barrier = 'mountain';
+        break;
+      }
+      case 'city': {
+        // Column span only — the skyline is a BACKDROP, so it changes no cell and no
+        // surface flag (those columns are already 'concrete'). Overlapping a city with a
+        // mountain or lake is an author error the editor shows but the loader won't fight.
+        const { c0, c1 } = spanCols(+o.x || 0, +o.w || cs);
+        if (c1 >= c0) sub.authoredCities.push({ c0, c1, wCells: c1 - c0 + 1, key: o.key || null });
         break;
       }
       case 'ant':         spawns.ants.push(sub.colAtX(+o.x || 0)); break;

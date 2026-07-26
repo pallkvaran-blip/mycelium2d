@@ -3528,6 +3528,14 @@ let _cityState = null, _cities = null;
 function cityRuns() {
   if (_cityState === state) return _cities;
   const sub = state.substrate, runs = [];
+  // An AUTHORED map that placed city objects (level editor → Surface palette) owns its
+  // skylines outright: return exactly those, each with the art the author picked. An
+  // authored map with NO city object falls through to the derived runs below, so every
+  // level written before cities existed renders identically.
+  if (sub.authoredCities && sub.authoredCities.length) {
+    _cityState = state; _cities = sub.authoredCities.slice();
+    return _cities;
+  }
   let c = Math.max(0, homeHillCols());   // never start a skyline under the left home hill
   while (c < sub.cols) {
     if (sub.surface[c] && sub.surface[c].barrier === 'concrete') {
@@ -3564,8 +3572,11 @@ function drawCities() {
   // Seeded shuffle of the pool → distinct skyline per run, none repeated.
   const order = keys.map((k, i) => ({ k, r: _hashf(i + 1, seed * 0.017) })).sort((a, b) => a.r - b.r).map((o) => o.k);
   runs.forEach((run, i) => {
-    if (i >= order.length) return;                 // no repeats: only as many cities as distinct skylines
-    const img = asset(order[i]);
+    // An authored run names its own art; a derived run takes the next from the shuffled
+    // pool and stops when the pool runs out (no repeats — at most one of each skyline).
+    const key = run.key || (i < order.length ? order[i] : null);
+    const img = key ? asset(key) : null;
+    if (!img) return;
     const w = cs * run.wCells, h = w * (img.height / img.width);
     const midX = ((run.c0 + run.c1 + 1) / 2) * cs;
     const s = camera.worldToScreen(midX, sub.surfaceY);

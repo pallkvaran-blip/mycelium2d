@@ -55,7 +55,12 @@ node --test test/*.js            # smoke + card tests (NOT `test/` — Node 22 t
 
 `docs/level-editor.html` (hosted at `<site>/level-editor.html`) is the owner's map-authoring tool:
 drag/rotate/resize the real assets onto a blank map, **▶ Test in game** to play the draft instantly
-(stashes it in localStorage, opens `index.html#level`), **Copy JSON** to hand it over. To wire a map
+(stashes it in localStorage, opens `index.html#level`), **Copy JSON** to hand it over.
+**Pan with right-drag** (also middle-drag / space+drag). **⛰ Generate surface** re-rolls mountains +
+one lake + city skylines from mirrored copies of the game's own rules (`GEN` in the editor — keep it in
+sync with `substrate.js generateSubstrate` and `main.js` CITY_*), replacing only those three types.
+**City skylines are placeable** (`city {key,x,w}`): a map with ANY city object gets exactly those,
+otherwise the game derives one per wide 'concrete' run as before. To wire a map
 into the campaign: drop the export in `docs/levels/`, `node scripts/gen-levels.mjs`, `node build.mjs`
 — a level whose `campaignLevel` is set replaces the procedural map for that number. Format + loader:
 `src/engine/level.js`; run seeding: `state.js createLevelState`; full notes in `docs/levels/README.md`
