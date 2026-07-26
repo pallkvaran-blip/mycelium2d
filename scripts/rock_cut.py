@@ -149,12 +149,22 @@ def cut(raw, long_side=640, margin=20, close=2, punch_holes=False, shrink=1.0,
     er = int(round(shrink / sc))
     for _ in range(er): solid = solid.filter(ImageFilter.MinFilter(3))
 
-    # --- premultiply -> downscale -> un-premultiply ----------------------------------------
+    # --- premultiply -> downscale (BOX) -> un-premultiply ----------------------------------
+    # Downscale with a BOX (area-average) filter, NOT LANCZOS. LANCZOS has negative lobes: on a
+    # sprite with bright cyan veins right up against the transparent edge, its ringing pulls that
+    # colour a pixel or two past the true silhouette and deposits faint, saturated specks in
+    # empty space — and the un-premultiply then AMPLIFIES them (small value / tiny alpha). That
+    # speckle halo was the "feathering". Measured, LANCZOS left ~3900 saturated floating specks
+    # on horseshoe; BOX leaves ~40 (genuine partial-coverage AA, not ringing). BOX is the ideal
+    # area resample for a pure downscale and rings not at all.
     sz = (max(1, round(w * sc)), max(1, round(h * sc)))
     pm = Image.merge("RGB", [ImageChops.multiply(c, solid) for c in im.split()])
-    a_s = solid.resize(sz, Image.LANCZOS)
-    pm_s = pm.resize(sz, Image.LANCZOS)
+    a_s = solid.resize(sz, Image.BOX)
+    pm_s = pm.resize(sz, Image.BOX)
     out = _unpremultiply(pm_s, a_s).convert("RGBA")
+    # Floor away the last of the sub-visible dust (a genuine 1/255 sliver reads as nothing but
+    # keeps the file from carrying stray colour). Anything with real coverage is well above this.
+    a_s = a_s.point(lambda v: 0 if v < 6 else v)
     out.putalpha(a_s)
     return out, {"bg": bg, "otsu": T, "light_bg": light_bg}
 
