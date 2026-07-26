@@ -221,5 +221,15 @@ if (existsSync(R('docs/level-editor.html'))) {
   console.log('Copied docs/level-editor.html -> dist/level-editor.html');
 }
 
+// Publish the rock tuner at <site>/rock-tuner.html — the owner grades new rock sprites there
+// and hands back a settings JSON that scripts/rock_cut.py applies. Self-contained and it finds
+// its own sprite folder, same as the level editor. It reads assets/rock_candidates/, which is
+// NOT an authoring *_options folder so the asset copy above already brings it along. Owner tool;
+// excluded from the itch zip.
+if (existsSync(R('docs/rock-tuner.html'))) {
+  cpSync(R('docs/rock-tuner.html'), R('dist/rock-tuner.html'));
+  console.log('Copied docs/rock-tuner.html -> dist/rock-tuner.html');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);

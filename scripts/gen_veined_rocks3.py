@@ -134,6 +134,15 @@ BRIEFS = [
     ("zigzag2",   "3:2",  "a rock that is one narrow band of stone folded back and forth four "
                           "times into a hard zigzag, each fold a sharp angular corner, with deep "
                           "notches biting in alternately from above and from below", False, 2255),
+    # radial2's X was the best shape of round 2 but it is UNKEYABLE: the beams came out RGB
+    # (3,48,74) against a (10,53,83) vignette — 10-15 apart, and one sample brighter than the
+    # backdrop. No threshold or colour distance separates that, so the shape gets re-rendered on
+    # seed 2255 (every round-3 render landed a near-black background) with the backdrop spelled out.
+    ("radial3",   "1:1",  "a rock made of four long straight stone beams that all cross through "
+                          "one thick central knot and reach out to four corners, with wide empty "
+                          "gaps between the beams. The background behind the rock is PURE FLAT "
+                          "BLACK, hex 000000, unlit and completely empty — no vignette, no "
+                          "gradient, no blue glow, no light spill behind the stone", False, 2255),
 
     # -- two more shapes, for range ------------------------------------------------------------
     ("zigzag",    "3:2",  f"a stone LIGHTNING BOLT: one narrow band of rock kinking sharply back "

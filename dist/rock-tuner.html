@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Rock tuner</title>
+<link rel="icon" id="favi" href="data:,">
+<style>
+:root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
+  --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --red:#ff9a8a;
+  --top:52px; --insp:300px; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{color:var(--ink);font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));font-size:13px}
+#app{display:grid;grid-template-columns:1fr var(--insp);grid-template-rows:var(--top) 1fr;height:100%}
+
+.top{grid-column:1/3;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);
+  border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+.top .brand{font-weight:800;letter-spacing:-.01em;color:var(--mint);margin-right:4px}
+.top .sep{width:1px;height:24px;background:var(--line);margin:0 4px;flex:0 0 auto}
+.btn{font:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:6px 10px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);flex:0 0 auto}
+.btn:hover{border-color:var(--mint)} .btn:disabled{opacity:.35;cursor:default}
+.btn.primary{background:linear-gradient(180deg,#12271e,#0c1c15);border-color:rgba(126,240,192,.4);color:var(--mint)}
+.btn.on{background:var(--mint);color:#04140d;border-color:transparent}
+.spacer{flex:1 1 auto}
+.hint{color:var(--dim);font-size:11px}
+
+/* ---- stage: the candidate grid ---- */
+.stage{overflow-y:auto;padding:12px;display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(230px,1fr));align-content:start}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;
+  display:flex;flex-direction:column}
+.tile.sel{border-color:var(--mint);box-shadow:0 0 0 1px var(--mint) inset}
+.tile.ref{border-style:dashed;border-color:rgba(255,185,94,.4)}
+.tile canvas{display:block;width:100%;height:auto;image-rendering:auto}
+.tile .cap{display:flex;align-items:center;gap:6px;padding:5px 8px;border-top:1px solid var(--line);
+  font-size:11px;font-weight:700}
+.tile .cap .dim{font-weight:400;color:var(--dim);font-size:10px}
+.tile .tag{font:700 8.5px/1 inherit;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;
+  padding:3px 6px;background:rgba(126,240,192,.12);color:var(--mint)}
+.tile.ref .tag{background:rgba(255,185,94,.12);color:var(--amber)}
+.tile .edited{color:var(--amber)}
+
+/* ---- inspector ---- */
+.insp{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px 10px 60px}
+.insp h3{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+  margin:12px 2px 8px}
+.insp h3:first-child{margin-top:2px}
+.row{display:flex;align-items:center;gap:8px;margin:0 0 9px}
+.row label{flex:0 0 74px;font-size:11px;color:var(--dim)}
+.row input[type=range]{flex:1 1 auto;min-width:0;accent-color:var(--mint)}
+.row .val{flex:0 0 46px;text-align:right;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.row .val.dirty{color:var(--amber)}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.chip{font:600 9px/1 inherit;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:5px 8px}
+.chip:hover{color:var(--ink);border-color:var(--mint)}
+.chip.on{color:var(--bg);background:var(--mint);border-color:var(--mint)}
+.out{width:100%;height:150px;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;
+  background:#04100b;color:var(--mint);border:1px solid var(--line);border-radius:8px;padding:8px}
+.note{color:var(--dim);font-size:10.5px;line-height:1.5;margin:6px 2px 10px}
+.who{font-size:11px;font-weight:700;margin:0 2px 8px}
+.who span{color:var(--mint)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <span class="brand">Rock tuner</span>
+    <span class="sep"></span>
+    <button class="btn" id="bBack">Backdrop: soil</button>
+    <button class="btn" id="bZoom">Fit</button>
+    <button class="btn" id="bBefore">Hold to compare</button>
+    <span class="sep"></span>
+    <button class="btn" id="bRef">Show shipped rocks</button>
+    <span class="spacer"></span>
+    <span class="hint" id="stat">loading…</span>
+    <span class="sep"></span>
+    <button class="btn" id="bReset">Reset selected</button>
+    <button class="btn primary" id="bCopy">Copy settings JSON</button>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="insp">
+    <div class="who">Editing: <span id="who">—</span></div>
+    <div class="chips">
+      <span class="chip on" id="mOne" data-m="one">This one</span>
+      <span class="chip" id="mAll" data-m="all">All at once</span>
+    </div>
+
+    <h3>Edges</h3>
+    <div class="note">Trim eats into the silhouette a pixel at a time — use it if a sprite still wears a
+      dark outline from the render. Feather softens the cut; 0 is the crisp default.</div>
+    <div class="row"><label>Trim</label><input type="range" id="sAlphaLow" min="0" max="0.6" step="0.02"><span class="val" id="vAlphaLow"></span></div>
+    <div class="row"><label>Spread</label><input type="range" id="sAlphaHigh" min="0.4" max="1" step="0.02"><span class="val" id="vAlphaHigh"></span></div>
+    <div class="row"><label>Feather</label><input type="range" id="sFeather" min="0" max="3" step="1"><span class="val" id="vFeather"></span></div>
+
+    <h3>Tone</h3>
+    <div class="row"><label>Exposure</label><input type="range" id="sExposure" min="-1" max="1" step="0.02"><span class="val" id="vExposure"></span></div>
+    <div class="row"><label>Gamma</label><input type="range" id="sGamma" min="0.5" max="2" step="0.02"><span class="val" id="vGamma"></span></div>
+    <div class="row"><label>Contrast</label><input type="range" id="sContrast" min="0.5" max="1.8" step="0.02"><span class="val" id="vContrast"></span></div>
+
+    <h3>Colour</h3>
+    <div class="row"><label>Saturation</label><input type="range" id="sSaturation" min="0" max="2" step="0.02"><span class="val" id="vSaturation"></span></div>
+    <div class="row"><label>Hue</label><input type="range" id="sHue" min="-60" max="60" step="1"><span class="val" id="vHue"></span></div>
+
+    <h3>Hand back</h3>
+    <div class="note">Copy this and paste it into the chat. Only sprites you actually changed are
+      listed. Turn on <b>Show shipped rocks</b> to match against rockform1/5 while you tune.</div>
+    <textarea class="out" id="json" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+// Mycelium rock tuner — owner tool. Cut sprites come out of scripts/rock_cut.py with their
+// colour exactly as rendered; every tone decision is made here and handed back as JSON, which
+// scripts/rock_cut.py finals applies. The maths below is mirrored there — see apply_settings().
+// If you change the pipeline or its ORDER, change both.
+const CANDIDATES = [
+  ['horseshoe',   'U — horseshoe arch'],
+  ['pierced',     'O — ring, hole through'],
+  ['radial3',     'X — four crossed beams'],
+  ['serpentine2', 'S — snaking ribbon'],
+  ['honeycomb2',  'slab eaten through'],
+  ['starburst',   'spiked starburst'],
+  ['antler3',     'cluster of stone fingers'],
+  ['blade',       'long thin blade'],
+  ['elbow3',      'smooth heavy wedge'],
+];
+// Shipped sprites, for matching. Not tunable — they are the reference, not the work.
+const REFS = ['rockform1', 'rockform5', 'rockform15', 'rockform19'];
+
+const DEFAULTS = { exposure:0, gamma:1, contrast:1, saturation:1, hue:0, feather:0, alphaLow:0, alphaHigh:1 };
+const KEYS = Object.keys(DEFAULTS);
+const BACKDROPS = ['soil', 'deep soil', 'dark', 'checker'];
+
+let ASSET = '../assets/';
+let CAND = '../assets/rock_candidates/';
+const state = { sel: CANDIDATES[0][0], mode: 'one', backdrop: 0, fit: true, refs: false, before: false };
+const settings = {};                       // name -> partial overrides
+const imgs = {};                           // name -> {img, w, h, src ImageData}
+const tiles = {};                          // name -> {canvas, ctx, cap}
+
+const S = (n) => Object.assign({}, DEFAULTS, settings[n] || {});
+const isDirty = (n) => KEYS.some((k) => Math.abs(S(n)[k] - DEFAULTS[k]) > 1e-9);
+
+// ---- the pipeline (mirrored in scripts/rock_cut.py apply_settings) -----------------------
+// order: alpha feather -> alpha levels -> exposure -> gamma -> contrast -> saturation -> hue
+
+function box3(a, w, h, r) {
+  // Three box passes ~= a gaussian. Chosen over a real gaussian so the Python side can match
+  // this exactly with PIL's BoxBlur — there is no shared gaussian to agree on.
+  if (r <= 0) return a;
+  let src = a, dst = new Float32Array(a.length);
+  for (let pass = 0; pass < 3; pass++) {
+    for (let y = 0; y < h; y++) {                       // horizontal
+      for (let x = 0; x < w; x++) {
+        let s = 0, n = 0;
+        for (let k = -r; k <= r; k++) { const xx = x + k; if (xx >= 0 && xx < w) { s += src[y * w + xx]; n++; } }
+        dst[y * w + x] = s / n;
+      }
+    }
+    const t = src === a ? new Float32Array(a.length) : src; src = dst; dst = t;
+    for (let x = 0; x < w; x++) {                       // vertical
+      for (let y = 0; y < h; y++) {
+        let s = 0, n = 0;
+        for (let k = -r; k <= r; k++) { const yy = y + k; if (yy >= 0 && yy < h) { s += src[yy * w + x]; n++; } }
+        dst[y * w + x] = s / n;
+      }
+    }
+    const t2 = src; src = dst; dst = t2;
+  }
+  return src;
+}
+
+function hueMatrix(deg) {
+  // Same rotation CSS/SVG hue-rotate uses.
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  return [
+    0.213 + c * 0.787 - s * 0.213, 0.715 - c * 0.715 - s * 0.715, 0.072 - c * 0.072 + s * 0.928,
+    0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.140, 0.072 - c * 0.072 - s * 0.283,
+    0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072,
+  ];
+}
+
+function colourMatrix(sat, hue) {
+  const lr = 0.299, lg = 0.587, lb = 0.114;
+  let m = [lr + sat * (1 - lr), lg * (1 - sat), lb * (1 - sat),
+           lr * (1 - sat), lg + sat * (1 - lg), lb * (1 - sat),
+           lr * (1 - sat), lg * (1 - sat), lb + sat * (1 - lb)];
+  if (hue !== 0) {
+    const hm = hueMatrix(hue), o = new Array(9);
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+      o[r * 3 + c] = hm[r * 3] * m[c] + hm[r * 3 + 1] * m[3 + c] + hm[r * 3 + 2] * m[6 + c];
+    m = o;
+  }
+  return m;
+}
+
+function applyOne(name) {
+  const rec = imgs[name];
+  if (!rec) return null;
+  const st = S(name);
+  const { w, h } = rec;
+  const src = rec.src.data;
+  const out = new ImageData(w, h);
+  const d = out.data;
+
+  // tone LUT — one pass over 256 entries instead of per pixel
+  const ex = Math.pow(2, st.exposure), gm = st.gamma, ct = st.contrast;
+  const lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    let v = (i / 255) * ex;
+    v = Math.pow(Math.max(0, Math.min(1, v)), gm);
+    v = (v - 0.5) * ct + 0.5;
+    lut[i] = Math.round(Math.max(0, Math.min(1, v)) * 255);
+  }
+  const m = (st.saturation !== 1 || st.hue !== 0) ? colourMatrix(st.saturation, st.hue) : null;
+
+  // alpha: feather then levels
+  let a = new Float32Array(w * h);
+  for (let i = 0, p = 3; i < a.length; i++, p += 4) a[i] = src[p];
+  if (st.feather > 0) a = box3(a, w, h, Math.round(st.feather));
+  const lo = st.alphaLow, hi = st.alphaHigh, span = Math.max(1e-6, hi - lo);
+
+  for (let i = 0, p = 0; i < a.length; i++, p += 4) {
+    let r = lut[src[p]], g = lut[src[p + 1]], b = lut[src[p + 2]];
+    if (m) {
+      const nr = m[0] * r + m[1] * g + m[2] * b;
+      const ng = m[3] * r + m[4] * g + m[5] * b;
+      const nb = m[6] * r + m[7] * g + m[8] * b;
+      r = nr; g = ng; b = nb;
+    }
+    d[p] = r; d[p + 1] = g; d[p + 2] = b;
+    d[p + 3] = Math.max(0, Math.min(255, Math.round(255 * ((a[i] / 255) - lo) / span)));
+  }
+  return out;
+}
+
+// ---- rendering ---------------------------------------------------------------------------
+
+function paintBackdrop(ctx, w, h) {
+  const kind = BACKDROPS[state.backdrop];
+  if (kind === 'checker') {
+    const s = 10;
+    for (let y = 0; y < h; y += s) for (let x = 0; x < w; x += s) {
+      ctx.fillStyle = ((x / s + y / s) & 1) ? '#3a3f46' : '#2a2e34';
+      ctx.fillRect(x, y, s, s);
+    }
+    return;
+  }
+  if (kind === 'dark') { ctx.fillStyle = '#0a0f14'; ctx.fillRect(0, 0, w, h); return; }
+  // the game's own earth strata (config.js render.soilTop / soilMid / soilDeep)
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  if (kind === 'soil') { g.addColorStop(0, '#5e4528'); g.addColorStop(1, '#45331e'); }
+  else { g.addColorStop(0, '#45331e'); g.addColorStop(1, '#2a1d12'); }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+
+function drawTile(name) {
+  const t = tiles[name], rec = imgs[name];
+  if (!t || !rec) return;
+  const { canvas, ctx } = t;
+  const cw = canvas.width, ch = canvas.height;
+  ctx.clearRect(0, 0, cw, ch);
+  paintBackdrop(ctx, cw, ch);
+  const data = (state.before || rec.ref) ? rec.src : applyOne(name);
+  // stage the pixels on an offscreen the size of the sprite, then scale into the tile
+  const off = t.off || (t.off = document.createElement('canvas'));
+  off.width = rec.w; off.height = rec.h;
+  off.getContext('2d').putImageData(data, 0, 0);
+  const pad = 8;
+  const sc = state.fit ? Math.min((cw - pad * 2) / rec.w, (ch - pad * 2) / rec.h) : 1;
+  const dw = Math.round(rec.w * sc), dh = Math.round(rec.h * sc);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(off, Math.round((cw - dw) / 2), Math.round((ch - dh) / 2), dw, dh);
+  if (t.cap) {
+    const dirty = !rec.ref && isDirty(name);
+    t.cap.classList.toggle('edited', dirty);
+    t.badge.textContent = rec.ref ? 'shipped' : (dirty ? 'edited' : 'as cut');
+  }
+}
+
+function drawAll() { for (const n of Object.keys(tiles)) drawTile(n); }
+
+function buildTiles() {
+  const stage = document.getElementById('stage');
+  stage.innerHTML = '';
+  for (const k of Object.keys(tiles)) delete tiles[k];
+  const list = CANDIDATES.concat(state.refs ? REFS.map((r) => [r, 'shipped reference']) : []);
+  for (const [name, label] of list) {
+    const rec = imgs[name];
+    const el = document.createElement('div');
+    el.className = 'tile' + (rec && rec.ref ? ' ref' : '') + (name === state.sel ? ' sel' : '');
+    const canvas = document.createElement('canvas');
+    canvas.width = 460; canvas.height = 300;
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    const badge = document.createElement('span');
+    badge.className = 'tag';
+    cap.appendChild(badge);
+    const nm = document.createElement('span');
+    nm.textContent = label;
+    cap.appendChild(nm);
+    const dim = document.createElement('span');
+    dim.className = 'dim';
+    dim.textContent = rec ? `${rec.w}×${rec.h}` : '…';
+    cap.appendChild(dim);
+    el.appendChild(canvas); el.appendChild(cap);
+    if (!rec || !rec.ref) el.addEventListener('click', () => { state.sel = name; syncSel(); });
+    stage.appendChild(el);
+    tiles[name] = { canvas, ctx: canvas.getContext('2d'), cap, badge };
+    drawTile(name);
+  }
+}
+
+// ---- inspector --------------------------------------------------------------------------
+
+const FMT = { exposure: (v) => v.toFixed(2), gamma: (v) => v.toFixed(2), contrast: (v) => v.toFixed(2),
+  saturation: (v) => v.toFixed(2), hue: (v) => v.toFixed(0) + '°', feather: (v) => v.toFixed(0) + 'px',
+  alphaLow: (v) => v.toFixed(2), alphaHigh: (v) => v.toFixed(2) };
+
+function syncSliders() {
+  const st = S(state.sel);
+  for (const k of KEYS) {
+    const s = document.getElementById('s' + k[0].toUpperCase() + k.slice(1));
+    const v = document.getElementById('v' + k[0].toUpperCase() + k.slice(1));
+    if (!s) continue;
+    s.value = st[k];
+    v.textContent = FMT[k](st[k]);
+    v.classList.toggle('dirty', Math.abs(st[k] - DEFAULTS[k]) > 1e-9);
+  }
+}
+
+function syncSel() {
+  document.getElementById('who').textContent =
+    state.mode === 'all' ? 'all ' + CANDIDATES.length + ' sprites' : state.sel;
+  for (const [n, t] of Object.entries(tiles)) t.canvas.parentElement.classList.toggle('sel', n === state.sel);
+  syncSliders(); syncJson();
+}
+
+function syncJson() {
+  const per = {};
+  for (const [n] of CANDIDATES) if (isDirty(n)) per[n] = pick(S(n));
+  const out = { tool: 'rock-tuner', version: 1, perImage: per };
+  document.getElementById('json').value = JSON.stringify(out, null, 2);
+  const n = Object.keys(per).length;
+  document.getElementById('stat').textContent =
+    n ? `${n} of ${CANDIDATES.length} tuned` : `${CANDIDATES.length} sprites loaded, none changed yet`;
+}
+
+function pick(st) {                       // only the values that differ from default
+  const o = {};
+  for (const k of KEYS) if (Math.abs(st[k] - DEFAULTS[k]) > 1e-9) o[k] = st[k];
+  return o;
+}
+
+function setVal(k, v) {
+  const targets = state.mode === 'all' ? CANDIDATES.map((c) => c[0]) : [state.sel];
+  for (const n of targets) {
+    const cur = Object.assign({}, settings[n] || {});
+    cur[k] = v;
+    settings[n] = cur;
+    drawTile(n);
+  }
+  syncSliders(); syncJson();
+}
+
+function wire() {
+  for (const k of KEYS) {
+    const s = document.getElementById('s' + k[0].toUpperCase() + k.slice(1));
+    if (!s) continue;
+    s.addEventListener('input', () => setVal(k, parseFloat(s.value)));
+  }
+  document.querySelectorAll('.chip[data-m]').forEach((c) => c.addEventListener('click', () => {
+    state.mode = c.dataset.m;
+    document.querySelectorAll('.chip[data-m]').forEach((o) => o.classList.toggle('on', o === c));
+    syncSel();
+  }));
+  document.getElementById('bBack').addEventListener('click', (e) => {
+    state.backdrop = (state.backdrop + 1) % BACKDROPS.length;
+    e.target.textContent = 'Backdrop: ' + BACKDROPS[state.backdrop];
+    drawAll();
+  });
+  document.getElementById('bZoom').addEventListener('click', (e) => {
+    state.fit = !state.fit;
+    e.target.textContent = state.fit ? 'Fit' : '1:1';
+    drawAll();
+  });
+  const bb = document.getElementById('bBefore');
+  const hold = (on) => { state.before = on; bb.classList.toggle('on', on); drawAll(); };
+  bb.addEventListener('pointerdown', () => hold(true));
+  bb.addEventListener('pointerup', () => hold(false));
+  bb.addEventListener('pointerleave', () => { if (state.before) hold(false); });
+  document.getElementById('bRef').addEventListener('click', async (e) => {
+    state.refs = !state.refs;
+    e.target.classList.toggle('on', state.refs);
+    if (state.refs) await loadRefs();
+    buildTiles();
+  });
+  document.getElementById('bReset').addEventListener('click', () => {
+    const targets = state.mode === 'all' ? CANDIDATES.map((c) => c[0]) : [state.sel];
+    for (const n of targets) { delete settings[n]; drawTile(n); }
+    syncSliders(); syncJson();
+  });
+  document.getElementById('bCopy').addEventListener('click', async (e) => {
+    const ta = document.getElementById('json');
+    try { await navigator.clipboard.writeText(ta.value); }
+    catch (_) { ta.select(); document.execCommand && document.execCommand('copy'); }
+    const t = e.target, old = t.textContent;
+    t.textContent = 'Copied ✓';
+    setTimeout(() => { t.textContent = old; }, 1200);
+  });
+}
+
+// ---- loading ----------------------------------------------------------------------------
+
+function readPixels(img) {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  return x.getImageData(0, 0, c.width, c.height);
+}
+
+function loadImg(src) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+
+async function loadRefs() {
+  for (const r of REFS) {
+    if (imgs[r]) continue;
+    const im = await loadImg(ASSET + r + '.png');
+    if (!im) continue;
+    imgs[r] = { img: im, w: im.naturalWidth, h: im.naturalHeight, src: readPixels(im), ref: true };
+  }
+}
+
+async function boot() {
+  // Source tree serves assets at ../assets/; the built copy in dist/ at assets/.
+  const probe = await loadImg('../assets/favicon.svg');
+  if (!probe) { ASSET = 'assets/'; CAND = 'assets/rock_candidates/'; }
+  document.getElementById('favi').href = ASSET + 'favicon.svg';
+
+  const missing = [];
+  for (const [name] of CANDIDATES) {
+    const im = await loadImg(CAND + name + '.png');
+    if (!im) { missing.push(name); continue; }
+    imgs[name] = { img: im, w: im.naturalWidth, h: im.naturalHeight, src: readPixels(im) };
+  }
+  if (missing.length) console.warn('rock-tuner: missing candidates', missing);
+  if (!imgs[state.sel]) {
+    const first = CANDIDATES.find((c) => imgs[c[0]]);
+    if (first) state.sel = first[0];
+  }
+  wire();
+  buildTiles();
+  syncSel();
+  window.__tuner = { state, settings, imgs, applyOne, drawAll };   // test hook
+}
+boot();
+</script>
+</body>
+</html>
