@@ -1518,8 +1518,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "wow0b0";
-globalThis.__BUILD__ = "local 07-26 09:34";
+window.__ASSET_VER = "j6b9c7";
+globalThis.__BUILD__ = "local 07-26 09:55";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3721,10 +3721,17 @@ function tierLevels() {
 }
 
 // Spore price to buy a revealed species, keyed by the tier's unlock LEVEL:
-//   L1 → 1 000 · L3 → 5 000 · L5 → 10 000 · L7 → 25 000 · L10 → 50 000.
+//   L1 → 1 000 · L3 → 5 000 · L5 → 7 500 · L7 → 10 000 · L10 → 15 000.
 // All species in a tier share its price; explicit `sp.cost` overrides. An off-tier level
 // falls back to the nearest defined tier at or below it.
-const TIER_COST = { 1: 1000, 3: 5000, 5: 10000, 7: 25000, 10: 50000 };
+//
+// The top three tiers were cut (10 000 / 25 000 / 50 000 → 7 500 / 10 000 / 15 000) when the
+// threat curve was made to compound: those prices assumed players routinely reached level
+// 10–15, and a level-5 clear pays only 1 500, so Split Gill was ~34 level-5 runs. Income is
+// linear in depth while the ladder is now quadratic, so the grind had to come down to stay
+// reachable. Note this flattens the top end deliberately — the gap from L7 to L10 is now
+// 5 000 rather than 25 000, i.e. tiers read as "a bit more" rather than "double again".
+const TIER_COST = { 1: 1000, 3: 5000, 5: 7500, 7: 10000, 10: 15000 };
 function unlockCost(sp) {
   if (!sp || !sp.unlock) return 0;
   if (sp.cost != null) return sp.cost;

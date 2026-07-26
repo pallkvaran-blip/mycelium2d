@@ -534,6 +534,23 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Top three unlock tiers repriced: 10 000 / 25 000 / 50 000 → 7 500 / 10 000 / 15 000** (`species.js
+  TIER_COST`; full table now L1 1 000 · L3 5 000 · L5 7 500 · L7 10 000 · L10 15 000). Those prices assumed
+  players routinely reached level 10–15, which the compounding threat curve no longer permits: **spore income
+  is LINEAR in depth (`sporesForLevel` = 100 × level) while the ladder is now quadratic**, so a level-1→5
+  clear pays 1 500 and Split Gill was ~34 such runs. In level-5 runs the roster is now 1 · 1 · 4 · **5 · 7 ·
+  10** (was 1 · 1 · 4 · 7 · 17 · 34); everything costs 63 200 spores ≈ 43 runs (was 133 200 ≈ 89).
+  - Deliberately FLATTENS the top end — L7→L10 is now a 5 000 gap rather than 25 000, so the tiers read as
+    "a bit more" instead of "double again". Revisit if the deep levels ever get winnable again.
+  - **`docs/species-editor.html` keeps its own copy of `TIER_COST`** (it prices species without importing
+    src) — it was updated in lockstep and carries a keep-in-sync note. Any future price change needs both.
+  - Pinned in `test/threats.test.js`: the exact prices, that a deeper tier is never cheaper than a shallower
+    one, the per-tier cost in level-5 runs, and the roster total (so a future change surfaces its real cost).
+    Verified on the real picker DOM (`scratchpad/verify-prices.mjs`) — all nine priced tiles read the new
+    numbers. **Seeding progress via localStorage does NOT work for that check**: `main.js onNew` calls
+    `resetProgress()`, so pressing New wipes clears + wallet. Seed through `recordLevelCleared` AFTER the
+    picker opens, then re-render it with `showSpeciesSelect`.
+
 - **Two counterweights to the compounding threat curve: everything starts 2 levels earlier, and the intro
   now announces each escalation.**
   - **`species.js START_LEVEL_SHIFT` = 2.** Every colony opens two levels earlier than its tier implies, so a

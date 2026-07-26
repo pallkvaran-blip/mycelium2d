@@ -122,7 +122,8 @@ if (_inj && _inj.SPECIES) {
   SPECIES = sp.SPECIES; LOCKED_TIERS = sp.LOCKED_TIERS; CARD_DATA = cd.CARD_DATA; ASSET = '../assets/';
 }
 // unlockCost reimplemented here (mirrors src/species.js) so no runtime import is needed.
-const TIER_COST = { 1: 1000, 3: 5000, 5: 10000, 7: 25000, 10: 50000 };
+// KEEP IN SYNC with species.js TIER_COST — this copy is what the editor prices species with.
+const TIER_COST = { 1: 1000, 3: 5000, 5: 7500, 7: 10000, 10: 15000 };
 const levelFromUnlock = (label) => { const m = /(\d+)/.exec(label || ''); return m ? +m[1] : null; };
 function unlockCost(sp) {
   if (!sp || !sp.unlock) return 0;

@@ -13,7 +13,7 @@
 
 import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
-import { SPECIES, LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, START_LEVEL_SHIFT, threatsForLevel, threatBonusForLevel, threatRatePerLevel, escalationNote, startLevelRange, defaultStartLevel, levelFromUnlock } from '../src/species.js';
+import { SPECIES, LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, START_LEVEL_SHIFT, TIER_COST, threatsForLevel, threatBonusForLevel, threatRatePerLevel, escalationNote, startLevelRange, defaultStartLevel, levelFromUnlock, unlockCost, sporesForLevel } from '../src/species.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -220,6 +220,38 @@ console.log('\n# Start levels shift 2 earlier (START_LEVEL_SHIFT)');
   ok(unlocks.includes('stropharia:Complete level 5') && unlocks.includes('cortinarius:Complete level 7')
     && unlocks.includes('schizophyllum:Complete level 10'),
     'unlock labels are untouched (only the START level moved)');
+}
+
+console.log('\n# Unlock prices, in level-5 runs (TIER_COST)');
+{
+  // A run from level 1 clearing through level 5 is the reference earn rate.
+  const runToFive = [1, 2, 3, 4, 5].reduce((a, l) => a + sporesForLevel(l), 0);
+  ok(runToFive === 1500, `a level-1→5 clear pays ${runToFive} spores`);
+
+  ok(TIER_COST[1] === 1000 && TIER_COST[3] === 5000 && TIER_COST[5] === 7500
+    && TIER_COST[7] === 10000 && TIER_COST[10] === 15000,
+    'tier prices are 1 000 / 5 000 / 7 500 / 10 000 / 15 000');
+
+  // A deeper tier must never be CHEAPER than a shallower one.
+  const tiers = Object.keys(TIER_COST).map(Number).sort((x, y) => x - y);
+  let rising = true;
+  for (let i = 1; i < tiers.length; i++) if (TIER_COST[tiers[i]] < TIER_COST[tiers[i - 1]]) rising = false;
+  ok(rising, 'prices never fall as the tier level rises');
+
+  // What each species now costs in level-5 runs — the number the owner reasons about.
+  const runs = {};
+  for (const sp of SPECIES) {
+    const c = unlockCost(sp);
+    if (c > 0) runs[sp.id] = Math.ceil(c / runToFive);
+  }
+  ok(runs.stropharia === 5 && runs.scleroderma === 5, `L5 tier costs 5 level-5 runs (got ${runs.stropharia})`);
+  ok(runs.cortinarius === 7 && runs.serpula === 7, `L7 tier costs 7 level-5 runs (got ${runs.cortinarius})`);
+  ok(runs.schizophyllum === 10, `Split Gill costs 10 level-5 runs (got ${runs.schizophyllum})`);
+  ok(runs.ganoderma === 1 && runs.pleurotus === 1 && runs.psilocybe === 1, 'the cheap tier stays a single run');
+
+  // Whole roster, so a future price change surfaces its total cost rather than hiding it.
+  const total = SPECIES.reduce((a, sp) => a + unlockCost(sp), 0);
+  ok(total === 63200, `buying every species costs ${total} spores (~${Math.ceil(total / runToFive)} level-5 runs)`);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
