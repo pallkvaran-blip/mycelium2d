@@ -1,13 +1,15 @@
 // Campaign threat scaling: the per-level nematode / Trichoderma counts.
 // Run with: node --test test/*.js   (or: node test/threats.test.js)
 //
-// These numbers are an owner-specified curve with awkward breakpoints (7, 10, then
-// every 5 from 15), so they are pinned exactly rather than described. A change here
-// should be a deliberate balance decision, not a refactor accident.
+// From level 7 the extras COMPOUND: threatRatePerLevel is how many more each level adds on
+// top of the previous one, so threatBonusForLevel integrates a rising rate and the totals
+// grow quadratically. Owner-specified, with awkward breakpoints (7, 10, then every 5 from
+// 15), so the numbers are pinned exactly rather than described — a change here should be a
+// deliberate balance decision, not a refactor accident.
 
 import { CONFIG } from '../src/config.js';
 import { createState } from '../src/engine/state.js';
-import { LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, threatsForLevel, threatBonusForLevel } from '../src/species.js';
+import { LEVEL_THREATS, MAX_LEVEL, MAX_ANT_NESTS, threatsForLevel, threatBonusForLevel, threatRatePerLevel } from '../src/species.js';
 
 let passed = 0, failed = 0;
 function ok(cond, msg) {
@@ -15,13 +17,13 @@ function ok(cond, msg) {
   else { failed++; console.error('  FAIL-', msg); }
 }
 
-console.log('# Late-game threat bonus (threatBonusForLevel)');
+console.log('# Per-level rate (threatRatePerLevel)');
 {
-  // Every breakpoint, plus the level either side of it so an off-by-one can't hide.
+  // Every breakpoint, plus the level either side so an off-by-one can't hide.
   const expect = [
-    [1, 0], [5, 0], [6, 0],
-    [7, 2], [8, 2], [9, 2],
-    [10, 3], [11, 3], [14, 3],
+    [1, 0], [6, 0],
+    [7, 2], [9, 2],
+    [10, 3], [14, 3],
     [15, 4], [19, 4],
     [20, 5], [24, 5],
     [25, 6], [29, 6],
@@ -29,32 +31,54 @@ console.log('# Late-game threat bonus (threatBonusForLevel)');
     [35, 8], [40, 9], [50, 11], [100, 21],
   ];
   for (const [lvl, want] of expect) {
-    const got = threatBonusForLevel(lvl);
-    ok(got === want, `level ${lvl} → +${want} of each (got +${got})`);
+    const got = threatRatePerLevel(lvl);
+    ok(got === want, `level ${lvl} adds +${want}/level (got +${got})`);
   }
-  ok(threatBonusForLevel(0) === 0 && threatBonusForLevel(-3) === 0, 'level 0 / negative clamps to the level-1 bonus (0)');
 }
 
-console.log('\n# Seeded counts (threatsForLevel = base curve + bonus)');
+console.log('\n# Accumulated extras (threatBonusForLevel = every rate from 7 up)');
 {
-  // level → {nematodes, trych}
   const expect = [
-    [1, 1], [6, 6],            // on-ramp untouched
-    [7, 9], [9, 11],           // +2
-    [10, 13], [11, 14],        // +3 (still inside the authored table)
-    [12, 15], [14, 17],        // +3 (computed levels)
-    [15, 19], [20, 25],
-    [25, 31], [30, 37],
-    [100, 121],
+    [6, 0],
+    [7, 2], [8, 4], [9, 6],        // +2/level
+    [10, 9], [11, 12], [14, 21],   // +3/level
+    [15, 25], [19, 41],            // +4/level
+    [20, 46], [24, 66],            // +5/level
+    [25, 72], [29, 96],            // +6/level
+    [30, 103],                     // +7/level
+    [50, 277], [100, 1062],
+  ];
+  for (const [lvl, want] of expect) {
+    const got = threatBonusForLevel(lvl);
+    ok(got === want, `level ${lvl} carries +${want} accumulated (got +${got})`);
+  }
+  ok(threatBonusForLevel(0) === 0 && threatBonusForLevel(-3) === 0, 'level 0 / negative clamps to 0 extras');
+}
+
+console.log('\n# Seeded counts (threatsForLevel = base curve + accumulated extras)');
+{
+  // The owner's worked example: level 7 → 9, level 8 → 12, and up from there.
+  const expect = [
+    [1, 1], [6, 6],                           // on-ramp untouched
+    [7, 9], [8, 12], [9, 15],
+    [10, 19], [11, 23], [12, 27], [14, 35],
+    [15, 40], [20, 66], [25, 97], [30, 133],
+    [50, 327], [100, 1162],
   ];
   for (const [lvl, want] of expect) {
     const t = threatsForLevel(lvl);
     ok(t.nematodes === want && t.trych === want,
       `level ${lvl} seeds ${want} nematodes and ${want} Trichoderma (got ${t.nematodes}/${t.trych})`);
   }
+  // The step between consecutive levels must WIDEN — that's the whole difference from the
+  // flat version this replaced (which stepped by a constant +1 between breakpoints).
+  const step = (l) => threatsForLevel(l + 1).nematodes - threatsForLevel(l).nematodes;
+  ok(step(5) === 1, 'below level 7 the step is still the base +1');
+  ok(step(7) === 3, 'level 7→8 steps by 3 (base +1 and rate +2)');
+  ok(step(10) === 4 && step(20) === 6 && step(30) === 8, 'the step keeps widening with the rate');
 }
 
-console.log('\n# What the bonus must NOT touch');
+console.log('\n# What the extras must NOT touch');
 {
   // Ants keep their own curve and cap — the bonus is nematodes + mould only.
   for (const lvl of [7, 10, 15, 20, 30, 100]) {
@@ -91,11 +115,16 @@ console.log('\n# Shape / safety');
   }
   ok(monotonic, `nematode + Trichoderma counts never decrease across levels 1..${MAX_LEVEL}`);
 
-  // Seeding ignores maxPopulation (only the respawn trickle checks it), so the deepest
-  // level must not seed past the hard cap or the population starts over its own ceiling.
-  const deepest = threatsForLevel(MAX_LEVEL).nematodes;
-  ok(deepest <= CONFIG.nematodes.maxPopulation,
-    `level ${MAX_LEVEL} seeds ${deepest} worms, within maxPopulation ${CONFIG.nematodes.maxPopulation}`);
+  // DOCUMENTED consequence of a compounding curve, not an accident: past level 32 the seed
+  // alone exceeds config.nematodes.maxPopulation. Seeding does not consult that cap (only
+  // breeding and the respawn trickle do), so the population simply starts above its own
+  // ceiling and stops breeding. If this line ever fails, the curve or the cap moved — decide
+  // which is right rather than "fixing" the test.
+  let firstOver = null;
+  for (let lvl = 7; lvl <= MAX_LEVEL; lvl++) {
+    if (threatsForLevel(lvl).nematodes > CONFIG.nematodes.maxPopulation) { firstOver = lvl; break; }
+  }
+  ok(firstOver === 33, `the seed first passes maxPopulation (${CONFIG.nematodes.maxPopulation}) at level ${firstOver}`);
 }
 
 console.log('\n# The numbers actually reach the map');
@@ -110,7 +139,7 @@ console.log('\n# The numbers actually reach the map');
     c.trichoderma.initialPatches = t.trych;
     return c;
   };
-  for (const [lvl, want] of [[6, 6], [7, 9], [20, 25], [30, 37]]) {
+  for (const [lvl, want] of [[6, 6], [7, 9], [8, 12], [20, 66], [30, 133], [100, 1162]]) {
     const s = createState(levelCfg(lvl), 9000 + lvl);
     ok(s.nematodes.length === want, `level ${lvl} map really holds ${want} worms (got ${s.nematodes.length})`);
     ok(s.clouds.length === want, `level ${lvl} map really holds ${want} mould clouds (got ${s.clouds.length})`);

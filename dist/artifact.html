@@ -1501,8 +1501,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1h8kihp";
-globalThis.__BUILD__ = "local 07-26 08:56";
+window.__ASSET_VER = "9a329o";
+globalThis.__BUILD__ = "local 07-26 09:18";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -3570,21 +3570,33 @@ function antsForLevel(level) {
   return Math.min(MAX_ANT_NESTS, 6 + Math.floor((level - 11) / 4));
 }
 
-// EXTRA nematodes + Trichoderma piled on top of the base curve, so a good engine stops
-// trivialising the mid/late ladder (owner call after a player cleared to 20 unopposed and
-// quit out of boredom). Ants are deliberately excluded — they keep their own capped curve.
-//   L1–6 → +0   (the on-ramp is unchanged)
-//   L7–9 → +2, L10–14 → +3, then +1 more every 5 levels from 15:
-//   L15 +4, L20 +5, L25 +6, L30 +7, … L100 +21.
-// So the seeded count is level + bonus for each: L7 → 9, L10 → 13, L20 → 25, L30 → 37,
-// L100 → 121 (still under `config.nematodes.maxPopulation` = 150, so seeding can't blow
-// the hard cap — but note it leaves little breeding headroom that deep).
-function threatBonusForLevel(level) {
+// How many EXTRA nematodes + Trichoderma each level adds ON TOP of the one before it.
+// This is a RATE, not a flat bonus: from level 7 the extras accumulate, so the gap between
+// consecutive levels widens instead of staying at the base curve's +1.
+//   L1–6 → +0/level  (the on-ramp is unchanged)
+//   L7–9 → +2/level · L10–14 → +3/level · then +1 more every 5 levels from 15
+//   (L15–19 +4, L20–24 +5, L25–29 +6, L30–34 +7, … L100 +21).
+// Ants are deliberately excluded — they keep their own curve and the MAX_ANT_NESTS cap.
+function threatRatePerLevel(level) {
   const lvl = Math.max(1, level | 0);
   if (lvl < 7) return 0;
   if (lvl < 10) return 2;
   if (lvl < 15) return 3;
   return 4 + Math.floor((lvl - 15) / 5);
+}
+
+// The accumulated extras at `level` — the running total of every rate from 7 up. Because it
+// integrates a rising rate it grows QUADRATICALLY, which is the point (a strong engine gets
+// buried) but also why the deep end is enormous:
+//   L7 → +2 (9 of each) · L8 → +4 (12) · L9 → +6 (15) · L10 → +9 (19) · L15 → +25 (40)
+//   L20 → +46 (66) · L25 → +72 (97) · L30 → +103 (133) · L50 → +288 (338) · L100 → +1062 (1162)
+// Summed in a loop rather than in closed form: levels only run to MAX_LEVEL and this is
+// called once per level start, so clarity beats cleverness here.
+function threatBonusForLevel(level) {
+  const lvl = Math.max(1, level | 0);
+  let sum = 0;
+  for (let k = 7; k <= lvl; k++) sum += threatRatePerLevel(k);
+  return sum;
 }
 
 function threatsForLevel(level) {
@@ -3894,7 +3906,7 @@ function newlyRevealedByClear(level, progressBefore) {
   return prior < tier.length ? [tier[prior]] : [];
 }
 
-  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatBonusForLevel, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
+  return { SPECIES, LOCKED_TIERS, MAX_LEVEL, MAX_ANT_NESTS, LEVEL_THREATS, threatRatePerLevel, threatBonusForLevel, threatsForLevel, sporesForLevel, levelFromUnlock, startLevelRange, defaultStartLevel, TIER_COST, unlockCost, tierSpecies, loadProgress, saveProgress, migrateProgress, resetProgress, devUnlockAll, clearsFor, recordLevelCleared, sporesBalance, addSpores, isPurchased, loadoutFor, saveLoadout, lastDraftsFor, saveLastDrafts, lastDraftEnginesFor, saveLastDraftEngines, loadDeathCarry, saveDeathCarry, clearDeathCarry, loadResume, saveResume, clearResume, purchaseSpecies, isRevealed, isSpeciesRevealed, revealSpecies, isPlayable, newlyRevealedByClear };
 })();
 
 // ===================== src/highscores.js =====================

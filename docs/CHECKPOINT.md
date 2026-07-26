@@ -534,80 +534,39 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
-- **Late-game threat bonus: extra nematodes + Trichoderma from level 7 up.** Player report: they built a
-  good engine, the ladder went trivial, and they quit at level 20 out of boredom. Owner-specified curve, added
-  as `species.js threatBonusForLevel` on top of the existing base counts:
+- **Late-game threat ramp: the extras COMPOUND from level 7 up.** Player report: they built a good engine,
+  the ladder went trivial, and they quit at level 20 out of boredom. Owner-specified, and note the shape —
+  `threatRatePerLevel` is how many more nematodes + Trichoderma a level adds **than the one before it**, and
+  `threatBonusForLevel` is the running total from 7 up, so the counts grow **quadratically** rather than
+  sitting at a flat offset. (A first pass read the spec as a flat bonus — +2 at L7, +3 at L10 — which is a
+  much gentler curve; the owner's worked example, "level 7 will have 9, lvl 8 12", is what disambiguates it.)
   | level | 1–6 | 7–9 | 10–14 | 15–19 | 20–24 | 25–29 | 30–34 | … | 100 |
   |---|---|---|---|---|---|---|---|---|---|
-  | bonus | +0 | +2 | +3 | +4 | +5 | +6 | +7 | +1 per 5 | +21 |
-  | seeded each | =level | 9–11 | 13–17 | 19–23 | 25–29 | 31–35 | 37–41 | | 121 |
+  | rate (extra per level) | +0 | +2 | +3 | +4 | +5 | +6 | +7 | +1 per 5 | +21 |
+  | seeded of each | =level | 9·12·15 | 19→35 | 40→60 | 66→90 | 97→125 | 133→165 | | 1162 |
   - **Ants deliberately excluded** — they keep their own curve and the `MAX_ANT_NESTS`=8 cap. The **1–6
     on-ramp is untouched**, since the complaint was about the mid game and the punishing early game is canon.
   - `threatsForLevel` now returns a **fresh object** instead of the shared `LEVEL_THREATS` row — a caller
     mutating the old return value would have permanently rewritten the authored curve for the session.
-    `LEVEL_THREATS` rows are now BASE counts; the seeded count is base + bonus.
-  - **Verified end-to-end, not just as arithmetic.** `test/threats.test.js` (64 checks) pins every breakpoint
-    and the level either side of it, asserts ants/levels 1–6 are untouched, that counts never decrease across
-    1..100, and — mirroring `configForLevel`, which is browser-only — that `createState` really seeds 9/25/37
-    entities at L7/20/30 with every worm in open soil (a silently dropped placement would otherwise hide).
-    `scratchpad/verify-threatcurve.mjs` then walks the REAL win→next-level path in the built game to level 7:
-    live state 9 worms / 9 clouds / 4 nests, intro roster ×4 ×9 ×9, no page errors.
-  - **Cost is fine** (`scratchpad/probe-threatcost.mjs`, Node — real timing, unlike headless): map build
-    4–17 ms and 0.3–1.2 ms/tick even at 121 worms + 121 clouds with a seed colony; ~4 ms/tick with a ~250-node
-    colony and the swarm at its 150 cap. This is per-TURN work, so it never touches framerate.
-  - **Two things the owner should know about the deep end** (flagged, deliberately NOT changed): (a) worms
-    breed to `config.nematodes.maxPopulation` = 150 once they reach the colony, so at high levels the seed
-    count front-loads pressure rather than raising the ceiling — L100's 121 leaves only 29 of breeding
-    headroom; (b) if deep levels still feel soft, the stronger levers are `maxPopulation` / `breedChance` /
-    per-threat lethality, not the seed count.
-
-- **LEVEL EDITOR — hand-authored maps.** Every map so far has been rolled by
-  `generateSubstrate` from a seed. There is now a second path: a drag-and-drop authoring tool
-  (`docs/level-editor.html`, hosted at `<site>/level-editor.html`) that writes a `mycelium-level`
-  JSON document, and a loader that turns one into a playable Substrate. Same rules, same economy,
-  same carry-over — only the **geometry** is designed instead of generated.
-  - **The editor.** Blank map → a palette of every real asset (5 boulders · 14 rock formations ·
-    3 lakes · 3 reservoirs · 3 leaf-pile tiers · ant nest / nematode / Trichoderma · mountain),
-    dragged onto the canvas with pointer events (works on touch). Select to **move, rotate and
-    resize**: 4 corner handles (uniform by default, `shift` = free w/h) and a rotate grip that
-    follows the object's own frame. Marquee + `shift`-click multi-select, arrow-key nudge, `[` `]`
-    rotate, `-`/`=` scale, `ctrl+D` duplicate, `ctrl+Z/Y` undo-redo (80 deep), layer list with
-    bring-front/send-back, snap-to-half-cell, wheel zoom, `space`-drag pan. Right rail: a live
-    property inspector, level/world settings (world box, `surfaceY`, start/goal/summer columns),
-    a **contents** tally and a **checks** panel (no food, nothing in the left third, no red engine
-    pile, objects above the soil line or out of bounds). Autosaves to `localStorage` every edit.
-  - **It previews with the real art**, at the real geometry: lakes clipped to the same
-    `√(1−t²)` bowl the game clips to, reservoirs carved to the same `RESERVOIR_PROFILE` teardrop,
-    leaf heaps built from the same yellow/orange/red sprite sets.
-  - **Rocks are NOT baked into cells.** They ship as a sprite list on `sub.levelSprites`; `main.js`
-    `drawLevelRocks()` draws it and `solidifyRock()` stamps the *same* list — so an authored rock's
-    collision is its opaque silhouette at exactly the size and rotation you placed it. That's the
-    existing WYSIWYG guarantee, reused rather than reimplemented: the three procedural derivations
-    (`rockGroups` / `formationGroups` / `rockColumns`) are natural no-ops on an authored map because
-    it flags no rock/formation/column cells for them to group. Everything the sim reads directly —
-    water cells, `foodPiles`, `reservoirs`, surface barriers — IS baked, in exactly the shapes
-    `generateSubstrate` produces, so no downstream system can tell the two apart.
-  - **No guaranteed corridor.** A generated map always carves a winnable route under its barriers.
-    An authored one carves only the entry + goal channels (`layout.clearChannels`, on by default) —
-    the route is whatever you left open. So **playtest every map**; that's what the ▶ button is for.
-  - **▶ Test in game** stashes the draft in `localStorage` and opens `index.html#level`, which boots
-    straight into it (no rebuild, no commit) using the dev card scaffold so you probe geometry rather
-    than fight the economy. **Copy JSON** puts the document on the clipboard to paste into a chat.
-  - **Wiring one into the campaign:** drop the export in `docs/levels/`, `node scripts/gen-levels.mjs`
-    (→ **GENERATED** `src/levels-data.js`; it throws if two files claim the same slot), `node build.mjs`.
-    A level with a `campaignLevel` replaces the procedural map for that number — `main.js start()` asks
-    `levelDefFor(n)` and calls `createLevelState` instead of `createState`. `docs/levels/` currently
-    holds only its README, so the shipped campaign is unchanged until a map is added.
-  - **Threat counts come from the objects, not `LEVEL_THREATS`** — an authored map is exactly what was
-    drawn (pinned by a test). New engine exports for placement-in-place: `ants.js placeAntNests`,
-    `nematodes.js placeNematodes`, and `placeClouds` now honours a per-cloud radius. Authored lake /
-    reservoir **art choices** are honoured too (`sub.lakeArt`, `reservoir.key`).
-  - Files: `src/engine/level.js` (format + `buildLevel`), `state.js createLevelState`,
-    `scripts/gen-levels.mjs`, `docs/level-editor.html`, `docs/levels/README.md`.
-    Verified by `test/level.test.js` (50 checks, engine-side) and
-    `scratchpad/verify-leveleditor.mjs` (Playwright: the editor's real drag/rotate/resize gestures,
-    then the game booting that export — sprites solidified, `solidAtWorld` true inside a formation and
-    a boulder and false in open ground, threats at their authored coordinates, colony grows).
+    `LEVEL_THREATS` rows are now BASE counts; the seeded count is base + accumulated extras.
+  - **Verified end-to-end, not just as arithmetic.** `test/threats.test.js` (88 checks) pins every rate
+    breakpoint and the level either side, the accumulated totals, that the STEP between levels widens (the one
+    thing that distinguishes this from the flat version), that ants/levels 1–6 are untouched, and — mirroring
+    `configForLevel`, which is browser-only — that `createState` really seeds 9/12/66/133/1162 entities at
+    L7/8/20/30/100 with every worm in open soil (a silently dropped placement would otherwise hide).
+    `scratchpad/verify-threatcurve.mjs` walks the REAL win→next-level path in the built game to level 7: live
+    state 9 worms / 9 clouds / 4 nests, intro roster ×4 ×9 ×9, no page errors.
+  - **It holds up technically even at the absurd end** (`scratchpad/probe-curve2.mjs`, Node — real timing,
+    unlike headless): L100's 1162 worms + 1162 clouds build in 67 ms and tick in 5.9 ms, with **zero** entities
+    landing in rock. Tick work is per-TURN, so framerate is untouched. Mould coverage of open soil: 1.9% at L7,
+    9.1% at L20, 13.8% at L30, 28.5% at L100 (clouds are radius 0.8–1.3 cells, so even 1162 of them don't wall
+    the map off).
+  - **Two consequences the owner should know, deliberately NOT patched around:** (a) **from level 33 the seed
+    alone exceeds `config.nematodes.maxPopulation` (150)** — seeding never consults that cap (only breeding and
+    the respawn trickle do), so deep levels start above their own ceiling and simply stop breeding; raising the
+    cap is a separate balance call. (b) The curve is quadratic, so past roughly L35 the ladder is realistically
+    unwinnable and the 100-level campaign effectively ends in the thirties. That is consistent with "that
+    should kill them off", but it does mean `MAX_LEVEL = 100` is now aspirational.
 
 - **The hand carousel no longer pops in a beat after the level starts.** Owner report: "the card carousel
   pops in awkwardly when the level starts."
