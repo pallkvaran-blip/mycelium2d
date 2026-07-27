@@ -574,6 +574,10 @@ Both menus are dark, on-theme, with glowing green borders.
   for the campaign-mode go/no-go. A newer release zip (source tagging + rock fixes) was cut + handed over the
   evening of Jul 26 — see §11. Aside (Jul 27): estimated ~70h total playtime over the first 4 days
   (254 players / 500 runs; ~36s/turn measured), roughly on par with the ~7-day build effort.
+  - **Default view hides `pages` + `dev` (Jul 27).** Those two sources are only ever the owner checking the
+    github.io deploy or a local/test run — never real players — so the dashboard defaults to a `players`
+    view (`HIDDEN_SOURCES` in `analytics.html`) that excludes them; `itch`/`legacy`/`web:<host>` stay. Nothing
+    is deleted — the `pages`/`dev` chips are still there (dimmed) to click into. `all` shows everything.
 
 - **Rock-sprite cut/tune pipeline — `scripts/rock_cut.py` + `docs/rock-tuner.html` (Jul 26).** Split the old
   all-in-one generator into: render (`gen_veined_rocks3.py`), CUT to a clean transparent sprite

@@ -44,6 +44,8 @@
     border: 1px solid #24332b; border-radius: 999px; padding: 6px 11px; }
   .schip:hover { border-color: #3a5a49; }
   .schip.on { color: #04140d; background: #6fe0b0; border-color: #6fe0b0; }
+  .schip.hid { opacity: .55; }
+  .schip.hid.on { opacity: 1; }
   .schip .c { opacity: .7; font-weight: 400; margin-left: 4px; }
   .schip.on .c { opacity: .85; }
 </style>
@@ -392,24 +394,35 @@ function lagPanel(rows, fr) {
 // chip bar lets the owner slice to one build; 'dev' is local/test traffic (which the fixed
 // telemetry switch keeps out of production going forward, so it should stay ~0).
 var ALL_ROWS = [];
-var SOURCE_FILTER = 'all';
+// 'pages' (the github.io preview URL) and 'dev' (localhost) are only ever the owner checking a
+// deploy or a test run — never real players — so the dashboard DEFAULTS to a players-only view
+// that hides them. Nothing is deleted: the chips still let you click 'pages'/'dev' to inspect.
+var HIDDEN_SOURCES = ['pages', 'dev'];
+var SOURCE_FILTER = 'players';
 function srcOf(e) { return e.source || 'legacy'; }
+function isHidden(s) { return HIDDEN_SOURCES.indexOf(s) >= 0; }
+function rowsFor(f) {
+  if (f === 'all') return ALL_ROWS;
+  if (f === 'players') return ALL_ROWS.filter(function (e) { return !isHidden(srcOf(e)); });
+  return ALL_ROWS.filter(function (e) { return srcOf(e) === f; });
+}
 function srcChip(key, label, n) {
-  return '<span class="schip' + (SOURCE_FILTER === key ? ' on' : '') + '" data-s="' + esc(key) + '">' +
-    esc(label) + '<span class="c">' + n + '</span></span>';
+  return '<span class="schip' + (SOURCE_FILTER === key ? ' on' : '') + (isHidden(key) ? ' hid' : '') +
+    '" data-s="' + esc(key) + '">' + esc(label) + '<span class="c">' + n + '</span></span>';
 }
 function renderSourceChips() {
   var bar = document.getElementById('srcbar');
   if (!bar) return;
   var counts = countBy(ALL_ROWS, srcOf);
-  var order = ['pages', 'itch', 'dev', 'legacy'];
+  var order = ['itch', 'legacy', 'pages', 'dev'];
   var keys = Object.keys(counts).sort(function (a, b) {
     var ia = order.indexOf(a); if (ia < 0) ia = 90;
     var ib = order.indexOf(b); if (ib < 0) ib = 90;
     return ia - ib || (counts[b] - counts[a]);
   });
-  if (keys.length <= 1) { bar.innerHTML = ''; return; }   // nothing to separate yet
-  var chips = ['<span class="lbl">Source</span>', srcChip('all', 'all', ALL_ROWS.length)];
+  if (keys.length <= 1 && !keys.some(isHidden)) { bar.innerHTML = ''; return; }   // nothing to separate yet
+  var chips = ['<span class="lbl">Source</span>',
+    srcChip('players', 'players', rowsFor('players').length), srcChip('all', 'all', ALL_ROWS.length)];
   keys.forEach(function (k) { chips.push(srcChip(k, k, counts[k])); });
   bar.innerHTML = chips.join('');
   Array.prototype.forEach.call(bar.querySelectorAll('.schip'), function (el) {
@@ -418,7 +431,7 @@ function renderSourceChips() {
 }
 function applyFilter() {
   renderSourceChips();
-  render(SOURCE_FILTER === 'all' ? ALL_ROWS : ALL_ROWS.filter(function (e) { return srcOf(e) === SOURCE_FILTER; }));
+  render(rowsFor(SOURCE_FILTER));
 }
 
 // ---- player return (the "are people coming back?" view) ---------------------------------
@@ -474,8 +487,10 @@ function retentionSection(rows) {
 }
 
 function render(rows) {
-  statusEl.textContent = rows.length + (SOURCE_FILTER === 'all' ? '' : ' of ' + ALL_ROWS.length) +
-    ' events' + (SOURCE_FILTER === 'all' ? '' : ' · ' + SOURCE_FILTER) + ' · ' + new Date().toLocaleString();
+  var flabel = SOURCE_FILTER === 'players' ? 'players (excl. you+me)' : SOURCE_FILTER;
+  var count = rows.length === ALL_ROWS.length ? (rows.length + ' events')
+    : (rows.length + ' of ' + ALL_ROWS.length + ' events');
+  statusEl.textContent = count + ' · ' + flabel + ' · ' + new Date().toLocaleString();
   if (!rows.length) { out.innerHTML = '<div class="note">No events for this source yet.</div>' + setupBlock(); return; }
 
   var starts = rows.filter(function (e) { return e.kind === 'run_start'; });
@@ -568,7 +583,7 @@ function setupBlock() {
 function load() {
   fetchEvents().then(function (rows) {
     ALL_ROWS = rows;
-    SOURCE_FILTER = 'all';
+    SOURCE_FILTER = 'players';
     applyFilter();
   }).catch(function (err) {
     statusEl.textContent = '';
