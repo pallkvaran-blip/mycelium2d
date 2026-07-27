@@ -545,6 +545,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fix: rock formations spilling over water reservoirs (Jul 27).** A pre-existing latent bug — NOT caused
+  by the rockform15–22 add/remove, though reshuffling the sprite pool changed which seeds tripped it (hence it
+  looked new/"again"). The substrate carve (`reservoirRockClearCells`=4) clears formation CELLS in a fixed
+  4-cell halo around a pool, but `main.js formationRect` scales a sprite by its aspect and can draw it several
+  cells PAST the group's footprint, landing rock on the water. Measured ~10 overlaps / 40 seeds, all with the
+  base `rockform1–14` set. Fix in `formationGroups()`: after assigning sprites, drop any group whose DRAWN
+  rect intersects a reservoir pool box (WYSIWYG — if the art would cover the pool, don't place that rock).
+  Both the draw path and `solidifyRock` read `formationGroups()`, so visual + collision stay consistent; only
+  ~0.3 formations/map are dropped. `__game` gained `formationGroups()`/`formationRect(g)`/`regen(seed)` hooks
+  for the seed-sweep test (`scratchpad/verify-reservoir-rock.mjs`: 10 overlaps → 0 after the fix, 40 seeds).
+
 - **Telemetry hardening + source separation (Jul 26).** Three things, all in `src/net_scores.js` +
   `docs/analytics.html`: (1) `cfg()` now treats an explicitly-empty override as OFF, so the
   `{url:'',anonKey:''}` every Playwright harness sets truly disables the backend — before, it fell back to

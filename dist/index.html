@@ -1526,8 +1526,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1hw8nps";
-globalThis.__BUILD__ = "local 07-27 09:06";
+window.__ASSET_VER = "w8wqb5";
+globalThis.__BUILD__ = "local 07-27 09:24";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -16109,6 +16109,10 @@ function begin(newState) {
     play: (i, ctx) => resolveCardOp(playCard(state, i, ctx)),
     chooseCard: (name) => { const r = chooseOffer(state, name); maybeFinalizePendingWin(); uiDirty = true; return r; },
     botToGoal,
+    // Rock-formation geometry + a seed re-roll, for tests that check rock/reservoir overlap.
+    formationGroups: () => formationGroups(),
+    formationRect: (g) => formationRect(g, state.substrate, state.substrate.cellSize),
+    regen: (seed) => start((seed | 0) || 1),
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => forceFruitAbandon(),
@@ -18015,6 +18019,25 @@ function formationGroups() {
       .sort((a, b) => a.r - b.r)
       .map((o) => o.k);
     groups.forEach((g, i) => { g.key = order[i % order.length]; });
+  }
+  // Drop any formation whose DRAWN sprite would land on a reservoir pool. The substrate carve
+  // (reservoirRockClearCells) clears formation CELLS in a fixed halo around a pool, but
+  // formationRect scales a sprite by its aspect and can render several cells PAST the group's
+  // footprint — so a high-aspect sprite spills over the water even though its cells were cleared
+  // (measured: ~25% of seeds). WYSIWYG: if the art would cover the pool, don't place the rock
+  // there. Art is preloaded before play, so formationRect is resolvable here.
+  const pools = (sub.reservoirs || []).map((rv) => {
+    const a = sub.cellCenter(rv.c0, rv.r0), b = sub.cellCenter(rv.c1, rv.r1);
+    return { x0: a.x - cs / 2, x1: b.x + cs / 2, y0: a.y - cs / 2, y1: b.y + cs / 2 };
+  });
+  if (pools.length) {
+    const kept = groups.filter((g) => {
+      const r = formationRect(g, sub, cs);
+      if (!r) return true;                        // sprite not decoded yet — keep; re-run next build
+      const bx0 = r.cx - r.dw / 2, bx1 = r.cx + r.dw / 2, by0 = r.topW, by1 = r.topW + r.dh;
+      return !pools.some((p) => bx0 < p.x1 && bx1 > p.x0 && by0 < p.y1 && by1 > p.y0);
+    });
+    if (kept.length !== groups.length) { groups.length = 0; groups.push(...kept); }
   }
   _formState = state; _formGroups = groups;
   return groups;
