@@ -13,6 +13,7 @@ import { isLevel } from './engine/level.js';
 import { levelForNumber } from './levels-data.js';
 import { performAction, devSpawnTrichoderma, ACTIONS } from './engine/actions.js';
 import { spawnNematodeAt } from './engine/nematodes.js';
+import { recalibrateAnts } from './engine/ants.js';
 import { tickWorld } from './engine/turn.js';
 import { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardUsesDragAim, dragAimReach, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo, rebuildCardsFromSnapshot } from './engine/cards.js';
 import { Camera } from './render/camera.js';
@@ -936,6 +937,7 @@ function begin(newState) {
     formationGroups: () => formationGroups(),
     formationRect: (g) => formationRect(g, state.substrate, state.substrate.cellSize),
     regen: (seed) => start((seed | 0) || 1),
+    solidify: () => solidifyRock(),
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => forceFruitAbandon(),
@@ -3136,6 +3138,11 @@ function solidifyRock() {
   // Publish the FINE growth-collision mask (read by substrate.solidAtWorld / network _placeOk).
   sub._fineSolid = fine; sub._fineSize = fSize; sub._fineCols = fCols; sub._fineRows = fRows;
   sub._rockSolidified = true;
+  // Ant trails were planned at seed time against the COARSE generation rock; cell.rock now
+  // matches the DRAWN sprites (including the overhang/spill that solidify just stamped onto
+  // former soil), so re-plan every nest to route AROUND the visible rock instead of crossing
+  // it. One-shot, like solidify itself. buildTrail (ants.js) reads the same cell.rock.
+  try { recalibrateAnts(state); } catch (e) { console.error('[ants] re-route after solidify failed:', e); }
 }
 
 // HAND-AUTHORED rock sprites — every boulder / formation the level editor placed,

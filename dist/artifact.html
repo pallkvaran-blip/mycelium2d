@@ -1520,8 +1520,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "w8wqb5";
-globalThis.__BUILD__ = "local 07-27 09:24";
+window.__ASSET_VER = "17lqyk2";
+globalThis.__BUILD__ = "local 07-27 09:58";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -15175,6 +15175,7 @@ const __m_main = (function () {
   const { levelForNumber } = __m_levels_data;
   const { performAction, devSpawnTrichoderma, ACTIONS } = __m_engine_actions;
   const { spawnNematodeAt } = __m_engine_nematodes;
+  const { recalibrateAnts } = __m_engine_ants;
   const { tickWorld } = __m_engine_turn;
   const { initCards, drawCard, skipRound, playCard, cardNeedsTarget, cardUsesDragAim, dragAimReach, cardBlockedReason, chooseOffer, activateAction, cardAbilityInfo, rebuildCardsFromSnapshot } = __m_engine_cards;
   const { Camera } = __m_render_camera;
@@ -16107,6 +16108,7 @@ function begin(newState) {
     formationGroups: () => formationGroups(),
     formationRect: (g) => formationRect(g, state.substrate, state.substrate.cellSize),
     regen: (seed) => start((seed | 0) || 1),
+    solidify: () => solidifyRock(),
     // Debug hooks (invisible; used by tests/self-play): force a level win or a colony death.
     winLevel: () => devWinLevel(),
     killColony: () => forceFruitAbandon(),
@@ -18307,6 +18309,11 @@ function solidifyRock() {
   // Publish the FINE growth-collision mask (read by substrate.solidAtWorld / network _placeOk).
   sub._fineSolid = fine; sub._fineSize = fSize; sub._fineCols = fCols; sub._fineRows = fRows;
   sub._rockSolidified = true;
+  // Ant trails were planned at seed time against the COARSE generation rock; cell.rock now
+  // matches the DRAWN sprites (including the overhang/spill that solidify just stamped onto
+  // former soil), so re-plan every nest to route AROUND the visible rock instead of crossing
+  // it. One-shot, like solidify itself. buildTrail (ants.js) reads the same cell.rock.
+  try { recalibrateAnts(state); } catch (e) { console.error('[ants] re-route after solidify failed:', e); }
 }
 
 // HAND-AUTHORED rock sprites — every boulder / formation the level editor placed,

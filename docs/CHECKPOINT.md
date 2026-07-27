@@ -545,6 +545,17 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fix: ant trails routing over rocks (Jul 27).** Sibling of the reservoir spill bug, same root — a
+  timing/representation mismatch. Ant trails are BFS'd (`ants.js buildTrail`, avoids `cell.rock`) at SEED time,
+  which is before `main.js solidifyRock()` runs. solidify then rewrites `cell.rock = covered` from the drawn
+  sprite silhouettes, turning former SOIL cells under a sprite's overhang/spill into rock — but the trail was
+  already laid through them, so it visibly crosses rock. Fix: call `recalibrateAnts(state)` at the end of
+  `solidifyRock()` (one-shot, right after `_rockSolidified`), re-planning every nest against the now
+  sprite-accurate `cell.rock`. Measured 14 crossings / 9 of 40 seeds → 0 MID-ROUTE (3 residual are the nest's
+  own surface tile under an overhang, not a route — the ant emerges there regardless). `__game.solidify()`
+  added as a test hook; `scratchpad/verify-ant-rock.mjs` sweeps 40 seeds. (Any future threat that BFS-plans a
+  path at seed time — nematode following, etc. — has the same latent gap; re-plan after solidify.)
+
 - **Fix: rock formations spilling over water reservoirs (Jul 27).** A pre-existing latent bug — NOT caused
   by the rockform15–22 add/remove, though reshuffling the sprite pool changed which seeds tripped it (hence it
   looked new/"again"). The substrate carve (`reservoirRockClearCells`=4) clears formation CELLS in a fixed
