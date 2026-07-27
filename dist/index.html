@@ -1526,8 +1526,8 @@
 <div id="ui"></div>
 <script>
 'use strict';
-window.__ASSET_VER = "1akty3y";
-globalThis.__BUILD__ = "local 07-26 18:05";
+window.__ASSET_VER = "1hw8nps";
+globalThis.__BUILD__ = "local 07-27 09:06";
 
 // ===================== src/config.js =====================
 const __m_config = (function () {
@@ -10055,7 +10055,7 @@ class SubstrateRenderer {
     // behind the tilted sprites as stray dark slabs. Without the sprites we bake
     // the procedural rock as the fallback so it's never invisible.
     let haveForm = false;
-    for (let i = 1; i <= 22; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
+    for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
     if (haveForm) return;
     sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
     if (!cells.length) return;
@@ -17978,7 +17978,7 @@ function drawBoulder(c, palette, k, mult, cs, z) {
 // to the patch's footprint and embedded into the earth so its base melts into
 // the soil rather than sitting on top. Distinct sprites per map (seeded), no
 // piling. Falls back to piled boulders when the sprites are absent.
-const ROCKFORM_KEYS = Array.from({ length: 22 }, (_, i) => 'rockform' + (i + 1));
+const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
 let _formState = null, _formGroups = null;
 function formationGroups() {
   if (_formState === state) return _formGroups;

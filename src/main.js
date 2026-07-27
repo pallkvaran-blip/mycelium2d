@@ -2801,7 +2801,7 @@ function drawBoulder(c, palette, k, mult, cs, z) {
 // to the patch's footprint and embedded into the earth so its base melts into
 // the soil rather than sitting on top. Distinct sprites per map (seeded), no
 // piling. Falls back to piled boulders when the sprites are absent.
-const ROCKFORM_KEYS = Array.from({ length: 22 }, (_, i) => 'rockform' + (i + 1));
+const ROCKFORM_KEYS = Array.from({ length: 14 }, (_, i) => 'rockform' + (i + 1));
 let _formState = null, _formGroups = null;
 function formationGroups() {
   if (_formState === state) return _formGroups;

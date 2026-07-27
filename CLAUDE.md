@@ -13,7 +13,7 @@ Supabase leaderboard on). Release marketing/copy is owner-driven. To cut a fresh
    `node scratchpad/boot-itchzip.mjs` (the extracted zip actually plays) — see CHECKPOINT §8.
 3. Zip **`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and
    the tool pages (`*-editor.html`, `analytics.html`, `rock-tuner.html`). Zipping only `index.html` + `assets/`
-   excludes them by construction. ~25 MB now (the 8 new veined rocks). Upload as an HTML5 game (fullscreen ON,
+   excludes them by construction. ~22 MB. Upload as an HTML5 game (fullscreen ON,
    mobile-friendly ON, 1280×720).
 
 > **⚠ ITCH IS WHERE THE PLAYERS ARE, AND IT ONLY UPDATES WHEN THE OWNER UPLOADS A ZIP.** Pushing to the dev
@@ -144,7 +144,10 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   resize** or the FLUX backdrop bleeds into every edge; **erode ~1px past the render's own dark rim** (FLUX
   paints a dark outline; keeping it ships a dark halo — the shipped rockform1/5 have a BRIGHT rim instead);
   key polarity per-image with **Otsu for the SIDE only** then threshold at the background level (Otsu itself
-  is too high and eats the rock). Batch-1's 8 approved options are live as `rockform15–22` (theme `veined`).
+  is too high and eats the rock). **NOTE: batch-1's 8 rocks were briefly wired in as `rockform15–22` then
+  REMOVED (Jul 27)** — they shipped with the bad feathering and were never re-cut through the fixed pipeline,
+  so the owner pulled them. The game is back to `rockform1–14`. The toned source art is kept in
+  `assets/rock_options/toned/` — re-cut with `rock_cut.py` + grade in the tuner before re-adding as `rockform15+`.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,

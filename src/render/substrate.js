@@ -281,7 +281,7 @@ export class SubstrateRenderer {
     // behind the tilted sprites as stray dark slabs. Without the sprites we bake
     // the procedural rock as the fallback so it's never invisible.
     let haveForm = false;
-    for (let i = 1; i <= 22; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
+    for (let i = 1; i <= 14; i++) { if (hasAsset('rockform' + i)) { haveForm = true; break; } }
     if (haveForm) return;
     sub.forEachCell((cell, col, row) => { if (cell.rock && !cell.water) cells.push([col, row]); });
     if (!cells.length) return;

@@ -9,7 +9,7 @@ screen height on short screens via container-query card scaling (no distortion);
 tucked against the letters; **HIGH SCORES** heading enlarged + close-✕ halved; the level-intro title now
 grows as the procedural mycelium wordmark ("LEVEL ONE" … "LEVEL ONE HUNDRED"); visible Dev buttons removed
 again for the release zip (invisible `window.__game` hook kept). itch build = `index.html` + `assets/` at the
-zip root, no editor/tool HTML (~25 MB with the new rocks). See §9. NOTE the **tutorial now fires on EVERY
+zip root, no editor/tool HTML (~22 MB). See §9. NOTE the **tutorial now fires on EVERY
 press of New** (changed Jul 26; no longer once-per-browser) — see §10. — earlier: **boot loading screen**: all art is now
 preloaded + decoded behind a minimal centered "%"→"Click" overlay before the game opens, so nothing pops
 in lazily mid-play (the "Click" also unlocks audio); the dist deploy was slimmed 61 MB→~22 MB by excluding
@@ -578,6 +578,11 @@ Both menus are dark, on-theme, with glowing green borders.
   (else it draws typography or whole scenes), and negate warm colours or veins render orange.
 
 - **Level editor: rock-formation THEMES + filter, all game sprites placeable, and 8 new veined-rock candidates.**
+  - **⚠ SUPERSEDED (Jul 27): the 8 rocks wired here as `rockform15–22` were REMOVED.** They shipped with the
+    bad feathering (see the rock-cut entry above) and were never re-cut, so the owner pulled them; the game is
+    back to `rockform1–14` (veined theme back to just 1,5). Manifest entries + `.png`s deleted, the three
+    length constants reverted to 14, toned source art kept in `assets/rock_options/toned/`. The rest of THIS
+    entry (themes, placeable sprites, the editor filter) still stands.
   - **Themes live in `assets/manifest.json`** — each rockform entry carries a `theme`
     (`veined` 1,5 · `crystal` 3,7,10,13,14 · `ember` 2,6,9,12 · `fungal` 4,8,11), read off the art itself
     (`scratchpad/rockforms-sheet.png`). ONE source: the editor fetches the manifest it was already fetching,
@@ -3851,14 +3856,16 @@ Both menus are dark, on-theme, with glowing green borders.
   IS now live to players: Jul 25's perf fixes + single-click play + starter buff + hand-carousel, and Jul 26's
   compounding threat curve, escalation taunts, `START_LEVEL_SHIFT`=2, repriced top tiers (7 500/10 000/15 000),
   and tutorial-on-every-New. That build predates source tagging, so its itch traffic logs as `legacy`.
-  - **⚠ PENDING OWNER ACTION: upload the NEWER zip** (cut the evening of Jul 26, handed over — ~25 MB,
-    `index.html` + `assets/` at root, `dev.enabled` false, both gates green). It adds **source tagging**
-    (itch traffic will finally tag `itch` instead of `legacy`), the rock edge fixes + 8 new veined rocks, and
-    the telemetry-disable fix. Not live until uploaded.
+  - **⚠ PENDING: a fresh source-tagging zip.** The evening-Jul-26 zip that was handed over is now STALE — it
+    baked in the `rockform15–22` sprites that were removed Jul 27, so it must NOT be uploaded. Re-cut from the
+    current source (`node build.mjs` → zip `dist/index.html` + `dist/assets/`, ~22 MB): it carries **source
+    tagging** (itch traffic will finally tag `itch` instead of `legacy`) and the telemetry-disable fix, WITHOUT
+    the not-ready rocks. Not live until the owner uploads the fresh one.
   - The owner **ran `MIGRATE_SQL`** (the `source` column + policy now exist in Supabase — verified), so the
     moment the newer zip is up, itch-vs-pages separation starts populating. Until then all events are `legacy`.
 - **PENDING: owner pick on 9 batch-3 veined-rock candidates** (A–I, `assets/rock_candidates/v3-*.png`, shown
-  via `scratchpad/cand3/b3-sheet.png`). Approved ones get wired in as `rockform23+`. The other three themes are
+  via `scratchpad/cand3/b3-sheet.png`). Approved ones get wired in as `rockform15+` (now free again after the
+  removal). The other three themes are
   still thin (crystal 5 / ember 4 / fungal 3) and could get the same shape-variety treatment. Whether to invest
   further hinges on the retention read (see §9) — campaign mode is where per-level single-theme rocks pay off.
 - **Retention: the level-1 first minute is the biggest leak** (from the analytics — see §9 + `analytics.html`).
