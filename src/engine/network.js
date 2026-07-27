@@ -1133,7 +1133,12 @@ export class Network {
     }
     if (!liveCount) return 0;
 
-    const isFood = (cell) => cell && cell.maxNutrient > 0 && !cell.rock && !cell.hazard;
+    // LIVE nutrient, NOT maxNutrient (capacity). An ant — or the player — can drain a pile to 0
+    // nutrient while maxNutrient (the footprint) persists, and the leaf art fades out at nutrient
+    // 0, so the pile visibly vanishes. Keying colonisation on maxNutrient bridged a runner into
+    // that empty ground and sprayed a mat, "claiming" a pile that wasn't there for no energy.
+    // Colonise only what still has food — which is exactly what's still drawn.
+    const isFood = (cell) => cell && cell.nutrient > 0 && !cell.rock && !cell.hazard;
     const seen = new Set();
     let created = 0;
     for (let idx = 0; idx < substrate.cells.length; idx++) {

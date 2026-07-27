@@ -545,6 +545,16 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Fix: colony mat sprayed over empty (ant-eaten) ground — "food out of nowhere" (Jul 27, owner-diagnosed).**
+  `network.js colonizeReachablePiles` decided "food here" via `cell.maxNutrient > 0`, but maxNutrient is the
+  pile's CAPACITY/footprint and survives an ant (or the player) draining the live `nutrient` to 0. The leaf
+  art fades at `nutrient <= 0`, so the pile visibly vanishes — yet the pass still flood-filled it, bridged a
+  runner in, and sprayed a colonised mat over the empty ground for zero energy. Fix: `isFood` now keys on
+  `cell.nutrient > 0` (live food = exactly what's still drawn). `canGrowToFood` already used live nutrient, so
+  food-seek cards were fine; mould-eaten cells set maxNutrient 0 so they were never the culprit — this was ants
+  specifically (they drain nutrient, leave maxNutrient). Pinned by `test/food-colonize.test.js` (live pile
+  still colonises; drained footprint does not).
+
 - **Fix: ant trails routing over rocks (Jul 27).** Sibling of the reservoir spill bug, same root — a
   timing/representation mismatch. Ant trails are BFS'd (`ants.js buildTrail`, avoids `cell.rock`) at SEED time,
   which is before `main.js solidifyRock()` runs. solidify then rewrites `cell.rock = covered` from the drawn
