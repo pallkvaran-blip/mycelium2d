@@ -9,8 +9,8 @@ screen height on short screens via container-query card scaling (no distortion);
 tucked against the letters; **HIGH SCORES** heading enlarged + close-✕ halved; the level-intro title now
 grows as the procedural mycelium wordmark ("LEVEL ONE" … "LEVEL ONE HUNDRED"); visible Dev buttons removed
 again for the release zip (invisible `window.__game` hook kept). itch build = `index.html` + `assets/` at the
-zip root, no editor/tool HTML, ~22 MB. See §9. NOTE the **first-run tutorial is once-per-browser** — see
-§10. — earlier: **boot loading screen**: all art is now
+zip root, no editor/tool HTML (~25 MB with the new rocks). See §9. NOTE the **tutorial now fires on EVERY
+press of New** (changed Jul 26; no longer once-per-browser) — see §10. — earlier: **boot loading screen**: all art is now
 preloaded + decoded behind a minimal centered "%"→"Click" overlay before the game opens, so nothing pops
 in lazily mid-play (the "Click" also unlocks audio); the dist deploy was slimmed 61 MB→~22 MB by excluding
 unused authoring-candidate folders. See §9. — earlier: **per-species starting level**: higher-tier
@@ -556,7 +556,26 @@ Both menus are dark, on-theme, with glowing green borders.
   client insert and the dashboard select degrade gracefully until the column migration runs (insert retries
   without `source` on a 400; select falls back to source-less), so there's NO deploy-vs-migration ordering
   constraint. Owner runs `MIGRATE_SQL` (shown in the dashboard as a nudge until then). Pre-`source` rows read
-  as `legacy`. Pinned by `test/telemetry.test.js` (10 checks).
+  as `legacy`. Pinned by `test/telemetry.test.js` (10 checks). (4) Retention is now front-and-centre on the
+  dashboard — **Hooked** (2+ days or 5+ runs) / **Loyal** (3+ days) tiles and a **"Do players come back?"**
+  per-day view (bar = players that day, bright segment = returners), on a −6h day boundary so a US evening
+  session isn't split across UTC midnight into a false "return"; `anon` excluded. This is the signal to watch
+  for the campaign-mode go/no-go. A newer release zip (source tagging + rock fixes) was cut + handed over the
+  evening of Jul 26 — see §11. Aside (Jul 27): estimated ~70h total playtime over the first 4 days
+  (254 players / 500 runs; ~36s/turn measured), roughly on par with the ~7-day build effort.
+
+- **Rock-sprite cut/tune pipeline — `scripts/rock_cut.py` + `docs/rock-tuner.html` (Jul 26).** Split the old
+  all-in-one generator into: render (`gen_veined_rocks3.py`), CUT to a clean transparent sprite
+  (`rock_cut.py cut` → `assets/rock_candidates/`, colour left exactly as rendered), owner GRADES tone in the
+  hosted tuner, then `rock_cut.py finals` applies the handed-back JSON. The tuner's preview maths is mirrored
+  in `apply_settings()` and pinned by a browser-vs-python pixel-parity check (`scratchpad/check-tuner-parity.py`)
+  — alpha identical, visible RGB within 4/255; change both sides together. **Feathering fixes (the owner
+  called the edges "grainy/haloed" twice):** the grain was a `tone()` gamma+HSV pass that's now GONE (tone is
+  the owner's call in the tuner); the halo was LANCZOS ringing → switched to **BOX** area-average downscale,
+  **premultiply** before resize, and **erode ~1px past FLUX's dark rim**. Nine batch-3 candidates (A–I:
+  horseshoe, ring, X, S-curve, holed slab, starburst, stone-fingers, blade, wedge) were presented for
+  approve/discard — **awaiting owner pick** (see §11). FLUX lessons: describe geometry not letters/analogues
+  (else it draws typography or whole scenes), and negate warm colours or veins render orange.
 
 - **Level editor: rock-formation THEMES + filter, all game sprites placeable, and 8 new veined-rock candidates.**
   - **Themes live in `assets/manifest.json`** — each rockform entry carries a `theme`
@@ -3828,17 +3847,20 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 11. Backlog / next steps (not yet done)
 
-- **⚠ OWNER ACTION, GATES EVERYTHING ELSE: upload the itch zip.** A release-clean zip was **built and handed
-  to the owner on Jul 26** (22 MB, 175 files, `index.html` + `assets/` at the root; `config.dev.enabled` false,
-  `verify-nodev.mjs` 7/7, extracted and booted end to end — see §9). It is NOT live until the owner uploads it.
-  Everything below is sitting on Pages reaching **nobody** while itch serves the older zip (see §10):
-  - **Jul 25:** three perf fixes (substrate slice-blit, render-resolution cap, 30 fps idle pacing),
-    single-click card play, +10⚡/+10W starter buff, Magic Mushroom at 1200 Spores, hand-carousel entrance.
-  - **Jul 26:** the compounding threat curve, escalation taunts on the level intro, `START_LEVEL_SHIFT` = 2,
-    the repriced top three tiers (7 500 / 10 000 / 15 000), the monospace dark-red subtitle, and the tutorial
-    firing on every New.
-  Until the upload lands, the analytics before/after panel stays uninformative and the lag reports stay
-  unaddressed for the people who filed them. Zip recipe: `CLAUDE.md`.
+- **Itch upload status (Jul 26–27).** The owner **uploaded the midday-Jul-26 zip**, so the big gameplay work
+  IS now live to players: Jul 25's perf fixes + single-click play + starter buff + hand-carousel, and Jul 26's
+  compounding threat curve, escalation taunts, `START_LEVEL_SHIFT`=2, repriced top tiers (7 500/10 000/15 000),
+  and tutorial-on-every-New. That build predates source tagging, so its itch traffic logs as `legacy`.
+  - **⚠ PENDING OWNER ACTION: upload the NEWER zip** (cut the evening of Jul 26, handed over — ~25 MB,
+    `index.html` + `assets/` at root, `dev.enabled` false, both gates green). It adds **source tagging**
+    (itch traffic will finally tag `itch` instead of `legacy`), the rock edge fixes + 8 new veined rocks, and
+    the telemetry-disable fix. Not live until uploaded.
+  - The owner **ran `MIGRATE_SQL`** (the `source` column + policy now exist in Supabase — verified), so the
+    moment the newer zip is up, itch-vs-pages separation starts populating. Until then all events are `legacy`.
+- **PENDING: owner pick on 9 batch-3 veined-rock candidates** (A–I, `assets/rock_candidates/v3-*.png`, shown
+  via `scratchpad/cand3/b3-sheet.png`). Approved ones get wired in as `rockform23+`. The other three themes are
+  still thin (crystal 5 / ember 4 / fungal 3) and could get the same shape-variety treatment. Whether to invest
+  further hinges on the retention read (see §9) — campaign mode is where per-level single-theme rocks pay off.
 - **Retention: the level-1 first minute is the biggest leak** (from the analytics — see §9 + `analytics.html`).
   ~68% of new players are one-and-done and most bail *during* level 1 without ever dying, so death-carry can't
   reach them; Fairy Ring (the default first species) bleeds hardest. Highest-leverage next work = first-minute

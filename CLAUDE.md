@@ -12,18 +12,25 @@ Supabase leaderboard on). Release marketing/copy is owner-driven. To cut a fresh
 2. `node build.mjs`, then **both release gates**: `node scratchpad/verify-nodev.mjs` (nothing dev RENDERS) and
    `node scratchpad/boot-itchzip.mjs` (the extracted zip actually plays) — see CHECKPOINT §8.
 3. Zip **`dist/index.html` (as `index.html`) + `dist/assets/` at the ZIP ROOT** — exclude `artifact.html` and
-   the `*-editor.html` / `analytics.html` tools. ~22 MB. Upload as an HTML5 game (fullscreen ON,
+   the tool pages (`*-editor.html`, `analytics.html`, `rock-tuner.html`). Zipping only `index.html` + `assets/`
+   excludes them by construction. ~25 MB now (the 8 new veined rocks). Upload as an HTML5 game (fullscreen ON,
    mobile-friendly ON, 1280×720).
 
 > **⚠ ITCH IS WHERE THE PLAYERS ARE, AND IT ONLY UPDATES WHEN THE OWNER UPLOADS A ZIP.** Pushing to the dev
 > branch redeploys the Pages link above, which is a dev/preview URL almost nobody plays. Measured Jul 25:
 > ~50 min after a telemetry-bearing build went live on Pages, 6 players / 7 runs produced **0** events from
 > it — i.e. essentially all traffic was the older itch zip. So a fix is not "shipped" when it's pushed; it's
-> shipped when the zip goes up. Say so plainly rather than implying players have it, and remember the
-> analytics can't tell the two builds apart (no source field on `events`).
+> shipped when the zip goes up. Say so plainly rather than implying players have it.
 >
-> **Status:** a release-clean zip was built and handed over **Jul 26** (see CHECKPOINT §11) covering all the
-> Jul 25–26 work. Everything in it is unreleased until the owner uploads — check §11 before claiming otherwise.
+> **Events now carry a `source`** (`pages`/`itch`/`dev`, from `net_scores.js classifySource(location.hostname)`)
+> so builds ARE separable — but only once the source-bearing build is live. The itch zip the owner uploaded
+> **~midday Jul 26** predates that code, so its traffic is still untagged (`legacy`). The **later Jul 26**
+> release zip (source tagging + rock/edge fixes, handed over — see CHECKPOINT §11) is what tags `itch` once
+> uploaded. Until then, itch events stay `legacy`.
+>
+> **Status:** the owner uploaded the midday-Jul-26 build (difficulty curve + tutorial-on-New + escalation are
+> LIVE to players). A newer release zip (source tagging + rock fixes) is handed over but not yet uploaded —
+> check §11 before claiming what players have.
 
 ## Read these first (authoritative — don't re-derive)
 
@@ -100,9 +107,15 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   normal path, and reduced motion disables several of our animations outright.
 - **Playwright can't reach Supabase from here.** The dashboard shows `Failed to fetch`.
   Fetch rows with `curl --cacert /root/.ccr/ca-bundle.crt` over the shell proxy, then
-  `addInitScript` a `window.fetch` shim returning them (`scratchpad/check-dash.mjs`). To
-  test telemetry WITHOUT writing to production, shim the same endpoint to record the POST
-  bodies and return a fake 201.
+  `addInitScript` a `window.fetch` shim returning them (`scratchpad/check-dash.mjs`).
+  **To keep a test off production, set `globalThis.MYCELIUM_SUPABASE = {url:'', anonKey:''}`
+  — this now genuinely disables telemetry** (fixed Jul 26; `cfg()` honours an explicit empty
+  key, only a MISSING key falls back to the baked-in default). The OLD footgun — an empty url
+  silently reverting to the live endpoint — is gone, but it had already leaked test self-play
+  into `events` (a `perf` batch = `perf5.mjs`'s monitor-size sweep, not players). Pinned by
+  `test/telemetry.test.js`. Belt-and-braces: still shim `/rest/v1/` if you want to assert on
+  POST bodies. **PostgREST caps any GET at 1000 rows (`db-max-rows`)** regardless of `limit=` —
+  paginate with `offset`/`limit` (the dashboard does; so must any row dump).
 - **New `src/*.js` module → add it to the `build.mjs` file list** (the explicit array near the
   top) or it won't be bundled and the game breaks on the missing symbol.
 - **No aliased imports.** `build.mjs`'s import stripper doesn't handle `import { x as y }` — the
@@ -120,6 +133,18 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   prompt with no tiny animals works best. **Cheapest option: reuse an ARCHIVED card's art** (see `ARCHIVED`
   in `engine/cards.js`) for a new card — e.g. Perennial Decoy's face is a copy of the archived `leaf-litter-cache.jpg`
   (an archived card never renders, so no dup). Card art displays in a 3:2 `object-fit:cover` box.
+- **Rock-sprite pipeline (`scripts/rock_cut.py` + `docs/rock-tuner.html`):** `gen_veined_rocks3.py`
+  renders shapes (FLUX draws SCENES if you say "empty background" or name a letter/analogue — describe
+  geometry only, and negate `NO_WARM` or veins come back orange). `rock_cut.py cut` turns a raw render into a
+  clean transparent sprite → `assets/rock_candidates/`; the owner grades tone in the hosted **rock-tuner.html**
+  and hands back a settings JSON that `rock_cut.py finals` applies (the tuner's preview math is MIRRORED in
+  `apply_settings` and pinned by a pixel-parity check — change both together). **Cutout gotchas, all
+  hard-won:** downscale with **BOX (area-average), NOT LANCZOS** — LANCZOS's negative lobes fling the bright
+  vein colour past the silhouette as saturated speckle (the "bad feathering"); **premultiply alpha before the
+  resize** or the FLUX backdrop bleeds into every edge; **erode ~1px past the render's own dark rim** (FLUX
+  paints a dark outline; keeping it ships a dark halo — the shipped rockform1/5 have a BRIGHT rim instead);
+  key polarity per-image with **Otsu for the SIDE only** then threshold at the background level (Otsu itself
+  is too high and eats the rock). Batch-1's 8 approved options are live as `rockform15–22` (theme `veined`).
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,
