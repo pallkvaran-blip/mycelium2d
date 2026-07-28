@@ -160,7 +160,20 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   sheet**" draws a **3D pebble with a lit top and dark underside**, since asset-store rock icons are 3D renders;
   and a theme's glow detail must ride along with the SHAPE brief or it vanishes. Full round-by-round failure log
   is at the top of the script — read it before re-prompting. Options land in `assets/rock_options/big/<theme>/`;
-  `--sheet` rebuilds the review contact sheet with no renders.
+  `--sheet` rebuilds the review contact sheet with no renders. Everything is a **long list** — the owner keeps
+  every round, so renders are named `<theme><batch>-<shape>-<var><seed>.png` and are never overwritten
+  (an earlier version reused names per round and destroyed two rounds of work).
+- **Irregular SHAPES can't come from the prompt — they come from a control image.** Naming a country as the
+  subject makes FLUX draw a MAP (no theme colour, white ground, islands, map markers); demoting it to a clause
+  keeps the style and loses the shape. `scripts/rock_silhouette.py` renders a country's mainland from Natural
+  Earth 110m (**public domain**, re-fetch with the curl the script prints — it lives in gitignored
+  `scratchpad/`) and **`flux-canny-pro`** paints rock inside it. Hand canny a **FILLED** silhouette, not an
+  outline stroke: it runs its own edge detection, so a stroke is TWO edges and it paints a glowing line around
+  the rock. Also rejected: `flux-fill-pro` (continues the black context, paints almost nothing inside the
+  mask), `flux-depth-pro` (reads a flat silhouette as "a mass in the middle", paints a scene with a ground
+  plane), and drawing internal facet lines into the edge map (reproduced literally as flat black strokes).
+  **Canny takes no `image_prompt`, so shape control and the style reference are mutually exclusive** — pick
+  which one the batch needs.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,

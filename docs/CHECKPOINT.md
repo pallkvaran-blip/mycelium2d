@@ -570,6 +570,31 @@ Both menus are dark, on-theme, with glowing green borders.
   cloning composition, and fixed the perspective and the stone colour in one shot after three rounds of prose
   failed. Prompt order is SHAPE(+feature) → ISOLATION → STYLE → DENSE → refuse → LIGHT; refusals stay short
   and name no hue. Batch 1 (seed 5520) = slab/splinter/lump/bar/wedge/chunk, awaiting the owner's pick.
+  **Owner's steer after batch 1: keep EVERY round on the long list (they liked r2 best) and push the shapes
+  much further irregular — "maybe copy the rough shapes of some countries".** So looks are now frozen
+  reproducible VARIANTS (`var=r2`/`var=r4`), and — the bug worth remembering — renders are named
+  `<theme><batch>-<shape>-<var><seed>.png` because the first version reused filenames per round and
+  **overwrote R2's and R3's renders** (R1's four unique names survived; R2 is re-renderable from `var=r2`).
+  **Countries: prose cannot deliver shape and style together.** Naming the country as the SUBJECT
+  ("— the silhouette of NORWAY", batch 2) got the shapes and drew six MAPS: no slate, no glow, white grounds,
+  multi-island sets, red map markers. Demoting it to a clause about the rock's edge (batch 3) got the style
+  back and lost the shapes entirely, plus grey grounds and stock-illustration watermarks. So **the shape
+  stopped being a prompt and became a CONTROL IMAGE**: `scripts/rock_silhouette.py` renders a country's
+  mainland outline from Natural Earth 110m (**public domain**; islands dropped since a sprite is one object,
+  principal axis rotated horizontal for half-map width, outline subdivided + jittered so it reads as broken
+  rock not a cut gem) and `flux-canny-pro` paints inside it. That finally bound the silhouettes (batches 4–6:
+  Greece's peninsulas, Mongolia's lobes, Myanmar's tail). **Rejected alternatives:** `flux-fill-pro` continued
+  the black context inside the mask and painted almost nothing; `flux-depth-pro` read the flat silhouette as
+  "a mass somewhere in the middle" and painted a scene on a ground plane; internal chord lines added to the
+  edge map got reproduced literally as flat black strokes, killing the cel shading.
+  **Two live caveats.** (a) **Shape control XOR style reference** — canny-pro takes no `image_prompt`, so the
+  shape-bound batches give up the r4 style anchor. (b) A **glowing rim traced around the silhouette**: canny
+  runs its own edge detection, so an outline STROKE hands it two edges (one per side) and it paints a line —
+  batch 4 violet, batch 5 white, and thinning the stroke + guidance 18 only loosened the shape while keeping
+  the rim. A **FILLED** silhouette (batch 6) yields one boundary and fixed the backgrounds to pure black, but
+  the rim still appears on ~4 of 6, so it is currently a per-render lottery. Worth noting before "fixing" it:
+  the shipped rockform1/5 deliberately have a BRIGHT rim, so this may be on-style rather than a defect —
+  owner's call. Long list is 40 renders across 6 batches in `assets/rock_options/big/crystal/`.
 
 - **Fix: colony mat sprayed over empty (ant-eaten) ground — "food out of nowhere" (Jul 27, owner-diagnosed).**
   `network.js colonizeReachablePiles` decided "food here" via `cell.maxNutrient > 0`, but maxNutrient is the
