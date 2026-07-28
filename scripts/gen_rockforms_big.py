@@ -75,6 +75,7 @@ CA = "/root/.ccr/ca-bundle.crt"
 TOKEN = os.environ.get("REPLICATE_API_TOKEN", "").strip()
 MODEL = "black-forest-labs/flux-1.1-pro-ultra"
 CANNY = "black-forest-labs/flux-canny-pro"
+DEPTH = "black-forest-labs/flux-depth-pro"
 KEEP_LONG = 1600        # committed copy's long side: 2.5x the 640px finals, ~1/6 the bytes of raw
 REF_STRENGTH = 0.22     # style transfers, composition does not; >~0.4 clones the reference
 
@@ -93,6 +94,41 @@ R4_LEAD = ("FLAT 2D vector game art, hand-painted cel-shaded, solid flat areas o
            "at eye level, perfectly perpendicular with ZERO perspective: no top surface visible "
            "and no underside visible, the way rock is drawn in a 2D side-scrolling video game. "
            "Built of big flat angular facets. ")
+
+# `var=r6`: the owner's note after batch 6 — "they lack detail, I can't make these take up a big
+# chunk of a map, they'll look all zoomed in". Exactly right, and the cause was in my own style
+# block: FLAT2D says "LOW detail", inherited from the batch-1 prompt where it meant "not photoreal".
+# But facet DENSITY and photoreal texture are different axes, and that phrase was suppressing the
+# first to control the second. r6 asks for high density with explicit COUNTS and a hierarchy of
+# scales (big masses -> facets -> chips -> hairline cracks -> edge grain), keeps every anti-photoreal
+# term, and swaps the theme feature from two or three big cavities to eight or ten small ones —
+# a few huge portholes are half of why a sprite reads as a close-up.
+R6_LEAD = ("FLAT 2D vector game art, hand-painted cel-shaded, solid flat areas of colour separated "
+           "by hard-edged dark crack lines, crisp clean edges, matte. DENSELY detailed. NO 3D "
+           "rendering, NO smooth gradients, NO ambient occlusion, NO glossy specular highlights, NO "
+           "photoreal texture, NO grain, NO film noise. "
+           "A single large rock FORMATION drawn as a flat CROSS-SECTION seen dead-on from the SIDE "
+           "at eye level, perfectly perpendicular with ZERO perspective: no top surface visible "
+           "and no underside visible, the way rock is drawn in a 2D side-scrolling video game. ")
+DENSE_HI = ("FINE DENSE DETAIL AT SEVERAL SCALES AT ONCE: forty or fifty separate flat facets "
+            "across its width, each facet broken up again by smaller chips and hairline cracks, "
+            "with scattered flakes, small pits and a chipped pebbly texture along every edge. Each "
+            "individual facet is SMALL compared to the whole formation. Seen whole it must read as "
+            "a vast expanse of stone, NOT as a close-up of one small boulder")
+
+# `var=r7`: r6's density, run through flux-depth-pro instead of canny. Two findings behind it.
+# (a) CANNY IS A LINE TRACER — hand it facet lines and it draws flat outlines on flat fills
+# (stained glass, batch 8 test), hand it nothing and it fills with a few huge polygons (batch 7).
+# It can impose a silhouette but can NEVER add shaded detail, which is what the owner asked for.
+# depth-pro shades a height field instead of tracing edges, so a FACETED depth map
+# (rock_silhouette.depthmap) finally produced dense multi-scale facets. (b) The starfield: depth-pro
+# kept inventing a night sky, and the culprit was my own wording — "empty pure BLACK SPACE" reads as
+# OUTER space. Naming a plain flat BACKDROP instead fixed it outright. The trade: depth-pro only
+# GUIDES the silhouette where canny BINDS it, so shapes come back looser.
+ISO_BACKDROP = ("The formation sits alone against an absolutely PLAIN FLAT BLACK BACKDROP, hex "
+                "000000, an unlit empty background of solid black with nothing in it and nothing "
+                "behind the rock — no sky, no stars, no gradient, no glow, no scenery. Black "
+                "surrounds the whole formation on every side and below it too; it rests on nothing")
 
 VARIANTS = {
     # Reconstructed from the round-2 script state. Keeps failure 4 (the 3D-ish pebble look) on
@@ -115,6 +151,33 @@ VARIANTS = {
         light=("Evenly and ambiently lit from no particular direction, the same brightness all "
                "over, so it reads correctly turned any way up. Not isometric, not a 3D render, not "
                "a floating island"),
+    ),
+    # High facet density via depth control — the best detail so far.
+    "r7": dict(
+        lead=R6_LEAD, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=ISO_BACKDROP,
+        dense=DENSE_HI,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
+               "not a 3D render"),
+    ),
+    # High facet density, for sprites meant to be stretched over a big part of the map.
+    "r6": dict(
+        lead=R6_LEAD, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=("The formation floats alone in the middle of completely empty pure BLACK space, "
+                   "hex 000000, with empty black on every side of it and empty black directly "
+                   "underneath it too — it rests on nothing and touches nothing. Nothing else is "
+                   "in view, and there is a clear margin of black all the way around its outline"),
+        dense=DENSE_HI,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
+               "not a 3D render"),
     ),
     # The landed recipe: matches the shipped rockform1-14 and honours no-top-no-bottom.
     "r4": dict(
@@ -144,8 +207,13 @@ VARIANTS = {
 THEMES = {
     "crystal": dict(
         ref="rockform7",
-        feature=("with two or three ragged crystal cavities broken into its side, each seen edge-on "
-                 "and packed with a cluster of glowing violet and ice-blue crystal points"),
+        feature={
+            "*": ("with two or three ragged crystal cavities broken into its side, each seen "
+                  "edge-on and packed with a cluster of glowing violet and ice-blue crystal points"),
+            "r6": ("with EIGHT OR TEN SMALL crystal cavities of differing size scattered right "
+                   "across it, each a narrow ragged pocket seen edge-on and packed with tiny "
+                   "glowing violet and ice-blue crystal points, none of them large"),
+        },
         body={
             "r2": ("The stone is dark desaturated SLATE BLUE-GREY, almost navy, with paler "
                    "blue-grey facet faces. Broken open into the stone are AMETHYST GEODE cavities: "
@@ -300,6 +368,25 @@ BATCHES = {
     # reference, not both. Also tested and rejected: flux-fill-pro continued the black context
     # inside the mask and painted almost nothing; flux-depth-pro read the flat silhouette as "a
     # mass somewhere in the middle" and painted a scene on a ground plane.
+    # Batch 7: six new outlines, run with var=r6 for facet density. Chile is nearly a line once its
+    # principal axis is laid horizontal, which is exactly what a map-spanning rock wants; Japan's
+    # biggest ring is Honshu alone (a long curved arc), so the archipelago problem doesn't apply.
+    8: [
+        ("norway", "16:9", "Norway"),
+        ("greece", "3:2", "Greece"),
+        ("chile", "21:9", "Chile"),
+        ("italy", "16:9", "Italy"),
+        ("iceland", "4:3", "Iceland"),
+        ("vietnam", "16:9", "Vietnam"),
+    ],
+    7: [
+        ("italy", "16:9", "Italy"),
+        ("chile", "21:9", "Chile"),
+        ("sweden", "16:9", "Sweden"),
+        ("japan", "16:9", "Japan"),
+        ("india", "3:2", "India"),
+        ("ireland", "4:3", "Ireland"),
+    ],
     6: [
         ("norway", "16:9", "Norway"),
         ("croatia", "16:9", "Croatia"),
@@ -336,8 +423,9 @@ BATCHES = {
 # glowing violet rim and batch 5's white rim came from. A filled shape yields ONE boundary. Batch 5
 # also showed that thinning the stroke and lowering guidance to 18 only loosened the silhouette
 # while keeping the rim, so batch 6 goes back to default guidance.
-CANNY_BATCHES = {4, 5, 6}     # shape comes from a control image, not the text
-FILLED_CTL = {6}              # filled silhouette (one clean edge) rather than an outline stroke
+CANNY_BATCHES = {4, 5, 6, 7}  # shape comes from a control image, not the text
+FILLED_CTL = {6, 7}           # filled silhouette (one clean edge) rather than an outline stroke
+DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
 
 
@@ -395,6 +483,11 @@ CANNY_EDGE = ("Its outer edge is bare broken stone in exactly the same dark blue
               "along its rim")
 
 
+def create_depth(prompt, control_uri, seed):
+    return curl_post(DEPTH, {"prompt": prompt, "control_image": control_uri,
+                             "output_format": "png", "safety_tolerance": 6, "seed": seed})
+
+
 def create_canny(prompt, control_uri, seed, guidance=None):
     inp = {"prompt": prompt, "control_image": control_uri,
            "output_format": "png", "safety_tolerance": 6, "seed": seed}
@@ -416,14 +509,27 @@ CANNY_SUBJECT = ("A single massive formation of stone filling the drawn outline,
                  "cracks arranged to follow that outline's own irregular edges and points")
 
 
+def pick(val, var):
+    """Per-variant string, falling back to '*' then to r4's wording.
+
+    Themes key `body`/`refuse`/`feature` by variant where the wording differs. A new variant that
+    has no entry must inherit rather than KeyError, which is what adding r6 first did.
+    """
+    if not isinstance(val, dict):
+        return val
+    return val.get(var) or val.get("*") or val["r4"]
+
+
 def build_prompt(theme, batch, shape, var):
     v = VARIANTS[var]
     th = THEMES[theme]
-    body = th["body"].get(var) or th["body"]["*"]
-    refuse = th["refuse"].get(var) or th["refuse"]["*"]
-    if batch in CANNY_BATCHES:
+    body = pick(th["body"], var)
+    refuse = pick(th["refuse"], var)
+    if batch in DEPTH_BATCHES:
+        shape = CANNY_SUBJECT
+    elif batch in CANNY_BATCHES:
         shape = CANNY_SUBJECT if batch == 4 else CANNY_SUBJECT + ". " + CANNY_EDGE
-    shape_full = f"{shape}, {th['feature']}" if v["feature"] else shape
+    shape_full = f"{shape}, {pick(th['feature'], var)}" if v["feature"] else shape
     parts = [shape_full]
     if batch in COUNTRY_BATCHES:
         parts.append(NOT_A_MAP)
@@ -495,18 +601,20 @@ def main():
     briefs = [b for b in BATCHES[batch] if not only or b[0] in only]
     # Default seeds are per (batch, variant) so a re-run of the same command is idempotent and a
     # deliberate re-roll just needs seed=.
-    seed = int(seed_arg.split("=")[1]) if seed_arg else {"r2": 7710, "r4": 5520}.get(var, 2255) + batch - 1
+    seed = (int(seed_arg.split("=")[1]) if seed_arg
+            else {"r2": 7710, "r4": 5520, "r6": 6100, "r7": 6400}.get(var, 2255) + batch - 1)
     rawdir = ROOT / "scratchpad" / f"big_raw_{theme}{batch}_{var}{seed}"
     rawdir.mkdir(parents=True, exist_ok=True)
     if not TOKEN:
         log("no REPLICATE_API_TOKEN"); sys.exit(1)
 
     v = VARIANTS[var]
-    canny = batch in CANNY_BATCHES
+    canny = batch in CANNY_BATCHES or batch in DEPTH_BATCHES
     refkey = None if canny else (ref_arg.split("=")[1] if ref_arg
                                  else (THEMES[theme]["ref"] if v["ref"] else None))
     ref = None if refkey in (None, "off") else ref_datauri(refkey)
-    log(f"{theme} batch {batch}  {'canny' if canny else 'ultra'}  var={var}  seed={seed}  "
+    mode = "depth" if batch in DEPTH_BATCHES else "canny" if canny else "ultra"
+    log(f"{theme} batch {batch}  {mode}  var={var}  seed={seed}  "
         f"ref={refkey or 'none'}{f' @ {REF_STRENGTH}' if ref else ''}")
 
     jobs = []
@@ -515,15 +623,16 @@ def main():
         (rawdir / f"{name}.txt").write_text(prompt)
         if canny:
             # `shape` is a country name here; the outline IS the shape instruction.
-            from rock_silhouette import edgemap, silhouette
-            em = (silhouette(shape, aspect, blur=0) if batch in FILLED_CTL
+            from rock_silhouette import edgemap, silhouette, depthmap
+            em = (depthmap(shape, aspect, seed=seed) if batch in DEPTH_BATCHES
+                  else silhouette(shape, aspect, blur=0) if batch in FILLED_CTL
                   else edgemap(shape, aspect, seed=seed, width=2 if batch == 5 else 5))
             ctl = rawdir / f"{name}-ctl.png"
             em.save(ctl)
             buf = io.BytesIO(); em.convert("RGB").save(buf, format="PNG")
-            d = create_canny(prompt, "data:image/png;base64," +
-                             base64.b64encode(buf.getvalue()).decode(), seed,
-                             guidance=18 if batch == 5 else None)
+            uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+            d = (create_depth(prompt, uri, seed) if batch in DEPTH_BATCHES
+                 else create_canny(prompt, uri, seed, guidance=18 if batch == 5 else None))
         else:
             d = create(prompt, aspect, seed, ref)
         url = (d.get("urls") or {}).get("get")
@@ -554,7 +663,7 @@ def main():
         s = KEEP_LONG / max(im.size)
         keep = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS) if s < 1 else im
         # theme + batch + shape + VARIANT + SEED: nothing on the long list can ever be overwritten
-        tag = "cny" if batch in CANNY_BATCHES else var
+        tag = "dep" if batch in DEPTH_BATCHES else "cny" if batch in CANNY_BATCHES else var
         keep.save(outdir / f"{theme}{batch}-{name}-{tag}{seed}.png")
         log(f"{name}: {im.size} -> kept {keep.size}")
         done += 1

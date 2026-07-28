@@ -174,6 +174,15 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   plane), and drawing internal facet lines into the edge map (reproduced literally as flat black strokes).
   **Canny takes no `image_prompt`, so shape control and the style reference are mutually exclusive** — pick
   which one the batch needs.
+- **For DETAIL (a rock big enough to span half a map), canny is the wrong tool — it's a line tracer.** Facet
+  lines come back as flat outlines on flat fills; a plain silhouette comes back as a few huge polygons. Use
+  **`flux-depth-pro` with a FACETED depth map** (`rock_silhouette.depthmap` — fracture mosaic, each facet its
+  own grey, blurred): it shades a height field instead of tracing edges. A FLAT depth blob fails (no internal
+  structure → invented scene). Two prompt traps here: **"LOW detail"** in the style block (inherited from batch
+  1, where it meant "not photoreal") suppresses facet density — density and photoreal texture are different
+  axes; and **"empty pure BLACK SPACE" makes depth-pro paint a STARFIELD** — say a plain flat *backdrop*. Trade:
+  canny BINDS the silhouette but caps detail, depth GUIDES it and drifts into cave scenes on ~half the renders.
+  Both cap output near **1 MP** vs ultra's 4 MP.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,

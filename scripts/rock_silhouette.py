@@ -142,6 +142,154 @@ def edgemap(name, aspect="16:9", rough=True, width=5, seed=11, invert_axis=False
     return im
 
 
+def _clip_halfplane(poly, nx, ny, c, keep_pos):
+    """Sutherland-Hodgman clip of a convex polygon by the line nx*x + ny*y = c."""
+    out = []
+    n = len(poly)
+    for i in range(n):
+        ax, ay = poly[i]
+        bx, by = poly[(i + 1) % n]
+        da = nx * ax + ny * ay - c
+        db = nx * bx + ny * by - c
+        ina = (da >= 0) if keep_pos else (da <= 0)
+        inb = (db >= 0) if keep_pos else (db <= 0)
+        if ina:
+            out.append((ax, ay))
+        if ina != inb:
+            t = da / (da - db) if da != db else 0.0
+            out.append((ax + (bx - ax) * t, ay + (by - ay) * t))
+    return out
+
+
+def _shatter(poly, depth, rnd):
+    """Recursively split a convex polygon with straight cuts — a faceted stone mosaic."""
+    if depth <= 0 or len(poly) < 3:
+        return [poly]
+    th = rnd.uniform(0, math.pi)
+    nx, ny = math.cos(th), math.sin(th)
+    ds = [nx * x + ny * y for x, y in poly]
+    lo, hi = min(ds), max(ds)
+    if hi - lo < 1e-6:
+        return [poly]
+    c = lo + (hi - lo) * rnd.uniform(0.35, 0.65)        # cut near the middle, jittered
+    a = _clip_halfplane(poly, nx, ny, c, True)
+    b = _clip_halfplane(poly, nx, ny, c, False)
+    out = []
+    for half in (a, b):
+        if len(half) >= 3:
+            out += _shatter(half, depth - 1, rnd)
+    return out
+
+
+def facetmap(name, aspect="16:9", depth=5, extra=2, seed=11, invert_axis=False, rough=True):
+    """Filled silhouette WITH an internal crack network — the control image that actually works.
+
+    A plain filled silhouette hands canny one big region with no internal edges, so the model
+    fills it with a few huge flat polygons; scaled up to span half a map that reads as a close-up
+    of a small rock, which is exactly the note we got. This paints the mass white and lays a
+    recursive fracture mosaic over it in black, so canny sees a silhouette AND facet boundaries at
+    the density we want. `extra` re-splits a random half of the facets so the detail is
+    multi-scale (big masses -> facets -> chips) rather than uniform.
+
+    Not to be confused with the earlier failed attempt, which drew a dozen long straight WHITE
+    chords on black with no fill: too few, too long and too uniform, so the model drew them as
+    literal flat strokes instead of reading them as cracks.
+    """
+    import random
+    rnd = random.Random(seed)
+    poly, (W, H) = ring_px(name, aspect, invert_axis)
+    if rough:
+        poly = roughen(poly, seed=seed)
+    im = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(im)
+    d.polygon(poly, fill=255)
+    # Mosaic over the whole frame, then keep only the parts that fall on the rock.
+    pad = 8
+    rect = [(pad, pad), (W - pad, pad), (W - pad, H - pad), (pad, H - pad)]
+    facets = _shatter(rect, depth, rnd)
+    facets += [f for fc in facets if rnd.random() < 0.5 for f in _shatter(fc, extra, rnd)]
+    inside = _point_tester(poly)
+    for f in facets:
+        n = len(f)
+        for i in range(n):
+            ax, ay = f[i]
+            bx, by = f[(i + 1) % n]
+            # draw only the stretch of this facet edge that lies on the rock
+            run = []
+            steps = max(2, int(math.hypot(bx - ax, by - ay) / 10))
+            for k in range(steps + 1):
+                t = k / steps
+                p = (ax + (bx - ax) * t, ay + (by - ay) * t)
+                if inside(p):
+                    run.append(p)
+                else:
+                    if len(run) > 1:
+                        d.line(run, fill=0, width=2)
+                    run = []
+            if len(run) > 1:
+                d.line(run, fill=0, width=2)
+    return im
+
+
+def depthmap(name, aspect="16:9", depth=5, extra=2, seed=11, invert_axis=False, rough=True):
+    """Silhouette as a FACETED HEIGHT FIELD — for flux-depth-pro.
+
+    canny turned out to be a pure line tracer: hand it facet lines and it draws flat outlines on
+    flat fills (stained glass), so it can impose a silhouette but can never add shaded detail.
+    depth-pro reads depth instead of edges, and the reason it failed earlier was that I gave it a
+    FLAT white blob with no internal structure, so it treated the shape as "a mass somewhere in the
+    middle" and invented a scene. Filling each facet of the fracture mosaic with its own grey gives
+    it real internal form to shade, with no lines to trace.
+
+    Brighter = nearer. Background stays 0 so the surround reads as far away and empty.
+    """
+    import random
+    rnd = random.Random(seed)
+    poly, (W, H) = ring_px(name, aspect, invert_axis)
+    if rough:
+        poly = roughen(poly, seed=seed)
+    im = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(im)
+    d.polygon(poly, fill=190)
+    pad = 8
+    rect = [(pad, pad), (W - pad, pad), (W - pad, H - pad), (pad, H - pad)]
+    facets = _shatter(rect, depth, rnd)
+    facets += [f for fc in facets if rnd.random() < 0.5 for f in _shatter(fc, extra, rnd)]
+    inside = _point_tester(poly)
+    mask = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(mask).polygon(poly, fill=255)
+    layer = Image.new("L", (W, H), 190)
+    dl = ImageDraw.Draw(layer)
+    for f in facets:
+        if len(f) < 3:
+            continue
+        cx = sum(p[0] for p in f) / len(f); cy = sum(p[1] for p in f) / len(f)
+        if not inside((cx, cy)):
+            continue
+        dl.polygon(f, fill=rnd.randint(140, 235))      # each facet its own height
+    layer = layer.filter(ImageFilter.GaussianBlur(3))  # soften so it shades rather than posterises
+    im.paste(layer, (0, 0), mask)
+    return im
+
+
+def _point_tester(poly):
+    """Even-odd point-in-polygon test, closed over the ring."""
+    n = len(poly)
+
+    def inside(pt):
+        x, y = pt
+        c = False
+        j = n - 1
+        for i in range(n):
+            xi, yi = poly[i]
+            xj, yj = poly[j]
+            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi):
+                c = not c
+            j = i
+        return c
+    return inside
+
+
 if __name__ == "__main__":
     name = sys.argv[1]
     aspect = sys.argv[2] if len(sys.argv) > 2 else "16:9"

@@ -594,7 +594,30 @@ Both menus are dark, on-theme, with glowing green borders.
   the rim. A **FILLED** silhouette (batch 6) yields one boundary and fixed the backgrounds to pure black, but
   the rim still appears on ~4 of 6, so it is currently a per-render lottery. Worth noting before "fixing" it:
   the shipped rockform1/5 deliberately have a BRIGHT rim, so this may be on-style rather than a defect —
-  owner's call. Long list is 40 renders across 6 batches in `assets/rock_options/big/crystal/`.
+  owner's call.
+  **Owner's next note: "they lack detail — I can't make these take up a big chunk of a map, they'll look all
+  zoomed in."** Correct, and the cause was in my own style block: `FLAT2D` said **"LOW detail"**, inherited from
+  batch 1 where it meant "not photoreal". Facet DENSITY and photoreal texture are different axes, and that
+  phrase was suppressing the first to control the second. `var=r6` drops it, asks for density with explicit
+  counts and a hierarchy of scales, and swaps the crystal feature from 2–3 big cavities to 8–10 small ones (a
+  few huge portholes are half of why a sprite reads as a close-up).
+  **That alone wasn't enough, and the reason is structural: `flux-canny-pro` IS A LINE TRACER.** Hand it a
+  facet mosaic and it draws flat outlines on flat fills (stained glass); hand it a plain filled silhouette and
+  it fills with a few huge polygons. It can impose a silhouette but **can never add shaded detail**.
+  **`flux-depth-pro` + a FACETED depth map is what works** (`rock_silhouette.depthmap`: recursive
+  half-plane-clip fracture mosaic, each facet its own grey, blurred so it shades rather than posterises).
+  It shades a height field instead of tracing edges, and finally produced the dense multi-scale facets a
+  map-spanning sprite needs. Two fixes made it usable: the earlier depth failure was feeding it a FLAT blob
+  (no internal structure → "a mass somewhere in the middle" → invented scene), and the night-sky background it
+  kept adding traced to my own wording — **"empty pure BLACK SPACE" reads as OUTER space**; naming a plain flat
+  BACKDROP (`ISO_BACKDROP`) killed the starfield outright.
+  **Live trade-off to pick from, not yet resolved:** canny BINDS the silhouette but caps detail; depth GUIDES
+  it (looser shapes) and wanders into cave scenes on roughly half the renders (batch 8: italy/iceland/norway
+  good, chile/greece/vietnam became cave mouths). Getting exact shape AND dense detail in one call is not
+  possible with these models — it needs two passes, i.e. compositing, which is deferred until the cut pass.
+  Also note **canny/depth-pro cap output near 1 MP** (~1344×768) where ultra gives 4 MP, so the shape-bound
+  batches are lower-res; upscaling is a finishing-pass question.
+  Long list is **52 renders across 8 batches** in `assets/rock_options/big/crystal/` (~44 MB).
 
 - **Fix: colony mat sprayed over empty (ant-eaten) ground — "food out of nowhere" (Jul 27, owner-diagnosed).**
   `network.js colonizeReachablePiles` decided "food here" via `cell.maxNutrient > 0`, but maxNutrient is the
