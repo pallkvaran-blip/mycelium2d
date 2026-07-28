@@ -148,6 +148,19 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   REMOVED (Jul 27)** — they shipped with the bad feathering and were never re-cut through the fixed pipeline,
   so the owner pulled them. The game is back to `rockform1–14`. The toned source art is kept in
   `assets/rock_options/toned/` — re-cut with `rock_cut.py` + grade in the tuner before re-adding as `rockform15+`.
+- **Rendering NEW rockforms → `scripts/gen_rockforms_big.py <theme> <batch>`** (renders only; cutting is a
+  separate batch pass at the end). **Use `image_prompt`, not prose** — `flux-1.1-pro-ultra` takes a style
+  reference, and a shipped rockform **flattened onto BLACK** (alpha otherwise composites to white and teaches
+  a white background) at strength **~0.22** transfers the look without cloning composition. That single input
+  fixed the perspective and stone colour after three rounds of prompt surgery failed. **FLUX has no true
+  negative prompt:** a "NO lava, NO magma, NO fire" list returned six orange lava rocks, and a long "no ground,
+  no soil line, no base" list returned six ground planes — refuse in ONE short clause that names none of the
+  words, and state constraints POSITIVELY. Also: landscape nouns (massif/reef/ridge/spine) and the word
+  "immense" at 21:9 draw a LANDSCAPE (use object nouns, cap at 16:9); "cut-out sprite from a 2D game's **asset
+  sheet**" draws a **3D pebble with a lit top and dark underside**, since asset-store rock icons are 3D renders;
+  and a theme's glow detail must ride along with the SHAPE brief or it vanishes. Full round-by-round failure log
+  is at the top of the script — read it before re-prompting. Options land in `assets/rock_options/big/<theme>/`;
+  `--sheet` rebuilds the review contact sheet with no renders.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,

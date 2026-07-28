@@ -545,6 +545,32 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **New BIG rockform art run — `scripts/gen_rockforms_big.py`, crystal batch 1 (Jul 28, IN PROGRESS).**
+  Owner's brief: many more rockform sprites, **mostly large** ("lay over up to half of the map"), irregular
+  silhouettes, on-theme, matching the shipped `rockform1–14` side-on platformer look, and **no top and no
+  bottom** (they sit inside soil in cross-section and the editor rotates them freely). Renders **only** —
+  nothing is cut or feathered, that's one batch pass through `rock_cut.py` once ~60 are picked. Six options
+  per batch; raws land in `assets/rock_options/big/<theme>/`, review sheet via `--sheet` (regenerable, and
+  `scratchpad/` is gitignored so the sheet itself is never committed). Themes carry their own STYLE + glow
+  `feature` + `ref`, transcribed from the shipped sprites: crystal←rockform7, ember←rockform2,
+  fungal←rockform11, veined←rockform1.
+  **Four rounds to land the look, and the failures are the useful part** (all documented at the top of the
+  script): (1) a twelve-item `NO lava/magma/molten/fire` refusal produced **six orange lava rocks** — FLUX has
+  no true negative prompt, so a refusal list feeds those tokens to the same encoder; (2) the long "no ground,
+  no soil line, no base…" clause produced **ground planes on all six**, same reason; (3) landscape NOUNS
+  (massif/reef/ridge/spine) at 21:9 produced **landscapes, not sprites** — object nouns only, aspect capped at
+  16:9, and never the word "immense"; (4) "a cut-out sprite from a 2D game's **asset sheet**" produced
+  **3D-rendered pebbles with a lit top and dark underside** (the top/bottom failure itself), because asset-store
+  rock icons are 3D renders; (5) burying the geodes in the style block lost them entirely — the glow feature has
+  to ride along with the SHAPE brief; (6) naming violet/purple in the "cool scheme throughout" clause turned the
+  whole **stone lavender**.
+  **The fix that actually mattered: `image_prompt`.** `flux-1.1-pro-ultra` takes a style reference, and the
+  brief is literally "match our current ones" — a shipped rockform (flattened onto BLACK, else alpha
+  composites to white and teaches a white background) at `REF_STRENGTH = 0.22` transfers the style without
+  cloning composition, and fixed the perspective and the stone colour in one shot after three rounds of prose
+  failed. Prompt order is SHAPE(+feature) → ISOLATION → STYLE → DENSE → refuse → LIGHT; refusals stay short
+  and name no hue. Batch 1 (seed 5520) = slab/splinter/lump/bar/wedge/chunk, awaiting the owner's pick.
+
 - **Fix: colony mat sprayed over empty (ant-eaten) ground — "food out of nowhere" (Jul 27, owner-diagnosed).**
   `network.js colonizeReachablePiles` decided "food here" via `cell.maxNutrient > 0`, but maxNutrient is the
   pile's CAPACITY/footprint and survives an ant (or the player) draining the live `nutrient` to 0. The leaf
