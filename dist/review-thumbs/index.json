@@ -1,8 +1,20 @@
 {
  "groups": [
   {
+   "id": "fungal-b12",
+   "label": "Fungal \u2014 batch 12 (NEW: bracket fungi)",
+   "note": "noun swap to fix the top-down view \u2014 did NOT work, vote anyway",
+   "count": 6
+  },
+  {
+   "id": "fungal-b11",
+   "label": "Fungal \u2014 batch 11 (NEW: first fungal round)",
+   "note": "colour landed; came back as top-down plateaus",
+   "count": 6
+  },
+  {
    "id": "crystal-b10",
-   "label": "Crystal \u2014 batch 10 (NEW: continents + island clusters)",
+   "label": "Crystal \u2014 batch 10 (continents + island clusters)",
    "note": "whole continents and archipelagos \u2014 does more coastline buy more detail?",
    "count": 6
   },
@@ -44,6 +56,138 @@
   }
  ],
  "items": [
+  {
+   "id": "fungal-b12/fungal12-chile-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-chile-cny7412",
+   "file": "fungal-b12-fungal12-chile-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-chile-cny7412.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b12/fungal12-india-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-india-cny7412",
+   "file": "fungal-b12-fungal12-india-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-india-cny7412.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b12/fungal12-japan-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-japan-cny7412",
+   "file": "fungal-b12-fungal12-japan-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-japan-cny7412.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b12/fungal12-mongolia-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-mongolia-cny7412",
+   "file": "fungal-b12-fungal12-mongolia-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-mongolia-cny7412.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b12/fungal12-myanmar-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-myanmar-cny7412",
+   "file": "fungal-b12-fungal12-myanmar-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-myanmar-cny7412.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b12/fungal12-sweden-cny7412",
+   "group": "fungal-b12",
+   "label": "fungal12-sweden-cny7412",
+   "file": "fungal-b12-fungal12-sweden-cny7412.jpg",
+   "src": "assets/rock_options/big/fungal/fungal12-sweden-cny7412.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-chile-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-chile-cny7311",
+   "file": "fungal-b11-fungal11-chile-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-chile-cny7311.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-india-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-india-cny7311",
+   "file": "fungal-b11-fungal11-india-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-india-cny7311.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-japan-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-japan-cny7311",
+   "file": "fungal-b11-fungal11-japan-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-japan-cny7311.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-mongolia-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-mongolia-cny7311",
+   "file": "fungal-b11-fungal11-mongolia-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-mongolia-cny7311.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-myanmar-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-myanmar-cny7311",
+   "file": "fungal-b11-fungal11-myanmar-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-myanmar-cny7311.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b11/fungal11-sweden-cny7311",
+   "group": "fungal-b11",
+   "label": "fungal11-sweden-cny7311",
+   "file": "fungal-b11-fungal11-sweden-cny7311.jpg",
+   "src": "assets/rock_options/big/fungal/fungal11-sweden-cny7311.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "crystal-b10/crystal10-africa-cny6210",
    "group": "crystal-b10",

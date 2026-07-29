@@ -28,7 +28,13 @@ def sets():
     # density-push run (var=r8) on the six silhouettes the owner kept; both seeds are included
     # because the first (cny2263) crazed the backdrop and the second (cny5527) fixed it, and the
     # per-image density difference between them is seed noise worth judging by eye.
-    yield ("crystal-b10", "Crystal — batch 10 (NEW: continents + island clusters)",
+    yield ("fungal-b12", "Fungal — batch 12 (NEW: bracket fungi)",
+           "noun swap to fix the top-down view — did NOT work, vote anyway",
+           sorted((OPT / "big" / "fungal").glob("fungal12-*.png")))
+    yield ("fungal-b11", "Fungal — batch 11 (NEW: first fungal round)",
+           "colour landed; came back as top-down plateaus",
+           sorted((OPT / "big" / "fungal").glob("fungal11-*.png")))
+    yield ("crystal-b10", "Crystal — batch 10 (continents + island clusters)",
            "whole continents and archipelagos — does more coastline buy more detail?",
            sorted((OPT / "big" / "crystal").glob("crystal10-*.png")))
     yield ("crystal-b9", "Crystal — batch 9 (density push)", "9 of 12 kept — the current best recipe",

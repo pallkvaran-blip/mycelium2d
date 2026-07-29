@@ -215,6 +215,27 @@ VARIANTS = {
                "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
                "not a 3D render"),
     ),
+    # `var=r9`: r8's density verbatim (it is proven — 9/12 kept on crystal), existing only so a
+    # theme whose FEATURE carries an intrinsic direction can be re-worded without overwriting r8
+    # and losing batch 11's reproducibility. Fungal batch 11 came back as six top-down plateaus
+    # with mushrooms growing out of the upper surface — the sprite gained the top the whole brief
+    # forbids. The noun was the cause: a mushroom grows UP, so it drags a horizontal ground plane in
+    # with it, and my own guard ("from its sides and its underside just as much as from its top")
+    # made it worse by naming the top at all. See the fungal r9 entry for the fix.
+    "r9": dict(
+        lead=R6_LEAD, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=("The formation floats alone in the middle of completely empty pure BLACK space, "
+                   "hex 000000, with empty black on every side of it and empty black directly "
+                   "underneath it too — it rests on nothing and touches nothing. Nothing else is "
+                   "in view, and there is a clear margin of black all the way around its outline"),
+        dense=DENSE_R8,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
+               "not a 3D render"),
+    ),
     "r6": dict(
         lead=R6_LEAD, ref=True, feature=True,
         tail=("Bioluminescent deep-underground feel, cool and dim. "
@@ -301,13 +322,58 @@ THEMES = {
                     "the rock. ")},
         refuse={"*": "Strictly a WARM, dim palette. No cool hues anywhere in the image"},
     ),
+    # Fungal r8 carries over the two things that made crystal work, plus one risk unique to this
+    # theme. (a) MANY SMALL features rather than a few big ones — a few large clumps is half of why
+    # a sprite reads as a close-up. (b) The glow is CONFINED and the stone is restated as dark, the
+    # clause that stopped crystal's whole body going lavender; without it the rock turns green.
+    # (c) The new risk: mushrooms have an intrinsic UP, so FLUX will grow them all along the top
+    # edge and hand the sprite a top — which breaks the no-top-no-bottom rule the editor depends
+    # on. So the feature says outright that they sprout from every side, underside included.
     "fungal": dict(
         ref="rockform11",
-        feature="with clumps of small glowing mint-green mushrooms sprouting from it in several places",
+        feature={
+            "*": "with clumps of small glowing mint-green mushrooms sprouting from it in several places",
+            "r8": ("with FIFTEEN OR TWENTY SMALL clumps of glowing mint-green mushrooms scattered "
+                   "right across the whole formation, each clump just a few tiny caps on thin "
+                   "stalks and none of them large, sprouting outward in every direction — from its "
+                   "sides and from its underside just as much as from its top, so that no one side "
+                   "of the formation reads as the upward side"),
+            # r9 fix: swap the NOUN, don't argue with it. A mushroom on a stalk grows UP, so it
+            # brings a horizontal ground plane with it and the render becomes a top-down plateau
+            # with fungus on the upper surface (all six of batch 11). A BRACKET / SHELF FUNGUS grows
+            # straight out SIDEWAYS from a vertical face — the orientation a cross-section actually
+            # wants — so the same theme now argues FOR the view instead of against it. The words
+            # top, up and underside are gone entirely: naming them is what summoned the plane.
+            "r9": ("with FIFTEEN OR TWENTY SMALL glowing mint-green BRACKET FUNGI growing straight "
+                   "out SIDEWAYS from the stone, scattered right across the whole formation and "
+                   "jutting horizontally from its vertical faces and out of its cracks like thin "
+                   "shelves and fans — flat wedge-shaped brackets with no stalks, none of them "
+                   "large, each one edge-on to the viewer and casting a small pool of green light "
+                   "on the rock behind it"),
+        },
         body={"*": ("The stone is very dark desaturated TEAL-GREY. Clusters of small glowing "
                     "MINT-GREEN and pale CYAN mushrooms with rounded caps and thin stalks sprout "
                     "from it in clumps of differing size, with irregular patches of glowing green "
-                    "moss and lichen and a scatter of tiny cyan spore specks. ")},
+                    "moss and lichen and a scatter of tiny cyan spore specks. "),
+                "r8": ("The stone is DARK desaturated charcoal TEAL-GREY, dim and almost black, "
+                       "with slightly paler cool grey facet faces. Growing out of its cracks and "
+                       "ledges are small clusters of glowing MINT-GREEN and pale ICE-CYAN "
+                       "mushrooms, rounded caps on thin stalks seen EDGE-ON from the side, each "
+                       "clump spilling a little green light onto the stone immediately around it. "
+                       "Irregular patches of glowing green moss sit in the crevices and a few tiny "
+                       "cyan spore specks drift beside them. The stone itself STAYS DARK TEAL-GREY "
+                       "throughout — the green colour appears ONLY in the mushroom clumps, the moss "
+                       "patches and the small pool of light each one casts; the body of the rock is "
+                       "never green or lime. "),
+                "r9": ("The stone is DARK desaturated charcoal TEAL-GREY, dim and almost black, "
+                       "with slightly paler cool grey facet faces. Thin glowing MINT-GREEN and pale "
+                       "ICE-CYAN BRACKET FUNGI grow out of its cracks — flat fan-shaped shelves "
+                       "seen EDGE-ON, standing out sideways from the rock face — each spilling a "
+                       "little green light onto the stone right behind it. Irregular patches of "
+                       "glowing green lichen cling in the crevices and a few tiny cyan spore specks "
+                       "drift beside them. The stone itself STAYS DARK TEAL-GREY throughout — the "
+                       "green colour appears ONLY in the brackets, the lichen patches and the small "
+                       "pool of light each one casts; the body of the rock is never green or lime. ")},
         refuse={"*": "Strictly a COOL, dim, desaturated palette. No warm hues anywhere in the image"},
     ),
     "veined": dict(
@@ -450,6 +516,33 @@ BATCHES = {
     # known-good, which takes shape out of the variables. Chile ("this is more like it") and
     # Mongolia are the wide map-spanning ones; Japan/Sweden are long arcs; Myanmar has the pinched
     # tail; India is the compact ragged one. Aspects match wherever the outline was rendered before.
+    # Batch 11 = the FUNGAL theme, first outing on the settled recipe. Batch 10 (continents) was a
+    # poor round — the owner dropped it and abandoned the rest of the set — so crystal stops at its
+    # 24 keeps and batch 9's recipe is treated as final: var=r8, canny, edgemap control, and THESE
+    # SIX SILHOUETTES, which are exactly the ones the owner kept from batch 9. Holding the shapes
+    # fixed makes the theme the only new variable, the same discipline that isolated the density
+    # win. Fungal before ember: it is the thinnest theme in the game (3 sprites) and it is a cool
+    # dim palette like crystal, so the proven wording transfers; ember carries the batch-1 lava
+    # prior ("six orange lava rocks") and earns its own round rather than riding along in this one.
+    # Batch 12 = fungal again with var=r9: the bracket-fungus noun instead of mushrooms, same six
+    # silhouettes, everything else identical to batch 11. A clean read on whether swapping the noun
+    # fixes the top-down plateau, which is the only thing that went wrong in batch 11.
+    12: [
+        ("japan", "16:9", "Japan"),
+        ("mongolia", "21:9", "Mongolia"),
+        ("chile", "21:9", "Chile"),
+        ("india", "3:2", "India"),
+        ("sweden", "16:9", "Sweden"),
+        ("myanmar", "3:2", "Myanmar"),
+    ],
+    11: [
+        ("japan", "16:9", "Japan"),
+        ("mongolia", "21:9", "Mongolia"),
+        ("chile", "21:9", "Chile"),
+        ("india", "3:2", "India"),
+        ("sweden", "16:9", "Sweden"),
+        ("myanmar", "3:2", "Myanmar"),
+    ],
     # Batch 10 = whole CONTINENTS and ISLAND CLUSTERS, on the owner's hypothesis that more
     # coastline buys more detail. Same var=r8 and the same edgemap control as batch 9 (which kept
     # 9/12), so the shape family is the only new variable. rock_silhouette grew two spec prefixes
@@ -512,7 +605,7 @@ BATCHES = {
 # glowing violet rim and batch 5's white rim came from. A filled shape yields ONE boundary. Batch 5
 # also showed that thinning the stroke and lowering guidance to 18 only loosened the silhouette
 # while keeping the rim, so batch 6 goes back to default guidance.
-CANNY_BATCHES = {4, 5, 6, 7, 9, 10}  # shape comes from a control image, not the text
+CANNY_BATCHES = {4, 5, 6, 7, 9, 10, 11, 12}  # shape comes from a control image, not the text
 FILLED_CTL = {6, 7}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
