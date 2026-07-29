@@ -1,0 +1,21 @@
+{
+  "note": "The owner's KEEPS from docs/rock-review.html, pasted verbatim from the tool's export. This is the input to scripts/build_rock_shortlist.py — edit it (or paste a newer export over it) and re-run to rebuild the shortlist viewer.",
+  "updated": "2026-07-29",
+  "keep": [
+    { "id": "ember-b20/ember20-chain-r112274", "src": "assets/rock_options/big/ember/ember20-chain-r112274.png" },
+    { "id": "ember-b20/ember20-comb-r112274", "src": "assets/rock_options/big/ember/ember20-comb-r112274.png" },
+    { "id": "ember-b20/ember20-crescent-r112274", "src": "assets/rock_options/big/ember/ember20-crescent-r112274.png" },
+    { "id": "ember-b19/ember19-bulge-r118316", "src": "assets/rock_options/big/ember/ember19-bulge-r118316.png" },
+    { "id": "ember-b19/ember19-fork-r118316", "src": "assets/rock_options/big/ember/ember19-fork-r118316.png" },
+    { "id": "ember-b19/ember19-horseshoe-r118316", "src": "assets/rock_options/big/ember/ember19-horseshoe-r118316.png", "note": "The bottom is no good but will still keep" },
+    { "id": "ember-b19/ember19-ring-r118316", "src": "assets/rock_options/big/ember/ember19-ring-r118316.png" },
+    { "id": "ember-b19/ember19-switchback-r118316", "src": "assets/rock_options/big/ember/ember19-switchback-r118316.png" },
+    { "id": "ember-b19/ember19-winding-r118316", "src": "assets/rock_options/big/ember/ember19-winding-r118316.png" },
+    { "id": "ember-b17/ember17-bulge-r108316", "src": "assets/rock_options/big/ember/ember17-bulge-r108316.png" },
+    { "id": "ember-b17/ember17-fork-r108316", "src": "assets/rock_options/big/ember/ember17-fork-r108316.png" },
+    { "id": "ember-b17/ember17-ring-r108316", "src": "assets/rock_options/big/ember/ember17-ring-r108316.png" },
+    { "id": "ember-b16/ember16-japan-cny8216", "src": "assets/rock_options/big/ember/ember16-japan-cny8216.png" },
+    { "id": "ember-b16/ember16-myanmar-cny8216", "src": "assets/rock_options/big/ember/ember16-myanmar-cny8216.png" },
+    { "id": "ember-b15/ember15-india-cny8115", "src": "assets/rock_options/big/ember/ember15-india-cny8115.png" }
+  ]
+}

@@ -1,20 +1,26 @@
 {
  "groups": [
   {
+   "id": "ember-b20",
+   "label": "Ember \u2014 batch 20 (NEW: bottoms fixed)",
+   "note": "the floor/shadow/puddle is gone \u2014 but the described shapes did not come through",
+   "count": 3
+  },
+  {
    "id": "ember-b19",
-   "label": "Ember \u2014 batch 19 (NEW: textured, few seams)",
+   "label": "Ember \u2014 batch 19 (your 6/6 \u2014 recipe locked)",
    "note": "texture kept, violet gone, but the orange came back \u2014 is warm actually wrong?",
    "count": 6
   },
   {
    "id": "ember-b17",
-   "label": "Ember \u2014 batch 17 (NEW: textured surface)",
+   "label": "Ember \u2014 batch 17 (textured surface)",
    "note": "the flat/cartoony fix: real stone grain, 4 MP, ultra raw \u2014 brought lava back with it",
    "count": 6
   },
   {
    "id": "ember-b18",
-   "label": "Ember \u2014 batch 18 (NEW: cold reference)",
+   "label": "Ember \u2014 batch 18 (cold reference)",
    "note": "cold reference killed the lava AND the texture, and added magenta \u2014 vote it down freely",
    "count": 6
   },
@@ -98,6 +104,39 @@
   }
  ],
  "items": [
+  {
+   "id": "ember-b20/ember20-chain-r112274",
+   "group": "ember-b20",
+   "label": "ember20-chain-r112274",
+   "file": "ember-b20-ember20-chain-r112274.jpg",
+   "src": "assets/rock_options/big/ember/ember20-chain-r112274.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b20/ember20-comb-r112274",
+   "group": "ember-b20",
+   "label": "ember20-comb-r112274",
+   "file": "ember-b20-ember20-comb-r112274.jpg",
+   "src": "assets/rock_options/big/ember/ember20-comb-r112274.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b20/ember20-crescent-r112274",
+   "group": "ember-b20",
+   "label": "ember20-crescent-r112274",
+   "file": "ember-b20-ember20-crescent-r112274.jpg",
+   "src": "assets/rock_options/big/ember/ember20-crescent-r112274.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "ember-b19/ember19-bulge-r118316",
    "group": "ember-b19",

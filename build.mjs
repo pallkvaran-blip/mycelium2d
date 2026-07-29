@@ -246,5 +246,19 @@ if (existsSync(R('assets/rock_options/review'))) {
   console.log('Copied rock review thumbs -> dist/review-thumbs/ (excluded from the itch zip)');
 }
 
+// Publish the SHORTLIST viewer at <site>/rock-shortlist.html — the owner's keeps only, full size,
+// each also shown cut out over soil. Same dist-ROOT trick as the review thumbs so none of it can
+// reach dist/assets/ and therefore the itch zip. Rebuild with
+// `python3 scripts/build_rock_shortlist.py` after editing docs/rock-shortlist.json.
+if (existsSync(R('docs/rock-shortlist.html'))) {
+  cpSync(R('docs/rock-shortlist.html'), R('dist/rock-shortlist.html'));
+  console.log('Copied docs/rock-shortlist.html -> dist/rock-shortlist.html');
+}
+if (existsSync(R('assets/rock_options/shortlist'))) {
+  rmSync(R('dist/shortlist-thumbs'), { recursive: true, force: true });
+  cpSync(R('assets/rock_options/shortlist'), R('dist/shortlist-thumbs'), { recursive: true });
+  console.log('Copied rock shortlist images -> dist/shortlist-thumbs/ (excluded from the itch zip)');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);

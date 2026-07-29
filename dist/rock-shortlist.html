@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Rock shortlist</title>
+<link rel="icon" href="data:,">
+<style>
+:root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
+  --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --red:#ff8a7a; --top:56px;
+  --soil:#4a3721; }
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{color:var(--ink);font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));font-size:13px}
+
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:0 12px;height:var(--top);
+  background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+.brand{font-weight:800;color:var(--mint);margin-right:2px}
+.sep{width:1px;height:26px;background:var(--line);flex:0 0 auto}
+.btn{font:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:7px 11px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);flex:0 0 auto}
+.btn:hover{border-color:var(--mint)}
+.btn.primary{background:linear-gradient(180deg,#12271e,#0c1c15);border-color:rgba(126,240,192,.45);color:var(--mint)}
+.spacer{flex:1 1 auto}
+.prog{font-size:12px;color:var(--dim)}
+.prog b{color:var(--ink)}
+.chip{font:600 10px/1 inherit;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 9px;flex:0 0 auto}
+.chip:hover{color:var(--ink);border-color:var(--mint)}
+.chip.on{color:#04140d;background:var(--mint);border-color:var(--mint)}
+
+main{padding:14px 16px 90px;max-width:1800px;margin:0 auto}
+
+.lede{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--amber);
+  border-radius:10px;padding:11px 14px;margin:4px 0 18px;color:#cfe4d8;line-height:1.55;max-width:1050px}
+.lede b{color:var(--amber)}
+.lede .tally{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:12px;color:var(--dim)}
+.lede .tally b{color:var(--ink)}
+
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:#9fb5a8;margin:26px 0 3px;
+  border-bottom:1px solid var(--line);padding-bottom:7px;display:flex;align-items:baseline;gap:9px}
+h2 .n{color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;font-size:11.5px}
+.gnote{color:var(--dim);font-size:11.5px;margin:0 0 12px;line-height:1.5;max-width:900px}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(430px,1fr))}
+body.wide .grid{grid-template-columns:1fr}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  display:flex;flex-direction:column}
+.card.out{opacity:.34;filter:grayscale(.6)}
+.card.out .imgwrap{outline:2px solid var(--red);outline-offset:-2px}
+.imgwrap{position:relative;cursor:zoom-in;background:#000;display:flex;flex-direction:column;gap:1px}
+.imgwrap img{display:block;width:100%;height:auto}
+.imgwrap img.soil{background:var(--soil)}
+.imgwrap img.hide{display:none}
+.badge{position:absolute;top:7px;left:7px;z-index:2;font:600 9.5px/1 inherit;letter-spacing:.05em;
+  text-transform:uppercase;background:rgba(4,14,10,.82);border:1px solid var(--line);color:var(--dim);
+  border-radius:999px;padding:4px 7px;backdrop-filter:blur(3px)}
+.meta{display:flex;align-items:center;gap:8px;padding:9px 11px;border-top:1px solid var(--line)}
+.meta .nm{font-weight:700;font-size:12.5px;text-transform:capitalize}
+.meta .sz{color:var(--dim);font-size:11px}
+.meta .spacer{flex:1 1 auto}
+.mini{font:600 10.5px/1 inherit;border-radius:7px;padding:6px 9px;cursor:pointer;
+  background:#0d1a14;border:1px solid var(--line);color:var(--dim)}
+.mini:hover{color:var(--red);border-color:var(--red)}
+.card.out .mini{color:var(--mint);border-color:rgba(126,240,192,.4)}
+.ownote{margin:0;padding:0 11px 10px;color:var(--amber);font-size:11.5px;line-height:1.45}
+.cuterr{margin:0;padding:0 11px 10px;color:var(--red);font-size:11px}
+.cutrisk{margin:0 11px 10px;padding:7px 9px;color:#ffd7a8;font-size:11px;line-height:1.45;
+  background:rgba(255,185,94,.08);border:1px solid rgba(255,185,94,.28);border-radius:7px}
+.cutrisk b{color:var(--amber)}
+
+#lb{position:fixed;inset:0;z-index:60;background:rgba(2,7,5,.95);display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
+#lb.on{display:flex}
+#lbStack{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;
+  max-height:calc(100vh - 96px);overflow:auto}
+#lbStack figure{margin:0;display:flex;flex-direction:column;gap:5px;align-items:center}
+#lbStack img{max-width:min(46vw,1000px);max-height:calc(100vh - 150px);width:auto;height:auto;
+  border:1px solid var(--line);border-radius:8px}
+#lbStack img.soil{background:var(--soil)}
+#lbStack figcaption{font:600 10px/1 inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+#lbBar{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12px}
+#lbBar b{color:var(--ink)}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:16px;color:var(--dim);max-width:1050px}
+footer h3{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:#9fb5a8;margin:0 0 8px}
+textarea{width:100%;min-height:150px;background:#061009;color:#cfe4d8;border:1px solid var(--line);
+  border-radius:9px;padding:10px;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">Rock shortlist</span>
+  <span class="prog" id="prog">…</span>
+  <span class="sep"></span>
+  <span class="chip" data-v="cut">On soil</span>
+  <span class="chip" data-v="render">As rendered</span>
+  <span class="chip" data-v="both">Both</span>
+  <span class="sep"></span>
+  <span class="chip" id="cWide">One per row</span>
+  <span class="spacer"></span>
+  <button class="btn" id="bReset">Restore all</button>
+  <button class="btn primary" id="bCopy">Copy JSON</button>
+</div>
+
+<main>
+  <div class="lede" id="lede"></div>
+  <div id="groups"></div>
+
+  <footer>
+    <h3>Shortlist JSON</h3>
+    <p style="margin:0 0 8px;line-height:1.5">Anything you remove above drops out of <code>keep</code> and
+      into <code>removed</code>. Paste this back to me to update the shortlist.</p>
+    <textarea id="json" readonly></textarea>
+  </footer>
+</main>
+
+<div id="lb">
+  <div id="lbStack"></div>
+  <div id="lbBar">
+    <span id="lbHint"></span>
+    <button class="btn" id="lbDrop">Remove from shortlist</button>
+    <button class="btn" id="lbClose">Close (Esc)</button>
+  </div>
+</div>
+
+<script>
+const BASE = 'shortlist-thumbs/';
+const LS = 'mycelium.rockshortlist.v1';
+let DATA = { groups: [], items: [] };
+let STATE = { out: {}, view: 'cut', wide: false };
+let LBI = -1;
+
+function save(){ try { localStorage.setItem(LS, JSON.stringify(STATE)); } catch (e) {} }
+function load(){
+  try {
+    const s = JSON.parse(localStorage.getItem(LS) || '{}');
+    if (s && typeof s === 'object') STATE = Object.assign(STATE, s);
+    if (!STATE.out || typeof STATE.out !== 'object') STATE.out = {};
+  } catch (e) {}
+}
+
+const kept = () => DATA.items.filter((i) => !STATE.out[i.id]);
+
+function tallyHtml(){
+  // The point of the lede: the shortlist is not one coherent set. Count each recipe so a group
+  // that no longer matches the others is a number on the screen, not a claim in a chat message.
+  const byRec = {};
+  for (const i of kept()) byRec[i.recipe] = (byRec[i.recipe] || 0) + 1;
+  const g = (k) => DATA.groups.find((x) => x.key === k);
+  const parts = DATA.groups.map((gr) =>
+    `<span><b>${byRec[gr.key] || 0}</b> ${gr.label.split(' — ')[0].toLowerCase()}</span>`);
+  const flat = byRec.flat || 0, warm = (byRec.locked || 0) + (byRec.textured || 0);
+  let warn = '';
+  if (flat && warm) warn = `<br><b>Heads up:</b> ${flat} of these came from the pre-fix canny recipe —
+    flat cel-shaded fills, cold grey stone, about a quarter of the pixels — and ${warm} from the
+    textured one. Side by side in a level they will not read as the same material. Worth deciding
+    whether the ${flat} stay as their own look or get re-rendered on the settled recipe.`;
+  return `Your <b>${kept().length}</b> keeps, full size, grouped by the recipe that made them.
+    <b>On soil</b> shows each one cut out and composited over the game's soil colour — geometry only,
+    straight from <code>rock_cut.py</code>, so tone is still ungraded. Click any image to enlarge.
+    ${warn}<div class="tally">${parts.join('')}</div>`;
+}
+
+function render(){
+  document.body.classList.toggle('wide', !!STATE.wide);
+  document.querySelectorAll('.chip[data-v]').forEach((c) =>
+    c.classList.toggle('on', c.getAttribute('data-v') === STATE.view));
+  document.getElementById('cWide').classList.toggle('on', !!STATE.wide);
+
+  const host = document.getElementById('groups');
+  host.innerHTML = '';
+  for (const gr of DATA.groups) {
+    const items = DATA.items.filter((i) => i.recipe === gr.key);
+    if (!items.length) continue;
+    const nOut = items.filter((i) => STATE.out[i.id]).length;
+    const h = document.createElement('h2');
+    h.innerHTML = `${gr.label}<span class="n">${items.length - nOut} of ${items.length}</span>`;
+    host.appendChild(h);
+    if (gr.note) {
+      const p = document.createElement('p');
+      p.className = 'gnote'; p.textContent = gr.note; host.appendChild(p);
+    }
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (const it of items) grid.appendChild(card(it));
+    host.appendChild(grid);
+  }
+  document.getElementById('lede').innerHTML = tallyHtml();
+  const n = DATA.items.length, out = Object.keys(STATE.out).filter((k) => STATE.out[k]).length;
+  document.getElementById('prog').innerHTML = `<b>${n - out}</b> of ${n} kept`;
+  document.getElementById('json').value = exportJson();
+}
+
+function card(it){
+  const el = document.createElement('div');
+  el.className = 'card' + (STATE.out[it.id] ? ' out' : '');
+  el.setAttribute('data-id', it.id);
+  const showCut = STATE.view !== 'render' && it.cut;
+  const showRen = STATE.view !== 'cut' || !it.cut;
+  el.innerHTML = `
+    <div class="imgwrap">
+      <span class="badge">batch ${it.batch}${it.mp ? ' · ' + it.mp + ' render' : ''}</span>
+      ${it.cut ? `<img class="soil${showCut ? '' : ' hide'}" loading="lazy" alt="${it.shape} on soil"
+        src="${BASE}${it.cut}">` : ''}
+      <img class="raw${showRen ? '' : ' hide'}" loading="lazy" alt="${it.shape} as rendered"
+        src="${BASE}${it.file}">
+    </div>
+    <div class="meta">
+      <span class="nm">${it.shape}</span>
+      <span class="sz">${it.w}×${it.h}</span>
+      <span class="spacer"></span>
+      <button class="mini">${STATE.out[it.id] ? 'Restore' : 'Remove'}</button>
+    </div>
+    ${it.note ? `<p class="ownote">“${it.note}”</p>` : ''}
+    ${it.cutError ? `<p class="cuterr">cut failed: ${it.cutError}</p>` : ''}
+    ${it.cutRisk ? `<p class="cutrisk">Ragged cut — this one rendered on a black backdrop, and a
+      dark rock on black is the low-contrast case for keying, so the silhouette loses chunks. A
+      re-cut problem, not a problem with the rock. Judge it in <b>As rendered</b>.</p>` : ''}`;
+  el.querySelector('.imgwrap').addEventListener('click', () => openLb(DATA.items.indexOf(it)));
+  el.querySelector('.mini').addEventListener('click', () => toggle(it.id));
+  return el;
+}
+
+function toggle(id){ STATE.out[id] = !STATE.out[id]; save(); render(); if (LBI >= 0) paintLb(); }
+
+function openLb(i){ LBI = i; document.getElementById('lb').classList.add('on'); paintLb(); }
+function closeLb(){ LBI = -1; document.getElementById('lb').classList.remove('on'); }
+function stepLb(d){
+  if (LBI < 0) return;
+  LBI = (LBI + d + DATA.items.length) % DATA.items.length;
+  paintLb();
+}
+function paintLb(){
+  const it = DATA.items[LBI];
+  if (!it) return;
+  const figs = [];
+  if (it.cut) figs.push(`<figure><img class="soil" src="${BASE}${it.cut}" alt="on soil">
+    <figcaption>cut · on soil</figcaption></figure>`);
+  figs.push(`<figure><img src="${BASE}${it.file}" alt="as rendered">
+    <figcaption>as rendered</figcaption></figure>`);
+  document.getElementById('lbStack').innerHTML = figs.join('');
+  document.getElementById('lbHint').innerHTML =
+    `<b>${it.shape}</b> · batch ${it.batch} · ${it.w}×${it.h} · ${LBI + 1} of ${DATA.items.length}
+     ${STATE.out[it.id] ? ' · <b style="color:#ff8a7a">removed</b>' : ''} — ← → to move`;
+  document.getElementById('lbDrop').textContent =
+    STATE.out[it.id] ? 'Restore to shortlist' : 'Remove from shortlist';
+}
+
+function exportJson(){
+  const pick = (i) => Object.assign({ id: i.id, src: i.src }, i.note ? { note: i.note } : {});
+  return JSON.stringify({
+    tool: 'rock-shortlist', version: 1,
+    summary: { total: DATA.items.length, keep: kept().length,
+               removed: DATA.items.length - kept().length },
+    keep: kept().map(pick),
+    removed: DATA.items.filter((i) => STATE.out[i.id]).map(pick),
+  }, null, 1);
+}
+
+document.querySelectorAll('.chip[data-v]').forEach((c) => c.addEventListener('click', () => {
+  STATE.view = c.getAttribute('data-v'); save(); render();
+}));
+document.getElementById('cWide').addEventListener('click', () => {
+  STATE.wide = !STATE.wide; save(); render();
+});
+document.getElementById('bReset').addEventListener('click', () => { STATE.out = {}; save(); render(); });
+document.getElementById('bCopy').addEventListener('click', async () => {
+  const t = document.getElementById('json');
+  t.select();
+  try { await navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); }
+  const b = document.getElementById('bCopy'), o = b.textContent;
+  b.textContent = 'Copied'; setTimeout(() => { b.textContent = o; }, 1100);
+});
+document.getElementById('lbClose').addEventListener('click', closeLb);
+document.getElementById('lbDrop').addEventListener('click', () => {
+  const it = DATA.items[LBI]; if (it) toggle(it.id);
+});
+document.getElementById('lb').addEventListener('click', (e) => {
+  if (e.target.id === 'lb') closeLb();
+});
+addEventListener('keydown', (e) => {
+  if (LBI < 0) return;
+  if (e.key === 'Escape') closeLb();
+  else if (e.key === 'ArrowRight') stepLb(1);
+  else if (e.key === 'ArrowLeft') stepLb(-1);
+  else return;
+  e.preventDefault();
+});
+
+load();
+fetch(BASE + 'index.json').then((r) => r.json()).then((d) => {
+  DATA = d;
+  render();
+  window.__shortlist = { DATA, STATE, exportJson, toggle, openLb, render };
+}).catch((e) => {
+  document.getElementById('lede').textContent =
+    'Could not load shortlist-thumbs/index.json — run `python3 scripts/build_rock_shortlist.py`. ' + e;
+});
+</script>
+</body>
+</html>
