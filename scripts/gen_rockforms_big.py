@@ -313,14 +313,49 @@ THEMES = {
                        "image"),
                 "r4": "Strictly a COOL, dim, desaturated palette. No warm hues anywhere in the image"},
     ),
+    # Ember r8 is deliberately built as crystal's twin, because structurally it IS one: a seam down
+    # inside a fissure has no intrinsic up, exactly like a cavity, which is why crystal survived the
+    # top-down prior and fungal (whose feature grows outward) did not. So r8 reuses crystal's three
+    # winning moves — many SMALL features, the glow CONFINED, and the stone restated as dark — and
+    # adds the one guard this theme needs.
+    #
+    # That guard is the batch-1 failure: six orange lava rocks. Its causes are known and both are
+    # designed out here rather than argued with. (a) A twelve-item "NO lava, NO magma, NO molten"
+    # refusal FED those tokens to the encoder; there is no such list here and the words never
+    # appear. (b) "glowing cracks over a big stone face" IS the lava-cliff prior, and the old `*`
+    # wording made it worse two ways: "thick" seams "across the facets" puts the glow on the
+    # OUTER SURFACE, and "patches of crusted orange mineral growth cling to the rock" licenses
+    # orange on the body. r8 puts every seam DOWN INSIDE a fissure, seen edge-on, narrow, and states
+    # the outer faces are cold dark charcoal.
+    # (c) The old refuse read "Strictly a WARM palette. No cool hues anywhere" — which licenses warm
+    # EVERYWHERE, i.e. an orange rock. Inverted for r8: the stone is cold, only the seam interiors
+    # are warm. Also answers the owner's fungal note, "the shiny things don't make sense": a glow
+    # that sits deep in a crack and spills onto its lip reads as a material, a floating blob doesn't.
     "ember": dict(
         ref="rockform2",
-        feature="with thick glowing orange seams running deep through its fissures",
+        feature={
+            "*": "with thick glowing orange seams running deep through its fissures",
+            "r8": ("with TEN OR TWELVE NARROW glowing amber seams of differing length scattered "
+                   "right across the whole formation, each one sunk DEEP DOWN INSIDE a fissure in "
+                   "the stone and seen edge-on as a thin bright line at the bottom of the crack, "
+                   "none of them thick and none of them on the outer faces of the rock"),
+        },
         body={"*": ("The stone is dark charcoal-grey and rust-brown. A branching network of thick "
                     "GLOWING ORANGE seams runs across the facets, brightest deep in the fissures "
                     "and fading to amber, and patches of crusted orange mineral growth cling to "
-                    "the rock. ")},
-        refuse={"*": "Strictly a WARM, dim palette. No cool hues anywhere in the image"},
+                    "the rock. "),
+              "r8": ("The stone is DARK desaturated charcoal GREY, cold, dim and almost black, with "
+                     "slightly paler cool grey facet faces. Split into it are narrow fissures, each "
+                     "seen EDGE-ON as a thin dark cleft in the rock's face with a GLOWING AMBER "
+                     "seam burning far down at the bottom of it, throwing a small pool of warm "
+                     "light onto the two lips of that one crack and nowhere else. The stone itself "
+                     "STAYS COLD DARK CHARCOAL GREY throughout — the warm colour appears ONLY down "
+                     "inside the fissures and on the narrow rim of light around each one; the body "
+                     "of the rock, and every outward-facing surface of it, is never orange, never "
+                     "red and never rust-coloured. ")},
+        refuse={"*": "Strictly a WARM, dim palette. No cool hues anywhere in the image",
+                "r8": ("The rock is a cold, dim, desaturated dark grey stone and the ONLY warm "
+                       "colour anywhere in the image is the amber light inside the seams themselves")},
     ),
     # Fungal r8 carries over the two things that made crystal work, plus one risk unique to this
     # theme. (a) MANY SMALL features rather than a few big ones — a few large clumps is half of why
@@ -540,6 +575,35 @@ BATCHES = {
     # actual failure (batches 11 and 12 were top-down plateaus). The trade is the one r4 documented:
     # the reference GUIDES the silhouette rather than binding it, so shapes come back looser than
     # canny's.
+    # Batch 15 = EMBER on the settled crystal recipe: canny + edgemap + var=r8 + the six silhouettes
+    # the owner kept. Ember is the "easier theme" they asked for on structural grounds, not a hunch:
+    # its feature lives INSIDE the stone like crystal's cavities, so it should inherit crystal's
+    # 9/12 rather than fungal's 2/24. Holding shapes, mode and variant fixed makes the theme the
+    # only variable, same as batches 9 and 11.
+    # Batch 16 = ember again, one variable changed: a FILLED control instead of an outline stroke.
+    # Batch 15 proved the theme (no lava rocks, cold grey stone on all six — the confine clause
+    # held) but put the amber glow on the OUTER RIM of 4 of 6 instead of down in the fissures. That
+    # is the artifact already logged for batches 4-5: flux-canny-pro runs its own edge detection, so
+    # a white STROKE is TWO edges and it paints a line between them — which becomes a glowing rim in
+    # whatever colour the theme supplies. Batch 6 fixed it with a filled silhouette (one boundary),
+    # so 16 goes in FILLED_CTL. It matters more for ember than it did for crystal: an amber rim is
+    # visually dominant and steals the glow budget from the seams, which are the whole theme.
+    16: [
+        ("japan", "16:9", "Japan"),
+        ("mongolia", "21:9", "Mongolia"),
+        ("chile", "21:9", "Chile"),
+        ("india", "3:2", "India"),
+        ("sweden", "16:9", "Sweden"),
+        ("myanmar", "3:2", "Myanmar"),
+    ],
+    15: [
+        ("japan", "16:9", "Japan"),
+        ("mongolia", "21:9", "Mongolia"),
+        ("chile", "21:9", "Chile"),
+        ("india", "3:2", "India"),
+        ("sweden", "16:9", "Sweden"),
+        ("myanmar", "3:2", "Myanmar"),
+    ],
     # Batch 14 = batch 13's six described shapes again, with ONE thing changed: the image_prompt.
     # Batch 13's shapes came out legible (a ring read as a ring, the fork forked) but every render
     # was an isometric block with a flat fungus-covered top — the R2 "3D pebble" failure. Cause was
@@ -660,8 +724,8 @@ BATCHES = {
 # glowing violet rim and batch 5's white rim came from. A filled shape yields ONE boundary. Batch 5
 # also showed that thinning the stroke and lowering guidance to 18 only loosened the silhouette
 # while keeping the rim, so batch 6 goes back to default guidance.
-CANNY_BATCHES = {4, 5, 6, 7, 9, 10, 11, 12}  # shape comes from a control image, not the text
-FILLED_CTL = {6, 7}           # filled silhouette (one clean edge) rather than an outline stroke
+CANNY_BATCHES = {4, 5, 6, 7, 9, 10, 11, 12, 15, 16}  # shape comes from a control image, not the text
+FILLED_CTL = {6, 7, 16}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
 

@@ -1,6 +1,18 @@
 {
  "groups": [
   {
+   "id": "ember-b16",
+   "label": "Ember \u2014 batch 16 (NEW: filled control)",
+   "note": "chile is the look; rim glow persists on the rest",
+   "count": 6
+  },
+  {
+   "id": "ember-b15",
+   "label": "Ember \u2014 batch 15 (NEW: first ember round)",
+   "note": "no lava rocks, no plateaus \u2014 india puts fire in a crack",
+   "count": 6
+  },
+  {
    "id": "fungal-b14",
    "label": "Fungal \u2014 batch 14 (NEW: described shapes, flat ref)",
    "note": "prose shapes + rockform1 reference \u2014 shapes read, projection still isometric",
@@ -68,6 +80,138 @@
   }
  ],
  "items": [
+  {
+   "id": "ember-b16/ember16-chile-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-chile-cny8216",
+   "file": "ember-b16-ember16-chile-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-chile-cny8216.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b16/ember16-india-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-india-cny8216",
+   "file": "ember-b16-ember16-india-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-india-cny8216.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b16/ember16-japan-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-japan-cny8216",
+   "file": "ember-b16-ember16-japan-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-japan-cny8216.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b16/ember16-mongolia-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-mongolia-cny8216",
+   "file": "ember-b16-ember16-mongolia-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-mongolia-cny8216.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b16/ember16-myanmar-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-myanmar-cny8216",
+   "file": "ember-b16-ember16-myanmar-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-myanmar-cny8216.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b16/ember16-sweden-cny8216",
+   "group": "ember-b16",
+   "label": "ember16-sweden-cny8216",
+   "file": "ember-b16-ember16-sweden-cny8216.jpg",
+   "src": "assets/rock_options/big/ember/ember16-sweden-cny8216.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-chile-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-chile-cny8115",
+   "file": "ember-b15-ember15-chile-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-chile-cny8115.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-india-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-india-cny8115",
+   "file": "ember-b15-ember15-india-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-india-cny8115.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-japan-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-japan-cny8115",
+   "file": "ember-b15-ember15-japan-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-japan-cny8115.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-mongolia-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-mongolia-cny8115",
+   "file": "ember-b15-ember15-mongolia-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-mongolia-cny8115.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-myanmar-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-myanmar-cny8115",
+   "file": "ember-b15-ember15-myanmar-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-myanmar-cny8115.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b15/ember15-sweden-cny8115",
+   "group": "ember-b15",
+   "label": "ember15-sweden-cny8115",
+   "file": "ember-b15-ember15-sweden-cny8115.jpg",
+   "src": "assets/rock_options/big/ember/ember15-sweden-cny8115.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "fungal-b14/fungal14-bulge-r97614",
    "group": "fungal-b14",
