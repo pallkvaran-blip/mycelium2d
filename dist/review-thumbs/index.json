@@ -1,8 +1,20 @@
 {
  "groups": [
   {
+   "id": "fungal-b14",
+   "label": "Fungal \u2014 batch 14 (NEW: described shapes, flat ref)",
+   "note": "prose shapes + rockform1 reference \u2014 shapes read, projection still isometric",
+   "count": 6
+  },
+  {
+   "id": "fungal-b13",
+   "label": "Fungal \u2014 batch 13 (NEW: described shapes)",
+   "note": "your shape list, described geometrically \u2014 best fungi yet, but isometric blocks",
+   "count": 6
+  },
+  {
    "id": "fungal-b12",
-   "label": "Fungal \u2014 batch 12 (NEW: bracket fungi)",
+   "label": "Fungal \u2014 batch 12 (bracket fungi)",
    "note": "noun swap to fix the top-down view \u2014 did NOT work, vote anyway",
    "count": 6
   },
@@ -56,6 +68,138 @@
   }
  ],
  "items": [
+  {
+   "id": "fungal-b14/fungal14-bulge-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-bulge-r97614",
+   "file": "fungal-b14-fungal14-bulge-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-bulge-r97614.png",
+   "w": 1600,
+   "h": 1211,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b14/fungal14-fork-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-fork-r97614",
+   "file": "fungal-b14-fungal14-fork-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-fork-r97614.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b14/fungal14-horseshoe-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-horseshoe-r97614",
+   "file": "fungal-b14-fungal14-horseshoe-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-horseshoe-r97614.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b14/fungal14-ring-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-ring-r97614",
+   "file": "fungal-b14-fungal14-ring-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-ring-r97614.png",
+   "w": 1600,
+   "h": 1600,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b14/fungal14-switchback-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-switchback-r97614",
+   "file": "fungal-b14-fungal14-switchback-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-switchback-r97614.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b14/fungal14-winding-r97614",
+   "group": "fungal-b14",
+   "label": "fungal14-winding-r97614",
+   "file": "fungal-b14-fungal14-winding-r97614.jpg",
+   "src": "assets/rock_options/big/fungal/fungal14-winding-r97614.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-bulge-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-bulge-r97513",
+   "file": "fungal-b13-fungal13-bulge-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-bulge-r97513.png",
+   "w": 1600,
+   "h": 1211,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-fork-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-fork-r97513",
+   "file": "fungal-b13-fungal13-fork-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-fork-r97513.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-horseshoe-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-horseshoe-r97513",
+   "file": "fungal-b13-fungal13-horseshoe-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-horseshoe-r97513.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-ring-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-ring-r97513",
+   "file": "fungal-b13-fungal13-ring-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-ring-r97513.png",
+   "w": 1600,
+   "h": 1600,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-switchback-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-switchback-r97513",
+   "file": "fungal-b13-fungal13-switchback-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-switchback-r97513.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "fungal-b13/fungal13-winding-r97513",
+   "group": "fungal-b13",
+   "label": "fungal13-winding-r97513",
+   "file": "fungal-b13-fungal13-winding-r97513.jpg",
+   "src": "assets/rock_options/big/fungal/fungal13-winding-r97513.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "fungal-b12/fungal12-chile-cny7412",
    "group": "fungal-b12",

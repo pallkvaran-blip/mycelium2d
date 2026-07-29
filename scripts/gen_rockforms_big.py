@@ -524,6 +524,61 @@ BATCHES = {
     # win. Fungal before ember: it is the thinnest theme in the game (3 sprites) and it is a cool
     # dim palette like crystal, so the proven wording transfers; ember carries the batch-1 lava
     # prior ("six orange lava rocks") and earns its own round rather than riding along in this one.
+    # Batch 13 = the owner's call: stop using country outlines, DESCRIBE the shapes instead.
+    # Two of their examples are re-runs of logged failures, so both are honoured in intent and
+    # dodged in wording. (a) LETTERS: "Y/U/O/D/C/S/Q" as words draws typography — the veined round
+    # returned literal X, U and V glyphs from "U-SHAPED", while the same geometry described without
+    # naming the letter produced real horseshoes, rings and S-curves. So each brief here states the
+    # geometry and never the letter. (b) "long windy river" and "steep mountain road" are LANDSCAPE
+    # nouns, the family that drew full landscapes in batch 1 (massif/reef/ridge/spine); the winding
+    # and the hairpin doubling-back are described as stone geometry with no river and no road, and
+    # the aspect is capped at 16:9 for the same reason.
+    #
+    # Mode change that comes free with this: describing the shape means no control image, so this
+    # runs on ULTRA with rockform11 as an image_prompt — var=r4's mechanism, which fixed the
+    # perspective in one shot when three rounds of prose could not. That directly targets fungal's
+    # actual failure (batches 11 and 12 were top-down plateaus). The trade is the one r4 documented:
+    # the reference GUIDES the silhouette rather than binding it, so shapes come back looser than
+    # canny's.
+    # Batch 14 = batch 13's six described shapes again, with ONE thing changed: the image_prompt.
+    # Batch 13's shapes came out legible (a ring read as a ring, the fork forked) but every render
+    # was an isometric block with a flat fungus-covered top — the R2 "3D pebble" failure. Cause was
+    # the reference, not the prose: THEMES['fungal']['ref'] is rockform11, which is itself a sloped
+    # shelf with mushrooms growing on its upper surface, so the style transfer was teaching exactly
+    # the projection the brief forbids. rockform1 is a flat side-on cross-section with its features
+    # scattered INSIDE the stone and no top at all, so it teaches the right one. Run as
+    # `fungal 14 var=r9 ref=rockform1`; at strength 0.22 the reference moves projection much more
+    # than palette, and the fungal body/refuse text carries the green on its own.
+    14: [
+        ("winding", "16:9", "a long band of stone that winds from side to side through three "
+                            "broad bends, thicker where it turns and pinched thinner between"),
+        ("ring", "1:1", "a closed loop of stone, lumpy and uneven all the way round, with one "
+                        "large ragged hole punched clean through the middle of it"),
+        ("fork", "3:2", "one thick stem of stone that divides into two diverging prongs of "
+                        "unequal length, the wedge of space between the prongs left empty"),
+        ("horseshoe", "3:2", "a thick horseshoe of stone: two heavy arms joined at one end by a "
+                             "rounded bend, the long gap between the arms left open and empty"),
+        ("bulge", "4:3", "a mass of stone with one long straight side, the opposite side swelling "
+                         "out in a single broad curve, so the whole reads as a heavy half-round"),
+        ("switchback", "3:2", "a narrow band of stone that doubles back on itself four times in "
+                              "tight hairpin turns stacked one above the next, each turn a sharp "
+                              "angular corner with an empty notch biting in beside it"),
+    ],
+    13: [
+        ("winding", "16:9", "a long band of stone that winds from side to side through three "
+                            "broad bends, thicker where it turns and pinched thinner between"),
+        ("ring", "1:1", "a closed loop of stone, lumpy and uneven all the way round, with one "
+                        "large ragged hole punched clean through the middle of it"),
+        ("fork", "3:2", "one thick stem of stone that divides into two diverging prongs of "
+                        "unequal length, the wedge of space between the prongs left empty"),
+        ("horseshoe", "3:2", "a thick horseshoe of stone: two heavy arms joined at one end by a "
+                             "rounded bend, the long gap between the arms left open and empty"),
+        ("bulge", "4:3", "a mass of stone with one long straight side, the opposite side swelling "
+                         "out in a single broad curve, so the whole reads as a heavy half-round"),
+        ("switchback", "3:2", "a narrow band of stone that doubles back on itself four times in "
+                              "tight hairpin turns stacked one above the next, each turn a sharp "
+                              "angular corner with an empty notch biting in beside it"),
+    ],
     # Batch 12 = fungal again with var=r9: the bracket-fungus noun instead of mushrooms, same six
     # silhouettes, everything else identical to batch 11. A clean read on whether swapping the noun
     # fixes the top-down plateau, which is the only thing that went wrong in batch 11.

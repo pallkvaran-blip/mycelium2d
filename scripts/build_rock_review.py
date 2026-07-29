@@ -28,7 +28,13 @@ def sets():
     # density-push run (var=r8) on the six silhouettes the owner kept; both seeds are included
     # because the first (cny2263) crazed the backdrop and the second (cny5527) fixed it, and the
     # per-image density difference between them is seed noise worth judging by eye.
-    yield ("fungal-b12", "Fungal — batch 12 (NEW: bracket fungi)",
+    yield ("fungal-b14", "Fungal — batch 14 (NEW: described shapes, flat ref)",
+           "prose shapes + rockform1 reference — shapes read, projection still isometric",
+           sorted((OPT / "big" / "fungal").glob("fungal14-*.png")))
+    yield ("fungal-b13", "Fungal — batch 13 (NEW: described shapes)",
+           "your shape list, described geometrically — best fungi yet, but isometric blocks",
+           sorted((OPT / "big" / "fungal").glob("fungal13-*.png")))
+    yield ("fungal-b12", "Fungal — batch 12 (bracket fungi)",
            "noun swap to fix the top-down view — did NOT work, vote anyway",
            sorted((OPT / "big" / "fungal").glob("fungal12-*.png")))
     yield ("fungal-b11", "Fungal — batch 11 (NEW: first fungal round)",
