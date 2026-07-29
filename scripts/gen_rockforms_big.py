@@ -125,6 +125,39 @@ DENSE_HI = ("FINE DENSE DETAIL AT SEVERAL SCALES AT ONCE: forty or fifty separat
 # kept inventing a night sky, and the culprit was my own wording — "empty pure BLACK SPACE" reads as
 # OUTER space. Naming a plain flat BACKDROP instead fixed it outright. The trade: depth-pro only
 # GUIDES the silhouette where canny BINDS it, so shapes come back looser.
+# `var=r8`: the owner reviewed all 52 crystal options (docs/rock-review.html) and the verdict
+# reversed my batch-7-vs-8 conclusion. CANNY WON: batch 7 (canny) kept 4/6 including "this is more
+# like it"; batch 8 (depth) was dropped 6/6 — depth bought detail but paid for it in the two things
+# that matter more, the bound silhouette and the no-ground rule (its renders came back as cave
+# scenes with a base). Batch 3 (prose) also went 0/6, reading as sketchy concept art on paper.
+# So the chassis is fixed: single-stage canny, r6's lead/isolation/feature. The one surviving
+# complaint is detail — "detail is low / almost too low" on five separate keeps.
+#
+# Why DENSE_HI wasn't enough, and what's different here. DENSE_HI argues with COUNTS ("forty or
+# fifty facets"), and batch 7 still came back with big undivided plates: FLUX does not count. This
+# script's own history says the lever it does obey is NOUNS — "asset sheet" drew a 3D pebble, a
+# country name drew a map, landscape nouns drew landscapes. So r8 states the density as a TEXTURE
+# rather than a quantity (tessellated, shattered slate, crackle glaze), makes the crack network
+# recursive instead of counted, gives scale as a ratio (no object noun, which would drag its own
+# form in), and closes with ONE positive clause against the actual observed failure — broad areas
+# of unbroken flat colour. Guidance is deliberately left at default: batch 5 already tested 18 and
+# it only loosened the silhouette without adding any detail, so it is not a detail lever.
+#
+# r8b scoping fix: the first r8 run raised density as intended but ALSO lightened the backdrop and
+# crazed it with the same crack texture. Cause was my own wording — "no part of it is ever a broad
+# area of unbroken flat colour" was unscoped, and the largest broad flat area in frame is the
+# BACKGROUND, so FLUX dutifully broke that up too. Every density clause now names the STONE as its
+# subject, and one positive sentence keeps the backdrop out of it.
+DENSE_R8 = ("The STONE's whole face is TESSELLATED all over into small angular plates, crazed like "
+            "shattered slate and like the crackle in an old ceramic glaze: a branching network of "
+            "hard dark crack lines splits the stone into plates, then splits every plate again "
+            "into smaller plates, and again into hairline fissures, with chipped flakes and small "
+            "pits crowding along every crack and every edge of the stone. The finest cracks are "
+            "many times smaller than the whole formation, so every part of the ROCK'S SURFACE "
+            "stays broken up, with no broad area of unbroken flat colour anywhere ON THE STONE. "
+            "All of this cracking and faceting belongs to the rock alone: the empty black "
+            "background behind it stays perfectly plain, smooth and unbroken")
+
 ISO_BACKDROP = ("The formation sits alone against an absolutely PLAIN FLAT BLACK BACKDROP, hex "
                 "000000, an unlit empty background of solid black with nothing in it and nothing "
                 "behind the rock — no sky, no stars, no gradient, no glow, no scenery. Black "
@@ -165,6 +198,23 @@ VARIANTS = {
                "not a 3D render"),
     ),
     # High facet density, for sprites meant to be stretched over a big part of the map.
+    # Owner-approved chassis (canny + r6) with density restated as a texture, not a count. See the
+    # DENSE_R8 note: everything except `dense` is r6 verbatim, on purpose — r6's lead, isolation
+    # and 8-to-10-small-pockets feature are what the 14 keeps have in common, so they don't move.
+    "r8": dict(
+        lead=R6_LEAD, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=("The formation floats alone in the middle of completely empty pure BLACK space, "
+                   "hex 000000, with empty black on every side of it and empty black directly "
+                   "underneath it too — it rests on nothing and touches nothing. Nothing else is "
+                   "in view, and there is a clear margin of black all the way around its outline"),
+        dense=DENSE_R8,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
+               "not a 3D render"),
+    ),
     "r6": dict(
         lead=R6_LEAD, ref=True, feature=True,
         tail=("Bioluminescent deep-underground feel, cool and dim. "
@@ -213,6 +263,13 @@ THEMES = {
             "r6": ("with EIGHT OR TEN SMALL crystal cavities of differing size scattered right "
                    "across it, each a narrow ragged pocket seen edge-on and packed with tiny "
                    "glowing violet and ice-blue crystal points, none of them large"),
+            # Set explicitly for r8 rather than inherited: pick() falls back var -> '*' -> r4, and
+            # '*' is the two-or-three-BIG-cavities wording, which is half of why a sprite reads as
+            # a close-up — the exact thing the owner rejected. Same intent as r6, a touch denser.
+            "r8": ("with TEN OR TWELVE SMALL crystal cavities of differing size scattered right "
+                   "across the whole formation, each a narrow ragged pocket seen edge-on and "
+                   "packed with tiny glowing violet and ice-blue crystal points, every one of them "
+                   "small next to the formation as a whole and none of them large"),
         },
         body={
             "r2": ("The stone is dark desaturated SLATE BLUE-GREY, almost navy, with paler "
@@ -387,6 +444,20 @@ BATCHES = {
         ("india", "3:2", "India"),
         ("ireland", "4:3", "Ireland"),
     ],
+    # Batch 9 = the six outlines the owner actually KEPT, re-run with var=r8 for density. Only the
+    # `dense` clause and the cavity count change from batch 7, so this is a clean read on whether
+    # restating detail as a texture beats stating it as a number — the silhouettes are already
+    # known-good, which takes shape out of the variables. Chile ("this is more like it") and
+    # Mongolia are the wide map-spanning ones; Japan/Sweden are long arcs; Myanmar has the pinched
+    # tail; India is the compact ragged one. Aspects match wherever the outline was rendered before.
+    9: [
+        ("chile", "21:9", "Chile"),
+        ("mongolia", "21:9", "Mongolia"),
+        ("japan", "16:9", "Japan"),
+        ("sweden", "16:9", "Sweden"),
+        ("myanmar", "3:2", "Myanmar"),
+        ("india", "3:2", "India"),
+    ],
     6: [
         ("norway", "16:9", "Norway"),
         ("croatia", "16:9", "Croatia"),
@@ -423,7 +494,7 @@ BATCHES = {
 # glowing violet rim and batch 5's white rim came from. A filled shape yields ONE boundary. Batch 5
 # also showed that thinning the stroke and lowering guidance to 18 only loosened the silhouette
 # while keeping the rim, so batch 6 goes back to default guidance.
-CANNY_BATCHES = {4, 5, 6, 7}  # shape comes from a control image, not the text
+CANNY_BATCHES = {4, 5, 6, 7, 9}  # shape comes from a control image, not the text
 FILLED_CTL = {6, 7}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP

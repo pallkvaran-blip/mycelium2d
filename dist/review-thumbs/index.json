@@ -1,6 +1,12 @@
 {
  "groups": [
   {
+   "id": "crystal-b9",
+   "label": "Crystal \u2014 batch 9 (NEW: density push)",
+   "note": "vote these \u2014 decides the next move",
+   "count": 12
+  },
+  {
    "id": "crystal-big",
    "label": "Crystal \u2014 big renders",
    "note": "raw renders, not yet cut",
@@ -32,6 +38,138 @@
   }
  ],
  "items": [
+  {
+   "id": "crystal-b9/crystal9-chile-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-chile-cny2263",
+   "file": "crystal-b9-crystal9-chile-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-chile-cny2263.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": false
+  },
+  {
+   "id": "crystal-b9/crystal9-chile-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-chile-cny5527",
+   "file": "crystal-b9-crystal9-chile-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-chile-cny5527.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-india-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-india-cny2263",
+   "file": "crystal-b9-crystal9-india-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-india-cny2263.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-india-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-india-cny5527",
+   "file": "crystal-b9-crystal9-india-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-india-cny5527.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-japan-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-japan-cny2263",
+   "file": "crystal-b9-crystal9-japan-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-japan-cny2263.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-japan-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-japan-cny5527",
+   "file": "crystal-b9-crystal9-japan-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-japan-cny5527.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-mongolia-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-mongolia-cny2263",
+   "file": "crystal-b9-crystal9-mongolia-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-mongolia-cny2263.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-mongolia-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-mongolia-cny5527",
+   "file": "crystal-b9-crystal9-mongolia-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-mongolia-cny5527.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-myanmar-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-myanmar-cny2263",
+   "file": "crystal-b9-crystal9-myanmar-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-myanmar-cny2263.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-myanmar-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-myanmar-cny5527",
+   "file": "crystal-b9-crystal9-myanmar-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-myanmar-cny5527.png",
+   "w": 1248,
+   "h": 832,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-sweden-cny2263",
+   "group": "crystal-b9",
+   "label": "crystal9-sweden-cny2263",
+   "file": "crystal-b9-crystal9-sweden-cny2263.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-sweden-cny2263.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b9/crystal9-sweden-cny5527",
+   "group": "crystal-b9",
+   "label": "crystal9-sweden-cny5527",
+   "file": "crystal-b9-crystal9-sweden-cny5527.jpg",
+   "src": "assets/rock_options/big/crystal/crystal9-sweden-cny5527.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "crystal-big/crystal1-bar-r45520",
    "group": "crystal-big",

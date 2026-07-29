@@ -24,8 +24,14 @@ SOIL = (0x4a, 0x37, 0x21)          # game soil (config.js soilTop..soilMid), for
 
 # (group id, human label, note, iterable of source paths)
 def sets():
+    # Newest batch first so it isn't buried under the 52 already-reviewed options. Batch 9 is the
+    # density-push run (var=r8) on the six silhouettes the owner kept; both seeds are included
+    # because the first (cny2263) crazed the backdrop and the second (cny5527) fixed it, and the
+    # per-image density difference between them is seed noise worth judging by eye.
+    yield ("crystal-b9", "Crystal — batch 9 (NEW: density push)", "vote these — decides the next move",
+           sorted((OPT / "big" / "crystal").glob("crystal9-*.png")))
     yield ("crystal-big", "Crystal — big renders", "raw renders, not yet cut",
-           sorted((OPT / "big" / "crystal").glob("*.png")))
+           sorted(p for p in (OPT / "big" / "crystal").glob("*.png") if not p.name.startswith("crystal9-")))
     yield ("veined-cut", "Veined — cut finalists", "cut + ready to ship",
            sorted((ROOT / "assets" / "rock_candidates").glob("*.png")))
     yield ("veined-b3", "Veined — batch 3 shapes", "shape exploration (U/ring/X/S/…)",
