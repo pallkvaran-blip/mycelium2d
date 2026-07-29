@@ -545,6 +545,29 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Ember batch 20 — recipe locked, bottoms fixed, shapes lost (Jul 29).** Owner verdict on 17–19: **batch 19
+  kept 6 of 6**, batch 17 3 of 6, batch 18 unvoted. So **warm + textured IS the ember look** — the "no lava
+  rocks" rule really was ours, and `var=r11` + `ref=rockform2` + `raw:true` on ultra is now the settled recipe;
+  batch 20 changes nothing about it. Their only note was on `horseshoe`: *"The bottom is no good but will still
+  keep."*
+  - **The base/ground failure tracks the SHAPE, not the isolation wording.** All six of batch 19 carry the same
+    positive isolation clause; the one clean bottom is `ring`, the only closed loop. `fork`/`horseshoe` (two
+    legs) and `switchback` (stacked bands → flat lower edge) each grew a floor, a cast shadow and a glowing
+    pool. Fix: describe shapes that don't stand — limbs pointing sideways, no long straight side. **Free**,
+    because the level editor rotates these freely, so render orientation is arbitrary. Confirmed on all 3
+    renders that got through: no shadow, no skirt, no puddle.
+  - **New wall: prose shapes don't bind at 0.22.** `comb` came back a plain slab with no limbs, `crescent` a
+    blobby wedge, `chain` one lumpy mass. Batch 19's briefs (ring/horseshoe/fork) read fine, so the cutoff is
+    brief complexity — one iconic geometry survives a reference, a multi-part one doesn't. **Shape control and
+    texture are currently mutually exclusive**: `flux-canny-pro` binds the silhouette but takes no
+    `image_prompt` (which is what supplies texture), ultra takes the `image_prompt` but only guides shape.
+    Untested route to both: canny for the shape, then feed that render to ultra as an `image_prompt` at ~0.5,
+    above the ~0.4 cloning threshold — cloning composition is normally the failure and here it's the goal.
+    Two renders per sprite.
+  - **Replicate credit is nearly exhausted** — under $5, which silently drops the rate limit to 6/min with a
+    burst of 1. Batch 20 lost **9 of 12** submissions to 429s at the script's 1s spacing. `curl_post` now
+    retries throttled requests with 12/24/36s backoff, but no amount of retrying buys credit.
+
 - **Ember batches 17–19 — the "too flat, cartoony" fix, and what it cost (Jul 29).** Owner verdict on ember
   15/16 was **3 keeps / 9 drops** (kept `ember16-japan`, `ember16-myanmar`, `ember15-india`; dropped `chile`,
   which I had called the strongest) with one direction: *"more detail, more surface texture. they look too flat,

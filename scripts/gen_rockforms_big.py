@@ -795,6 +795,79 @@ BATCHES = {
     # the glow budget — see the DENSE_R11 note). Not a one-variable arm: all three changes serve one
     # goal and two of them are my own wording bugs, so there is nothing to learn by shipping them
     # separately. The comparison that matters is 18 against 17, whose renders are kept either way.
+    # Batch 20 = PRODUCTION on batch 19's recipe, which the owner kept 6 of 6 (`var=r11`,
+    # `ref=rockform2`, raw=true, ultra at 4 MP). Nothing about the recipe moves — no variant, no
+    # reference, no strength, no style text. Only the shape briefs are new, for one reason:
+    #
+    # THE BASE/GROUND FAILURE CORRELATES WITH THE SHAPE, NOT WITH THE ISOLATION WORDING. All six of
+    # batch 19 carry the same positive isolation clause, and the one clean bottom is `ring` — the only
+    # CLOSED LOOP, i.e. the only brief with no downward leg and no long straight edge. `fork` and
+    # `horseshoe` (two legs) and `switchback` (stacked horizontal bands, so a flat lower edge) each
+    # grew a floor, a cast shadow and a glowing pool between the legs; the owner's one note on the
+    # whole batch was "The bottom is no good but will still keep" on horseshoe. So a shape described
+    # in a STANDING orientation summons the ground it appears to stand on, and no amount of "it rests
+    # on nothing" outvotes that — the same lesson as finding 2, one level up: state the geometry so
+    # the failure has nothing to attach to rather than forbidding the failure.
+    #
+    # This costs nothing, which is why it is the right fix: the level editor rotates these freely, so
+    # the orientation a render happens to arrive in is arbitrary. Every brief below therefore points
+    # its limbs SIDEWAYS or has no limbs at all, and none of them describes a long straight side that
+    # could become a bottom edge. `tuning` is deliberately batch 19's worst offender (the horseshoe)
+    # reoriented and nothing else, so the fix gets a direct before/after.
+    # Two logged traps observed here as well: no brief names a letter or a symbol (letters draw
+    # typography — and `cross` would draw a crucifix, which is why that shape is called `radial`), and
+    # no brief uses a landscape noun. Aspect capped at 16:9.
+    #
+    # RESULT (3 of 12 rendered — Replicate throttled the rest, see curl_post): the base fix WORKS.
+    # comb, crescent and chain all float clean: no cast shadow, no rubble skirt, no floor, no molten
+    # pool. Reorienting the brief did in one move what the isolation clause could not.
+    #
+    # But the SHAPES did not survive, and that is the new finding: `comb` came back a plain
+    # rectangular slab with no limbs, `crescent` a blobby wedge, `chain` one lumpy mass — each
+    # filling the frame edge to edge with no margin. Batch 19's briefs (ring, horseshoe, fork) DID
+    # read, so the difference is brief complexity: a single iconic geometry survives a 0.22 reference,
+    # a multi-part one ("four limbs of unequal length", "three lumps joined by two necks") does not.
+    # r4's note called this the trade of leaving canny — "the reference GUIDES the silhouette rather
+    # than binding it" — and at this complexity guiding is indistinguishable from ignoring.
+    #
+    # SO THE TWO THINGS THE OWNER WANTS ARE CURRENTLY MUTUALLY EXCLUSIVE, for a tooling reason:
+    # flux-canny-pro BINDS the silhouette but takes no image_prompt (and the image_prompt is what
+    # supplies texture — finding 10), while ultra takes the image_prompt but only guides the shape.
+    # Untested idea that would get both, if it is worth the credit: render the shape on canny first
+    # (bound silhouette, flat), then feed THAT render to ultra as an image_prompt at ~0.5 — above the
+    # ~0.4 where a reference starts CLONING composition, which is normally the failure mode and here
+    # is exactly the goal. Two renders per sprite, so price it before committing.
+    20: [
+        ("comb", "16:9", "a thick bar of stone with four blunt limbs of unequal length jutting "
+                         "out sideways from one of its long edges, all four reaching the same "
+                         "way and the notches between them left empty"),
+        ("crescent", "16:9", "a long thick crescent of stone, heaviest through its middle and "
+                             "tapering to two blunt points that both curl the same way, the "
+                             "hollow of the curve left open"),
+        ("peanut", "16:9", "two heavy rounded lobes of stone of unequal size fused together by a "
+                           "narrow pinched neck, the pair lying end to end"),
+        ("claw", "3:2", "three tapering prongs of stone of unequal length curving out of one "
+                        "common thick mass, all three sweeping sideways the same way"),
+        ("spiral", "1:1", "a thick band of stone coiling one and a half times around itself, the "
+                          "empty gap between the coils narrowing as it winds inward"),
+        ("radial", "1:1", "four stubby thick arms of stone splaying out of a lumpy central mass "
+                          "at uneven angles, each arm a different length and thickness, the "
+                          "wedges of space between them empty"),
+        ("hook", "3:2", "a long thick shaft of stone whose far end curls back on itself into a "
+                        "tight blunt hook, the hollow of the hook facing sideways"),
+        ("tuning", "16:9", "two long thick arms of stone running side by side, joined at one end "
+                           "by a heavy rounded mass, both arms reaching out the same way with the "
+                           "channel between them left empty"),
+        ("lens", "4:3", "a broad slab of stone pinched to a sharp broken edge all the way around "
+                        "its rim and thickest through its middle, its outline dented and uneven"),
+        ("chain", "16:9", "three lumpy masses of stone of differing size fused into a line by two "
+                          "short thick necks, the whole thing leaning across the frame"),
+        ("teeth", "16:9", "a thick irregular slab of stone with a row of deep angular notches "
+                          "bitten into one of its long edges, leaving blunt uneven teeth between "
+                          "them"),
+        ("knot", "4:3", "a dense knot of stone where three thick lumpy limbs meet and merge, each "
+                        "limb ending in a broken blunt stump, the limbs splayed at uneven angles"),
+    ],
     # Batch 19 = the combination batches 17 and 18 point at: r11's WORDING (few short seams, every
     # other crack dark and dry, nothing bright at the base) with r10's REFERENCE (rockform2).
     #
@@ -1016,7 +1089,7 @@ CANNY_BATCHES = {4, 5, 6, 7, 9, 10, 11, 12, 15, 16}  # shape comes from a contro
 FILLED_CTL = {6, 7, 16}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
-RAW_BATCHES = {17, 18, 19}   # ultra raw=true — CLAUDE.md's fix for base ultra reading "too AI"
+RAW_BATCHES = {17, 18, 19, 20}   # ultra raw=true — CLAUDE.md's fix for base ultra reading "too AI"
 STRENGTH = {}   # per-batch image_prompt_strength override (default REF_STRENGTH). Batch 18 was
 # going to be 0.35 to chase more texture; dropped once batch 17 showed the reference is what brought
 # the lava back, since a stronger pull toward rockform2 is a stronger pull toward orange.
@@ -1049,17 +1122,32 @@ def ref_datauri(key):
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-def curl_post(model, inp):
-    """POST a prediction. Body goes in on STDIN — a data: URI is far too big for an argv."""
-    r = subprocess.run(["curl", "-sS", "--max-time", "180", "--cacert", CA,
-                        "-H", f"Authorization: Bearer {TOKEN}",
-                        "-H", "Content-Type: application/json", "--data-binary", "@-",
-                        f"https://api.replicate.com/v1/models/{model}/predictions"],
-                       input=json.dumps({"input": inp}), capture_output=True, text=True)
-    try:
-        return json.loads(r.stdout)
-    except Exception:
-        return {"_raw": r.stdout[:300]}
+def curl_post(model, inp, tries=6):
+    """POST a prediction. Body goes in on STDIN — a data: URI is far too big for an argv.
+
+    Retries on 429. Replicate silently TIGHTENS the rate limit to 6/min with a burst of 1 once the
+    account drops below $5 of credit, and batch 20 lost 9 of 12 submissions to that in one run —
+    the 1s spacing below is 60/min, so every request after the first was rejected. A 429 costs
+    nothing but is not free to us: the batch comes back part-rendered and the shapes that failed
+    are silently missing from the review sheet.
+    """
+    for attempt in range(tries):
+        r = subprocess.run(["curl", "-sS", "--max-time", "180", "--cacert", CA,
+                            "-H", f"Authorization: Bearer {TOKEN}",
+                            "-H", "Content-Type: application/json", "--data-binary", "@-",
+                            f"https://api.replicate.com/v1/models/{model}/predictions"],
+                           input=json.dumps({"input": inp}), capture_output=True, text=True)
+        try:
+            d = json.loads(r.stdout)
+        except Exception:
+            return {"_raw": r.stdout[:300]}
+        if "throttled" not in str(d.get("detail", "")).lower():
+            return d
+        if attempt == tries - 1:
+            return d
+        wait = 12 * (attempt + 1)          # 12s, 24s, 36s… comfortably under 6/min either way
+        log(f"  throttled, retrying in {wait}s ({attempt + 1}/{tries - 1})")
+        time.sleep(wait)
 
 
 def create(prompt, aspect, seed, ref=None, raw=False, strength=REF_STRENGTH):

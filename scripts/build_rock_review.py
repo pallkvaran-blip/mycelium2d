@@ -28,13 +28,16 @@ def sets():
     # density-push run (var=r8) on the six silhouettes the owner kept; both seeds are included
     # because the first (cny2263) crazed the backdrop and the second (cny5527) fixed it, and the
     # per-image density difference between them is seed noise worth judging by eye.
-    yield ("ember-b19", "Ember — batch 19 (NEW: textured, few seams)",
+    yield ("ember-b20", "Ember — batch 20 (NEW: bottoms fixed)",
+           "the floor/shadow/puddle is gone — but the described shapes did not come through",
+           sorted((OPT / "big" / "ember").glob("ember20-*.png")))
+    yield ("ember-b19", "Ember — batch 19 (your 6/6 — recipe locked)",
            "texture kept, violet gone, but the orange came back — is warm actually wrong?",
            sorted((OPT / "big" / "ember").glob("ember19-*.png")))
-    yield ("ember-b17", "Ember — batch 17 (NEW: textured surface)",
+    yield ("ember-b17", "Ember — batch 17 (textured surface)",
            "the flat/cartoony fix: real stone grain, 4 MP, ultra raw — brought lava back with it",
            sorted((OPT / "big" / "ember").glob("ember17-*.png")))
-    yield ("ember-b18", "Ember — batch 18 (NEW: cold reference)",
+    yield ("ember-b18", "Ember — batch 18 (cold reference)",
            "cold reference killed the lava AND the texture, and added magenta — vote it down freely",
            sorted((OPT / "big" / "ember").glob("ember18-*.png")))
     yield ("ember-b16", "Ember — batch 16 (filled control)",
