@@ -15,7 +15,7 @@ the dataset reaches the game anyway; only the outline shape guides a render).
 """
 import json, math, sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 GEO = ROOT / "scratchpad" / "ne110.geojson"
@@ -50,6 +50,97 @@ def biggest_ring(name):
     return max(rings(name), key=_area)
 
 
+# --- multi-ring specs: continents and island clusters -----------------------------------------
+# Everything above is single-ring on purpose (one country's mainland). Two shape families need
+# more than that, both asked for on the theory that more coastline buys more detail:
+#   "continent:Africa"   -> every ring of every country whose NE CONTINENT property matches
+#   "cluster:Indonesia"  -> every ring of one country, i.e. the whole archipelago
+# A plain name keeps the old behaviour byte for byte, so batches 4-9 are unaffected.
+#
+# Two guards matter. Natural Earth 110m carries a long tail of specks, and drawing hundreds of
+# 1px islands is noise, not detail — so rings are kept only above a fraction of the LARGEST
+# ring's area, and capped in number. And the whole cluster has to share ONE fit transform, or
+# each island would be independently centred and scaled on top of the others.
+CONT_PREFIX, CLUSTER_PREFIX = "continent:", "cluster:"
+MAX_RINGS = 14
+MIN_RING_FRAC = 0.012      # vs the biggest ring in the set
+
+
+def continent_rings(cont):
+    """Every outer ring of every country on a continent (NE 110m CONTINENT property)."""
+    if not GEO.exists():
+        sys.exit(f"missing {GEO} — curl --cacert /root/.ccr/ca-bundle.crt -o {GEO} {GEO_URL}")
+    data = json.loads(GEO.read_text())
+    out = []
+    want = cont.strip().lower()
+    for f in data["features"]:
+        if str(f["properties"].get("CONTINENT", "")).strip().lower() != want:
+            continue
+        g = f["geometry"]
+        polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        out += [poly[0] for poly in polys]
+    if not out:
+        sys.exit(f"continent not found: {cont}")
+    return out
+
+
+def spec_rings(spec):
+    """Resolve a shape spec to the list of rings to draw (one entry for a plain country name)."""
+    s = str(spec)
+    if s.lower().startswith(CONT_PREFIX):
+        rs = continent_rings(s[len(CONT_PREFIX):])
+    elif s.lower().startswith(CLUSTER_PREFIX):
+        rs = rings(s[len(CLUSTER_PREFIX):])
+    else:
+        return [biggest_ring(s)]
+    rs.sort(key=_area, reverse=True)
+    big = _area(rs[0]) or 1.0
+    if s.lower().startswith(CONT_PREFIX):
+        # A continent is one landmass built from ~50 country polygons that TILE together, so keep
+        # essentially all of them (only true specks go) and let the fills merge. Capping here would
+        # punch country-shaped holes in the middle of the continent.
+        return [r for r in rs if _area(r) / big >= 0.0004]
+    kept = [r for r in rs if _area(r) / big >= MIN_RING_FRAC][:MAX_RINGS]
+    return kept or rs[:1]
+
+
+def is_multi(spec):
+    s = str(spec).lower()
+    return s.startswith(CONT_PREFIX) or s.startswith(CLUSTER_PREFIX)
+
+
+def align_multi(groups):
+    """align() for several rings at once: one shared centroid and principal axis for the set.
+
+    Per-ring alignment would spin each island on its own axis and scatter the cluster.
+    """
+    allpts = [p for g in groups for p in g]
+    cx = sum(p[0] for p in allpts) / len(allpts)
+    cy = sum(p[1] for p in allpts) / len(allpts)
+    q = [(x - cx, y - cy) for x, y in allpts]
+    sxx = sum(x * x for x, _ in q); syy = sum(y * y for _, y in q)
+    sxy = sum(x * y for x, y in q)
+    th = 0.5 * math.atan2(2 * sxy, sxx - syy)
+    c, s = math.cos(-th), math.sin(-th)
+    return [[((x - cx) * c - (y - cy) * s, (x - cx) * s + (y - cy) * c) for x, y in g] for g in groups]
+
+
+def polys_px(spec, aspect="16:9", invert_axis=False):
+    """Every ring of `spec` in pixel coordinates, sharing one fit to the frame."""
+    W, H = ASPECTS[aspect]
+    groups = align_multi([to_xy(r) for r in spec_rings(spec)])
+    if invert_axis:
+        groups = [[(y, x) for x, y in g] for g in groups]
+    allpts = [p for g in groups for p in g]
+    xs = [p[0] for p in allpts]; ys = [p[1] for p in allpts]
+    w = max(xs) - min(xs) or 1.0
+    h = max(ys) - min(ys) or 1.0
+    s = min(W * (1 - 2 * MARGIN) / w, H * (1 - 2 * MARGIN) / h)
+    ox = (W - w * s) / 2 - min(xs) * s
+    oy = (H - h * s) / 2 - min(ys) * s
+    return [[(x * s + ox, y * s + oy) for x, y in g] for g in groups], (W, H)
+
+
 def to_xy(ring):
     """Equirectangular with a cos(lat) correction, so the shape reads the familiar way."""
     lat0 = sum(p[1] for p in ring) / len(ring)
@@ -71,18 +162,11 @@ def align(pts):
 
 def silhouette(name, aspect="16:9", blur=6, invert_axis=False):
     """White filled mainland on black, centred with a margin, at the render's output size."""
-    W, H = ASPECTS[aspect]
-    pts = align(to_xy(biggest_ring(name)))
-    if invert_axis:                                    # stand it up instead of laying it down
-        pts = [(y, x) for x, y in pts]
-    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
-    w = max(xs) - min(xs) or 1.0
-    h = max(ys) - min(ys) or 1.0
-    s = min(W * (1 - 2 * MARGIN) / w, H * (1 - 2 * MARGIN) / h)
-    ox = (W - w * s) / 2 - min(xs) * s
-    oy = (H - h * s) / 2 - min(ys) * s
+    polys, (W, H) = polys_px(name, aspect, invert_axis)
     im = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(im).polygon([(x * s + ox, y * s + oy) for x, y in pts], fill=255)
+    dr = ImageDraw.Draw(im)
+    for poly in polys:
+        dr.polygon(poly, fill=255)
     # A little blur: a hard-edged binary mask reads as a cut-out decal, a soft one lets the model
     # break the edge into facets of its own.
     return im.filter(ImageFilter.GaussianBlur(blur)) if blur else im
@@ -134,6 +218,27 @@ def edgemap(name, aspect="16:9", rough=True, width=5, seed=11, invert_axis=False
     flux-canny-pro reproduced them literally as flat black strokes over flat colour, killing the
     cel shading. Left free, the model paints its own facets inside the boundary.
     """
+    if is_multi(name):
+        # Continents and clusters are drawn FILLED first so adjacent country polygons merge, then
+        # the outline is taken as a morphological gradient of that merged mask. Stroking each ring
+        # instead would trace every internal national border — a political map, not a coastline.
+        # Roughening is skipped here: it works on a single polygon, and these coastlines (and an
+        # archipelago especially) are already far more ragged than roughen() would make them.
+        polys, (W, H) = polys_px(name, aspect, invert_axis)
+        fill = Image.new("L", (W, H), 0)
+        dr = ImageDraw.Draw(fill)
+        for poly in polys:
+            dr.polygon(poly, fill=255)
+        if str(name).lower().startswith(CONT_PREFIX):
+            # Adjacent country polygons don't abut exactly at 110m, leaving hairline slivers INSIDE
+            # the landmass that canny would trace as internal borders. A close (dilate then erode)
+            # seals them without moving the coastline. Clusters are skipped: their gaps are the sea.
+            for _ in range(3): fill = fill.filter(ImageFilter.MaxFilter(3))
+            for _ in range(3): fill = fill.filter(ImageFilter.MinFilter(3))
+        grown = fill
+        for _ in range(max(1, int(round(width / 2)))):
+            grown = grown.filter(ImageFilter.MaxFilter(3))
+        return ImageChops.subtract(grown, fill)
     poly, (W, H) = ring_px(name, aspect, invert_axis)
     if rough:
         poly = roughen(poly, seed=seed)

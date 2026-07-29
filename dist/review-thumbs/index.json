@@ -1,9 +1,15 @@
 {
  "groups": [
   {
+   "id": "crystal-b10",
+   "label": "Crystal \u2014 batch 10 (NEW: continents + island clusters)",
+   "note": "whole continents and archipelagos \u2014 does more coastline buy more detail?",
+   "count": 6
+  },
+  {
    "id": "crystal-b9",
-   "label": "Crystal \u2014 batch 9 (NEW: density push)",
-   "note": "vote these \u2014 decides the next move",
+   "label": "Crystal \u2014 batch 9 (density push)",
+   "note": "9 of 12 kept \u2014 the current best recipe",
    "count": 12
   },
   {
@@ -38,6 +44,72 @@
   }
  ],
  "items": [
+  {
+   "id": "crystal-b10/crystal10-africa-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-africa-cny6210",
+   "file": "crystal-b10-crystal10-africa-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-africa-cny6210.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b10/crystal10-canada-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-canada-cny6210",
+   "file": "crystal-b10-crystal10-canada-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-canada-cny6210.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b10/crystal10-indonesia-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-indonesia-cny6210",
+   "file": "crystal-b10-crystal10-indonesia-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-indonesia-cny6210.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b10/crystal10-oceania-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-oceania-cny6210",
+   "file": "crystal-b10-crystal10-oceania-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-oceania-cny6210.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b10/crystal10-philippines-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-philippines-cny6210",
+   "file": "crystal-b10-crystal10-philippines-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-philippines-cny6210.png",
+   "w": 1344,
+   "h": 768,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "crystal-b10/crystal10-southamerica-cny6210",
+   "group": "crystal-b10",
+   "label": "crystal10-southamerica-cny6210",
+   "file": "crystal-b10-crystal10-southamerica-cny6210.jpg",
+   "src": "assets/rock_options/big/crystal/crystal10-southamerica-cny6210.png",
+   "w": 1536,
+   "h": 640,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "crystal-b9/crystal9-chile-cny2263",
    "group": "crystal-b9",

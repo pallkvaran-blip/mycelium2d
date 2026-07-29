@@ -450,6 +450,24 @@ BATCHES = {
     # known-good, which takes shape out of the variables. Chile ("this is more like it") and
     # Mongolia are the wide map-spanning ones; Japan/Sweden are long arcs; Myanmar has the pinched
     # tail; India is the compact ragged one. Aspects match wherever the outline was rendered before.
+    # Batch 10 = whole CONTINENTS and ISLAND CLUSTERS, on the owner's hypothesis that more
+    # coastline buys more detail. Same var=r8 and the same edgemap control as batch 9 (which kept
+    # 9/12), so the shape family is the only new variable. rock_silhouette grew two spec prefixes
+    # for this: `cluster:X` keeps every island of a country, `continent:X` unions every country on
+    # a continent — rasterised filled so their shared borders dissolve, then outlined, because
+    # stroking each ring would trace national borders and hand FLUX a political map.
+    # Greece-as-a-cluster and Europe were tried and cut before rendering: NE 110m has no Aegean
+    # islands (so Greece was just the already-rejected mainland), and Europe includes Russia, which
+    # aligns into a long thin smear. Canada and Oceania replace them — Oceania is a continent that
+    # is itself an island cluster, which is exactly the shape family being tested.
+    10: [
+        ("indonesia", "21:9", "cluster:Indonesia"),
+        ("philippines", "16:9", "cluster:Philippines"),
+        ("canada", "16:9", "cluster:Canada"),
+        ("africa", "16:9", "continent:Africa"),
+        ("southamerica", "21:9", "continent:South America"),
+        ("oceania", "21:9", "continent:Oceania"),
+    ],
     9: [
         ("chile", "21:9", "Chile"),
         ("mongolia", "21:9", "Mongolia"),
@@ -494,7 +512,7 @@ BATCHES = {
 # glowing violet rim and batch 5's white rim came from. A filled shape yields ONE boundary. Batch 5
 # also showed that thinning the stroke and lowering guidance to 18 only loosened the silhouette
 # while keeping the rim, so batch 6 goes back to default guidance.
-CANNY_BATCHES = {4, 5, 6, 7, 9}  # shape comes from a control image, not the text
+CANNY_BATCHES = {4, 5, 6, 7, 9, 10}  # shape comes from a control image, not the text
 FILLED_CTL = {6, 7}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
