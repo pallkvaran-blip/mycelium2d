@@ -183,6 +183,28 @@ winnable corridor** — only the entry/goal channels are dug clear, so always pl
   axes; and **"empty pure BLACK SPACE" makes depth-pro paint a STARFIELD** — say a plain flat *backdrop*. Trade:
   canny BINDS the silhouette but caps detail, depth GUIDES it and drifts into cave scenes on ~half the renders.
   Both cap output near **1 MP** vs ultra's 4 MP.
+- **SURFACE TEXTURE comes from the `image_prompt`, not from the prompt text — and for nine variants the style
+  block was commissioning the flat look we kept complaining about.** Owner verdict on ember: "more detail, more
+  surface texture. they look too flat, cartoony." Cause was our own lead, which since batch 1 has opened *"FLAT
+  2D vector game art, hand-painted cel-shaded, SOLID FLAT AREAS OF COLOUR … matte"* — so three rounds of density
+  work (counts, then texture nouns) were fighting it: density adds **cracks**, it can never add **surface**.
+  The trap is one word doing two jobs — flat **projection** (side elevation, no top/underside; KEEP, the editor
+  depends on it) vs flat **shading** (solid colour, no grain; the actual complaint). Separate them and it's one
+  deletion (`var=r10`, `TEXTURED_LEAD`). Add **no** refusal for flatness — stop asking for it rather than start
+  forbidding it. Then batches 17 vs 18 isolated the real lever: identical lead/density/seed/shapes/`raw:true`,
+  differing **only** in reference — `rockform2` → gritty and granular, `rockform7` → flat cel-shaded vector with
+  hard outlines. **At 0.22 the reference outvotes the whole style block**, and its **palette beats a refusal**
+  (the cool `rockform7` put magenta on all six despite a clause naming amber as the only colour allowed). So
+  choose the reference to match the look; never use a cool reference to cool a warm theme.
+- **A dark rock keys BETTER on WHITE than on black** — the opposite of what the `ref_datauri`/"must come back on
+  black" note implies. Ultra returns a white backdrop ~30% of the time (12/40 renders, across r2/r4/r9/r10;
+  canny 0/66, depth 0/6) and that is **fine**: `rock_cut.py` detects polarity per image (`light_bg`) and the
+  white-backdrop cuts came out clean on magenta, while the one black-backdrop render in the same batch cut
+  **ragged** — dark rock on black is the low-contrast case. Don't spend a round chasing the white away.
+- **"Six orange lava rocks" is OUR verdict, not the owner's, and it contradicts the shipped art.** `rockform2`
+  and `rockform6` are warm rust-brown with glowing orange cracks *across their outer faces* — exactly what
+  `var=r8`'s confine clause exists to prevent. The owner's only stated ember complaint was flatness, never the
+  colour. Before enforcing a theme rule, look at the sprites, not at the prompt history.
 - `window.__game` (set in `main.js`) is an invisible debug hook (`state`, `draw()`,
   `skip()`, `play()`, `chooseCard()`, `botToGoal`) used by tests/self-play.
 - **The tutorial fires on EVERY press of New** (not once per browser — that changed). Armed only by **New**,

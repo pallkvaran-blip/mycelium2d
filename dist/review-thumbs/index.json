@@ -1,26 +1,44 @@
 {
  "groups": [
   {
+   "id": "ember-b19",
+   "label": "Ember \u2014 batch 19 (NEW: textured, few seams)",
+   "note": "texture kept, violet gone, but the orange came back \u2014 is warm actually wrong?",
+   "count": 6
+  },
+  {
+   "id": "ember-b17",
+   "label": "Ember \u2014 batch 17 (NEW: textured surface)",
+   "note": "the flat/cartoony fix: real stone grain, 4 MP, ultra raw \u2014 brought lava back with it",
+   "count": 6
+  },
+  {
+   "id": "ember-b18",
+   "label": "Ember \u2014 batch 18 (NEW: cold reference)",
+   "note": "cold reference killed the lava AND the texture, and added magenta \u2014 vote it down freely",
+   "count": 6
+  },
+  {
    "id": "ember-b16",
-   "label": "Ember \u2014 batch 16 (NEW: filled control)",
+   "label": "Ember \u2014 batch 16 (filled control)",
    "note": "chile is the look; rim glow persists on the rest",
    "count": 6
   },
   {
    "id": "ember-b15",
-   "label": "Ember \u2014 batch 15 (NEW: first ember round)",
+   "label": "Ember \u2014 batch 15 (first ember round)",
    "note": "no lava rocks, no plateaus \u2014 india puts fire in a crack",
    "count": 6
   },
   {
    "id": "fungal-b14",
-   "label": "Fungal \u2014 batch 14 (NEW: described shapes, flat ref)",
+   "label": "Fungal \u2014 batch 14 (described shapes, flat ref)",
    "note": "prose shapes + rockform1 reference \u2014 shapes read, projection still isometric",
    "count": 6
   },
   {
    "id": "fungal-b13",
-   "label": "Fungal \u2014 batch 13 (NEW: described shapes)",
+   "label": "Fungal \u2014 batch 13 (described shapes)",
    "note": "your shape list, described geometrically \u2014 best fungi yet, but isometric blocks",
    "count": 6
   },
@@ -32,7 +50,7 @@
   },
   {
    "id": "fungal-b11",
-   "label": "Fungal \u2014 batch 11 (NEW: first fungal round)",
+   "label": "Fungal \u2014 batch 11 (first fungal round)",
    "note": "colour landed; came back as top-down plateaus",
    "count": 6
   },
@@ -80,6 +98,204 @@
   }
  ],
  "items": [
+  {
+   "id": "ember-b19/ember19-bulge-r118316",
+   "group": "ember-b19",
+   "label": "ember19-bulge-r118316",
+   "file": "ember-b19-ember19-bulge-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-bulge-r118316.png",
+   "w": 1600,
+   "h": 1211,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b19/ember19-fork-r118316",
+   "group": "ember-b19",
+   "label": "ember19-fork-r118316",
+   "file": "ember-b19-ember19-fork-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-fork-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b19/ember19-horseshoe-r118316",
+   "group": "ember-b19",
+   "label": "ember19-horseshoe-r118316",
+   "file": "ember-b19-ember19-horseshoe-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-horseshoe-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b19/ember19-ring-r118316",
+   "group": "ember-b19",
+   "label": "ember19-ring-r118316",
+   "file": "ember-b19-ember19-ring-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-ring-r118316.png",
+   "w": 1600,
+   "h": 1600,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b19/ember19-switchback-r118316",
+   "group": "ember-b19",
+   "label": "ember19-switchback-r118316",
+   "file": "ember-b19-ember19-switchback-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-switchback-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b19/ember19-winding-r118316",
+   "group": "ember-b19",
+   "label": "ember19-winding-r118316",
+   "file": "ember-b19-ember19-winding-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember19-winding-r118316.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-bulge-r108316",
+   "group": "ember-b17",
+   "label": "ember17-bulge-r108316",
+   "file": "ember-b17-ember17-bulge-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-bulge-r108316.png",
+   "w": 1600,
+   "h": 1211,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-fork-r108316",
+   "group": "ember-b17",
+   "label": "ember17-fork-r108316",
+   "file": "ember-b17-ember17-fork-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-fork-r108316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-horseshoe-r108316",
+   "group": "ember-b17",
+   "label": "ember17-horseshoe-r108316",
+   "file": "ember-b17-ember17-horseshoe-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-horseshoe-r108316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-ring-r108316",
+   "group": "ember-b17",
+   "label": "ember17-ring-r108316",
+   "file": "ember-b17-ember17-ring-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-ring-r108316.png",
+   "w": 1600,
+   "h": 1600,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-switchback-r108316",
+   "group": "ember-b17",
+   "label": "ember17-switchback-r108316",
+   "file": "ember-b17-ember17-switchback-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-switchback-r108316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b17/ember17-winding-r108316",
+   "group": "ember-b17",
+   "label": "ember17-winding-r108316",
+   "file": "ember-b17-ember17-winding-r108316.jpg",
+   "src": "assets/rock_options/big/ember/ember17-winding-r108316.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-bulge-r118316",
+   "group": "ember-b18",
+   "label": "ember18-bulge-r118316",
+   "file": "ember-b18-ember18-bulge-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-bulge-r118316.png",
+   "w": 1600,
+   "h": 1211,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-fork-r118316",
+   "group": "ember-b18",
+   "label": "ember18-fork-r118316",
+   "file": "ember-b18-ember18-fork-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-fork-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-horseshoe-r118316",
+   "group": "ember-b18",
+   "label": "ember18-horseshoe-r118316",
+   "file": "ember-b18-ember18-horseshoe-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-horseshoe-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-ring-r118316",
+   "group": "ember-b18",
+   "label": "ember18-ring-r118316",
+   "file": "ember-b18-ember18-ring-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-ring-r118316.png",
+   "w": 1600,
+   "h": 1600,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-switchback-r118316",
+   "group": "ember-b18",
+   "label": "ember18-switchback-r118316",
+   "file": "ember-b18-ember18-switchback-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-switchback-r118316.png",
+   "w": 1600,
+   "h": 1067,
+   "cut": false,
+   "trimmed": true
+  },
+  {
+   "id": "ember-b18/ember18-winding-r118316",
+   "group": "ember-b18",
+   "label": "ember18-winding-r118316",
+   "file": "ember-b18-ember18-winding-r118316.jpg",
+   "src": "assets/rock_options/big/ember/ember18-winding-r118316.png",
+   "w": 1600,
+   "h": 893,
+   "cut": false,
+   "trimmed": true
+  },
   {
    "id": "ember-b16/ember16-chile-cny8216",
    "group": "ember-b16",

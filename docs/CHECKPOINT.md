@@ -545,6 +545,38 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Ember batches 17–19 — the "too flat, cartoony" fix, and what it cost (Jul 29).** Owner verdict on ember
+  15/16 was **3 keeps / 9 drops** (kept `ember16-japan`, `ember16-myanmar`, `ember15-india`; dropped `chile`,
+  which I had called the strongest) with one direction: *"more detail, more surface texture. they look too flat,
+  cartoony."* Looking at the renders instead of the prompt found the cause in **our own style block** — every
+  lead from `r2` to `r9` opens *"FLAT 2D vector game art … SOLID FLAT AREAS OF COLOUR … matte"*, i.e. it
+  commissions the rejected look, so the earlier density rounds were arguing with it. **`var=r10`** keeps the flat
+  **projection** sentence verbatim (the no-top/no-underside rule the level editor depends on) and deletes the
+  flat **shading** language, adds `SURFACE_R10` (per-plate grain, pitting, speckle) and a tonal range for the
+  stone to render relief with, and runs on **ultra + `raw:true`** (4.2 MP vs canny's ~1.0 MP; `create()` had
+  `raw: False` hardcoded and CLAUDE.md's card-art fix for "too AI" had never been tried on rocks).
+  - **Batch 17** (`var=r10`, ref `rockform2`): texture won outright — real gritty stone at 640px after cutting.
+    It also brought back **finding 1's lava rocks** (broad orange rivers over the outer faces) and **finding 2's
+    ground plane** (molten pool + rubble skirt on 2 of 6).
+  - **Batch 18** (`var=r11`, ref `rockform7`, the cold reference): killed the lava *and* the texture — flat
+    cel-shaded vector with hard outlines again — and added big saturated **magenta** patches on all six.
+  - **Batch 19** (`var=r11`, ref `rockform2`): texture back, magenta gone, orange back. r11's glow budget cut
+    seams to one or two under `rockform7` and changed almost nothing under `rockform2`.
+  - Net finding, now in CLAUDE.md and the script's log as findings 10/11: **texture and palette both come from
+    the `image_prompt`, which outvotes the style block at 0.22** — and the **"no lava rocks" rule is mine, not
+    the owner's**, contradicting `rockform2`/`rockform6`, which are warm with glowing outer-face cracks. The
+    planned 0.35 arm was dropped once batch 17 showed the reference is what supplies the orange.
+  - Also learned, inverting a note in our own docs: a **dark rock keys better on WHITE than on black**. Ultra
+    returns white ~30% of the time (12/40 across r2/r4/r9/r10; canny 0/66) and `rock_cut.py`'s per-image
+    polarity handles it cleanly, while the one black-backdrop render in batch 17 cut **ragged**.
+  - Review set rebuilt to **172 thumbs** (4.8 MB), ember 19/17/18 first: `<site>/rock-review.html`. Guards:
+    `scratchpad/check-r10-prompt.py` (46 checks — asserts `r8` stayed byte-identical when `DENSE_R8` was split
+    into `CRACK_NET` + `BACKDROP_GUARD`, that no flat-shading language survives in r10/r11, and that ember's
+    `r10`/`r11` don't inherit the `'*'` lava wording through `pick()`'s var→`'*'`→`r4` fallback).
+  - **Correction to the batch 15/16 hand-over:** I reported "no top-down plateaus on any of the 12". Wrong —
+    `chile`, `mongolia` and `japan` are isometric extruded plates with a visible top face and thickness rim.
+    The projection failure was never fixed; it was only less obvious than fungal's.
+
 - **Rock longlist review tool — `docs/rock-review.html` (Jul 27).** Hosted at `<site>/rock-review.html`, so
   the owner can triage the whole candidate longlist (100 images: 52 crystal big-renders + the veined batches +
   the cut finalists) BEFORE another generation run, and hand back what they want. Per item: **Keep/Drop**,

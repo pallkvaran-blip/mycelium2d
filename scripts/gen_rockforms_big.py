@@ -61,6 +61,34 @@ R4 (seed 5520, `var=r4`) — landed. THE FIX THAT MATTERED WAS NOT PROSE: flux-1
 onto BLACK, at strength 0.22 transfers style without cloning composition, and corrected both the
 perspective and the stone colour in one shot after three rounds of prompt surgery had failed.
 
+R10 — the one to read first, because it invalidates a premise every lead above is built on:
+  8. THE PROMPT WAS COMMISSIONING THE FLAT CARTOONY LOOK. Owner verdict on ember (batches 15-16):
+     "more detail, more surface texture. they look too flat, cartoony." Every lead from r2 to r9
+     opens "FLAT 2D vector game art, hand-painted cel-shaded, SOLID FLAT AREAS OF COLOUR ... crisp
+     clean edges, matte" — so three separate rounds of density work were arguing with my own style
+     block, which forbids surface by construction. Density adds CRACKS; it cannot add SURFACE
+     between them. The r6 note caught half of this and deleted only the words "LOW detail".
+     The trap is one word doing two jobs: flat PROJECTION (side elevation, no top, no underside —
+     keep, the editor depends on it) vs flat SHADING (solid colour, no grain — this is the
+     complaint). Separate them and the fix is one deletion. r10 adds NO refusal for flatness, per
+     finding 1: stop asking for it rather than start forbidding it.
+  10. TEXTURE COMES FROM THE REFERENCE, NOT FROM THE PROMPT. Batches 17 and 18 share the lead, the
+     density clause, raw=true, the seed, the shapes and 4 MP, and differ only in image_prompt:
+     rockform2 -> gritty and granular, rockform7 -> flat cel-shaded vector art with hard outlines,
+     both asking equally hard for surface texture. At 0.22 the reference OUTVOTES the whole style
+     block, which is r4's finding restated. A reference's PALETTE beats a refusal too — the cool
+     rockform7 put big magenta patches on all six of 18 despite a clause naming amber as the only
+     colour allowed. So pick the reference to match the look you want and treat the style block as
+     the smaller half; and never use a cool reference to cool a warm theme.
+  11. THE "NO LAVA ROCKS" RULE (finding 1) IS MINE, NOT THE OWNER'S, AND IT CONTRADICTS THE SHIPPED
+     ART. rockform2 and rockform6 are warm rust-brown with glowing orange cracks over their outer
+     faces — exactly what r8's confine clause exists to prevent. The owner's only stated complaint
+     about ember was flatness. Don't burn rounds enforcing a spec the game's own sprites break.
+  9. Corollary — LOOK AT THE SHIPPED ART BEFORE TRANSCRIBING IT. The THEMES table claims to be
+     "transcribed from the SHIPPED sprites". rockform2 is painterly, densely textured, warm, with no
+     drawn outline; the style block describes flat vector fills with hard crack lines. The two never
+     matched, and nobody noticed for nine variants because the check was reading prompts, not images.
+
 Note on R2/R3: their renders were LOST to an earlier version of this script that reused filenames
 per round. R2 is reproducible from `var=r2` + its seed; the recipe below is reconstructed, so
 re-renders may not be pixel-identical to the originals.
@@ -148,15 +176,86 @@ DENSE_HI = ("FINE DENSE DETAIL AT SEVERAL SCALES AT ONCE: forty or fifty separat
 # area of unbroken flat colour" was unscoped, and the largest broad flat area in frame is the
 # BACKGROUND, so FLUX dutifully broke that up too. Every density clause now names the STONE as its
 # subject, and one positive sentence keeps the backdrop out of it.
-DENSE_R8 = ("The STONE's whole face is TESSELLATED all over into small angular plates, crazed like "
-            "shattered slate and like the crackle in an old ceramic glaze: a branching network of "
-            "hard dark crack lines splits the stone into plates, then splits every plate again "
-            "into smaller plates, and again into hairline fissures, with chipped flakes and small "
-            "pits crowding along every crack and every edge of the stone. The finest cracks are "
-            "many times smaller than the whole formation, so every part of the ROCK'S SURFACE "
-            "stays broken up, with no broad area of unbroken flat colour anywhere ON THE STONE. "
-            "All of this cracking and faceting belongs to the rock alone: the empty black "
-            "background behind it stays perfectly plain, smooth and unbroken")
+CRACK_NET = ("The STONE's whole face is TESSELLATED all over into small angular plates, crazed like "
+             "shattered slate and like the crackle in an old ceramic glaze: a branching network of "
+             "hard dark crack lines splits the stone into plates, then splits every plate again "
+             "into smaller plates, and again into hairline fissures, with chipped flakes and small "
+             "pits crowding along every crack and every edge of the stone. The finest cracks are "
+             "many times smaller than the whole formation, so every part of the ROCK'S SURFACE "
+             "stays broken up, with no broad area of unbroken flat colour anywhere ON THE STONE. ")
+# Split out so r10 can reuse the crack network verbatim and slot a surface clause in front of the
+# backdrop guard. r8's own string is rebuilt from the two halves and is byte-identical to before —
+# pinned by test_gen_rockforms.py, because a variant is a frozen recipe.
+BACKDROP_GUARD = ("All of this cracking and faceting belongs to the rock alone: the empty black "
+                  "background behind it stays perfectly plain, smooth and unbroken")
+DENSE_R8 = CRACK_NET + BACKDROP_GUARD
+
+# `var=r10` — the answer to "more detail, more surface texture. they look too flat, cartoony".
+# THE CAUSE WAS THE STYLE BLOCK, NOT THE MODE OR THE DENSITY CLAUSE. Every lead from r2 to r9 opens
+# with "FLAT 2D vector game art, hand-painted cel-shaded, SOLID FLAT AREAS OF COLOUR separated by
+# hard-edged dark crack lines, crisp clean edges, matte" — i.e. it commissions the exact look the
+# owner rejected. Three rounds of density work (DENSE_HI's counts, then DENSE_R8's texture nouns)
+# were fighting my own prompt: "solid flat areas of colour" forbids surface by construction, so the
+# density levers could add more CRACKS but never any SURFACE between them.
+#
+# The r6 note caught HALF of this once already ("FLAT2D says LOW detail ... that phrase was
+# suppressing the first to control the second") and I deleted only the words LOW detail. The rest of
+# the sentence was the bigger half.
+#
+# The confusion is one word doing two jobs. FLAT means two unrelated things here:
+#   flat PROJECTION — orthographic side elevation, no top face, no underside.  KEEP. It is the
+#     no-top-no-bottom rule the level editor depends on, and r4 proved this exact wording lands it.
+#   flat SHADING — solid areas of colour, no grain, no relief.  DROP. This is the complaint.
+# r10 keeps the projection sentence verbatim and deletes the shading language. Nothing else moves.
+#
+# Note the style block carried NO refusal list for flatness and r10 adds none: by this script's own
+# first finding a refusal feeds its own tokens, so the fix is to stop asking for flat, not to start
+# forbidding it. (Evidence it works that way round: the old lead ALSO said "NO photoreal texture, NO
+# grain, NO film noise" and the renders came back with none — the positive tokens won, as always.)
+# Also gone from r10's light clause: "not a 3D render", which was an anti-SHADING term and now
+# contradicts the ask. The anti-projection terms stay — r4 landed the view with them in place.
+TEXTURED_LEAD = ("Hand-painted 2D game art of real stone, RICHLY TEXTURED and dense with surface "
+                 "detail: a coarse gritty rock face of dark basalt, coloured in close-packed "
+                 "granular grain, micro-pitting, tiny mineral speckles and flecks, chipped flakes "
+                 "and shallow worn scuffs, with deep shadow pooling in every crack and a faint "
+                 "ambient sheen on the raised plates, so the whole face carries real light, shade "
+                 "and relief and reads as solid gritty stone with a rough surface you could feel. "
+                 # projection — the one clause the old FLAT2D block got right, kept word for word
+                 "A single large rock FORMATION drawn as a flat CROSS-SECTION seen dead-on from "
+                 "the SIDE at eye level, perfectly perpendicular with ZERO perspective: no top "
+                 "surface visible and no underside visible, the way rock is drawn in a 2D "
+                 "side-scrolling video game. ")
+SURFACE_R10 = ("On TOP of all that cracking, the face of every single plate carries dense fine "
+               "SURFACE TEXTURE of its own: gritty granular stone, close-packed pitting, mineral "
+               "speckle, scratches and weathered patches, each plate with its own shadowed hollows "
+               "and lit high points, so not one plate is ever a smooth blank panel of flat colour. ")
+DENSE_R10 = CRACK_NET + SURFACE_R10 + BACKDROP_GUARD
+
+# `var=r11` — r10 with the lava regression fixed. r10 won the texture argument outright (the owner's
+# only complaint) and in doing so brought back finding 1's SIX ORANGE LAVA ROCKS plus finding 2's
+# ground plane: broad molten rivers over the outer faces, a glowing puddle and a rubble skirt at the
+# base of two of six. r8's confine clause had held for 12/12 renders on canny, so what beat it is
+# what changed, and three things did — listed in the order I rate them:
+#
+#   1. THE REFERENCE IS ITSELF A LAVA ROCK. THEMES['ember']['ref'] is rockform2, which is warm
+#      orange with glowing cracks across its face, and r4's note says an image_prompt corrects "the
+#      perspective and the STONE COLOUR" — so at 0.22 it was pulling orange the whole time. On canny
+#      that never mattered because flux-canny-pro takes no image_prompt at all. This also kills the
+#      arm I had planned (0.35 to chase more texture): a stronger pull toward rockform2 is a
+#      stronger pull toward lava. Run r11 with `ref=rockform7` — crystal's cool blue-grey stone,
+#      textured, with its glow confined inside cavities — and let the theme text supply the amber.
+#   2. "deep shadow POOLING in every crack" in my own lead. Pooling is a molten-liquid verb, and
+#      what came back was a literal pool of molten light at the base of the rock.
+#   3. DENSE_R10's crack network is far denser than r6/r8's, and a dense crack web plus amber IS the
+#      lava-cliff prior (finding 1 again). Density is right, so it stays; instead every crack is
+#      stated DARK and DRY, and only the few named seams are allowed to be lit.
+TEXTURED_LEAD_DRY = TEXTURED_LEAD.replace("deep shadow pooling in every crack",
+                                          "deep shadow sitting in every crack")
+UNLIT_CRACKS = ("Every crack, fissure and hairline split in this stone is DARK, DRY and UNLIT — "
+                "bare shadow in bare rock with no light of any kind in it — apart from the few "
+                "named seams; the stone is cold and solid all the way through, nothing in it flows "
+                "or drips or spills, and it does not rest in or on anything bright. ")
+DENSE_R11 = CRACK_NET + SURFACE_R10 + UNLIT_CRACKS + BACKDROP_GUARD
 
 ISO_BACKDROP = ("The formation sits alone against an absolutely PLAIN FLAT BLACK BACKDROP, hex "
                 "000000, an unlit empty background of solid black with nothing in it and nothing "
@@ -235,6 +334,39 @@ VARIANTS = {
                "over, with the stone equally rocky and the detail equally scattered on every side, "
                "so it reads correctly turned any way up. Not isometric, not a three-quarter view, "
                "not a 3D render"),
+    ),
+    # `var=r10`: textured surface instead of flat vector fills — see the TEXTURED_LEAD note. Runs on
+    # ULTRA (4 MP) with raw=true, because the two other causes of "flat" are mechanical: canny caps
+    # at ~1 MP (all 12 ember renders measured 0.98-1.04 MP, so fine grain literally cannot resolve)
+    # and canny is a line tracer that "can NEVER add shaded detail" — this script's own finding (a).
+    # raw=true is CLAUDE.md's documented fix for base ultra reading "too AI / plasticky" on card art;
+    # it had never been tried here (`create()` hardcoded raw: False).
+    "r10": dict(
+        lead=TEXTURED_LEAD, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=("The formation floats alone in the middle of completely empty pure BLACK space, "
+                   "hex 000000, with empty black on every side of it and empty black directly "
+                   "underneath it too — it rests on nothing and touches nothing. Nothing else is "
+                   "in view, and there is a clear margin of black all the way around its outline"),
+        dense=DENSE_R10,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view"),
+    ),
+    # `var=r11`: r10's texture, minus the lava it brought back. See the DENSE_R11 note.
+    "r11": dict(
+        lead=TEXTURED_LEAD_DRY, ref=True, feature=True,
+        tail=("Bioluminescent deep-underground feel, cool and dim. "
+              "No text, no watermark, no border, no characters"),
+        isolation=("The formation floats alone in the middle of completely empty pure BLACK space, "
+                   "hex 000000, with empty black on every side of it and empty black directly "
+                   "underneath it too — it rests on nothing and touches nothing. Nothing else is "
+                   "in view, and there is a clear margin of black all the way around its outline"),
+        dense=DENSE_R11,
+        light=("Evenly and ambiently lit from no particular direction, the same brightness all "
+               "over, with the stone equally rocky and the detail equally scattered on every side, "
+               "so it reads correctly turned any way up. Not isometric, not a three-quarter view"),
     ),
     "r6": dict(
         lead=R6_LEAD, ref=True, feature=True,
@@ -339,6 +471,23 @@ THEMES = {
                    "right across the whole formation, each one sunk DEEP DOWN INSIDE a fissure in "
                    "the stone and seen edge-on as a thin bright line at the bottom of the crack, "
                    "none of them thick and none of them on the outer faces of the rock"),
+            # Set explicitly, never inherited: pick() falls back var -> '*' -> r4, and ember's '*'
+            # is the "thick glowing orange seams" wording that produced the six lava rocks. r8's
+            # confine clause is the proven one (cold grey stone on all 12 of batches 15-16), so it
+            # carries over verbatim — the texture work is in the lead and the body, not here.
+            "r10": ("with TEN OR TWELVE NARROW glowing amber seams of differing length scattered "
+                    "right across the whole formation, each one sunk DEEP DOWN INSIDE a fissure in "
+                    "the stone and seen edge-on as a thin bright line at the bottom of the crack, "
+                    "none of them thick and none of them on the outer faces of the rock"),
+            # r11 cuts the seam count from ten-or-twelve to FIVE OR SIX and shortens them. Ten was
+            # safe at r6/r8 crack density; at r10's density the render has many times more cracks
+            # for the glow to spread into, and it spread into all of them. The glow budget has to
+            # come down as the crack count goes up.
+            "r11": ("with just FIVE OR SIX SHORT, NARROW glowing amber seams in total, widely "
+                    "separated and scattered across the whole formation, each one no longer than a "
+                    "small fraction of the rock and sunk DEEP DOWN INSIDE a fissure, seen edge-on "
+                    "as a thin bright line at the very bottom of the crack; every other crack in "
+                    "the stone is dark and unlit, and no seam ever runs across an outer face"),
         },
         body={"*": ("The stone is dark charcoal-grey and rust-brown. A branching network of thick "
                     "GLOWING ORANGE seams runs across the facets, brightest deep in the fissures "
@@ -352,10 +501,48 @@ THEMES = {
                      "STAYS COLD DARK CHARCOAL GREY throughout — the warm colour appears ONLY down "
                      "inside the fissures and on the narrow rim of light around each one; the body "
                      "of the rock, and every outward-facing surface of it, is never orange, never "
-                     "red and never rust-coloured. ")},
+                     "red and never rust-coloured. "),
+              # r10 = r8's confine clause with the TONAL RANGE opened up. r8 said the stone is
+              # "dim and almost black, with slightly paler cool grey facet faces": near-black with a
+              # slightly-paler variant has almost no range to render relief WITH, so it reads flat
+              # however many cracks are drawn — texture is only ever visible as light and shade.
+              # Still cold and still dark overall, so the seams stay the only warm thing in frame.
+              "r10": ("The stone is dark desaturated charcoal GREY basalt, cold and dim but with a "
+                      "real range of tone across it: near-black deep in its hollows, mid slate "
+                      "grey over most of its face, and pale weathered grey where plates stand "
+                      "proud, so its relief and its grain are clearly readable. Split into it are "
+                      "narrow fissures, each seen EDGE-ON as a thin dark cleft in the rock's face "
+                      "with a GLOWING AMBER seam burning far down at the bottom of it, throwing a "
+                      "small pool of warm light onto the two lips of that one crack and nowhere "
+                      "else. The stone itself STAYS COLD GREY throughout — the warm colour appears "
+                      "ONLY down inside the fissures and on the narrow rim of light around each "
+                      "one; the body of the rock, and every outward-facing surface of it, is never "
+                      "orange, never red and never rust-coloured. "),
+              # r11 = r10's body with the seams restated as few and short, matching the r11 feature.
+              "r11": ("The stone is dark desaturated charcoal GREY basalt, cold and dim but with a "
+                      "real range of tone across it: near-black deep in its hollows, mid slate "
+                      "grey over most of its face, and pale weathered grey where plates stand "
+                      "proud, so its relief and its grain are clearly readable. A FEW narrow "
+                      "fissures are split into it, each seen EDGE-ON as a thin dark cleft with a "
+                      "SHORT GLOWING AMBER seam burning far down at the bottom of it, throwing a "
+                      "small pool of warm light onto the two lips of that one crack and nowhere "
+                      "else. The stone itself STAYS COLD GREY throughout — the warm colour appears "
+                      "ONLY down inside those few fissures and on the narrow rim of light around "
+                      "each one; the body of the rock, and every outward-facing surface of it, is "
+                      "never orange, never red and never rust-coloured. ")},
         refuse={"*": "Strictly a WARM, dim palette. No cool hues anywhere in the image",
                 "r8": ("The rock is a cold, dim, desaturated dark grey stone and the ONLY warm "
-                       "colour anywhere in the image is the amber light inside the seams themselves")},
+                       "colour anywhere in the image is the amber light inside the seams themselves"),
+                "r10": ("The rock is a cold, dim, desaturated dark grey stone and the ONLY warm "
+                        "colour anywhere in the image is the amber light inside the seams "
+                        "themselves"),
+                # r11 tightens this from "no WARM colour" to "no colour": its reference is
+                # rockform7, a crystal rock, so the pull is now toward cool violet rather than
+                # orange, and r10's wording permitted any amount of that. Neither hue is named —
+                # naming one is how R3 turned the whole stone lavender (finding 6).
+                "r11": ("The rock is a cold, dim, desaturated dark GREY stone, grey from edge to "
+                        "edge, and the only colour anywhere in the image at all is the amber light "
+                        "down inside those few seams")},
     ),
     # Fungal r8 carries over the two things that made crystal work, plus one risk unique to this
     # theme. (a) MANY SMALL features rather than a few big ones — a few large clumps is half of why
@@ -588,6 +775,107 @@ BATCHES = {
     # whatever colour the theme supplies. Batch 6 fixed it with a filled silhouette (one boundary),
     # so 16 goes in FILLED_CTL. It matters more for ember than it did for crystal: an amber rim is
     # visually dominant and steals the glow budget from the seams, which are the whole theme.
+    # Batches 17 + 18 = EMBER on var=r10, the textured-surface recipe. The owner's verdict on
+    # batches 15-16 was 3 keeps / 9 drops with one note: "more detail, more surface texture. they
+    # look too flat, cartoony." See the TEXTURED_LEAD note for the cause (my own style block) and
+    # the two mechanical contributors (canny's ~1 MP cap, canny being a line tracer).
+    #
+    # Consequences of moving off canny, both accepted deliberately: the shape is no longer BOUND,
+    # only guided by the reference at 0.22, so silhouettes come back looser than the country
+    # outlines; and the shapes have to be DESCRIBED. So these reuse batch 13's six prose briefs,
+    # which are the ones logged as legible (a ring read as a ring, the fork forked) — every aspect
+    # is at or under 16:9, per the landscape rule and per the owner dropping all four 21:9 renders
+    # across batches 15-16.
+    #
+    # 17 = var=r10, ref=rockform2 (the shipped ember rock) at the usual 0.22. Looking at rockform2 is
+    # what settled the diagnosis: it is painterly, densely textured and has no drawn outline, i.e.
+    # the style block never matched the art it claims to be transcribed from.
+    # 18 = var=r11, `ref=rockform7`, same six shapes, same seed 8316. Batch 17 fixed the texture and
+    # brought the lava rocks back with it; r11 is that regression fixed (reference, "pooling", and
+    # the glow budget — see the DENSE_R11 note). Not a one-variable arm: all three changes serve one
+    # goal and two of them are my own wording bugs, so there is nothing to learn by shipping them
+    # separately. The comparison that matters is 18 against 17, whose renders are kept either way.
+    # Batch 19 = the combination batches 17 and 18 point at: r11's WORDING (few short seams, every
+    # other crack dark and dry, nothing bright at the base) with r10's REFERENCE (rockform2).
+    #
+    # What 18 established, and it is the most useful finding of the round: THE TEXTURE CAME FROM THE
+    # REFERENCE, NOT FROM MY PROMPT. 17 and 18 share the lead, the density clause, raw=true, the
+    # seed, the shapes and 4 MP; the only material difference is rockform2 vs rockform7. 17 came back
+    # gritty and granular, 18 came back flat cel-shaded vector art with hard outlines — the exact
+    # look the owner rejected — while asking just as hard for surface texture. So rockform7 is a flat
+    # vector sprite and rockform2 is a painterly one, and at 0.22 the image_prompt OUTVOTES the whole
+    # style block. That is r4's finding restated ("the fix that mattered was NOT PROSE") and it means
+    # the style block is close to decorative next to the choice of reference. Corollary: the ONLY
+    # renders that have ever come back textured are the ones referencing rockform2.
+    # 18 also confirmed the violet risk that its own refuse clause was written to prevent: six
+    # renders with big saturated magenta patches. A reference's palette beats a refusal, so a cool
+    # reference cannot be used to cool an ember rock. rockform2's orange has to be fought in the
+    # prompt instead, which is what r11's glow budget is for — 18 did cut the seams to one or two and
+    # cleared the molten pool and the rubble skirt, so that half of r11 works.
+    #
+    # RESULT OF 19, since the paragraph above was written as a prediction: half right. The texture
+    # came back exactly as predicted (third confirmation that rockform2 is what supplies it) and the
+    # violet went away with rockform7. But r11's glow budget did NOT hold against rockform2 — all six
+    # came back with broad orange crack networks over the outer faces, and fork and horseshoe kept
+    # the molten pool and rubble skirt at the base. The same wording that cut the seams to one or two
+    # under rockform7 changed almost nothing under rockform2. So on this evidence texture and
+    # warm-glow are COUPLED THROUGH THE REFERENCE and no prompt-side lever tried so far separates
+    # them: rockform2 buys texture and orange together, rockform7 buys cold and flat together.
+    #
+    # WHICH RAISES A BETTER QUESTION, AND IT IS A CORRECTION TO THIS FILE: "six orange lava rocks"
+    # has been finding 1 since round 1, and it is MY verdict, never the owner's. Look at the shipped
+    # ember set it claims to be transcribed from — rockform2 and rockform6 are warm rust-brown rock
+    # with GLOWING ORANGE CRACKS ACROSS THEIR OUTER FACES. That is the thing r8's confine clause was
+    # built to prevent. So the confine clause has been fighting the theme's own shipped art, and
+    # batches 17/19 are plausibly MORE on-theme than the cold grey 15/16 — of which the owner kept
+    # 3 of 12, and complained about the flatness, never the colour. Do not spend another round
+    # chasing the orange out until the owner has actually said it is wrong. Same lesson as finding 9:
+    # look at the art, not at the prompt history.
+    19: [
+        ("winding", "16:9", "a long band of stone that winds from side to side through three "
+                            "broad bends, thicker where it turns and pinched thinner between"),
+        ("ring", "1:1", "a closed loop of stone, lumpy and uneven all the way round, with one "
+                        "large ragged hole punched clean through the middle of it"),
+        ("fork", "3:2", "one thick stem of stone that divides into two diverging prongs of "
+                        "unequal length, the wedge of space between the prongs left empty"),
+        ("horseshoe", "3:2", "a thick horseshoe of stone: two heavy arms joined at one end by a "
+                             "rounded bend, the long gap between the arms left open and empty"),
+        ("bulge", "4:3", "a mass of stone with one long straight side, the opposite side swelling "
+                         "out in a single broad curve, so the whole reads as a heavy half-round"),
+        ("switchback", "3:2", "a narrow band of stone that doubles back on itself four times in "
+                              "tight hairpin turns stacked one above the next, each turn a sharp "
+                              "angular corner with an empty notch biting in beside it"),
+    ],
+    18: [
+        ("winding", "16:9", "a long band of stone that winds from side to side through three "
+                            "broad bends, thicker where it turns and pinched thinner between"),
+        ("ring", "1:1", "a closed loop of stone, lumpy and uneven all the way round, with one "
+                        "large ragged hole punched clean through the middle of it"),
+        ("fork", "3:2", "one thick stem of stone that divides into two diverging prongs of "
+                        "unequal length, the wedge of space between the prongs left empty"),
+        ("horseshoe", "3:2", "a thick horseshoe of stone: two heavy arms joined at one end by a "
+                             "rounded bend, the long gap between the arms left open and empty"),
+        ("bulge", "4:3", "a mass of stone with one long straight side, the opposite side swelling "
+                         "out in a single broad curve, so the whole reads as a heavy half-round"),
+        ("switchback", "3:2", "a narrow band of stone that doubles back on itself four times in "
+                              "tight hairpin turns stacked one above the next, each turn a sharp "
+                              "angular corner with an empty notch biting in beside it"),
+    ],
+    17: [
+        ("winding", "16:9", "a long band of stone that winds from side to side through three "
+                            "broad bends, thicker where it turns and pinched thinner between"),
+        ("ring", "1:1", "a closed loop of stone, lumpy and uneven all the way round, with one "
+                        "large ragged hole punched clean through the middle of it"),
+        ("fork", "3:2", "one thick stem of stone that divides into two diverging prongs of "
+                        "unequal length, the wedge of space between the prongs left empty"),
+        ("horseshoe", "3:2", "a thick horseshoe of stone: two heavy arms joined at one end by a "
+                             "rounded bend, the long gap between the arms left open and empty"),
+        ("bulge", "4:3", "a mass of stone with one long straight side, the opposite side swelling "
+                         "out in a single broad curve, so the whole reads as a heavy half-round"),
+        ("switchback", "3:2", "a narrow band of stone that doubles back on itself four times in "
+                              "tight hairpin turns stacked one above the next, each turn a sharp "
+                              "angular corner with an empty notch biting in beside it"),
+    ],
     16: [
         ("japan", "16:9", "Japan"),
         ("mongolia", "21:9", "Mongolia"),
@@ -728,6 +1016,10 @@ CANNY_BATCHES = {4, 5, 6, 7, 9, 10, 11, 12, 15, 16}  # shape comes from a contro
 FILLED_CTL = {6, 7, 16}           # filled silhouette (one clean edge) rather than an outline stroke
 DEPTH_BATCHES = {8}           # faceted depth map -> shaded detail (see var=r7)
 COUNTRY_BATCHES = {2}          # batches whose briefs name a country as the SUBJECT -> add NOT_A_MAP
+RAW_BATCHES = {17, 18, 19}   # ultra raw=true — CLAUDE.md's fix for base ultra reading "too AI"
+STRENGTH = {}   # per-batch image_prompt_strength override (default REF_STRENGTH). Batch 18 was
+# going to be 0.35 to chase more texture; dropped once batch 17 showed the reference is what brought
+# the lava back, since a stronger pull toward rockform2 is a stronger pull toward orange.
 
 
 def log(m):
@@ -770,12 +1062,12 @@ def curl_post(model, inp):
         return {"_raw": r.stdout[:300]}
 
 
-def create(prompt, aspect, seed, ref=None):
-    inp = {"prompt": prompt, "aspect_ratio": aspect, "raw": False,
+def create(prompt, aspect, seed, ref=None, raw=False, strength=REF_STRENGTH):
+    inp = {"prompt": prompt, "aspect_ratio": aspect, "raw": raw,
            "output_format": "png", "safety_tolerance": 6, "seed": seed}
     if ref:
         inp["image_prompt"] = ref
-        inp["image_prompt_strength"] = REF_STRENGTH
+        inp["image_prompt_strength"] = strength
     return curl_post(MODEL, inp)
 
 
@@ -903,7 +1195,8 @@ def main():
     # Default seeds are per (batch, variant) so a re-run of the same command is idempotent and a
     # deliberate re-roll just needs seed=.
     seed = (int(seed_arg.split("=")[1]) if seed_arg
-            else {"r2": 7710, "r4": 5520, "r6": 6100, "r7": 6400}.get(var, 2255) + batch - 1)
+            else {"r2": 7710, "r4": 5520, "r6": 6100, "r7": 6400,
+                  "r10": 8300}.get(var, 2255) + batch - 1)
     rawdir = ROOT / "scratchpad" / f"big_raw_{theme}{batch}_{var}{seed}"
     rawdir.mkdir(parents=True, exist_ok=True)
     if not TOKEN:
@@ -915,8 +1208,10 @@ def main():
                                  else (THEMES[theme]["ref"] if v["ref"] else None))
     ref = None if refkey in (None, "off") else ref_datauri(refkey)
     mode = "depth" if batch in DEPTH_BATCHES else "canny" if canny else "ultra"
-    log(f"{theme} batch {batch}  {mode}  var={var}  seed={seed}  "
-        f"ref={refkey or 'none'}{f' @ {REF_STRENGTH}' if ref else ''}")
+    raw = batch in RAW_BATCHES
+    strength = STRENGTH.get(batch, REF_STRENGTH)
+    log(f"{theme} batch {batch}  {mode}{' raw' if raw else ''}  var={var}  seed={seed}  "
+        f"ref={refkey or 'none'}{f' @ {strength}' if ref else ''}")
 
     jobs = []
     for name, aspect, shape in briefs:
@@ -935,7 +1230,7 @@ def main():
             d = (create_depth(prompt, uri, seed) if batch in DEPTH_BATCHES
                  else create_canny(prompt, uri, seed, guidance=18 if batch == 5 else None))
         else:
-            d = create(prompt, aspect, seed, ref)
+            d = create(prompt, aspect, seed, ref, raw=raw, strength=strength)
         url = (d.get("urls") or {}).get("get")
         log(f"submit {name} ({aspect}) -> {d.get('status')} "
             f"{'' if url else json.dumps(d)[:200]}")

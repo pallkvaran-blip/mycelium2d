@@ -28,22 +28,31 @@ def sets():
     # density-push run (var=r8) on the six silhouettes the owner kept; both seeds are included
     # because the first (cny2263) crazed the backdrop and the second (cny5527) fixed it, and the
     # per-image density difference between them is seed noise worth judging by eye.
-    yield ("ember-b16", "Ember — batch 16 (NEW: filled control)",
+    yield ("ember-b19", "Ember — batch 19 (NEW: textured, few seams)",
+           "texture kept, violet gone, but the orange came back — is warm actually wrong?",
+           sorted((OPT / "big" / "ember").glob("ember19-*.png")))
+    yield ("ember-b17", "Ember — batch 17 (NEW: textured surface)",
+           "the flat/cartoony fix: real stone grain, 4 MP, ultra raw — brought lava back with it",
+           sorted((OPT / "big" / "ember").glob("ember17-*.png")))
+    yield ("ember-b18", "Ember — batch 18 (NEW: cold reference)",
+           "cold reference killed the lava AND the texture, and added magenta — vote it down freely",
+           sorted((OPT / "big" / "ember").glob("ember18-*.png")))
+    yield ("ember-b16", "Ember — batch 16 (filled control)",
            "chile is the look; rim glow persists on the rest",
            sorted((OPT / "big" / "ember").glob("ember16-*.png")))
-    yield ("ember-b15", "Ember — batch 15 (NEW: first ember round)",
+    yield ("ember-b15", "Ember — batch 15 (first ember round)",
            "no lava rocks, no plateaus — india puts fire in a crack",
            sorted((OPT / "big" / "ember").glob("ember15-*.png")))
-    yield ("fungal-b14", "Fungal — batch 14 (NEW: described shapes, flat ref)",
+    yield ("fungal-b14", "Fungal — batch 14 (described shapes, flat ref)",
            "prose shapes + rockform1 reference — shapes read, projection still isometric",
            sorted((OPT / "big" / "fungal").glob("fungal14-*.png")))
-    yield ("fungal-b13", "Fungal — batch 13 (NEW: described shapes)",
+    yield ("fungal-b13", "Fungal — batch 13 (described shapes)",
            "your shape list, described geometrically — best fungi yet, but isometric blocks",
            sorted((OPT / "big" / "fungal").glob("fungal13-*.png")))
     yield ("fungal-b12", "Fungal — batch 12 (bracket fungi)",
            "noun swap to fix the top-down view — did NOT work, vote anyway",
            sorted((OPT / "big" / "fungal").glob("fungal12-*.png")))
-    yield ("fungal-b11", "Fungal — batch 11 (NEW: first fungal round)",
+    yield ("fungal-b11", "Fungal — batch 11 (first fungal round)",
            "colour landed; came back as top-down plateaus",
            sorted((OPT / "big" / "fungal").glob("fungal11-*.png")))
     yield ("crystal-b10", "Crystal — batch 10 (continents + island clusters)",
