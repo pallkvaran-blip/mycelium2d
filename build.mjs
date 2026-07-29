@@ -231,5 +231,20 @@ if (existsSync(R('docs/rock-tuner.html'))) {
   console.log('Copied docs/rock-tuner.html -> dist/rock-tuner.html');
 }
 
+// Publish the rock LONGLIST review tool at <site>/rock-review.html, plus the downscaled thumb
+// set it reads. The thumbs live under assets/rock_options/ in the source tree, which the asset
+// copy above already excludes — so they land in dist/review-thumbs/ (a dist ROOT folder) instead
+// of dist/assets/. That keeps ~2.6 MB of authoring thumbs OUT of the itch zip, which ships only
+// index.html + assets/. Rebuild the set with `python3 scripts/build_rock_review.py`.
+if (existsSync(R('docs/rock-review.html'))) {
+  cpSync(R('docs/rock-review.html'), R('dist/rock-review.html'));
+  console.log('Copied docs/rock-review.html -> dist/rock-review.html');
+}
+if (existsSync(R('assets/rock_options/review'))) {
+  rmSync(R('dist/review-thumbs'), { recursive: true, force: true });
+  cpSync(R('assets/rock_options/review'), R('dist/review-thumbs'), { recursive: true });
+  console.log('Copied rock review thumbs -> dist/review-thumbs/ (excluded from the itch zip)');
+}
+
 console.log('Built dist/index.html and dist/artifact.html');
 console.log(`Bundle size: ${(standalone.length / 1024).toFixed(1)} KB`);

@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mycelium — Rock longlist review</title>
+<link rel="icon" id="favi" href="data:,">
+<style>
+:root{ --bg:#08110d; --bg2:#050b08; --panel:#0e1a15; --panel2:#0a1410; --line:rgba(126,240,192,.16);
+  --ink:#e6f4ec; --dim:#8fb3a4; --mint:#7ef0c0; --amber:#ffb95e; --red:#ff8a7a; --top:56px; }
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{color:var(--ink);font-family:"Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));font-size:13px}
+
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:0 12px;height:var(--top);
+  background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+.brand{font-weight:800;color:var(--mint);margin-right:2px}
+.sep{width:1px;height:26px;background:var(--line);flex:0 0 auto}
+.btn{font:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:7px 11px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--ink);flex:0 0 auto}
+.btn:hover{border-color:var(--mint)}
+.btn.primary{background:linear-gradient(180deg,#12271e,#0c1c15);border-color:rgba(126,240,192,.45);color:var(--mint)}
+.spacer{flex:1 1 auto}
+.prog{font-size:12px;color:var(--dim)}
+.prog b{color:var(--ink)}
+.chip{font:600 10px/1 inherit;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 9px;flex:0 0 auto}
+.chip:hover{color:var(--ink);border-color:var(--mint)}
+.chip.on{color:#04140d;background:var(--mint);border-color:var(--mint)}
+.chip .c{opacity:.7;font-weight:400;margin-left:4px}
+
+main{padding:12px 16px 80px;max-width:1700px;margin:0 auto}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 14px}
+.filters .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-right:2px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:#9fb5a8;margin:22px 0 4px;
+  border-bottom:1px solid var(--line);padding-bottom:7px}
+h2 .n{color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;font-size:11.5px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  display:flex;flex-direction:column;position:relative}
+.card.keep{border-color:#6fe0b0;box-shadow:0 0 0 1px #6fe0b0 inset}
+.card.drop{border-color:#7a4a44;opacity:.5}
+.card .imgwrap{background:#0b0f0c;cursor:zoom-in;display:flex;align-items:center;justify-content:center;height:200px}
+.card img{max-width:100%;max-height:100%;display:block}
+/* Several raw batches come back very dark (rock at ~10% of frame luminance); this lifts them
+   for shape judging without touching the files. Tone is graded later in rock-tuner.html. */
+body.bright .card img, body.bright #lb img{filter:brightness(1.75) saturate(1.1)}
+.card .meta{display:flex;align-items:baseline;gap:6px;padding:6px 8px 0;font-size:11px;font-weight:700}
+.card .meta .dim{font-weight:400;color:var(--dim);font-size:10px}
+.vote{display:flex;gap:6px;padding:7px 8px}
+.vote button{flex:1 1 0;font:inherit;font-size:11.5px;font-weight:800;border-radius:7px;padding:7px 0;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);color:var(--dim)}
+.vote button:hover{color:var(--ink);border-color:var(--mint)}
+.card.keep .vote .k{background:var(--mint);color:#04140d;border-color:var(--mint)}
+.card.drop .vote .d{background:#5e2f2a;color:#ffd9d3;border-color:#7a4a44}
+.marks{padding:0 8px 7px;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--amber);cursor:zoom-in}
+.tag{font:600 10px/1 inherit;letter-spacing:.03em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 9px}
+.tag:hover{color:var(--ink)}
+.tag.on{color:#04140d;background:var(--amber);border-color:var(--amber)}
+.lbtags{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:min(92vw,900px)}
+.lbnote{width:min(92vw,640px);font:inherit;font-size:12.5px;background:#04100b;color:var(--ink);
+  border:1px solid var(--line);border-radius:8px;padding:7px 9px;resize:vertical;min-height:34px}
+.lbnote:focus{outline:none;border-color:var(--mint)}
+
+/* lightbox */
+#lb{position:fixed;inset:0;z-index:50;background:rgba(4,8,6,.94);display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;padding:20px}
+#lb.on{display:flex}
+#lb img{max-width:min(96vw,1200px);max-height:76vh;border-radius:8px}
+#lb .cap{font-size:13px;font-weight:700}
+#lb .cap span{color:var(--dim);font-weight:400;margin-left:8px}
+#lb .row{display:flex;gap:8px;align-items:center}
+#lb .hint{color:var(--dim);font-size:11px}
+
+.out{width:100%;height:190px;font:11.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;
+  background:#04100b;color:var(--mint);border:1px solid var(--line);border-radius:9px;padding:10px}
+.dirwrap{margin:26px 0 0}
+.dirwrap textarea{width:100%;min-height:80px;font:inherit;font-size:12.5px;background:#04100b;color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;resize:vertical}
+.dirwrap textarea:focus{outline:none;border-color:var(--mint)}
+.hintline{color:var(--dim);font-size:11.5px;line-height:1.55;margin:6px 0 10px}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand">Rock longlist</span>
+  <span class="sep"></span>
+  <span class="prog" id="prog">…</span>
+  <span class="sep"></span>
+  <button class="btn" id="bBright" title="Some raw batches render very dark — this lifts them for judging shape">Brighten</button>
+  <button class="btn" id="bUnvoted">Jump to next unvoted</button>
+  <button class="btn" id="bKeepAllVis" title="Mark every card currently shown as Keep">Keep all shown</button>
+  <button class="btn" id="bDropAllVis" title="Mark every card currently shown as Drop">Drop all shown</button>
+  <span class="spacer"></span>
+  <button class="btn" id="bReset">Reset</button>
+  <button class="btn primary" id="bCopy">Copy result JSON</button>
+</div>
+
+<main>
+  <div class="hintline">
+    Click a thumbnail to open it big (then <b>K</b> = keep, <b>D</b> = drop, <b>←/→</b> = move, <b>Esc</b> = close).
+    Tags are optional shorthand so I know <i>why</i> — they matter more than the note field.
+    Everything autosaves in this browser; hit <b>Copy result JSON</b> and paste it back to me when you're done.
+  </div>
+  <div class="filters" id="filters"></div>
+  <div id="groups"></div>
+
+  <div class="dirwrap">
+    <h2>Direction for the next batch <span class="n">free text — the most useful thing you can leave me</span></h2>
+    <textarea id="direction" placeholder="e.g. 'go much bigger and more angular; the country-silhouette ones are the right shape language; drop anything that looks like a scene'"></textarea>
+    <h2>Result <span class="n">copy this back to me</span></h2>
+    <textarea class="out" id="json" readonly spellcheck="false"></textarea>
+  </div>
+</main>
+
+<div id="lb">
+  <img id="lbImg" alt="">
+  <div class="cap" id="lbCap"></div>
+  <div class="row">
+    <button class="btn" id="lbKeep">Keep (K)</button>
+    <button class="btn" id="lbDrop">Drop (D)</button>
+    <button class="btn" id="lbPrev">← Prev</button>
+    <button class="btn" id="lbNext">Next →</button>
+    <button class="btn" id="lbClose">Close (Esc)</button>
+  </div>
+  <div class="lbtags" id="lbTags"></div>
+  <textarea class="lbnote" id="lbNote" placeholder="note for this one (optional)"></textarea>
+  <div class="hint" id="lbHint"></div>
+</div>
+
+<script>
+// Mycelium rock longlist review — owner tool. Reads the thumb index built by
+// scripts/build_rock_review.py, records keep/drop + tags + notes, and exports a JSON the
+// generation scripts get steered by. Votes autosave to localStorage so a long review survives
+// a reload; the JSON export is the hand-back.
+var KEY = 'mycelium.rockreview.v1';
+// Tags map to the levers I can actually pull when generating the next batch.
+var TAGS = ['great shape','boring shape','too busy','too plain','colour off','has a base',
+            'want bigger','want smaller','more like this'];
+
+var BASE = '';                 // where the thumbs live (resolved in boot)
+var DATA = { groups: [], items: [] };
+var STATE = { votes: {}, direction: '' };   // votes[id] = {v:'keep'|'drop', tags:[], note:''}
+var FILTER = 'all';
+var lbIndex = -1;              // index into visibleItems() while the lightbox is open
+
+var esc = function (s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+var rec = function (id) { return STATE.votes[id] || (STATE.votes[id] = { v: '', tags: [], note: '' }); };
+var voteOf = function (id) { var r = STATE.votes[id]; return r ? r.v : ''; };
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(STATE)); } catch (e) {}
+  syncJson(); syncProgress();
+}
+function load() {
+  try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.votes) STATE = s; } catch (e) {}
+  if (!STATE.votes) STATE.votes = {};
+  if (typeof STATE.direction !== 'string') STATE.direction = '';
+}
+
+function visibleItems() {
+  return DATA.items.filter(function (it) {
+    if (FILTER === 'all') return true;
+    if (FILTER === 'unvoted') return !voteOf(it.id);
+    if (FILTER === 'keep') return voteOf(it.id) === 'keep';
+    if (FILTER === 'drop') return voteOf(it.id) === 'drop';
+    return it.group === FILTER;
+  });
+}
+
+function syncProgress() {
+  var n = DATA.items.length;
+  var k = 0, d = 0;
+  DATA.items.forEach(function (it) { var v = voteOf(it.id); if (v === 'keep') k++; else if (v === 'drop') d++; });
+  document.getElementById('prog').innerHTML =
+    '<b>' + (k + d) + '</b> / ' + n + ' voted &nbsp;·&nbsp; <b>' + k + '</b> keep &nbsp;·&nbsp; ' + d + ' drop';
+  // keep the filter chip counts live
+  Array.prototype.forEach.call(document.querySelectorAll('.chip[data-f]'), function (el) {
+    var f = el.getAttribute('data-f'), c = el.querySelector('.c');
+    if (!c) return;
+    var cnt = f === 'all' ? n
+      : f === 'unvoted' ? DATA.items.filter(function (it) { return !voteOf(it.id); }).length
+      : f === 'keep' ? k : f === 'drop' ? d
+      : DATA.items.filter(function (it) { return it.group === f; }).length;
+    c.textContent = cnt;
+  });
+}
+
+function syncJson() {
+  var keep = [], drop = [], byTag = {};
+  DATA.items.forEach(function (it) {
+    var r = STATE.votes[it.id]; if (!r || !r.v) return;
+    var e = { id: it.id, src: it.src };
+    if (r.tags && r.tags.length) { e.tags = r.tags.slice(); r.tags.forEach(function (t) { (byTag[t] = byTag[t] || []).push(it.id); }); }
+    if (r.note) e.note = r.note;
+    (r.v === 'keep' ? keep : drop).push(e);
+  });
+  var out = {
+    tool: 'rock-review', version: 1,
+    direction: STATE.direction || '',
+    summary: { total: DATA.items.length, keep: keep.length, drop: drop.length,
+               unvoted: DATA.items.length - keep.length - drop.length },
+    tagIndex: byTag,
+    keep: keep, drop: drop,
+  };
+  document.getElementById('json').value = JSON.stringify(out, null, 1);
+}
+
+function setVote(id, v) {
+  var r = rec(id);
+  r.v = (r.v === v) ? '' : v;          // clicking the same verdict again clears it
+  var card = document.querySelector('.card[data-id="' + CSS.escape(id) + '"]');
+  if (card) { card.classList.toggle('keep', r.v === 'keep'); card.classList.toggle('drop', r.v === 'drop'); }
+  save();
+}
+function toggleTag(id, t) {
+  var r = rec(id);
+  r.tags = r.tags || [];
+  var i = r.tags.indexOf(t);
+  if (i >= 0) r.tags.splice(i, 1); else r.tags.push(t);
+  save();
+}
+// Repaint one card in place (vote classes + the tags/note marker) without rebuilding the grid,
+// so editing in the lightbox never scrolls the page out from under you.
+function refreshCard(id) {
+  var card = document.querySelector('.card[data-id="' + CSS.escape(id) + '"]');
+  if (!card) return;
+  var it = DATA.items.find(function (x) { return x.id === id; });
+  if (!it) return;
+  var tmp = document.createElement('div');
+  tmp.innerHTML = cardHtml(it);
+  card.replaceWith(tmp.firstChild);
+}
+
+// Cards stay COMPACT — thumbnail + Keep/Drop only — so a hundred of them can be triaged by
+// scrolling. Tags and the note live in the lightbox, which is where you're actually looking at
+// one rock closely enough to say why. A card just shows that it HAS tags/a note.
+function cardHtml(it) {
+  var r = STATE.votes[it.id] || {};
+  var cls = r.v === 'keep' ? ' keep' : r.v === 'drop' ? ' drop' : '';
+  var marks = [];
+  if (r.tags && r.tags.length) marks.push(r.tags.length + '&nbsp;tag' + (r.tags.length > 1 ? 's' : ''));
+  if (r.note) marks.push('note');
+  return '<div class="card' + cls + '" data-id="' + esc(it.id) + '">' +
+    '<div class="imgwrap" data-act="zoom"><img loading="lazy" src="' + esc(BASE + it.file) + '" alt=""></div>' +
+    '<div class="meta">' + esc(it.label) +
+      '<span class="dim">' + it.w + '×' + it.h + (it.cut ? ' · cut' : '') + '</span></div>' +
+    '<div class="vote"><button class="k" data-act="keep">Keep</button><button class="d" data-act="drop">Drop</button></div>' +
+    (marks.length ? '<div class="marks" data-act="zoom">' + marks.join(' · ') + '</div>' : '') +
+    '</div>';
+}
+
+function renderGroups() {
+  var host = document.getElementById('groups');
+  var vis = visibleItems();
+  var byGroup = {};
+  vis.forEach(function (it) { (byGroup[it.group] = byGroup[it.group] || []).push(it); });
+  var html = '';
+  DATA.groups.forEach(function (g) {
+    var list = byGroup[g.id]; if (!list || !list.length) return;
+    html += '<h2>' + esc(g.label) + '<span class="n">' + list.length + ' shown · ' + esc(g.note) + '</span></h2>' +
+      '<div class="grid">' + list.map(cardHtml).join('') + '</div>';
+  });
+  host.innerHTML = html || '<div class="hintline">Nothing matches this filter.</div>';
+  syncProgress();
+}
+
+function renderFilters() {
+  var f = document.getElementById('filters');
+  var chips = [['all','all'],['unvoted','unvoted'],['keep','keep'],['drop','drop']]
+    .map(function (p) { return chip(p[0], p[1]); });
+  DATA.groups.forEach(function (g) { chips.push(chip(g.id, g.label)); });
+  f.innerHTML = '<span class="lbl">Show</span>' + chips.join('');
+  Array.prototype.forEach.call(f.querySelectorAll('.chip[data-f]'), function (el) {
+    el.addEventListener('click', function () {
+      FILTER = el.getAttribute('data-f');
+      Array.prototype.forEach.call(f.querySelectorAll('.chip[data-f]'), function (o) { o.classList.toggle('on', o === el); });
+      renderGroups();
+    });
+  });
+}
+function chip(id, label) {
+  return '<span class="chip' + (FILTER === id ? ' on' : '') + '" data-f="' + esc(id) + '">' +
+    esc(label) + '<span class="c"></span></span>';
+}
+
+// ---- lightbox ---------------------------------------------------------------------------
+function openLb(id) {
+  var vis = visibleItems();
+  lbIndex = vis.findIndex(function (it) { return it.id === id; });
+  if (lbIndex < 0) return;
+  showLb();
+}
+function showLb() {
+  var vis = visibleItems();
+  if (lbIndex < 0 || lbIndex >= vis.length) return closeLb();
+  var it = vis[lbIndex], r = STATE.votes[it.id] || {};
+  document.getElementById('lbImg').src = BASE + it.file;
+  document.getElementById('lbCap').innerHTML = esc(it.label) +
+    '<span>' + it.w + '×' + it.h + ' · ' + esc(it.src) + '</span>';
+  document.getElementById('lbTags').innerHTML = TAGS.map(function (t) {
+    var on = (r.tags || []).indexOf(t) >= 0 ? ' on' : '';
+    return '<span class="tag' + on + '" data-t="' + esc(t) + '">' + esc(t) + '</span>';
+  }).join('');
+  var note = document.getElementById('lbNote');
+  if (document.activeElement !== note) note.value = r.note || '';
+  document.getElementById('lbHint').textContent =
+    (r.v ? 'marked ' + r.v.toUpperCase() : 'not voted') + ' · ' + (lbIndex + 1) + ' of ' + vis.length;
+  document.getElementById('lb').classList.add('on');
+}
+function lbCurrent() { var vis = visibleItems(); return (lbIndex >= 0 && lbIndex < vis.length) ? vis[lbIndex] : null; }
+function closeLb() { lbIndex = -1; document.getElementById('lb').classList.remove('on'); }
+function stepLb(d) { var vis = visibleItems(); if (!vis.length) return; lbIndex = (lbIndex + d + vis.length) % vis.length; showLb(); }
+function lbVote(v) {
+  var vis = visibleItems(); if (lbIndex < 0 || lbIndex >= vis.length) return;
+  setVote(vis[lbIndex].id, v);
+  // Voting advances, so a whole batch can be triaged with two keys.
+  var after = visibleItems();
+  if (after.length !== vis.length) { if (lbIndex >= after.length) lbIndex = after.length - 1; showLb(); }
+  else stepLb(1);
+}
+
+function wire() {
+  // one delegated handler for every card interaction
+  document.getElementById('groups').addEventListener('click', function (ev) {
+    var t = ev.target.closest('[data-act]'); if (!t) return;
+    var card = ev.target.closest('.card'); if (!card) return;
+    var id = card.getAttribute('data-id'), act = t.getAttribute('data-act');
+    if (act === 'zoom') openLb(id);
+    else if (act === 'keep') setVote(id, 'keep');
+    else if (act === 'drop') setVote(id, 'drop');
+  });
+  // Tags + note are edited in the lightbox; re-render the card so its marker line stays truthful.
+  document.getElementById('lbTags').addEventListener('click', function (ev) {
+    var chip = ev.target.closest('.tag'); if (!chip) return;
+    var it = lbCurrent(); if (!it) return;
+    toggleTag(it.id, chip.getAttribute('data-t'));
+    chip.classList.toggle('on', (rec(it.id).tags || []).indexOf(chip.getAttribute('data-t')) >= 0);
+    refreshCard(it.id);
+  });
+  document.getElementById('lbNote').addEventListener('input', function (ev) {
+    var it = lbCurrent(); if (!it) return;
+    rec(it.id).note = ev.target.value;
+    save(); refreshCard(it.id);
+  });
+  var dir = document.getElementById('direction');
+  dir.value = STATE.direction || '';
+  dir.addEventListener('input', function () { STATE.direction = dir.value; save(); });
+
+  document.getElementById('bBright').addEventListener('click', function (ev) {
+    var on = document.body.classList.toggle('bright');
+    ev.target.classList.toggle('on', on);
+    try { localStorage.setItem(KEY + '.bright', on ? '1' : ''); } catch (e) {}
+  });
+  document.getElementById('bUnvoted').addEventListener('click', function () {
+    var next = DATA.items.find(function (it) { return !voteOf(it.id); });
+    if (!next) { alert('Everything is voted.'); return; }
+    var card = document.querySelector('.card[data-id="' + CSS.escape(next.id) + '"]');
+    if (card) { card.scrollIntoView({ block: 'center' }); openLb(next.id); }
+    else { FILTER = 'unvoted'; renderFilters(); renderGroups(); openLb(next.id); }
+  });
+  document.getElementById('bKeepAllVis').addEventListener('click', function () { bulk('keep'); });
+  document.getElementById('bDropAllVis').addEventListener('click', function () { bulk('drop'); });
+  function bulk(v) {
+    var vis = visibleItems();
+    if (!vis.length) return;
+    if (!confirm('Mark all ' + vis.length + ' shown as ' + v.toUpperCase() + '?')) return;
+    vis.forEach(function (it) { rec(it.id).v = v; });
+    save(); renderGroups();
+  }
+  document.getElementById('bReset').addEventListener('click', function () {
+    if (!confirm('Clear every vote, tag and note?')) return;
+    STATE = { votes: {}, direction: document.getElementById('direction').value || '' };
+    save(); renderGroups();
+  });
+  document.getElementById('bCopy').addEventListener('click', function (ev) {
+    var ta = document.getElementById('json');
+    try { navigator.clipboard.writeText(ta.value); }
+    catch (e) { ta.select(); try { document.execCommand('copy'); } catch (_) {} }
+    var b = ev.target, old = b.textContent; b.textContent = 'Copied ✓';
+    setTimeout(function () { b.textContent = old; }, 1200);
+  });
+
+  document.getElementById('lbClose').addEventListener('click', closeLb);
+  document.getElementById('lbPrev').addEventListener('click', function () { stepLb(-1); });
+  document.getElementById('lbNext').addEventListener('click', function () { stepLb(1); });
+  document.getElementById('lbKeep').addEventListener('click', function () { lbVote('keep'); });
+  document.getElementById('lbDrop').addEventListener('click', function () { lbVote('drop'); });
+  document.getElementById('lb').addEventListener('click', function (ev) { if (ev.target.id === 'lb') closeLb(); });
+  document.addEventListener('keydown', function (ev) {
+    if (/^(INPUT|TEXTAREA)$/.test((ev.target.tagName || ''))) return;   // don't hijack typing
+    if (!document.getElementById('lb').classList.contains('on')) return;
+    var k = ev.key.toLowerCase();
+    if (k === 'escape') closeLb();
+    else if (k === 'k') lbVote('keep');
+    else if (k === 'd') lbVote('drop');
+    else if (ev.key === 'ArrowLeft') stepLb(-1);
+    else if (ev.key === 'ArrowRight') stepLb(1);
+    else return;
+    ev.preventDefault();
+  });
+}
+
+async function boot() {
+  // Source tree serves the review set from ../assets/rock_options/review/; the built copy sits
+  // at review-thumbs/ in the dist ROOT (kept out of dist/assets so it never enters the itch zip).
+  var tries = ['../assets/rock_options/review/', 'review-thumbs/'];
+  for (var i = 0; i < tries.length; i++) {
+    try {
+      var r = await fetch(tries[i] + 'index.json', { cache: 'no-store' });
+      if (!r.ok) continue;
+      DATA = await r.json();
+      BASE = tries[i];
+      break;
+    } catch (e) {}
+  }
+  if (!DATA.items.length) {
+    document.getElementById('groups').innerHTML =
+      '<div class="hintline">Could not load the review set. Run <code>python3 scripts/build_rock_review.py</code> and rebuild.</div>';
+    return;
+  }
+  load();
+  try {
+    if (localStorage.getItem(KEY + '.bright')) {
+      document.body.classList.add('bright');
+      document.getElementById('bBright').classList.add('on');
+    }
+  } catch (e) {}
+  renderFilters(); renderGroups(); wire(); save();
+  window.__review = { DATA: DATA, STATE: STATE, setVote: setVote, visibleItems: visibleItems, openLb: openLb };
+}
+boot();
+</script>
+</body>
+</html>

@@ -545,6 +545,24 @@ Both menus are dark, on-theme, with glowing green borders.
 
 ## 9. Recent work log (most recent first)
 
+- **Rock longlist review tool — `docs/rock-review.html` (Jul 27).** Hosted at `<site>/rock-review.html`, so
+  the owner can triage the whole candidate longlist (100 images: 52 crystal big-renders + the veined batches +
+  the cut finalists) BEFORE another generation run, and hand back what they want. Per item: **Keep/Drop**,
+  optional **tags** (`great shape` / `boring shape` / `too busy` / `too plain` / `colour off` / `has a base` /
+  `want bigger` / `want smaller` / `more like this` — these map to levers I can actually pull in a prompt), and
+  a note; plus a global **"Direction for the next batch"** free-text box. Exports a JSON with `keep`/`drop`
+  lists, a `tagIndex` (tag → ids) and the direction line. Autosaves to localStorage, so a long review survives
+  reloads. Cards stay COMPACT (thumb + Keep/Drop) with tags/note in the **lightbox** — at 100 items the grid is
+  for speed (`K`/`D`/arrows/`Esc`), the lightbox for "why". A **Brighten** toggle exists because several raw
+  batches render very dark (rock ~10% of frame luminance).
+  - Thumbs: `python3 scripts/build_rock_review.py` → `assets/rock_options/review/` (620px JPEGs + `index.json`,
+    2.9 MB). It **auto-trims the empty frame** around a render (some batches put a small rock in a big black
+    field, which reviews as a blank tile) and composites cutouts over game soil. Re-run when new renders land.
+  - **Zip safety:** the thumbs live under a `*_options` path, which the dist asset copy already excludes, and
+    build.mjs copies them to `dist/review-thumbs/` — a dist-ROOT folder. So they are served to the hosted tool
+    but never enter the itch zip (which ships only `index.html` + `assets/`). Verified: 0 review files in
+    `dist/assets/`. Pinned by `scratchpad/verify-rock-review.mjs` (23 checks).
+
 - **New BIG rockform art run — `scripts/gen_rockforms_big.py`, crystal batch 1 (Jul 28, IN PROGRESS).**
   Owner's brief: many more rockform sprites, **mostly large** ("lay over up to half of the map"), irregular
   silhouettes, on-theme, matching the shipped `rockform1–14` side-on platformer look, and **no top and no
