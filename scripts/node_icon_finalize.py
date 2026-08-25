@@ -18,11 +18,17 @@ OUT = ROOT / "assets" / "node_icon_options" / "finals"
 OUT.mkdir(parents=True, exist_ok=True)
 
 # Sampled from the owner's reference: deep navy field, muted steel-blue nodes/links.
+# INK is what the BRIGHTEST mesh pixels reach, so it sits a little above the colour the
+# bulk of the mesh should read as -- #7c9bbe here lands the mid-tones on #6d8db3.
 BG   = np.array([  6,  42,  87], dtype=np.float32)   # #062a57
 INK  = np.array([124, 155, 190], dtype=np.float32)   # #7c9bbe  (mid-tones land ~#6d8db3)
 SIZES = (1024, 512, 256, 128, 64)
 
-def ink_amount(im, gamma=0.9, knee=0.07):
+def hexcolour(h):
+    h = h.lstrip("#")
+    return np.array([int(h[i:i+2], 16) for i in (0, 2, 4)], dtype=np.float32)
+
+def ink_amount(im, gamma=0.9, knee=0.07, hi=1.0):
     """Per-pixel 0..1 'how much mesh is here', from luminance over the render's own
     background floor. Percentile ceiling so one hot pixel can't flatten the ramp; the
     knee clamps the field to true background, since FLUX gives its navy a gradient and
@@ -33,16 +39,23 @@ def ink_amount(im, gamma=0.9, knee=0.07):
     ceil  = np.percentile(lum, 99.6)
     if ceil - floor < 1e-3: ceil = floor + 1.0
     t = np.clip((lum - floor) / (ceil - floor), 0.0, 1.0)
-    t = np.clip((t - knee) / (1.0 - knee), 0.0, 1.0)
+    # `hi` is the coverage above which a pixel counts as FULLY inked. It matters only
+    # when ink and background are different hues: gold at partial coverage over navy
+    # composites to olive, which is correct blending and reads as mud, so a warm ink
+    # needs the window closed (hi ~0.3) to keep the mesh saturated. The blue ink shares
+    # the field's hue, so it can ramp the whole way (hi = 1) and stay clean.
+    t = np.clip((t - knee) / (max(hi, knee + 1e-3) - knee), 0.0, 1.0)
     return t ** gamma
 
-def recolour(src, gamma=0.9):
+def recolour(src, gamma=0.9, ink=None, bg=None, hi=1.0):
+    ink = INK if ink is None else ink
+    bg  = BG  if bg  is None else bg
     im = Image.open(src)
-    t = ink_amount(im, gamma)[:, :, None]
-    flat = (BG[None,None,:] + t * (INK - BG)[None,None,:]).astype(np.uint8)
+    t = ink_amount(im, gamma, hi=hi)[:, :, None]
+    flat = (bg[None,None,:] + t * (ink - bg)[None,None,:]).astype(np.uint8)
     opaque = Image.fromarray(flat, "RGB")
     rgba = np.zeros(t.shape[:2] + (4,), dtype=np.uint8)
-    rgba[:,:,0:3] = INK.astype(np.uint8)[None,None,:]
+    rgba[:,:,0:3] = ink.astype(np.uint8)[None,None,:]
     rgba[:,:,3]   = (t[:,:,0] * 255).astype(np.uint8)
     return opaque, Image.fromarray(rgba, "RGBA")
 
@@ -52,8 +65,8 @@ def square(im):
     s = min(w, h)
     return im.crop(((w-s)//2, (h-s)//2, (w-s)//2+s, (h-s)//2+s))
 
-def emit(src, slug, gamma=0.9):
-    opaque, alpha = recolour(src, gamma)
+def emit(src, slug, gamma=0.9, ink=None, bg=None, hi=1.0):
+    opaque, alpha = recolour(src, gamma, ink, bg, hi)
     opaque, alpha = square(opaque), square(alpha)
     made = []
     for s in SIZES:
@@ -80,5 +93,9 @@ def compare(pairs, out, cell=340):
 
 if __name__ == "__main__":
     src, slug = sys.argv[1], sys.argv[2]
-    gamma = float(sys.argv[3]) if len(sys.argv) > 3 else 0.9
-    for f in emit(src, slug, gamma): print(f)
+    argv = sys.argv[3:]
+    gamma = float(argv[0]) if argv and not argv[0].startswith("--") else 0.9
+    ink = hexcolour(argv[argv.index("--ink")+1]) if "--ink" in argv else None
+    bg  = hexcolour(argv[argv.index("--bg")+1])  if "--bg"  in argv else None
+    hi  = float(argv[argv.index("--hi")+1]) if "--hi" in argv else 1.0
+    for f in emit(src, slug, gamma, ink, bg, hi): print(f)

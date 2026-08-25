@@ -160,7 +160,10 @@ def lattice_points(mask, step, rng, inset):
             pts.append((x, y2))
     return np.array(pts) if pts else np.zeros((0,2))
 
-def render(name, density=26, seed=7, slug=None):
+def render(name, density=26, seed=7, slug=None, ink=None, link=None):
+    ink  = INK  if ink  is None else ink
+    link = (LINK if link is None else link) if ink is INK else tuple(
+        int(round(c*0.72 + b*0.28)) for c, b in zip(ink, BG))   # links sit back from dots
     S = 1024*SS
     rng = np.random.default_rng(seed)
     mask = build_mask(SHAPES[name], S)
@@ -179,10 +182,10 @@ def render(name, density=26, seed=7, slug=None):
 
     im = Image.new("RGB", (S, S), BG); dr = ImageDraw.Draw(im)
     for u, v in edges:
-        dr.line([tuple(pts[u]), tuple(pts[v])], fill=LINK, width=max(1, int(SS*0.9)))
+        dr.line([tuple(pts[u]), tuple(pts[v])], fill=link, width=max(1, int(SS*0.9)))
     for i, (x, y) in enumerate(pts):
         r = step*(0.040 + 0.105*rng.random()**1.6)       # assorted sizes, as in the reference
-        dr.ellipse([x-r, y-r, x+r, y+r], fill=INK)
+        dr.ellipse([x-r, y-r, x+r, y+r], fill=ink)
 
     slug = slug or f"{name[:4]}-nodes-arrows"
     base = im.resize((1024,1024), Image.LANCZOS)
@@ -193,7 +196,7 @@ def render(name, density=26, seed=7, slug=None):
         arr = np.asarray(base.resize((sz,sz), Image.LANCZOS), dtype=np.float32)
         lum = arr.mean(2); bgl = float(np.mean(np.array(BG)))
         t = np.clip((lum-bgl)/(255-bgl), 0, 1)
-        rgba[:,:,0:3] = np.array(INK, np.uint8); rgba[:,:,3] = (t*255).astype(np.uint8)
+        rgba[:,:,0:3] = np.array(ink, np.uint8); rgba[:,:,3] = (t*255).astype(np.uint8)
         fa = OUT/f"{slug}-{sz}-alpha.png"; Image.fromarray(rgba,"RGBA").save(fa,"PNG"); made.append(fa)
     print(f"{slug}: {len(pts)} nodes, {len(edges)} links")
     return made
@@ -204,4 +207,7 @@ if __name__ == "__main__":
     if "--density" in sys.argv: kw["density"] = int(sys.argv[sys.argv.index("--density")+1])
     if "--seed"    in sys.argv: kw["seed"]    = int(sys.argv[sys.argv.index("--seed")+1])
     if "--slug"    in sys.argv: kw["slug"]    = sys.argv[sys.argv.index("--slug")+1]
+    if "--ink"     in sys.argv:
+        h = sys.argv[sys.argv.index("--ink")+1].lstrip("#")
+        kw["ink"] = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
     render(name, **kw)
