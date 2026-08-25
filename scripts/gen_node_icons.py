@@ -51,6 +51,88 @@ SUBJECTS = {
             "A round hole at the centre, an airy open triangulation with long hairline links and well-spaced dots",
         ],
     },
+    # "Odometer going fast": the rolling-digit counter an odometer literally is turns to
+    # mush as a node mesh at icon size, so this is the needle GAUGE -- the readable
+    # symbol for speed. Weighted towards dense triangulation with a dotted contour,
+    # which is what the owner picked for both the handshake and the pin.
+    "speedometer": {
+        "seed": 34000,
+        "noun": ("A SPEEDOMETER icon: a round gauge dial seen flat face-on, a sweep of tick "
+                 "marks running along its arc, and a single straight needle pivoting from "
+                 "the small hub at the centre and swung hard over to the far right at "
+                 "maximum -- the classic speed gauge pegged at full speed, instantly "
+                 "readable as a speedometer. {v}"),
+        "variants": [
+            "A full triangulated mesh covers the dial evenly, dots at every corner",
+            "A dense triangulated web fills the dial face, the rim and the needle marked out by lines of dots",
+            "Bold and simple so it reads at small icon size, chunky dots and clear links",
+            "A dense triangulated mesh, and every tick mark around the arc is marked by its own dot",
+            "A dense triangulated mesh, with a few curved trails of dots sweeping behind the needle like motion blur",
+            "A dense triangulated mesh over the dial, thickening towards the needle and the top end of the arc",
+            "Fine dense mesh of many small dots, intricate and lacy",
+            "A dense triangulated mesh, and a few loose dots and links stream off the dial into the surrounding navy",
+            # 8+ : second round, style-led (see alt_from). Round 1 came back as photoreal
+            # instruments -- glossy hubs, lens shading, halftone stipple rings, numerals,
+            # and not one triangulated link. A full round dial is simply too strong a prior.
+            # These use a half-circle ARC gauge, which reads as a symbol rather than an
+            # instrument, and spell out that the arc and the needle are themselves built
+            # from dots and links.
+            "The whole symbol is spanned corner to corner by slender triangles, dots at every corner",
+            "The arc is a chain of evenly spaced dots, the needle a straight line of dots, and triangulated links fill the space between them",
+            "Bold and simple so it reads at small icon size, chunky dots and clear links",
+            "A dense triangulated web fills the fan between the arc and the needle, thinning towards the outside",
+            "Triangulated links throughout, and a few curved trails of dots sweep behind the needle in the direction it has swung",
+            "An even lattice of slender triangles across the whole symbol, dots of assorted sizes at the corners",
+            # 14+ : third round. Round 2 got the arc and the swung needle right but stayed
+            # STIPPLE -- clouds of dots with no links -- and drew the needle as a solid
+            # tapered blade, so it never matched the family. Two fixes, both from the
+            # phrasing that won the handshake: every dot must sit at a CORNER where links
+            # meet (dots in fields is what stipple is), and the needle is itself built from
+            # the mesh. Tick marks are dropped -- they were drawing the spiky radial fringe.
+            "Every dot sits at a corner where several links meet, and the needle is a narrow spar of the same links and corner dots",
+            "Slender triangles span the whole fan from the arc down to the centre point, the needle a narrow triangulated spar among them",
+            "Bold and simple so it reads at small icon size: few, large triangles and a clear triangulated needle",
+            "An even web of slender triangles across the arc, the needle picked out by slightly larger corner dots",
+            "Slender triangles throughout, denser towards the right where the needle points, the needle built of the same triangles",
+            "An open airy web of long links meeting at corner dots, the needle a single line of links",
+            "The half-disc is spanned corner to corner by slender triangles, dots at every corner",
+            "A dense even web of slender triangles fills the whole half-disc, dots of assorted sizes at the corners",
+            "Bold and simple so it reads at small icon size: few, large triangles and a clear needle",
+            "Slender triangles fill the half-disc, growing denser towards the right where the needle points",
+            "A dense web of triangles throughout, the curved rim marked by a line of slightly larger dots",
+            "An even lattice of triangles across the half-disc, and a few loose dots and links drift off the rim into the navy",
+        ],
+        "stages": [
+            (0,  ("A SPEEDOMETER icon: a round gauge dial seen flat face-on, a sweep of tick "
+                  "marks running along its arc, and a single straight needle pivoting from "
+                  "the small hub at the centre and swung hard over to the far right at "
+                  "maximum -- the classic speed gauge pegged at full speed, instantly "
+                  "readable as a speedometer. {v}"), False),
+            (8,  ("Drawn in this way: a simple flat SPEED GAUGE symbol -- a half-circle "
+                  "arc opening downwards like a rainbow, and a single straight needle "
+                  "rising from a point at the centre of the arc and swung up and over to "
+                  "the right, near the end of the arc, showing top speed. A plain flat "
+                  "emblem seen straight on. {v}"), True),
+            (14, ("Drawn in this way: a simple flat SPEED GAUGE symbol -- a half-circle arc "
+                  "opening downwards like a rainbow, and a single straight needle rising "
+                  "from a point at the centre of the arc and swung up and over to the "
+                  "right, near the end of the arc, showing top speed. The arc and the "
+                  "needle are built from the same web of links and corner dots as the rest "
+                  "of the emblem. A plain flat emblem seen straight on. {v}"), True),
+            # 20+ : fourth round. Rounds 2-3 got the palette and (finally) the links, but
+            # every result was a RING with a hollow middle, while both icons the owner
+            # picked are solid triangulated BODIES filling a silhouette. A gauge has no
+            # mass to fill -- unless the gauge is a filled half-disc. Same construction as
+            # the handshake and the pin, so the set finally matches.
+            (20, ("Drawn in this way: a simple flat SPEED GAUGE symbol -- a solid "
+                  "half-circle, a semicircular fan with its flat edge along the bottom, "
+                  "filled right across from edge to edge with the web of links and corner "
+                  "dots, and a single straight needle rising from the middle of the flat "
+                  "bottom edge and swung up and over to the right, near the rim, showing "
+                  "top speed. The needle is built from the same web. A plain flat emblem "
+                  "seen straight on, solid throughout. {v}"), True),
+        ],
+    },
 }
 
 def outdir(subject):
@@ -69,7 +151,16 @@ def gen_one(subject, idx):
     spec = SUBJECTS[subject]
     dest = outdir(subject) / f"{subject}_{idx}.png"
     if dest.exists(): log(f"skip {subject} {idx}"); return dest
-    prompt = spec["noun"].format(v=spec["variants"][idx % len(spec["variants"])]) + " " + STYLE3
+    v = spec["variants"][idx % len(spec["variants"])]
+    # Prompt staging. A subject may refine its framing across rounds; the last stage whose
+    # start index <= idx wins. style_first leads with STYLE3 instead of trailing it -- for
+    # subjects with a strong photoreal prior (a gauge reads as a real instrument), a
+    # trailing style block loses to the noun.
+    stage = None
+    for start, tmpl, style_first in spec.get("stages", [(0, spec["noun"], False)]):
+        if idx >= start: stage = (tmpl, style_first)
+    tmpl, style_first = stage
+    prompt = (STYLE3 + " " + tmpl.format(v=v)) if style_first else (tmpl.format(v=v) + " " + STYLE3)
     seed = spec["seed"] + idx*83
     for attempt in range(3):
         d = create(prompt, seed + attempt*907)
