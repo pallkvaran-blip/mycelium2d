@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# Recolour a chosen handshake render onto the owner's EXACT reference palette and cut
-# icon sizes. FLUX gets the node-mesh drawing right but not the tone -- it lights the
+# Recolour a chosen node-mesh icon render onto the owner's EXACT reference palette and
+# cut icon sizes. Shared by every subject in the icon family (handshake, location, ...). FLUX gets the node-mesh drawing right but not the tone -- it lights the
 # mesh near-white. This maps the render's luminance onto a single navy->slate ramp
 # sampled from the reference image, which kills the glow and the near-white contour
 # stroke in one pass, then emits an opaque icon and a transparent-background variant.
 #
-#   python3 scripts/handshake_finalize.py assets/handshake_options/handshake_r3_0.png handshake-nodes
+#   python3 scripts/node_icon_finalize.py assets/handshake_options/handshake_r3_0.png handshake-nodes-mesh
 import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -14,7 +14,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 # Lives under an *_options folder so build.mjs's SKIP_ASSET_DIR keeps it out of
 # dist/ and the itch zip -- this is an authoring deliverable, not a game asset.
-OUT = ROOT / "assets" / "handshake_options" / "finals"
+OUT = ROOT / "assets" / "node_icon_options" / "finals"
 OUT.mkdir(parents=True, exist_ok=True)
 
 # Sampled from the owner's reference: deep navy field, muted steel-blue nodes/links.
