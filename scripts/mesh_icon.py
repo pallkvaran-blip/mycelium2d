@@ -92,7 +92,28 @@ def flexibility_shape(S):
     return [poly for path in arms
                  for poly in (band(trim(path, hl*0.90), w), head(path, hw, hl))]
 
-SHAPES = {"flexibility": flexibility_shape}
+def trident_shape(S):
+    """The composition the owner picked out of the renders: a stem rising from the bottom
+    that divides into an UP arm and two arms curving outward AND upward, heads pointing up
+    and out at roughly 45 degrees.
+
+    Note this is the curved-arm geometry rejected in flexibility_shape -- the difference is
+    where the arms END. Arms flattening to HORIZONTAL read as a branching plant; arms still
+    climbing as they leave read as a trident, which is what the renders found and the owner
+    chose. Bands stay wide enough for a few triangles across, since the render's own thin
+    arms are exactly why it came back as stipple and missed the set."""
+    # Proportions follow the render the owner picked: slender bands, a long stem, arms
+    # leaving it high and sweeping out, and modest heads. An earlier pass with wider
+    # spread and chunkier heads read stubby beside it.
+    w, hw, hl = S*0.058, S*0.122, S*0.132
+    c = S*0.50
+    up    = [(c, S*0.960), (c, S*0.120)]
+    right = quad((c, S*0.690), (S*0.700, S*0.520), (S*0.800, S*0.278))
+    left  = quad((c, S*0.690), (S*0.300, S*0.520), (S*0.200, S*0.278))
+    return [poly for path in (up, right, left)
+                 for poly in (band(trim(path, hl*0.90), w), head(path, hw, hl))]
+
+SHAPES = {"flexibility": flexibility_shape, "trident": trident_shape}
 
 def build_mask(shape, S):
     m = Image.new("L", (S, S), 0); d = ImageDraw.Draw(m)

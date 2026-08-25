@@ -66,6 +66,14 @@ SUBJECTS = {
     "flexibility": {
         "seed": 47000,
         "stages": [
+            (20, ("Drawn in this way: a THREE-WAY ARROW symbol meaning flexibility -- a "
+                  "single broad stem rising from the bottom centre which divides into "
+                  "three broad arrows fanning apart, one carrying on straight up, one "
+                  "bending out to the right, one bending out to the left, each ending in a "
+                  "big solid triangular arrowhead. The stem and all three arms are wide "
+                  "solid bands, filled right across with a dense web of hairline links "
+                  "meeting at corner dots. A plain flat emblem seen straight on, centred, "
+                  "solid throughout. {v}"), True),
             (14, ("Drawn in this way: a THREE-WAY ARROW symbol meaning flexibility -- one "
                   "broad upright stem rising from the bottom of the frame which splits "
                   "near the middle into three thick arms. The middle arm carries straight "
@@ -125,6 +133,22 @@ SUBJECTS = {
             "A dense even web of slender triangles fills stem and arms, dots of assorted sizes at the corners",
             "Slender triangles throughout, growing denser towards the three arrowheads",
             "An even lattice of triangles, the three arrowheads picked out by slightly larger corner dots",
+            # 20+ : fourth round, and the one that mattered. The owner picked round 1's
+            # trident (a stem dividing into three arms that bend outward) but said it did
+            # not match the set -- correctly: it is thin and STIPPLE, where the handshake
+            # and the pin are dense triangulated bodies. So the round 1 template comes
+            # back nearly verbatim to hold that composition, with the bands widened and a
+            # dense web of links meeting at corner dots asked for outright. Seeds are
+            # passed explicitly (--seeds) and include the trident's own, 47083, so one
+            # render is a direct sibling of the picked image rather than a fresh roll.
+            "A dense even web of slender triangles fills the stem and all three arms, dots at every corner",
+            "Every dot sits at a corner where several links meet, the web dense enough to fill the bands solidly",
+            "Slender triangles span each band from edge to edge, three or four triangles across the width",
+            "A dense triangulated web throughout, the outline marked by a line of slightly larger corner dots",
+            "A dense web of triangles, growing denser towards the three arrowheads",
+            "A dense even lattice of triangles, corner dots of assorted sizes",
+            "A fine dense triangulated web, intricate and lacy, the corner dots small",
+            "Fewer, larger triangles filling the bands, chunky corner dots, bold enough to read at small icon size",
         ],
     },
 }
@@ -157,7 +181,8 @@ def gen_one(subject, idx):
         if idx >= start: stage = (tmpl, style_first)
     tmpl, style_first = stage
     prompt = (STYLE3 + " " + tmpl.format(v=v)) if style_first else (tmpl.format(v=v) + " " + STYLE3)
-    seed = spec["seed"] + idx*83
+    seeds = globals().get("SEED_OVERRIDE")
+    seed = seeds[idx % len(seeds)] if seeds else spec["seed"] + idx*83
     for attempt in range(3):
         d = create(prompt, seed + attempt*907)
         geturl = (d.get("urls") or {}).get("get")
@@ -190,6 +215,8 @@ if __name__ == "__main__":
     subject = sys.argv[1]
     if subject not in SUBJECTS: sys.exit(f"unknown subject {subject!r}; have {list(SUBJECTS)}")
     n = next((int(a) for a in sys.argv[2:] if a.isdigit()), len(SUBJECTS[subject]["variants"]))
+    if "--seeds" in sys.argv:   # positional seed list, rotated over the indices generated
+        SEED_OVERRIDE = [int(x) for x in sys.argv[sys.argv.index("--seeds")+1].split(",")]
     if "--sheet" not in sys.argv:
         if not TOKEN: sys.exit("REPLICATE_API_TOKEN not set")
         for i in range(n): gen_one(subject, i)
