@@ -97,11 +97,20 @@ def art(name, x, y, w, ramp, opacity=1.0, rotate=0):
     inner = re.sub(r"<metadata>.*?</metadata>", "", inner, flags=re.S)
     inner = re.sub(r'<rect[^>]*?width="(?:%d|100%%)"[^>]*?/>' % int(vw), "", inner)
     inner = strip_backdrop(inner, vw, vh)
-    inner = recolour(inner, ramp)
+    if ramp: inner = recolour(inner, ramp)
     sc = w / vw
+    h = vh * sc
     rot = f" rotate({rotate})" if rotate else ""
-    return (f'<g transform="translate({x:.1f},{y:.1f}){rot} scale({sc:.5f})" '
-            f'opacity="{opacity}">{inner}</g>', vh * sc)
+    pre = f"translate({x + w/2:.1f},{y + h/2:.1f}){rot} translate({-w/2:.1f},{-h/2:.1f})"
+    return (f'<g transform="{pre} scale({sc:.5f})" opacity="{opacity}">{inner}</g>', h)
+
+def place(name, cx, cy, w, ramp=None, rot=0, opacity=1.0):
+    """Centre an illustration on (cx, cy)."""
+    s0 = (ART / f"{name}.svg").read_text(errors="ignore")
+    vb = re.search(r'viewBox="([^"]+)"', s0).group(1).split()
+    h = float(vb[3]) / float(vb[2]) * w
+    g, _ = art(name, cx - w / 2, cy - h / 2, w, ramp, opacity, rot)
+    return g
 
 def art_block(d, name, cx, y, w, card=False, max_h=None):
     """Place an illustration centred on cx. With card=False the ramp's lightest stop is
@@ -333,3 +342,124 @@ if __name__ == "__main__":
     keys = sys.argv[1:] or list(DIRECTIONS)
     for k in keys:
         print("built", build(k))
+
+# ---------------------------------------------------------------- faithful direction
+# Rebuild in the character of the owner's original: MAXIMALIST. Fruit and foliage packed
+# around the whole border, a detailed scene bleeding into the field rather than sitting in
+# a card, an arched bubbly wordmark, high saturation, very little empty ground. The three
+# earlier directions were minimal and spacious, which is what missed.
+import math
+
+FAITHFUL = dict(
+    label="Faithful to original",
+    bg="#F5A623", bg2="#DF7A12", ink="#FFF6E2", accent="#5B2A62", pop="#D8451C",
+    brand=("Titan One", None), body=("Inter", 400), bodyb=("Inter", 700),
+    rule="#FFF6E2", ornament="sk-leaves2", card_colour="#FFF6E2", card_art=False,
+    ramp=None,          # keep the sticker art's own colours; see art()
+)
+
+def arc_word(face, text, cx, baseline, target_w, radius, layers, tracking=0):
+    """Set a word on a gentle arc -- each glyph placed and rotated along a circle. The
+    original's wordmark bows upward; flat type reads noticeably more static."""
+    glyphs, adv = face.word(text, tracking)
+    if not adv: return ""
+    sc = target_w / adv
+    parts = []
+    for d, gx in glyphs:
+        off = gx * sc - target_w / 2
+        th = off / radius
+        parts.append((d, cx + radius * math.sin(th),
+                      baseline - radius * (1 - math.cos(th)), math.degrees(th)))
+    out = []
+    for w, colour in layers:
+        seg = "".join(f'<g transform="translate({px:.2f},{py:.2f}) rotate({dg:.2f}) '
+                      f'scale({sc:.5f},{-sc:.5f})"><path d="{d}"/></g>'
+                      for d, px, py, dg in parts)
+        out.append(f'<g fill="{colour}" stroke="{colour}" stroke-width="{w/sc:.1f}" '
+                   f'stroke-linejoin="round">{seg}</g>')
+    return "\n".join(out)
+
+def bubbles(x0, x1, y0, y1, n=54, seed=7):
+    s, out = seed, []
+    def r():
+        nonlocal s
+        s = (1103515245 * s + 12345) % (1 << 31)
+        return s / (1 << 31)
+    for _ in range(n):
+        out.append(f'<circle cx="{x0 + r()*(x1-x0):.1f}" cy="{y0 + r()*(y1-y0):.1f}" '
+                   f'r="{3 + r()*10:.1f}" fill="#FFFFFF" opacity="{0.08 + r()*0.14:.2f}"/>')
+    return "".join(out)
+
+def faithful_front(d, f):
+    cx = FRONT_X + FRONT_W / 2
+    inner_w = FRONT_W - 2 * SAFE
+    top, base = BLEED, BLEED + TRIM_H
+    # Clip the panel HORIZONTALLY only: the garland should still bleed off the top and
+    # bottom, but must not run into the legal panel, where legibility is non-negotiable.
+    g = [f'<clipPath id="clipFront"><rect x="{FRONT_X}" y="0" width="{FRONT_W}" '
+         f'height="{SHEET_H}"/></clipPath>',
+         '<g id="front-panel" clip-path="url(#clipFront)">']
+    g.append(f'<g id="bubbles">{bubbles(FRONT_X, FRONT_X+FRONT_W, top, base)}</g>')
+
+    # top garland -- dense, overlapping, varied scale and rotation
+    g.append('<g id="garland-top">')
+    for nm, px, py, w, rot in [("sk-mango2", cx-198, 150, 272, -14), ("sk-mango3", cx+196, 162, 232, 16),
+                               ("sk-leaves2", cx-20, 128, 286, 6),  ("sk-mango3", cx+34, 226, 150, -28)]:
+        g.append(place(nm, px, py, w, rot=rot))
+    g.append('</g>')
+
+    # wordmark, arched
+    g.append(arc_word(f["brand"], "TANDA", cx, 396, inner_w, 880,
+                      [(30, d["ink"]), (17, d["accent"]), (0.001, "#F9AE33")]))
+    t, _ = fit_line(f["bodyb"], "SPARKLING JUICE", cx, 452, inner_w*0.80, d["ink"], tracking=320)
+    g.append(t)
+    g.append(wordmark(f["brand"], "MANGO", cx, 560, inner_w*0.80,
+                      [(20, "#8E2B08"), (0.001, d["pop"])]))
+
+    # scene vignette, edges broken by fruit so it integrates instead of sitting in a card
+    SCENE_RAMP = ["#123A22", "#1E5C34", "#3E8B45", "#86C9A0", "#E8F6FA"]
+    sw = FRONT_W * 0.88
+    g.append(f'<clipPath id="clipScene"><rect x="{cx-sw/2:.1f}" y="600" width="{sw:.1f}" '
+             f'height="{sw*0.74:.1f}" rx="30"/></clipPath>')
+    g.append(f'<g clip-path="url(#clipScene)">{place("sk-scene", cx, 600 + sw*0.37, sw*1.02, ramp=SCENE_RAMP)}</g>')
+    g.append(f'<rect x="{cx-sw/2:.1f}" y="600" width="{sw:.1f}" height="{sw*0.74:.1f}" rx="30" '
+             f'fill="none" stroke="{d["ink"]}" stroke-width="7" opacity="0.9"/>')
+    g.append('<g id="garland-sides">')
+    for nm, px, py, w, rot in [("sk-mango3", cx-272, 690, 205, 24),  ("sk-mango3", cx+276, 838, 196, -20),
+                               ("sk-leaves2", cx-256, 952, 222, -34), ("sk-mango2", cx+246, 962, 232, 18)]:
+        g.append(place(nm, px, py, w, rot=rot))
+    g.append('</g>')
+
+    t, _ = fit_line(f["bodyb"], "330 ml", cx-95, base-118, 165, d["ink"], tracking=110); g.append(t)
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from gen_tanda_label import flag
+    g.append(flag(cx+42, base-168, 96))
+    t, _ = fit_line(f["body"], "TROPICAL TASTE  ·  AUTHENTIC UGANDAN", cx, base-52,
+                    inner_w*0.92, d["ink"], tracking=180); g.append(t)
+    g.append("</g>")
+    return "\n".join(g)
+
+def build_faithful():
+    d = dict(FAITHFUL); f = faces(d)
+    defs = (f'<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">'
+            f'<stop offset="0" stop-color="{d["bg"]}"/><stop offset="0.55" stop-color="#EE8F17"/>'
+            f'<stop offset="1" stop-color="{d["bg2"]}"/></linearGradient></defs>')
+    front = faithful_front(d, f)
+    guides = (f'<g id="guides" opacity="0.30">'
+              f'<rect x="{BLEED}" y="{BLEED}" width="{TRIM_W}" height="{TRIM_H}" fill="none" '
+              f'stroke="{d["ink"]}" stroke-width="2" stroke-dasharray="14 10"/>'
+              f'<line x1="{FRONT_X}" y1="{BLEED}" x2="{FRONT_X}" y2="{BLEED+TRIM_H}" '
+              f'stroke="{d["ink"]}" stroke-width="2" stroke-dasharray="6 8"/>'
+              f'<line x1="{BACK_X0}" y1="{BLEED}" x2="{BACK_X0}" y2="{BLEED+TRIM_H}" '
+              f'stroke="{d["ink"]}" stroke-width="2" stroke-dasharray="6 8"/></g>')
+    wrap = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {SHEET_W} {SHEET_H}" '
+            f'width="{SHEET_W/10}mm" height="{SHEET_H/10}mm">{defs}'
+            f'<rect width="{SHEET_W}" height="{SHEET_H}" fill="url(#bg)"/>'
+            + side_panel(d, f) + front + back_panel(d, f) + guides + "</svg>")
+    (OUT / "tanda-faithful-wrap.svg").write_text(wrap)
+    fsvg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{FRONT_X} {BLEED} {FRONT_W} {TRIM_H}" '
+            f'width="{FRONT_W/10}mm" height="{TRIM_H/10}mm">{defs}'
+            f'<rect x="{FRONT_X}" y="{BLEED}" width="{FRONT_W}" height="{TRIM_H}" fill="url(#bg)"/>'
+            + front + "</svg>")
+    (OUT / "tanda-faithful-front.svg").write_text(fsvg)
+    return "faithful"
