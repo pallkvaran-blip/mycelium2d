@@ -27,7 +27,14 @@ FONTS = Path("/tmp/claude-0/-home-user-mycelium2d/91519050-5269-59c0-aa35-618c65
 
 # dataviz reference palette. Both modes are selected from the same ramps; the dark
 # column is stepped for the dark surface rather than flipped from the light one.
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import brand_palette as B
+
 THEME = {
+    "brand": dict(surface=B.SURFACE, text1=B.TEXT_1, text2=B.TEXT_2, muted=B.MUTED,
+                  grid=B.GRID, axis=B.AXIS, series=B.DOT, accent=B.AMBER,
+                  wash=0.070, dot_alpha=0.52),
     "light": dict(surface="#fcfcfb", text1="#0b0b0b", text2="#52514e", muted="#898781",
                   grid="#e1e0d9", axis="#c3c2b7", series="#2a78d6", accent="#eb6834",
                   wash=0.055, dot_alpha=0.55),
@@ -128,7 +135,7 @@ def build(mode="light"):
              "Illustrative reconstruction: point positions are synthetic, the stated thresholds are not.",
              fontsize=10.5, color=t["muted"], ha="left", va="bottom")
 
-    suffix = "" if mode == "light" else "-dark"
+    suffix = {"light": "", "dark": "-dark", "brand": "-brand"}[mode]
     for ext in ("png", "svg"):
         fig.savefig(OUT / f"poverty-income{suffix}.{ext}", format=ext)
     plt.close(fig)
@@ -138,4 +145,4 @@ def build(mode="light"):
     print(f"wrote poverty-income{suffix}.png / .svg  ({mode})")
 
 if __name__ == "__main__":
-    for m in ("light", "dark"): build(m)
+    for m in ("light", "dark", "brand"): build(m)
