@@ -41,6 +41,34 @@ TEXT = (" Clear bold capital lettering, correctly spelled: CERTAINTY beside the 
 
 CLEAN = (" Absolutely no lettering, words, letters or numbers anywhere in the image.")
 
+# Scale variant: the hub-and-arrows centre becomes a two-pan balance WEIGHING the two
+# futures. Kept LEVEL rather than tipping -- a tipped beam states a verdict, and the
+# picture is about a choice not yet made.
+SUBJECT_SCALE = (
+    "The picture shows a choice between two futures being weighed, with no people in it. "
+    "On the LEFT, a large sprawling irregular network cloud of many nodes, tangled and "
+    "uneven, representing many uncertain outcomes, with a big question mark also made of "
+    "dots and links. On the RIGHT, a small tight perfectly regular lattice grid of dots, "
+    "orderly and repetitive, with an anchor made of dots and links at its centre. In the "
+    "MIDDLE and slightly larger than both, a classic two-pan BALANCE SCALE built from the "
+    "same dots and links: an upright central post, a horizontal beam across its top, and a "
+    "shallow pan hanging by fine threads from each end of the beam. The beam is exactly "
+    "level and the two pans hang at the same height, evenly balanced. The left pan hangs "
+    "towards the cloud and the right pan towards the lattice. The composition has three "
+    "clearly separated zones with generous empty white space between them: the cloud on "
+    "the left third, the balance scale alone in the middle third surrounded by white space, "
+    "and the lattice on the right third.")
+
+TEXT_SCALE = (
+    " Clear bold capital lettering, correctly spelled: CHOOSE GROWTH labelling the left pan "
+    "of the balance; PROTECT STATUS QUO labelling the right pan; CERTAINTY beside the anchor "
+    "on the right with the smaller line PREDICTABLE OUTCOMES, LIMITED CHANGE beneath it. In "
+    "the left cloud each of these ten words labels its own node: PROSPERITY, PEACE, "
+    "SECURITY, JOBS, TRANSFORMATION and INDUSTRIALIZATION in teal, and COMPETITION, "
+    "CONFLICT, INFIGHTING and DISAPPOINTMENT in warm amber. The labels are spread out and "
+    "never overlap each other. Each of those ten words appears exactly ONCE in the whole "
+    "picture; no word is repeated and no other words are added.")
+
 MODELS = {
     "nano":     ("google/nano-banana-pro",         {"aspect_ratio": "16:9", "resolution": "4K", "output_format": "png"}),
     "ideogram": ("ideogram-ai/ideogram-v3-quality", {"aspect_ratio": "16:9", "style_type": "Design", "magic_prompt_option": "Off"}),
@@ -75,6 +103,9 @@ def gen(tag, model_key, prompt):
 if __name__ == "__main__":
     if not TOKEN: sys.exit("REPLICATE_API_TOKEN not set")
     mode = sys.argv[1] if len(sys.argv) > 1 else "bakeoff"
-    tail = CLEAN if mode == "clean" else TEXT
+    if mode.startswith("scale"):
+        body, tail = SUBJECT_SCALE, TEXT_SCALE
+    else:
+        body, tail = SUBJECT, (CLEAN if mode == "clean" else TEXT)
     for mk in (sys.argv[2:] or MODELS):
-        gen(f"{mode}-{mk}", mk, STYLE + " " + SUBJECT + tail)
+        gen(f"{mode}-{mk}", mk, STYLE + " " + body + tail)
