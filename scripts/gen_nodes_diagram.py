@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# SUPERSEDED for this diagram -- see scripts/gen_diagram_raster.py. Hand-assembling the
+# picture in code read as mechanical; the owner rejected it and a single model composing
+# the whole frame at once (nano-banana-pro) produced the delivered version. Kept because
+# the meshing here is reusable: mask -> jittered triangular lattice -> Delaunay -> drop
+# triangles whose centroid falls outside the shape.
+#
 # "Choose growth vs protect the status quo", drawn in the networked-nodes style on white.
 #
 # The mesh is not decoration here -- it carries the argument. The LEFT side is an irregular,
