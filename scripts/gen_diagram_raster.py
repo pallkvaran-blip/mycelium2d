@@ -99,6 +99,26 @@ TEXT_NEQ = (
     "beside the bottom right cluster. Each phrase appears exactly once, no word is repeated "
     "and no other words are added. The labels never overlap the artwork.")
 
+# Four-step process spine. 21:9 rather than 16:9 -- the source is a wide strip, and
+# forcing it into 16:9 would stack the steps or leave dead bands top and bottom.
+SUBJECT_STEPS = (
+    "A horizontal FOUR-STEP process running left to right across the frame, with no people "
+    "in it. One straight horizontal spine line runs the full width of the picture. Four "
+    "evenly spaced diamond-shaped markers sit on that spine, each picked out in solid warm "
+    "amber gold, with a small arrowhead pointing right just before each diamond. Above the "
+    "spine, one icon per step, each built from the same dots and hairline links: the first "
+    "a magnifying glass, the second a lightbulb, the third a pair of overlapping speech "
+    "bubbles, the fourth two interlocking gears. Below the spine, a number and a short "
+    "label for each step. Generous white space above and below.")
+
+TEXT_STEPS = (
+    " Clear bold capital lettering, correctly spelled. Beneath the first diamond the "
+    "numeral 1 and the words FIND CHAMPION. Beneath the second the numeral 2 and the words "
+    "DIAGNOSE GROWTH CONSTRAINTS. Beneath the third the numeral 3 and the words DESIGN "
+    "SOLUTIONS. Beneath the fourth the numeral 4 and the word IMPLEMENT. The numerals are "
+    "warm amber gold and the labels deep navy. Each phrase appears exactly once, no word is "
+    "repeated and no other words are added.")
+
 MODELS = {
     "nano":     ("google/nano-banana-pro",         {"aspect_ratio": "16:9", "resolution": "4K", "output_format": "png"}),
     "ideogram": ("ideogram-ai/ideogram-v3-quality", {"aspect_ratio": "16:9", "style_type": "Design", "magic_prompt_option": "Off"}),
@@ -133,12 +153,14 @@ def gen(tag, model_key, prompt):
 if __name__ == "__main__":
     if not TOKEN: sys.exit("REPLICATE_API_TOKEN not set")
     mode = sys.argv[1] if len(sys.argv) > 1 else "bakeoff"
-    if mode.startswith("neq"):
+    if mode.startswith("steps"):
+        body, tail = SUBJECT_STEPS, TEXT_STEPS
+    elif mode.startswith("neq"):
         body, tail = SUBJECT_NEQ, TEXT_NEQ
     elif mode.startswith("scale"):
         body, tail = SUBJECT_SCALE, TEXT_SCALE
     else:
         body, tail = SUBJECT, (CLEAN if mode == "clean" else TEXT)
-    lead = STYLE_BRAND if mode.startswith("neq") else STYLE
+    lead = STYLE_BRAND if mode.startswith(("neq", "steps")) else STYLE
     for mk in (sys.argv[2:] or MODELS):
         gen(f"{mode}-{mk}", mk, lead + " " + body + tail)
