@@ -69,6 +69,36 @@ TEXT_SCALE = (
     "never overlap each other. Each of those ten words appears exactly ONCE in the whole "
     "picture; no word is repeated and no other words are added.")
 
+# "Economic growth is not the same thing as these three policy agendas." Brand palette
+# this time: navy mesh, amber accent, white ground. Only four labels here against the
+# previous diagram's thirteen, so the duplicate-word failure mode is far less likely --
+# still verified at native resolution before shipping.
+STYLE_BRAND = (
+    "Wide landscape diagram on a plain pure white background, drawn entirely in a "
+    "CONSTELLATION NETWORK style: everything is built from small circular dots joined by "
+    "thin straight hairline links into webs of slender triangles. Deep navy blue mesh with "
+    "warm amber gold accents. Clean, elegant, corporate, generous white space, flat 2D "
+    "vector, no photographic texture, no people.")
+
+SUBJECT_NEQ = (
+    "On the LEFT, one large dense cluster of navy nodes and links forming a rising arrow "
+    "climbing to the upper right, the shape of growth. In the MIDDLE, standing alone in "
+    "white space and larger than everything else, a bold NOT EQUAL TO sign -- an equals "
+    "sign of two horizontal bars with a diagonal stroke struck through them -- built from "
+    "the same dots and links but picked out in solid warm amber gold, the strongest element "
+    "in the picture. On the RIGHT, three separate smaller node clusters stacked vertically "
+    "and evenly spaced, each shaped like a simple icon: the top one a balance scale, the "
+    "middle one a cargo ship on a globe, the bottom one a factory with an upward arrow. "
+    "Thin links run from the left cluster to the amber sign, and from the sign to each of "
+    "the three clusters on the right.")
+
+TEXT_NEQ = (
+    " Clear bold capital lettering in deep navy, correctly spelled: ECONOMIC GROWTH "
+    "labelling the large cluster on the left; MACROECONOMIC STABILITY beside the top right "
+    "cluster; EXPORT ORIENTATION beside the middle right cluster; TARGETED INVESTMENT "
+    "beside the bottom right cluster. Each phrase appears exactly once, no word is repeated "
+    "and no other words are added. The labels never overlap the artwork.")
+
 MODELS = {
     "nano":     ("google/nano-banana-pro",         {"aspect_ratio": "16:9", "resolution": "4K", "output_format": "png"}),
     "ideogram": ("ideogram-ai/ideogram-v3-quality", {"aspect_ratio": "16:9", "style_type": "Design", "magic_prompt_option": "Off"}),
@@ -103,9 +133,12 @@ def gen(tag, model_key, prompt):
 if __name__ == "__main__":
     if not TOKEN: sys.exit("REPLICATE_API_TOKEN not set")
     mode = sys.argv[1] if len(sys.argv) > 1 else "bakeoff"
-    if mode.startswith("scale"):
+    if mode.startswith("neq"):
+        body, tail = SUBJECT_NEQ, TEXT_NEQ
+    elif mode.startswith("scale"):
         body, tail = SUBJECT_SCALE, TEXT_SCALE
     else:
         body, tail = SUBJECT, (CLEAN if mode == "clean" else TEXT)
+    lead = STYLE_BRAND if mode.startswith("neq") else STYLE
     for mk in (sys.argv[2:] or MODELS):
-        gen(f"{mode}-{mk}", mk, STYLE + " " + body + tail)
+        gen(f"{mode}-{mk}", mk, lead + " " + body + tail)
