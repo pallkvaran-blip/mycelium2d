@@ -8,7 +8,7 @@
 # Ideogram was the strongest speller in the label bake-off, nano-banana-pro the highest
 # resolution. If none can spell it, the fallback is to generate the artwork text-free and
 # set the labels as real type, exactly as the Tanda labels ended up.
-import json, os, subprocess, sys, time
+import json, os, subprocess, sys, tempfile, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,6 +119,41 @@ TEXT_STEPS = (
     "warm amber gold and the labels deep navy. Each phrase appears exactly once, no word is "
     "repeated and no other words are added.")
 
+# Round 2 on the process strip. Round 1 did not match the rest of the set: the spine
+# markers, the arrowheads and the numerals came back as SOLID FILLED amber shapes, and the
+# icons were small and dense. In the accepted diagrams every element without exception is
+# an open mesh of dots and hairline links, drawn large and airy. So this round (a) passes
+# the accepted diagram in as an image_input style reference, and (b) says outright that the
+# markers and numerals are meshes too -- naming the specific elements that came back solid,
+# since "constellation style" alone clearly did not reach them.
+SUBJECT_STEPS2 = (
+    "Match the drawing style of the reference image exactly: every element without "
+    "exception is built from small round dots joined by thin straight hairline links into "
+    "open webs of slender triangles, drawn large and airy with clear space between the "
+    "dots. Nothing is a solid filled shape. "
+    "The picture is a horizontal FOUR-STEP process running left to right, with no people. "
+    "One straight horizontal spine line runs the full width. Four evenly spaced diamond "
+    "markers sit on that spine, and a small arrowhead points right just before each one -- "
+    "the diamonds and the arrowheads are themselves open meshes of amber dots and links, "
+    "with visible dots at each corner. Above the spine, one large icon per step, each an "
+    "open mesh: the first a magnifying glass, the second a lightbulb, the third a pair of "
+    "overlapping speech bubbles, the fourth two interlocking gears. Below the spine, a "
+    "large numeral for each step, the numeral itself drawn as an open mesh of amber dots "
+    "and links, with its label beneath it.")
+
+BALANCE_STEPS = (
+    " Deep navy carries almost everything: all four icons are navy meshes, each lifted by "
+    "only a handful of amber dots scattered among their navy ones. Amber is reserved for "
+    "the spine diamonds, the arrowheads and the four numerals. Roughly one part amber to "
+    "six parts navy overall.")
+
+TEXT_STEPS2 = (
+    " Only the four labels are ordinary solid lettering, in deep navy, correctly spelled: "
+    "FIND CHAMPION under the first step, DIAGNOSE GROWTH CONSTRAINTS under the second, "
+    "DESIGN SOLUTIONS under the third, IMPLEMENT under the fourth. Each phrase appears "
+    "exactly once, no word is repeated and no other words are added. The labels are set "
+    "in bold.")
+
 MODELS = {
     "nano":     ("google/nano-banana-pro",         {"aspect_ratio": "16:9", "resolution": "4K", "output_format": "png"}),
     "ideogram": ("ideogram-ai/ideogram-v3-quality", {"aspect_ratio": "16:9", "style_type": "Design", "magic_prompt_option": "Off"}),
@@ -135,8 +170,14 @@ def gen(tag, model_key, prompt):
     if dest.exists(): print(f"skip {tag}"); return dest
     slug, extra = MODELS[model_key]
     body = json.dumps({"input": dict(prompt=prompt, **extra)})
-    d = curl_json(["-H",f"Authorization: Bearer {TOKEN}","-H","Content-Type: application/json",
-                   "-d",body,f"https://api.replicate.com/v1/models/{slug}/predictions"])
+    bf = Path(tempfile.mkstemp(suffix=".json")[1])
+    bf.write_text(body)
+    try:
+        d = curl_json(["-H",f"Authorization: Bearer {TOKEN}","-H","Content-Type: application/json",
+                       "--data-binary",f"@{bf}",
+                       f"https://api.replicate.com/v1/models/{slug}/predictions"])
+    finally:
+        bf.unlink(missing_ok=True)
     get = (d.get("urls") or {}).get("get")
     if not get: print(f"{tag}: create failed -> {d.get('detail') or d.get('_raw')}"); return None
     for _ in range(150):
